@@ -40,7 +40,7 @@ print("\n- Current server power state is: %s, setting new server power state to:
 url = 'https://%s/redfish/v1/Systems/System.Embedded.1/Actions/ComputerSystem.Reset' % idrac_ip
 payload = {'ResetType': power_state_option}
 headers = {'content-type': 'application/json'}
-response = requests.post(url, data=json.dumps(payload), headers=headers, verify=False, auth=('root','calvin'))
+response = requests.post(url, data=json.dumps(payload), headers=headers, verify=False, auth=(idrac_username,idrac_password))
 
 statusCode = response.status_code
 if statusCode == 204:
