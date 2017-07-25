@@ -37,7 +37,8 @@ except:
 def set_bios_reset_to_default():
     url = "https://%s/redfish/v1/Systems/System.Embedded.1/Bios/Actions/Bios.ResetBios/" % idrac_ip
     headers = {'content-type': 'application/json'}
-    response = requests.post(url, headers=headers, verify=False,auth=(idrac_username, idrac_password))
+    payload = {"Actions":{"Bios.ChangePassword":{"target":"/redfish/v1/Systems/System.Embedded.1/Bios/Actions/Bios.ChangePassword"}}}
+    response = requests.post(url, data=json.dumps(payload), headers=headers, verify=False,auth=(idrac_username, idrac_password))
     data = response.json()
     statusCode = response.status_code
     if statusCode == 200:
