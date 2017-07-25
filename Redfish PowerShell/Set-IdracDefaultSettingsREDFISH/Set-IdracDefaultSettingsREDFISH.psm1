@@ -78,7 +78,7 @@ $pass= $idrac_password
 $secpasswd = ConvertTo-SecureString $pass -AsPlainText -Force
 $credential = New-Object System.Management.Automation.PSCredential($user, $secpasswd)
 
-$JsonBody = @{'ResetType'= 'All'} | ConvertTo-Json
+$JsonBody = @{'ResetType'= 'All'} | ConvertTo-Json -Compress
 
 $u1 = "https://$idrac_ip/redfish/v1/Managers/iDRAC.Embedded.1/Actions/Oem/DellManager.ResetToDefaults"
 $result1 = Invoke-WebRequest -Uri $u1 -Credential $credential -Method Post -Body $JsonBody -ContentType 'application/json'

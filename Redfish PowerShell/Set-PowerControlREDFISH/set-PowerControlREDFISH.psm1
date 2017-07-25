@@ -1,6 +1,6 @@
 <#
 _author_ = Texas Roemer <Texas_Roemer@Dell.com>
-_version_ = 1.0
+_version_ = 2.0
 
 Copyright (c) 2017, Dell, Inc.
 
@@ -137,7 +137,7 @@ return
 # POST command to set server power state
 
 $JsonBody = @{ "ResetType" = $power_request_value
-    } | ConvertTo-Json
+    } | ConvertTo-Json -Compress
 
 
 $u4 = "https://$idrac_ip/redfish/v1/Systems/System.Embedded.1/Actions/ComputerSystem.Reset"

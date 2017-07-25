@@ -1,1 +1,1 @@
-MemTest:Enabled|EmbSata:RaidMode|ControlledTurbo:Enabled|LogicalProc:Disabled|ProcAdjCacheLine:Disabled|ProcHwPrefetcher:Disabled
+MemTest:Enabled|EmbSata:RaidMode

@@ -1,6 +1,6 @@
 <#
 _author_ = Texas Roemer <Texas_Roemer@Dell.com>
-_version_ = 1.0
+_version_ = 2.0
 
 Copyright (c) 2017, Dell, Inc.
 
@@ -150,7 +150,7 @@ $attribute_value = [int]$attribute_value
 
 $JsonBody = @{ Attributes = @{
     "$attribute_name"=$attribute_value
-    }} | ConvertTo-Json
+    }} | ConvertTo-Json -Compress
 
 # PATCH command to set attribute pending value
 
@@ -170,7 +170,7 @@ else
 
 
 $JsonBody = @{ "TargetSettingsURI" ="/redfish/v1/Systems/System.Embedded.1/Bios/Settings"
-    } | ConvertTo-Json
+    } | ConvertTo-Json -Compress
 
 
 $u2 = "https://$idrac_ip/redfish/v1/Managers/iDRAC.Embedded.1/Jobs"
@@ -178,7 +178,7 @@ $u2 = "https://$idrac_ip/redfish/v1/Managers/iDRAC.Embedded.1/Jobs"
 # POST command to create BIOS config job and schedule it
 
 $result1 = Invoke-WebRequest -Uri $u2 -Credential $credential -Method Post -Body $JsonBody -ContentType 'application/json'
-$get_raw_content=$result1.RawContent | ConvertTo-Json
+$get_raw_content=$result1.RawContent | ConvertTo-Json -Compress
 $job_status_search=[regex]::Match($get_raw_content, "JID_.+?r").captures.groups[0].value
 $job_id=$job_status_search.Replace("\r","")
 Start-Sleep 3
@@ -248,7 +248,7 @@ Write-Host "- WARNING, Server current power state is OFF"
 if ($power_state -eq '"On"')
 {
 $JsonBody = @{ "ResetType" = "ForceOff"
-    } | ConvertTo-Json
+    } | ConvertTo-Json -Compress
 
 $u4 = "https://$idrac_ip/redfish/v1/Systems/System.Embedded.1/Actions/ComputerSystem.Reset"
 $result1 = Invoke-WebRequest -Uri $u4 -Credential $credential -Method Post -Body $JsonBody -ContentType 'application/json'
@@ -265,7 +265,7 @@ else
 }
 
 $JsonBody = @{ "ResetType" = "On"
-    } | ConvertTo-Json
+    } | ConvertTo-Json -Compress
 
 
 $u4 = "https://$idrac_ip/redfish/v1/Systems/System.Embedded.1/Actions/ComputerSystem.Reset"
@@ -290,7 +290,7 @@ else
 # POST command to power ON the server
 
 $JsonBody = @{ "ResetType" = "On"
-    } | ConvertTo-Json
+    } | ConvertTo-Json -Compress
 
 $u4 = "https://$idrac_ip/redfish/v1/Systems/System.Embedded.1/Actions/ComputerSystem.Reset"
 $result1 = Invoke-WebRequest -Uri $u4 -Credential $credential -Method Post -Body $JsonBody -ContentType 'application/json'

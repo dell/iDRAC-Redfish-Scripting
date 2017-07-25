@@ -121,12 +121,12 @@ return
 
 $JsonBody = @{ Boot = @{
     "BootSourceOverrideTarget"=$next_onetime_boot_device
-    }} | ConvertTo-Json
+    }} | ConvertTo-Json -Compress
 
 
 $u = "https://$idrac_ip/redfish/v1/Systems/System.Embedded.1"
 $result1 = Invoke-WebRequest -Uri $u -Credential $credential -Method Patch -Body $JsonBody -ContentType 'application/json'
-$q=$result1.RawContent | ConvertTo-Json
+$q=$result1.RawContent | ConvertTo-Json -Compress
 
 
 if ($result1.StatusCode -eq 200)
@@ -147,7 +147,7 @@ if ($reboot_now -eq "y")
 Write-Host "- WARNING, user selected to automatically reboot the server now and boot to onetime boot device`n"
 
 $JsonBody = @{ "ResetType" = "ForceOff"
-    } | ConvertTo-Json
+    } | ConvertTo-Json -Compress
 
 
 $u4 = "https://$idrac_ip/redfish/v1/Systems/System.Embedded.1/Actions/ComputerSystem.Reset"
@@ -165,7 +165,7 @@ else
 }
 
 $JsonBody = @{ "ResetType" = "On"
-    } | ConvertTo-Json
+    } | ConvertTo-Json -Compress
 
 
 $u4 = "https://$idrac_ip/redfish/v1/Systems/System.Embedded.1/Actions/ComputerSystem.Reset"

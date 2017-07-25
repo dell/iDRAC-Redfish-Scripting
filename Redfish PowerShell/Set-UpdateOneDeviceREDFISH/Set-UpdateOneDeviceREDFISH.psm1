@@ -1,6 +1,6 @@
 <#
 _author_ = Texas Roemer <Texas_Roemer@Dell.com>
-_version_ = 1.0
+_version_ = 2.0
 
 Copyright (c) 2017, Dell, Inc.
 
@@ -273,7 +273,7 @@ Write-Host "- WARNING, graceful shutdown of the server failed after retries for 
 Write-Host
 $force_count++
 $JsonBody = @{ "ResetType" = "ForceOff"
-    } | ConvertTo-Json
+    } | ConvertTo-Json -Compress 
 
 
 $u4 = "https://$idrac_ip/redfish/v1/Systems/System.Embedded.1/Actions/ComputerSystem.Reset"
@@ -294,7 +294,7 @@ else
 }
 
 $JsonBody = @{ "ResetType" = "On"
-    } | ConvertTo-Json
+    } | ConvertTo-Json -Compress
 
 
 $u4 = "https://$idrac_ip/redfish/v1/Systems/System.Embedded.1/Actions/ComputerSystem.Reset"

@@ -141,7 +141,7 @@ $input_key_values.Split('|') |ForEach-Object {
 
 $dict_final=@{"Attributes"=""}
 $dict_final.("Attributes")=$dict 
-$JsonBody = $dict_final | ConvertTo-Json
+$JsonBody = $dict_final | ConvertTo-Json -Compress
 
 # Create hashtable for attribute pending values which will be used to compare against new values at the end of the script
 
@@ -175,7 +175,7 @@ else
 
 
 $JsonBody = @{ "TargetSettingsURI" ="/redfish/v1/Systems/System.Embedded.1/Bios/Settings"
-    } | ConvertTo-Json
+    } | ConvertTo-Json -Compress
 
 
 $u2 = "https://$idrac_ip/redfish/v1/Managers/iDRAC.Embedded.1/Jobs"
@@ -183,7 +183,7 @@ $u2 = "https://$idrac_ip/redfish/v1/Managers/iDRAC.Embedded.1/Jobs"
 # POST command to create BIOS config job
 
 $result1 = Invoke-WebRequest -Uri $u2 -Credential $credential -Method Post -Body $JsonBody -ContentType 'application/json'
-$raw_content=$result1.RawContent | ConvertTo-Json
+$raw_content=$result1.RawContent | ConvertTo-Json -Compress
 $jobID_search=[regex]::Match($raw_content, "JID_.+?r").captures.groups[0].value
 $job_id=$jobID_search.Replace("\r","")
 Start-Sleep 3
@@ -220,7 +220,7 @@ Exit
 
 
 $JsonBody = @{ "ResetType" = "ForceOff"
-    } | ConvertTo-Json
+    } | ConvertTo-Json -Compress
 
 
 $u4 = "https://$idrac_ip/redfish/v1/Systems/System.Embedded.1/Actions/ComputerSystem.Reset"
@@ -242,7 +242,7 @@ else
 }
 
 $JsonBody = @{ "ResetType" = "On"
-    } | ConvertTo-Json
+    } | ConvertTo-Json -Compress
 
 
 $u4 = "https://$idrac_ip/redfish/v1/Systems/System.Embedded.1/Actions/ComputerSystem.Reset"

@@ -14,7 +14,7 @@ http://www.gnu.org/licenses/old-licenses/gpl-2.0.txt
 
 <#
 .Synopsis
-  Cmdlet used to export or import server configuration profile to network share
+  Cmdlet used to export or import server configuration profile to either NFS or CIFS share (SCP). This script is only supported on iDRAC8 2.41 version.
 .DESCRIPTION
    Cmdlet used to export or import server configuration profile or SCP. It will call either ExportSystemConfiguration or ImportSystemConfiguration method.
    - idrac_ip (iDRAC IP) REQUIRED
@@ -23,12 +23,12 @@ http://www.gnu.org/licenses/old-licenses/gpl-2.0.txt
    - Method (Supported values: Export or Import) REQUIRED
    - network_share_IPAddress (Supported value: IP address of your network share) REQUIRED
    - ShareName (Supported value: Name of your network share) REQUIRED
-   - ShareType (Supported values: NFS, CIFS, HTTP and HTTPS) REQUIRED
+   - ShareType (Supported values: NFS, CIFS) REQUIRED
    - FileName (Supported value: Pass in a name of the exported or imported file) REQUIRED
    - Username (Supported value: Name of your username that has access to CIFS share) REQUIRED only for CIFS
    - Password (Supported value: Name of your user password that has access to CIFS share) REQUIRED only for CIFS
    - Target (Supported values: ALL, RAID, BIOS, iDRAC, NIC, FC, LifecycleController, System, Alerts) REQUIRED
-   - ExportFormat (supported values: XML or JSON) REQUIRED for Export only
+   - ExportFormat (supported values: XML) REQUIRED for Export only
    - ExportUse (Supported values: Default, Clone and Replace) OPTIONAL for export only. If not passed in, value will be "Default" used.
    - ShutdownType (Supported values: Graceful, Forced and NoReboot) OPTIONAL, only valid for import, if you don't pass in this parameter, default value will be"Graceful"
   
@@ -41,7 +41,7 @@ http://www.gnu.org/licenses/old-licenses/gpl-2.0.txt
    Set-ExportImportServerConfigurationProfile -idrac_ip 192.168.0.120 -idrac_username root -idrac_password calvin -Method import -IPAddress 192.168.0.130 -ShareType CIFS -ShareName cifs -Username administrator - Password password -Target RAID -FileName export_ps.xml
 #>
 
-function Set-ExportImportServerConfigurationProfileREDFISH {
+function Set-ExportImportServerConfigurationProfileREDFISH_iDRAC8_only {
 
 param(
     [Parameter(Mandatory=$True)]
@@ -77,23 +77,23 @@ param(
 # Building the hash table for export or import operation
 
 
-if ($ShareType -eq "NFS" -or $ShareType -eq "HTTP" -or $ShareType -eq "HTTPS" -and $Method -eq "Export")
+if ($ShareType -eq "NFS" -and $Method -eq "Export")
 {
 $share_info=@{"ExportFormat"=$ExportFormat;"ShareParameters"=@{"Target"=$Target;"IPAddress"=$network_share_IPAddress;"ShareName"=$ShareName;"ShareType"=$ShareType;"FileName"=$FileName}}
 }
 
-if ($ShareType -eq "NFS" -or $ShareType -eq "HTTP" -or $ShareType -eq "HTTPS" -and $Method -eq "Export" -and $ExportUse)
+if ($ShareType -eq "NFS" -and $Method -eq "Export" -and $ExportUse)
 {
 $share_info=@{"ExportFormat"=$ExportFormat;"ExportUse"=$ExportUse;"ShareParameters"=@{"Target"=$Target;"IPAddress"=$network_share_IPAddress;"ShareName"=$ShareName;"ShareType"=$ShareType;"FileName"=$FileName}}
 }
 
 
-if ($ShareType -eq "NFS" -or $ShareType -eq "HTTP" -or $ShareType -eq "HTTPS" -and $Method -eq "Import")
+if ($ShareType -eq "NFS" -and $Method -eq "Import")
 {
 $share_info=@{"ShareParameters"=@{"Target"=$Target;"IPAddress"=$network_share_IPAddress;"ShareName"=$ShareName;"ShareType"=$ShareType;"FileName"=$FileName}}
 }
 
-if ($ShareType -eq "NFS" -or $ShareType -eq "HTTP" -or $ShareType -eq "HTTPS" -and $Method -eq "Import" -and $ShutdownType)
+if ($ShareType -eq "NFS" -and $Method -eq "Import" -and $ShutdownType)
 {
 $share_info=@{"ShutdownType"=$ShutdownType;"ShareParameters"=@{"Target"=$Target;"IPAddress"=$network_share_IPAddress;"ShareName"=$ShareName;"ShareType"=$ShareType;"FileName"=$FileName}}
 }
@@ -173,7 +173,7 @@ $u = "https://$idrac_ip/redfish/v1/Managers/iDRAC.Embedded.1/Actions/Oem/$full_m
 # POST command to import or export server configuration profile file
 
 $result1 = Invoke-WebRequest -Uri $u -Credential $credential -Method Post -Body $JsonBody -ContentType 'application/json'
-$raw_content_output=$result1.RawContent | ConvertTo-Json -Compress
+$raw_content_output=$result1.RawContent | ConvertTo-Json
 $job_id_search=[regex]::Match($raw_content_output, "JID_.+?r").captures.groups[0].value
 $job_id=$job_id_search.Replace("\r","")
 
@@ -190,6 +190,7 @@ else
     return
 }
 
+<#
 $overall_job_output=""
 
 $get_time_old=Get-Date -DisplayHint Time
@@ -268,4 +269,5 @@ $final_completion_time=$final_time | select Minutes,Seconds
 Write-Host "  Job completed in $final_completion_time"
 return
 
+#>
 }

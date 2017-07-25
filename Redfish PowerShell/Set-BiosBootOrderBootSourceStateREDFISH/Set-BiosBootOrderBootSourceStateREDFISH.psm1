@@ -226,7 +226,7 @@ catch [System.Management.Automation.ActionPreferenceStopException] {
     Write-Host "- WARNING, boot_devices.txt file not detected" 
 }
 $get_content_convert=$result.Content | ConvertFrom-Json
-$write_json_to_file=@{"Attributes"=$get_content_convert.Attributes} | ConvertTo-Json -Depth 3
+$write_json_to_file=@{"Attributes"=$get_content_convert.Attributes} | ConvertTo-Json -Compress -Depth 3
 
 $write_json_to_file | Out-String | Add-Content boot_devices.txt
 Write-Host -Foreground Yellow "`n- WARNING, current boot source state and boot order copied to ""boot_devices.txt"" file. This file is needed to either change boot order/boot source state or both."
@@ -253,12 +253,12 @@ else
 
 
 $JsonBody = @{ "TargetSettingsURI" ="/redfish/v1/Systems/System.Embedded.1/Bios/Settings"
-    } | ConvertTo-Json
+    } | ConvertTo-Json -Compress
 
 
 $u2 = "https://$idrac_ip/redfish/v1/Managers/iDRAC.Embedded.1/Jobs"
 $result1 = Invoke-WebRequest -Uri $u2 -Credential $credential -Method Post -Body $JsonBody -ContentType 'application/json'
-$raw_output=$result1.RawContent | ConvertTo-Json
+$raw_output=$result1.RawContent | ConvertTo-Json -Compress
 $job_search=[regex]::Match($raw_output, "JID_.+?r").captures.groups[0].value
 $job_id=$job_search.Replace("\r","")
 Start-Sleep 3
@@ -292,7 +292,7 @@ return
 
 
 $JsonBody = @{ "ResetType" = "ForceOff"
-    } | ConvertTo-Json
+    } | ConvertTo-Json -Compress
 
 
 $u4 = "https://$idrac_ip/redfish/v1/Systems/System.Embedded.1/Actions/ComputerSystem.Reset"
@@ -310,7 +310,7 @@ else
 }
 
 $JsonBody = @{ "ResetType" = "On"
-    } | ConvertTo-Json
+    } | ConvertTo-Json -Compress
 
 
 $u4 = "https://$idrac_ip/redfish/v1/Systems/System.Embedded.1/Actions/ComputerSystem.Reset"

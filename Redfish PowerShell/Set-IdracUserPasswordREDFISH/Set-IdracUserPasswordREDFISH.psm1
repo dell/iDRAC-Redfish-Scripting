@@ -84,7 +84,7 @@ $secpasswd = ConvertTo-SecureString $pass -AsPlainText -Force
 $credential = New-Object System.Management.Automation.PSCredential($user, $secpasswd)
 
 
-$JsonBody = @{'Password'= $idrac_new_password} | ConvertTo-Json
+$JsonBody = @{'Password'= $idrac_new_password} | ConvertTo-Json -Compress
 
 
 $u1 = "https://$idrac_ip/redfish/v1/Managers/iDRAC.Embedded.1/Accounts/$idrac_user_id"

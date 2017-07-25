@@ -138,7 +138,7 @@ catch [System.Management.Automation.ActionPreferenceStopException] {
 }
 
 Write-Host -ForegroundColor Yellow "`n- WARNING, Attributes also copied to ""attributes.txt"" file"
-$final_all_attributes=$get_all_attributes.Attributes | ConvertTo-Json
+$final_all_attributes=$get_all_attributes.Attributes | ConvertTo-Json -Compress
 foreach ($i in $final_all_attributes)
 {
 Add-Content attributes.txt $i
@@ -178,7 +178,7 @@ $input_key_values.Split('|') |ForEach-Object {
 
 $dict_final=@{"Attributes"=""}
 $dict_final.("Attributes")=$dict 
-$JsonBody = $dict_final | ConvertTo-Json
+$JsonBody = $dict_final | ConvertTo-Json -Compress
 
 # Create hashtable for setting attribute new values which will be used to compare against new values at the end of the script
 
@@ -202,7 +202,7 @@ Write-Host
 # PATCH command to set attribute pending value
 
 $result1 = Invoke-WebRequest -Uri $u -Credential $credential -Method Patch -Body $JsonBody -ContentType 'application/json'
-#$raw_content=$result1.RawContent | ConvertTo-Json
+#$raw_content=$result1.RawContent | ConvertTo-Json -Compress
 
 
 if ($result1.StatusCode -eq 200)

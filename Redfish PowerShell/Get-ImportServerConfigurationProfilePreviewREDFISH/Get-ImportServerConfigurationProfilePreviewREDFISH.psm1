@@ -81,7 +81,7 @@ Write-Host "ShareParameters details:"
 Write-Host
 $share_info.ShareParameters
 
-$JsonBody = $share_info | ConvertTo-Json
+$JsonBody = $share_info | ConvertTo-Json -Compress
 
 
 function Ignore-SSLCertificates
@@ -126,7 +126,7 @@ $u = "https://$idrac_ip/redfish/v1/Managers/iDRAC.Embedded.1/Actions/Oem/$full_m
 # POST command to import preview configuration file
 
 $result1 = Invoke-WebRequest -Uri $u -Credential $credential -Method Post -Body $JsonBody -ContentType 'application/json'
-$raw_content=$result1.RawContent | ConvertTo-Json
+$raw_content=$result1.RawContent | ConvertTo-Json -Compress
 $job_id_search=[regex]::Match($raw_content, "JID_.+?r").captures.groups[0].value
 $job_id=$job_id_search.Replace("\r","")
 
