@@ -4,7 +4,7 @@
 # NOTE: Recommended to run this script first to get current server power state before executing SetPowerStateREDFISH script.
 #
 # _author_ = Texas Roemer <Texas_Roemer@Dell.com>
-# _version_ = 1.0
+# _version_ = 2.0
 #
 # Copyright (c) 2017, Dell, Inc.
 #
@@ -35,6 +35,7 @@ response = requests.get('https://%s/redfish/v1/Systems/System.Embedded.1/' % idr
 data = response.json()
 print("\n- WARNING, Current server power state is: %s\n" % data[u'PowerState'])
 
-print("- Supported values for server power control:\n\n- On\n- ForceOff\n- GracefulRestart\n- GracefulShutdown")
-
+print("- Supported values for server power control are:\n")
+for i in data[u'Actions'][u'#ComputerSystem.Reset'][u'ResetType@Redfish.AllowableValues']:
+    print(i)
 
