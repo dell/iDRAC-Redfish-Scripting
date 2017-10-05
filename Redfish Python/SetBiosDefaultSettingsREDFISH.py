@@ -4,7 +4,7 @@
 # NOTE: For reboot_now option, pass in "y" if you want to reboot the server now or "n" which will still set the flag to set BIOS to default settings but not reboot the server now. Reset to default will get applied when the next manual reboot of the server occurs.
 #
 # _author_ = Texas Roemer <Texas_Roemer@Dell.com>
-# _version_ = 1.0
+# _version_ = 2.0
 #
 # Copyright (c) 2017, Dell, Inc.
 #
@@ -37,8 +37,7 @@ except:
 def set_bios_reset_to_default():
     url = "https://%s/redfish/v1/Systems/System.Embedded.1/Bios/Actions/Bios.ResetBios/" % idrac_ip
     headers = {'content-type': 'application/json'}
-    payload = {"Actions":{"Bios.ChangePassword":{"target":"/redfish/v1/Systems/System.Embedded.1/Bios/Actions/Bios.ChangePassword"}}}
-    response = requests.post(url, data=json.dumps(payload), headers=headers, verify=False,auth=(idrac_username, idrac_password))
+    response = requests.post(url, headers=headers, verify=False,auth=(idrac_username, idrac_password))
     data = response.json()
     statusCode = response.status_code
     if statusCode == 200:
