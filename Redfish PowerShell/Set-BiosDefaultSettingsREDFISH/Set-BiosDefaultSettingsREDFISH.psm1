@@ -1,6 +1,6 @@
 <#
 _author_ = Texas Roemer <Texas_Roemer@Dell.com>
-_version_ = 1.0
+_version_ = 2.0
 
 Copyright (c) 2017, Dell, Inc.
 
@@ -87,9 +87,7 @@ $credential = New-Object System.Management.Automation.PSCredential($user, $secpa
 
 $u2 = "https://$idrac_ip/redfish/v1/Systems/System.Embedded.1/Bios/Actions/Bios.ResetBios/"
 
-$JsonBody = @{"Actions"=@{"Bios.ChangePassword"=@{"target"="/redfish/v1/Systems/System.Embedded.1/Bios/Actions/Bios.ChangePassword"}}} | ConvertTo-Json -Compress
-
-$result1 = Invoke-WebRequest -Uri $u2 -Credential $credential -Method Post -ContentType 'application/json' -Body $JsonBody
+$result1 = Invoke-WebRequest -Uri $u2 -Credential $credential -Method Post -ContentType 'application/json'
 Start-Sleep 5
 
 if ($result1.StatusCode -eq 200)
