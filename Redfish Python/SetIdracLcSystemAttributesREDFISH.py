@@ -39,7 +39,7 @@ except:
 
 file_attributes_dict = {"Telnet.1.Enable":"Enabled","VirtualMedia.1.FloppyEmulation":"Enabled","EmailAlert.2.Address":"user@email.com"}
 
-### Function to set attributes new values from "set_iDRAC_LC_System_attributes.txt" file
+### Function to set attributes from "file_attributes_dict" dictionary
 
 def set_attributes():
     print("- WARNING, changing %s attributes:\n" % attribute_group.upper())
