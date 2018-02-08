@@ -1,6 +1,6 @@
 <#
 _author_ = Texas Roemer <Texas_Roemer@Dell.com>
-_version_ = 2.0
+_version_ = 3.0
 
 Copyright (c) 2017, Dell, Inc.
 
@@ -106,11 +106,22 @@ $pass= $idrac_password
 $secpasswd = ConvertTo-SecureString $pass -AsPlainText -Force
 $credential = New-Object System.Management.Automation.PSCredential($user, $secpasswd)
 
+# Check iDRAC version to see if Redfish update features are supported
 
 $u = "https://$idrac_ip/redfish/v1/UpdateService/FirmwareInventory"
+try
+{
+$result = Invoke-WebRequest -Uri $u -Credential $credential -Method Get -UseBasicParsing
+}
+catch
+{
+Write-Host "`n- WARNING, current server iDRAC version does not support Redfish firmware features. Refer to Dell online Redfish documentation for information on which iDRAC version supports firmware features." 
+Exit
+}
 
 # GET command to get software inventory for all devices
 
+$u = "https://$idrac_ip/redfish/v1/UpdateService/FirmwareInventory"
 $result = Invoke-WebRequest -Uri $u -Credential $credential -Method Get -UseBasicParsing 
 $ETag=$result.Headers.ETag
 $matches = ([regex]'Installed-.+?}').Matches($result)
