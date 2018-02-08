@@ -6,7 +6,7 @@
 # NOTE: Supported values for Install_Option are: Now, NowAndReboot and NextReboot. Make sure you pass in the exact value as stated (values are case sensitive). For NextReboot value, the update job will still get created and scheduled but will not get applied until the next server reboot executed by the user.
 #
 # _author_ = Texas Roemer <Texas_Roemer@Dell.com>
-# _version_ = 1.0
+# _version_ = 2.0
 #
 # Copyright (c) 2017, Dell, Inc.
 #
@@ -49,6 +49,16 @@ elif Install_Option == "nextreboot":
 else:
     install_option = Install_Option
 
+    # Function to check if current iDRAC version supports Redfish firmware features
+
+def check_idrac_fw_support():
+    req = requests.get('https://%s/redfish/v1/UpdateService/FirmwareInventory/' % (idrac_ip), auth=(idrac_username, idrac_password), verify=False)
+    statusCode = req.status_code
+    if statusCode == 400:
+        print("\n- WARNING, current server iDRAC version does not support Redfish firmware features. Refer to Dell online Redfish documentation for information on which iDRAC version support firmware features.")
+        sys.exit()
+    else:
+        pass
 
 # Function to download the image payload to the iDRAC
 
@@ -219,6 +229,7 @@ def check_job_status():
 
 # Run code here
 
+check_idrac_fw_support()
 download_image_payload()
 install_image_payload()
 if install_option == "NowAndReboot" or install_option == "Now":
