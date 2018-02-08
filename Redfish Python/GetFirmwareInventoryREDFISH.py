@@ -6,7 +6,7 @@
 # 
 #
 # _author_ = Texas Roemer <Texas_Roemer@Dell.com>
-# _version_ = 1.0
+# _version_ = 2.0
 #
 # Copyright (c) 2017, Dell, Inc.
 #
@@ -32,7 +32,16 @@ except:
     print("\n- FAIL, you must pass in script name along with iDRAC IP / iDRAC username / iDRAC password. Example: \"script_name.py 192.168.0.120 root calvin\"")
     sys.exit()
     
+# Function to check if current iDRAC version supports Redfish firmware features
 
+def check_idrac_fw_support():
+    req = requests.get('https://%s/redfish/v1/UpdateService/FirmwareInventory/' % (idrac_ip), auth=(idrac_username, idrac_password), verify=False)
+    statusCode = req.status_code
+    if statusCode == 400:
+        print("\n- WARNING, current server iDRAC version does not support Redfish firmware features. Refer to Dell online Redfish documentation for information on which iDRAC version support firmware features.")
+        sys.exit()
+    else:
+        pass
 
 # Function to get FW inventory
 
@@ -78,6 +87,7 @@ def get_FW_inventory():
 
 # Run code here
 
+check_idrac_fw_support()
 get_FW_inventory()
 
 
