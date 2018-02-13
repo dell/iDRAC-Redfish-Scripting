@@ -8,7 +8,7 @@
 # NOTE: If you select no to not reboot the server now, one time boot device for next boot will still be set but will not boot to that device until next manual server reboot.
 #
 # _author_ = Texas Roemer <Texas_Roemer@Dell.com>
-# _version_ = 1.0
+# _version_ = 2.0
 #
 # Copyright (c) 2017, Dell, Inc.
 #
@@ -29,12 +29,13 @@ warnings.filterwarnings("ignore")
 
 
 parser = argparse.ArgumentParser(description='Python script using Redfish API to get current next boot onetime boot setting and supported values or set next boot onetime boot device.')
-parser.add_argument('-i', help='iDRAC IP Address', required=True, type=str)
-parser.add_argument('-u', help='iDRAC username', required=True, type=str)
-parser.add_argument('-p', help='iDRAC username pasword', required=True, type=str)
+parser.add_argument('-i', help='iDRAC IP Address', required=False, type=str)
+parser.add_argument('-u', help='iDRAC username', required=False, type=str)
+parser.add_argument('-p', help='iDRAC username pasword', required=False, type=str)
 parser.add_argument('-e', help='pass in "y" to print executing script examples', required=False, type=str)
 parser.add_argument('-c', help='user option, pass in \"y\" to get current next boot onetime boot setting and possible values', required=False, type=str)
-parser.add_argument('-o', help='user option, pass in the string onetime boot devive you want to set for next reboot', required=False, type=str)
+parser.add_argument('-o', help='user option, pass in the string onetime boot device you want to set for next reboot. NOTE: This value is case sensitive so pass in exact value as stated in possible values for -c option', required=False, type=str)
+parser.add_argument('-U', help='user option to set UEFI HTTP URI path. This will be used with -o option if you pass in UefiTarget value. ', required=False, type=str)
 parser.add_argument('-r', help='user option, pass in \"y\" if you want the server to reboot now once you set next boot onetime boot device or \"n\" to not reboot now', required=False, type=str)
 
 args = parser.parse_args()
@@ -44,7 +45,7 @@ idrac_username=args.u
 idrac_password=args.p
 
 if args.e == "y":
-  print("\n- SetNextOneTimeBootDeviceREDFISH -i 191.268.0.120 -u root -p calvin -c, this will get the current next boot setting and possible values.\n- SetNextOneTimeBootDeviceREDFISH -i 192.168.0.10 -u root -p calvin -o Pxe -r y, this will set next one time boot to PXE and reboot the server now. Once the system completes POST, system will PXE boot.")
+  print("\n- SetNextOneTimeBootDeviceREDFISH -i 191.268.0.120 -u root -p calvin -c, this will get the current next boot setting and possible values.\n- SetNextOneTimeBootDeviceREDFISH -i 192.168.0.10 -u root -p calvin -o Pxe -r y, this will set next one time boot to PXE and reboot the server now. Once the system completes POST, system will PXE boot.\n- SetNextOneTimeBootDevivceREDFISH -i 192.168.0.120 -u root -p calvin -o UefiTarget -U http://192.168.0.130/dellshell.efi -r y. This will set HTTP URI path and set next onetime boot to this UEFI HTTP target.")
 
 ### Function to get current next boot onetime boot setting possible values for onetime boot
 
@@ -69,19 +70,25 @@ def get_current_setting_next_boot_supported_values():
 def set_next_boot_onetime_boot_device():
   if args.o:
     url = 'https://%s/redfish/v1/Systems/System.Embedded.1' % idrac_ip
-    payload = {"Boot":{"BootSourceOverrideTarget":args.o}}
+    if args.o == "UefiTarget" and args.U:
+      payload = {"Boot":{"BootSourceOverrideTarget":args.o,"UefiTargetBootSourceOverride":args.U}}
+    else:
+      payload = {"Boot":{"BootSourceOverrideTarget":args.o}} 
     headers = {'content-type': 'application/json'}
     response = requests.patch(url, data=json.dumps(payload), headers=headers, verify=False,auth=(idrac_username, idrac_password))
     data = response.json()
     statusCode = response.status_code
     time.sleep(5)
     if statusCode == 200:
-        print("\n- PASS: Command passed to set next boot onetime boot device to: %s\n" % (args.o))
+      if args.o == "UefiTarget" and args.U:
+        print("\n- PASS: Command passed to set HTTP URI path to \"%s\" and next boot onetime boot device to: %s" % (args.U,args.o))
+      else:
+        print("\n- PASS, Command passed to set next boot onetime boot device to: \"%s\"" % args.o)
     else:
-        print("\n- FAIL, Command failed, errror code is %s" % statusCode)
-        detail_message=str(response.__dict__)
-        print(detail_message)
-        sys.exit()
+      print("\n- FAIL, Command failed, errror code is %s" % statusCode)
+      detail_message=str(response.__dict__)
+      print(detail_message)
+      sys.exit()
 
 
 ### Function to reboot the server
