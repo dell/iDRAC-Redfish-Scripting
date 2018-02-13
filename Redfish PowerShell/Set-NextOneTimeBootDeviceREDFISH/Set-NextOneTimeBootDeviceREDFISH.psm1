@@ -1,6 +1,6 @@
 <#
 _author_ = Texas Roemer <Texas_Roemer@Dell.com>
-_version_ = 1.0
+_version_ = 2.0
 
 Copyright (c) 2017, Dell, Inc.
 
@@ -23,6 +23,7 @@ http://www.gnu.org/licenses/old-licenses/gpl-2.0.txt
    - idrac_password, REQUIRED, pass in idrac password
    - view_current_boot_device_and_options, OPTIONAL, pass in a value of "y" to view current onetime boot device setting and possible supported values
    - next_onetime_boot_device, OPTIONAL, pass in the device you want to next onetime boot to (Values are case senstive, make sure to pass in the exact string value. Example: "Pxe" is the correct value, "pxe" or "PXE" is the incorrect value ).
+   - uefi_target_path, OPTIONAL, pass in the UEFI target path you want to one time boot to. This parameter should be used when setting next_onetime_boot_device to UefiTarget.
    - reboot_now, OPTIONAL, pass in "y" if you want the server to reboot now and boot to onetime boot device. Pass in "n" which will still set the onetime boot device but not reboot the server.
 .EXAMPLE
 	This example shows only getting current onetime boot device setting and possible values
@@ -30,6 +31,9 @@ http://www.gnu.org/licenses/old-licenses/gpl-2.0.txt
 .EXAMPLE
 	This example shows setting next onetime boot device to Pxe and reboots the server now
     Set-NextOneTimeBootDeviceREDFISH -idrac_ip 192.168.0.120 -idrac_username root -idrac_password calvin -next_onetime_boot_device Pxe -reboot_now y
+    .EXAMPLE
+	This example shows setting next onetime boot device to UefiTarget, setting uefi_target_path to http://192.168.0.130/uefi_image.efi and reboots the server now. Once the server reboots, server will enter Lifecycle Controller to set HTTP URI target, reboot the server one more time and once the server completes POST, it will one time boot to this URI HTTP path. 
+    Set-NextOneTimeBootDeviceREDFISH -idrac_ip 192.168.0.120 -idrac_username root -idrac_password calvin -next_onetime_boot_device UefiTarget -uefi_target_path http://192.168.0.130/uefi_image.efi -reboot_now y
 #>
 
 function Set-NextOneTimeBootDeviceREDFISH {
@@ -46,6 +50,8 @@ param(
     [string]$view_current_boot_device_and_options,
     [Parameter(Mandatory=$False)]
     [string]$next_onetime_boot_device,
+    [Parameter(Mandatory=$False)]
+    [string]$uefi_target_path,
     [Parameter(Mandatory=$False)]
     [string]$reboot_now
 
@@ -118,11 +124,19 @@ if ($view_current_boot_device_and_options -eq "n")
 return
 }
 
+if ($next_onetime_boot_device -eq "UefiTarget" -and $uefi_target_path -ne "")
+{
 
+$JsonBody = @{ Boot = @{
+    "BootSourceOverrideTarget"=$next_onetime_boot_device;"UefiTargetBootSourceOverride"=$uefi_target_path
+    }} | ConvertTo-Json -Compress
+}
+else
+{
 $JsonBody = @{ Boot = @{
     "BootSourceOverrideTarget"=$next_onetime_boot_device
     }} | ConvertTo-Json -Compress
-
+}
 
 $u = "https://$idrac_ip/redfish/v1/Systems/System.Embedded.1"
 $result1 = Invoke-WebRequest -Uri $u -Credential $credential -Method Patch -Body $JsonBody -ContentType 'application/json'
@@ -131,8 +145,16 @@ $q=$result1.RawContent | ConvertTo-Json -Compress
 
 if ($result1.StatusCode -eq 200)
 {
+    if ($next_onetime_boot_device -eq "UefiTarget" -and $uefi_target_path -ne "")
+    {
+    [String]::Format("`n- PASS, statuscode {0} returned to successfully set UEFI target path to ""{1}"" and next onetime boot device to ""{2}""`n",$result1.StatusCode,$uefi_target_path,$next_onetime_boot_device)
+    Start-Sleep 5
+    }
+    else
+    {
     [String]::Format("`n- PASS, statuscode {0} returned to successfully set next onetime boot device to ""{1}""`n",$result1.StatusCode,$next_onetime_boot_device)
     Start-Sleep 5
+    }
 }
 else
 {
