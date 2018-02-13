@@ -35,7 +35,7 @@ parser.add_argument('-p', help='iDRAC username pasword', required=False, type=st
 parser.add_argument('-e', help='pass in "y" to print executing script examples', required=False, type=str)
 parser.add_argument('-c', help='user option, pass in \"y\" to get current next boot onetime boot setting and possible values', required=False, type=str)
 parser.add_argument('-o', help='user option, pass in the string onetime boot device you want to set for next reboot. NOTE: This value is case sensitive so pass in exact value as stated in possible values for -c option', required=False, type=str)
-parser.add_argument('-U', help='user option to set UEFI HTTP URI path. This will be used with -o option if you pass in UefiTarget value. ', required=False, type=str)
+parser.add_argument('-U', help='user option to set UEFI target path. This will be used with -o option if you pass in UefiTarget value. ', required=False, type=str)
 parser.add_argument('-r', help='user option, pass in \"y\" if you want the server to reboot now once you set next boot onetime boot device or \"n\" to not reboot now', required=False, type=str)
 
 args = parser.parse_args()
@@ -45,7 +45,7 @@ idrac_username=args.u
 idrac_password=args.p
 
 if args.e == "y":
-  print("\n- SetNextOneTimeBootDeviceREDFISH -i 191.268.0.120 -u root -p calvin -c, this will get the current next boot setting and possible values.\n- SetNextOneTimeBootDeviceREDFISH -i 192.168.0.10 -u root -p calvin -o Pxe -r y, this will set next one time boot to PXE and reboot the server now. Once the system completes POST, system will PXE boot.\n- SetNextOneTimeBootDevivceREDFISH -i 192.168.0.120 -u root -p calvin -o UefiTarget -U http://192.168.0.130/dellshell.efi -r y. This will set HTTP URI path and set next onetime boot to this UEFI HTTP target.")
+  print("\n- SetNextOneTimeBootDeviceREDFISH -i 191.268.0.120 -u root -p calvin -c, this will get the current next boot setting and possible values.\n- SetNextOneTimeBootDeviceREDFISH -i 192.168.0.10 -u root -p calvin -o Pxe -r y, this will set next one time boot to PXE and reboot the server now. Once the system completes POST, system will PXE boot.\n- SetNextOneTimeBootDevivceREDFISH -i 192.168.0.120 -u root -p calvin -o UefiTarget -U http://192.168.0.130/dellshell.efi -r y. This will set UEFI target path, set next onetime boot to UefiTarget and reboot the server now.")
 
 ### Function to get current next boot onetime boot setting possible values for onetime boot
 
@@ -81,7 +81,7 @@ def set_next_boot_onetime_boot_device():
     time.sleep(5)
     if statusCode == 200:
       if args.o == "UefiTarget" and args.U:
-        print("\n- PASS: Command passed to set HTTP URI path to \"%s\" and next boot onetime boot device to: %s" % (args.U,args.o))
+        print("\n- PASS: Command passed to set UEFI target path to \"%s\" and next boot onetime boot device to: %s" % (args.U,args.o))
       else:
         print("\n- PASS, Command passed to set next boot onetime boot device to: \"%s\"" % args.o)
     else:
