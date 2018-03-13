@@ -6,7 +6,7 @@
 # NOTE: Possible supported values for attribute_group parameter are: idrac, lc and system.
 #
 # _author_ = Texas Roemer <Texas_Roemer@Dell.com>
-# _version_ = 1.0
+# _version_ = 2.0
 #
 # Copyright (c) 2017, Dell, Inc.
 #
@@ -45,7 +45,11 @@ def get_attribute_group():
     elif attribute_group == "system":
         response = requests.get('https://%s/redfish/v1/Managers/System.Embedded.1/Attributes' % idrac_ip,verify=False,auth=(idrac_username, idrac_password))
     data = response.json()
-    attributes_dict=data[u'Attributes']
+    try:
+        attributes_dict=data[u'Attributes']
+    except:
+        print "\n- WARNING, current iDRAC version on server does not support this feature using Redfish API"
+        sys.exit()
     print("\n- %s Attribute Names and Values:\n" % attribute_group.upper())
     f = open("attributes.txt","w")
     for i in attributes_dict:

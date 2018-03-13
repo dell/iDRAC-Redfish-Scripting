@@ -8,7 +8,7 @@
 # NOTE: Possible supported values for attribute_group parameter are: idrac, lc and system.
 #
 # _author_ = Texas Roemer <Texas_Roemer@Dell.com>
-# _version_ = 1.0
+# _version_ = 2.0
 #
 # Copyright (c) 2017, Dell, Inc.
 #
@@ -37,11 +37,24 @@ except:
     print("- FAIL: You must pass in script name along with iDRAC IP / iDRAC username / iDRAC password / attribute group. Example: \"script_name.py 192.168.0.120 root calvin idrac\"")
     sys.exit()
 
-file_attributes_dict = {"Telnet.1.Enable":"Enabled","VirtualMedia.1.FloppyEmulation":"Enabled","EmailAlert.2.Address":"user@email.com"}
+file_attributes_dict = {"Telnet.1.Enable":"Disabled"}
 
-### Function to set attributes from "file_attributes_dict" dictionary
+
+### Function to set attributes new values from file_attributes_dict dictionary
 
 def set_attributes():
+    if attribute_group == "idrac":
+        response = requests.get('https://%s/redfish/v1/Managers/iDRAC.Embedded.1/Attributes' % idrac_ip,verify=False,auth=(idrac_username, idrac_password))
+    elif attribute_group == "lc":
+        response = requests.get('https://%s/redfish/v1/Managers/LifecycleController.Embedded.1/Attributes' % idrac_ip,verify=False,auth=(idrac_username, idrac_password))
+    elif attribute_group == "system":
+        response = requests.get('https://%s/redfish/v1/Managers/System.Embedded.1/Attributes' % idrac_ip,verify=False,auth=(idrac_username, idrac_password))
+    data = response.json()
+    try:
+        attributes_dict=data[u'Attributes']
+    except:
+        print "\n- WARNING, current iDRAC version on server does not support this feature using Redfish API"
+        sys.exit()
     print("- WARNING, changing %s attributes:\n" % attribute_group.upper())
     for i in file_attributes_dict:
         print(" Name:  %s, setting new value to: %s" % (i, file_attributes_dict[i]))
@@ -52,8 +65,10 @@ def set_attributes():
     elif attribute_group == "lc":
         url = 'https://%s/redfish/v1/Managers/LifecycleController.Embedded.1/Attributes' % idrac_ip
     elif attribute_group == "system":
-        url = 'https://%s/redfish/v1/Managers/System.Embedded.1/Attributes' % idrac_ip 
+        url = 'https://%s/redfish/v1/Managers/System.Embedded.1/Attributes' % idrac_ip
+    
     response = requests.patch(url, data=json.dumps(payload), headers=headers, verify=False,auth=(idrac_username, idrac_password))
+    
     statusCode = response.status_code
     
     if statusCode == 200:
