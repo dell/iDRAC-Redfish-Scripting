@@ -4,7 +4,7 @@
 # NOTE: Before executing the script, modify the payload dictionary with supported parameters. For payload dictionary supported parameters, refer to schema "https://'iDRAC IP'/redfish/v1/Managers/iDRAC.Embedded.1/"
 #
 # _author_ = Texas Roemer <Texas_Roemer@Dell.com>
-# _version_ = 1.0
+# _version_ = 2.0
 #
 # Copyright (c) 2017, Dell, Inc.
 #
@@ -16,31 +16,34 @@
 # http://www.gnu.org/licenses/old-licenses/gpl-2.0.txt.
 #
 
-import requests, json, sys, re, time, warnings
+import requests, json, sys, re, time, warnings, argparse
 
 from datetime import datetime
 
 warnings.filterwarnings("ignore")
 
-try:
-    idrac_ip = sys.argv[1]
-    idrac_username = sys.argv[2]
-    idrac_password = sys.argv[3]
-except:
-    print("-FAIL, you must pass in script name along with iDRAC IP/iDRAC username/iDRAC password")
-    sys.exit()
+parser=argparse.ArgumentParser(description="Python script using Redfish API to export the host server configuration profile locally.")
+parser.add_argument('-ip',help='iDRAC IP address', required=True)
+parser.add_argument('-u', help='iDRAC username', required=True)
+parser.add_argument('-p', help='iDRAC password', required=True)
+parser.add_argument('-t', help='Pass in value to get component attributes. You can pass in \"ALL" to get all component attributes or pass in a specific component to get only those attributes. Supported values are: ALL, System, BIOS, IDRAC, NIC, FC, LifecycleController', required=True)
+args=vars(parser.parse_args())
+
+idrac_ip=args["ip"]
+idrac_username=args["u"]
+idrac_password=args["p"]
 
 url = 'https://%s/redfish/v1/Managers/iDRAC.Embedded.1/Actions/Oem/EID_674_Manager.ExportSystemConfiguration' % idrac_ip
-payload = {"ExportFormat":"XML","ShareParameters":{"Target":"LifecycleController"}}
+payload = {"ExportFormat":"XML","ShareParameters":{"Target":args["t"]}}
 headers = {'content-type': 'application/json'}
 response = requests.post(url, data=json.dumps(payload), headers=headers, verify=False, auth=(idrac_username,idrac_password))
 
 if response.status_code != 202:
-    print("- FAIL, status code not 202\n, code is: %s" % response.status_code)
+    print("- FAIL, status code not 202, code is: %s" % response.status_code)
     print("- Error details: %s" % response.__dict__)
     sys.exit()
 else:
-    print("\n- Job ID successfully created for ExportSystemConfiguration method\n") 
+    success_job_status = "\n- Job ID \"%s\" successfully created for ExportSystemConfiguration method\n" 
 
 response_output=response.__dict__
 job_id=response_output["headers"]["Location"]
@@ -51,12 +54,14 @@ except:
     print("\n- FAIL: detailed error message: {0}".format(response.__dict__['_content']))
     sys.exit()
 
+print(success_job_status % job_id)
 start_time=datetime.now()
 
 while True:
     current_time=(datetime.now()-start_time)
     req = requests.get('https://%s/redfish/v1/TaskService/Tasks/%s' % (idrac_ip, job_id), auth=(idrac_username, idrac_password), verify=False)
     d=req.__dict__
+    #print d
     if "<SystemConfiguration Model" in str(d):
         print("\n- Export locally successfully passed. Attributes exported:\n")
         zz=re.search("<SystemConfiguration.+</SystemConfiguration>",str(d)).group()
@@ -83,14 +88,13 @@ while True:
             print(i)
 
         print("\n")
-        req = requests.get('https://%s/redfish/v1/TaskService/Tasks/%s' % (idrac_ip, job_id), auth=(idrac_username, idrac_password), verify=False)
+        #req = requests.get('https://%s/redfish/v1/TaskService/Tasks/%s' % (idrac_ip, job_id), auth=(idrac_username, idrac_password), verify=False)
+        req = requests.get('https://%s/redfish/v1/Managers/iDRAC.Embedded.1/Jobs/%s' % (idrac_ip, job_id), auth=(idrac_username, idrac_password), verify=False)
+        
         data = req.json()
-        message_string=data[u"Messages"]
-        print("\n Job ID = "+data[u"Id"])
-        print(" Name = "+data[u"Name"])
-        print(" Message = "+message_string[0][u"Message"])
-        print(" JobStatus = "+data[u"TaskState"])
-        print("\n %s completed in: %s" % (job_id, str(current_time)[0:7]))
+        print("- WARNING, final job status results -\n")
+        for i in data.items():
+            print("%s: %s" % (i[0],i[1]))
         print("\n Exported attributes also saved in file: %s" % filename)
         sys.exit()
     else:
@@ -102,8 +106,9 @@ while True:
     current_time=(datetime.now()-start_time)
 
     if statusCode == 202 or statusCode == 200:
-        print("\n- Execute job ID command passed, checking job status...\n")
+        #print("\n- Execute job ID command passed, checking job status...\n")
         time.sleep(1)
+        pass
     else:
         print("Execute job ID command failed, error code is: %s" % statusCode)
         sys.exit()
@@ -111,9 +116,10 @@ while True:
         print("\n-FAIL, Timeout of 10 minutes has been reached before marking the job completed.")
         sys.exit()
 
-    else:
-        print("- Job not marked completed, current status is: %s" % data[u"TaskState"])
-        print("- Message: %s\n" % message_string[0][u"Message"])
+    else: 
+        for i in data.items():
+            print("%s: %s" % (i[0],i[1]))
+        print("\n")
         time.sleep(1)
         continue
 
