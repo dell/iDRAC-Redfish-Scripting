@@ -1,7 +1,7 @@
 #
 # ExportServerConfigurationLocalREDFISH. Python script using Redfish API to export the system configuration locally. By default, POST command print all attributes to the screen. This script will also capture these attributes into a file.
 #
-# NOTE: Before executing the script, modify the payload dictionary with supported parameters. For payload dictionary supported parameters, refer to schema "https://'iDRAC IP'/redfish/v1/Managers/iDRAC.Embedded.1/"
+# 
 #
 # _author_ = Texas Roemer <Texas_Roemer@Dell.com>
 # _version_ = 2.0
@@ -26,7 +26,8 @@ parser=argparse.ArgumentParser(description="Python script using Redfish API to e
 parser.add_argument('-ip',help='iDRAC IP address', required=True)
 parser.add_argument('-u', help='iDRAC username', required=True)
 parser.add_argument('-p', help='iDRAC password', required=True)
-parser.add_argument('-t', help='Pass in value to get component attributes. You can pass in \"ALL" to get all component attributes or pass in a specific component to get only those attributes. Supported values are: ALL, System, BIOS, IDRAC, NIC, FC, LifecycleController', required=True)
+parser.add_argument('-t', help='Pass in Target value to get component attributes. You can pass in \"ALL" to get all component attributes or pass in a specific component to get only those attributes. Supported values are: ALL, System, BIOS, IDRAC, NIC, FC, LifecycleController, RAID.', required=True)
+parser.add_argument('-e', help='Pass in ExportUse value. Supported values are Default, Clone and Replace. If you don\'t use this parameter, default setting is Default or Normal export.', required=False)
 args=vars(parser.parse_args())
 
 idrac_ip=args["ip"]
@@ -35,6 +36,10 @@ idrac_password=args["p"]
 
 url = 'https://%s/redfish/v1/Managers/iDRAC.Embedded.1/Actions/Oem/EID_674_Manager.ExportSystemConfiguration' % idrac_ip
 payload = {"ExportFormat":"XML","ShareParameters":{"Target":args["t"]}}
+if args["e"]:
+    payload["ExportUse"] = args["e"]
+else:
+    pass
 headers = {'content-type': 'application/json'}
 response = requests.post(url, data=json.dumps(payload), headers=headers, verify=False, auth=(idrac_username,idrac_password))
 
@@ -61,7 +66,6 @@ while True:
     current_time=(datetime.now()-start_time)
     req = requests.get('https://%s/redfish/v1/TaskService/Tasks/%s' % (idrac_ip, job_id), auth=(idrac_username, idrac_password), verify=False)
     d=req.__dict__
-    #print d
     if "<SystemConfiguration Model" in str(d):
         print("\n- Export locally successfully passed. Attributes exported:\n")
         zz=re.search("<SystemConfiguration.+</SystemConfiguration>",str(d)).group()
@@ -88,7 +92,6 @@ while True:
             print(i)
 
         print("\n")
-        #req = requests.get('https://%s/redfish/v1/TaskService/Tasks/%s' % (idrac_ip, job_id), auth=(idrac_username, idrac_password), verify=False)
         req = requests.get('https://%s/redfish/v1/Managers/iDRAC.Embedded.1/Jobs/%s' % (idrac_ip, job_id), auth=(idrac_username, idrac_password), verify=False)
         
         data = req.json()
@@ -106,7 +109,6 @@ while True:
     current_time=(datetime.now()-start_time)
 
     if statusCode == 202 or statusCode == 200:
-        #print("\n- Execute job ID command passed, checking job status...\n")
         time.sleep(1)
         pass
     else:

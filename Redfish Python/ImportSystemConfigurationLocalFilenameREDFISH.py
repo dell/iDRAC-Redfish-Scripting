@@ -1,12 +1,8 @@
 #
-# ImportSystemConfigurationLocalFilenameREDFISH. Python script using Redfish API to import system configuration attributes locally from a file.
-#
-# NOTE: Local import is recommended to use if setting one or few attributes. If you're setting a large amount of attributes, use import file from a network share or import file locally script.
-#
-# NOTE: Before executing the script, modify the payload dictionary with supported parameters. For payload dictionary supported parameters, refer to schema "https://'iDRAC IP'/redfish/v1/Managers/iDRAC.Embedded.1/"
+# ImportSystemConfigurationLocalFilenameREDFISH. Python script using Redfish API to import system configuration profile attributes locally from a configuration file.
 #
 # _author_ = Texas Roemer <Texas_Roemer@Dell.com>
-# _version_ = 1.0
+# _version_ = 2.0
 #
 # Copyright (c) 2017, Dell, Inc.
 #
@@ -18,20 +14,26 @@
 # http://www.gnu.org/licenses/old-licenses/gpl-2.0.txt.
 #
 
-import requests, json, sys, re, time, warnings
+import requests, json, sys, re, time, warnings, argparse
 
 from datetime import datetime
 
 warnings.filterwarnings("ignore")
 
-try:
-    idrac_ip=sys.argv[1]
-    idrac_username = sys.argv[2]
-    idrac_password = sys.argv[3]
-    filename=sys.argv[4]
-except:
-    print("\n- FAIL: You must pass in script name\iDRAC ip\iDRAC username\iDRAC password\local import file")
-    sys.exit()
+parser=argparse.ArgumentParser(description="Python script using Redfish API to import the host server configuration profile locally from a configuration file.")
+parser.add_argument('-ip',help='iDRAC IP address', required=True)
+parser.add_argument('-u', help='iDRAC username', required=True)
+parser.add_argument('-p', help='iDRAC password', required=True)
+parser.add_argument('-t', help='Pass in Target value to set component attributes. You can pass in \"ALL" to set all component attributes or pass in a specific component to set only those attributes. Supported values are: ALL, System, BIOS, IDRAC, NIC, FC, LifecycleController, RAID.', required=True)
+parser.add_argument('-s', help='Pass in ShutdownType value. Supported values are Graceful, Forced and NoReboot. If you don\'t use this optional parameter, default value is Graceful. NOTE: If you pass in NoReboot value, configuration changes will not be applied until the next server manual reboot.', required=False)
+parser.add_argument('-f', help='Pass in Server Configuration Profile filename', required=True)
+parser.add_argument('-e', help='Pass in end HostPowerState value. Supported values are On and Off. If you don\'t use this optional parameter, default value is On', required=False)
+args=vars(parser.parse_args())
+
+idrac_ip=args["ip"]
+idrac_username=args["u"]
+idrac_password=args["p"]
+filename=args["f"]
 
 try:
     f=open(filename,"r")
@@ -48,7 +50,12 @@ z=re.sub(" \n","",z)
 xml_string=re.sub("   ","",z)
 f.close()
 
-payload = {"ImportBuffer":"","ShareParameters":{"Target":"ALL"}}
+payload = {"ImportBuffer":"","ShareParameters":{"Target":args["t"]}}
+if args["s"]:
+    payload["ShutdownType"] = args["s"]
+if args["p"]:
+    payload["HostPowerState"] = args["e"]
+
 payload["ImportBuffer"]=xml_string
 headers = {'content-type': 'application/json'}
 response = requests.post(url, data=json.dumps(payload), headers=headers, verify=False, auth=('root','calvin'))
@@ -84,13 +91,19 @@ while True:
     final_message_string=str(message_string)
     current_time=(datetime.now()-start_time)
     if statusCode == 202 or statusCode == 200:
-        print("\n- Query job ID command passed")
-        time.sleep(10)
+        pass
+        time.sleep(3)
     else:
         print("Query job ID command failed, error code is: %s" % statusCode)
         sys.exit()
     if "failed" in final_message_string or "completed with errors" in final_message_string or "Not one" in final_message_string:
         print("\n- FAIL, detailed job message is: %s" % data[u"Messages"])
+        sys.exit()
+    elif "No reboot Server" in final_message_string:
+        try:
+            print("- Message = "+message_string[0][u"Message"])
+        except:
+            print("- Message = %s" % message_string[len(message_string)-1][u"Message"])
         sys.exit()
     elif "Successfully imported" in final_message_string or "completed with errors" in final_message_string or "Successfully imported" in final_message_string:
         print("- Job ID = "+data[u"Id"])

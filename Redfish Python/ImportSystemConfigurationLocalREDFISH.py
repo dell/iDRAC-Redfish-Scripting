@@ -6,7 +6,7 @@
 # NOTE: Before executing the script, modify the payload dictionary with supported parameters. For payload dictionary supported parameters, refer to schema "https://'iDRAC IP'/redfish/v1/Managers/iDRAC.Embedded.1/"
 #
 # _author_ = Texas Roemer <Texas_Roemer@Dell.com>
-# _version_ = 1.0
+# _version_ = 2.0
 #
 # Copyright (c) 2017, Dell, Inc.
 #
@@ -18,23 +18,28 @@
 # http://www.gnu.org/licenses/old-licenses/gpl-2.0.txt.
 #
 
-import requests, json, sys, re, time, warnings
+import requests, json, sys, re, time, warnings, argparse
 
 from datetime import datetime
 
 warnings.filterwarnings("ignore")
 
-try:
-    idrac_ip = sys.argv[1]
-    idrac_username = sys.argv[2]
-    idrac_password = sys.argv[3]
-except:
-    print("\n- FAIL, you must pass in script name along with iDRAC IP/iDRAC username/iDRAC paassword")
-    sys.exit()
+parser=argparse.ArgumentParser(description="Python script using Redfish API to import the host server configuration profile locally.")
+parser.add_argument('-ip',help='iDRAC IP address', required=True)
+parser.add_argument('-u', help='iDRAC username', required=True)
+parser.add_argument('-p', help='iDRAC password', required=True)
+args=vars(parser.parse_args())
+
+idrac_ip=args["ip"]
+idrac_username=args["u"]
+idrac_password=args["p"]
     
 url = 'https://%s/redfish/v1/Managers/iDRAC.Embedded.1/Actions/Oem/EID_674_Manager.ImportSystemConfiguration' % idrac_ip
+
+# Make sure to modify this payload dictionary first before you execute the script.
  
-payload = {"ImportBuffer":"<SystemConfiguration><Component FQDD=\"iDRAC.Embedded.1\"><Attribute Name=\"Telnet.1#Enable\">Disabled</Attribute></Component></SystemConfiguration>","ShareParameters":{"Target":"iDRAC"}}
+payload = {"ShutdownType":"Forced","ImportBuffer":"<SystemConfiguration><Component FQDD=\"iDRAC.Embedded.1\"><Attribute Name=\"Telnet.1#Enable\">Disabled</Attribute></Component></SystemConfiguration>","ShareParameters":{"Target":"All"}}
+
 headers = {'content-type': 'application/json'}
 response = requests.post(url, data=json.dumps(payload), headers=headers, verify=False, auth=(idrac_username,idrac_password))
 
@@ -66,8 +71,8 @@ while True:
     final_message_string=str(message_string)
     current_time=(datetime.now()-start_time)
     if statusCode == 202 or statusCode == 200:
-        print "\n- Query job ID command passed"
-        time.sleep(10)
+        pass
+        time.sleep(3)
     else:
         print("Query job ID command failed, error code is: %s" % statusCode)
         sys.exit()
@@ -82,6 +87,12 @@ while True:
         except:
             print("- Message = %s" % message_string[len(message_string)-1][u"Message"])
         print("\n- %s completed in: %s" % (job_id, str(current_time)[0:7]))
+        sys.exit()
+    elif "No reboot Server" in final_message_string:
+        try:
+            print("- Message = "+message_string[0][u"Message"])
+        except:
+            print("- Message = %s" % message_string[len(message_string)-1][u"Message"])
         sys.exit()
     elif "No changes" in final_message_string:
         print("- Job ID = "+data[u"Id"])
