@@ -171,7 +171,7 @@ def reboot_server():
     time.sleep(10)
     payload = {'ResetType': 'On'}
     headers = {'content-type': 'application/json'}
-    response = requests.post(url, data=json.dumps(payload), headers=headers, verify=False, auth=('root','calvin'))
+    response = requests.post(url, data=json.dumps(payload), headers=headers, verify=False, auth=(idrac_username,idrac_password))
     statusCode = response.status_code
     if statusCode == 204:
         print("- PASS, Command passed to power ON server, code return is %s" % statusCode)

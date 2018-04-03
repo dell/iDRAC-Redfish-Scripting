@@ -50,7 +50,7 @@ def get_attribute_current_value():
 ### Function to set BIOS attribute pending value
 
 def set_bios_attribute():
-    print("\n- WARNING: Current value for %s is: %s, setting to: %s\n" % (attribute_name, current_value, pending_value))
+    print("\n- WARNING: Current value for %s is: %s, setting to: %s" % (attribute_name, current_value, pending_value))
     time.sleep(2)
     url = 'https://%s/redfish/v1/Systems/System.Embedded.1/Bios/Settings' % idrac_ip
     payload = {"Attributes":{attribute_name:pending_value}}
@@ -58,7 +58,7 @@ def set_bios_attribute():
     response = requests.patch(url, data=json.dumps(payload), headers=headers, verify=False,auth=(idrac_username, idrac_password))
     statusCode = response.status_code
     if statusCode == 200:
-        print("\n- PASS: Command passed to set BIOS attribute %s pending value to %s\n" % (attribute_name, pending_value))
+        print("- PASS: Command passed to set BIOS attribute %s pending value to %s" % (attribute_name, pending_value))
     else:
         print("\n- FAIL, Command failed, errror code is %s" % statusCode)
         detail_message=str(response.__dict__)
@@ -78,7 +78,7 @@ def create_bios_config_job():
     response = requests.post(url, data=json.dumps(payload), headers=headers, verify=False,auth=(idrac_username, idrac_password))
     statusCode = response.status_code
     if statusCode == 200:
-        print("\n- PASS: Command passed to create target config job, status code 200 returned.\n")
+        print("- PASS: Command passed to create target config job, status code 200 returned.")
     else:
         print("\n- FAIL, Command failed, status code is %s\n" % statusCode)
         detail_message=str(response.__dict__)
@@ -97,21 +97,23 @@ def get_job_status():
         req = requests.get('https://%s/redfish/v1/Managers/iDRAC.Embedded.1/Jobs/%s' % (idrac_ip, job_id), auth=(idrac_username, idrac_password), verify=False)
         statusCode = req.status_code
         if statusCode == 200:
-            print("\n- PASS, Command passed to check job status, code 200 returned\n")
-            time.sleep(20)
+            pass
+            #print("- PASS, Command passed to check job status, code 200 returned")
+            time.sleep(10)
         else:
             print("\n- FAIL, Command failed to check job status, return code is %s" % statusCode)
             print("Extended Info Message: {0}".format(req.json()))
             sys.exit()
         data = req.json()
         if data[u'Message'] == "Task successfully scheduled.":
-            print(" JobID = "+data[u'Id'])
-            print(" Name = "+data[u'Name'])
-            print(" Message = "+data[u'Message'])
-            print(" PercentComplete = "+str(data[u'PercentComplete'])+"\n")
+            print("- PASS, %s job id successfully scheduled, rebooting the server to apply config changes" % job_id)
+            #print(" JobID = "+data[u'Id'])
+            #print(" Name = "+data[u'Name'])
+            #print(" Message = "+data[u'Message'])
+            #print(" PercentComplete = "+str(data[u'PercentComplete'])+"\n")
             break
         else:
-            print("\n- WARNING: JobStatus not scheduled, current status is: %s\n" % data[u'Message'])
+            print("- WARNING: JobStatus not scheduled, current status is: %s" % data[u'Message'])
 
 ### Function to reboot the server
                                                                           
@@ -122,7 +124,7 @@ def reboot_server():
     response = requests.post(url, data=json.dumps(payload), headers=headers, verify=False, auth=(idrac_username,idrac_password))
     statusCode = response.status_code
     if statusCode == 204:
-        print("\n- PASS, Command passed to power OFF server, code return is %s\n" % statusCode)
+        print("- PASS, Command passed to power OFF server, code return is %s" % statusCode)
     else:
         print("\n- FAIL, Command failed to power OFF server, status code is: %s\n" % statusCode)
         print("Extended Info Message: {0}".format(response.json()))
@@ -130,10 +132,10 @@ def reboot_server():
     time.sleep(10)
     payload = {'ResetType': 'On'}
     headers = {'content-type': 'application/json'}
-    response = requests.post(url, data=json.dumps(payload), headers=headers, verify=False, auth=('root','calvin'))
+    response = requests.post(url, data=json.dumps(payload), headers=headers, verify=False, auth=(idrac_username,idrac_password))
     statusCode = response.status_code
     if statusCode == 204:
-        print("\n- PASS, Command passed to power ON server, code return is %s\n" % statusCode)
+        print("- PASS, Command passed to power ON server, code return is %s" % statusCode)
     else:
         print("\n- FAIL, Command failed to power ON server, status code is: %s\n" % statusCode)
         print("Extended Info Message: {0}".format(response.json()))
@@ -147,7 +149,8 @@ def loop_job_status():
         current_time=(datetime.now()-start_time)
         statusCode = req.status_code
         if statusCode == 200:
-            print("\n- PASS, Command passed to check job status, code 200 returned\n")
+            pass
+            #print("\n- PASS, Command passed to check job status, code 200 returned\n")
         else:
             print("\n- FAIL, Command failed to check job status, return code is %s" % statusCode)
             print("Extended Info Message: {0}".format(req.json()))
@@ -160,6 +163,7 @@ def loop_job_status():
             print("- FAIL: %s failed" % job_id)
             sys.exit()
         elif data[u'Message'] == "Job completed successfully.":
+            print("\n- Final detailed job results -")
             print("\n JobID = "+data[u'Id'])
             print(" Name = "+data[u'Name'])
             print(" Message = "+data[u'Message'])
@@ -177,7 +181,7 @@ def get_new_current_value():
     data = response.json()
     current_value_new = data[u'Attributes'][attribute_name]
     if current_value_new == pending_value:
-        print("\n- PASS, BIOS attribute \"%s\" new current value is: %s" % (attribute_name, pending_value))
+        print("- PASS, BIOS attribute \"%s\" new current value is: %s" % (attribute_name, pending_value))
     else:
         print("n\- FAIL, BIOS attribute \"%s\" attribute not set to: %s" % (attribute_name, current_value))
         sys.exit()
