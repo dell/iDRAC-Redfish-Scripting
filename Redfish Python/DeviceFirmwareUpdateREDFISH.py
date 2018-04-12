@@ -115,15 +115,18 @@ def install_image_payload():
 # Function to check the new FW version installed
 
 def check_new_FW_version():
-    print("\n- WARNING, checking new firmware version installed for updated device")
-    req = requests.get('https://%s/redfish/v1/UpdateService/FirmwareInventory/%s' % (idrac_ip, new_FW_version), auth=(idrac_username, idrac_password), verify=False)
-    statusCode = req.status_code
-    data = req.json()
-    if dup_version == data[u'Version']:
-        print("\n- PASS, New installed FW version is: %s" % data[u'Version'])
+    if ".pm" in file_image_name:
+        pass
     else:
-        print("\n- FAIL, New installed FW incorrect, error is: %s" % data)
-        sys.exit()
+        print("\n- WARNING, checking new firmware version installed for updated device")
+        req = requests.get('https://%s/redfish/v1/UpdateService/FirmwareInventory/%s' % (idrac_ip, new_FW_version), auth=(idrac_username, idrac_password), verify=False)
+        statusCode = req.status_code
+        data = req.json()
+        if dup_version == data[u'Version']:
+            print("\n- PASS, New installed firmware version is: %s" % data[u'Version'])
+        else:
+            print("\n- FAIL, New installed firmware version incorrect, error is: %s" % data)
+            sys.exit()
 
 # Function to check the job status for host reboot needed
 
@@ -137,7 +140,7 @@ def check_job_status_host_reboot():
         message_string=data[u"Messages"]
         current_time=(datetime.now()-start_time)
         if statusCode == 202 or statusCode == 200:
-            time.sleep(10)
+            time.sleep(1)
         else:
             print("Query job ID command failed, error code is: %s" % statusCode)
             sys.exit()
@@ -145,14 +148,16 @@ def check_job_status_host_reboot():
             print("- FAIL: Job failed, current message is: %s" % data[u"Messages"])
             sys.exit()
         elif data[u"TaskState"] == "Completed":
-            print("\n- PASS, job ID %s successfuly marked completed, detailed final job status results:" % data[u"Id"])
-            print("\n- Job ID = "+data[u"Id"])
-            print("- Name = "+data[u"Name"])
-            try:
-                print("- Message = "+message_string[0][u"Message"])
-            except:
-                print("- Message = "+data[u"Messages"][0][u"Message"])
-            print("- JobStatus = "+data[u"TaskState"])
+            print("\n- PASS, job ID %s successfuly marked completed, detailed final job status results:\n" % data[u"Id"])
+            for i in data[u'Oem'][u'Dell'].items():
+                print("%s: %s" % (i[0],i[1]))
+            #print("\n- Job ID = "+data[u"Id"])
+            #print("- Name = "+data[u"Name"])
+            #try:
+                #print("- Message = "+message_string[0][u"Message"])
+            #except:
+                #print("- Message = "+data[u"Messages"][0][u"Message"])
+            #print("- JobStatus = "+data[u"TaskState"])
             print("\n- %s completed in: %s" % (job_id, str(current_time)[0:7]))
             if data[u"Name"] == "Firmware Update: iDRAC":
                 print("\n- WARNING, iDRAC update performed. Script will wait 3 minutes for iDRAC to reset and come back up before checking new firmware version")
