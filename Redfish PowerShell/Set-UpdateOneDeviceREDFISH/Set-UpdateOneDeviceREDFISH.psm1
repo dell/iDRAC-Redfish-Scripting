@@ -96,6 +96,8 @@ function Ignore-SSLCertificates
     [System.Net.ServicePointManager]::CertificatePolicy = $TrustAll
 }
 
+
+
 Ignore-SSLCertificates
 
 # Setting up iDRAC login information
@@ -105,23 +107,37 @@ $user = $idrac_username
 $pass= $idrac_password
 $secpasswd = ConvertTo-SecureString $pass -AsPlainText -Force
 $credential = New-Object System.Management.Automation.PSCredential($user, $secpasswd)
+$ErrorActionPreference = "Stop"
 
-# Check iDRAC version to see if Redfish update features are supported
+# Code to check if system iDRAC version supports update feature
 
 $u = "https://$idrac_ip/redfish/v1/UpdateService/FirmwareInventory"
-try
+    try
+    {
+    $result = Invoke-WebRequest -Uri $u -Credential $credential -Method Get -UseBasicParsing -ErrorAction Stop
+    }
+    catch
+    {
+    }
+	    if ($result.StatusCode -ne 200)
+	    {
+        Write-Host "`n- WARNING, iDRAC version detected does not support update feature using Redfish API`n"
+	    return
+	    }
+	    else
+	    {
+	    }
+
+
+if ($InstallOption -ne "")
 {
-$result = Invoke-WebRequest -Uri $u -Credential $credential -Method Get -UseBasicParsing
-}
-catch
-{
-Write-Host "`n- WARNING, current server iDRAC version does not support Redfish firmware features. Refer to Dell online Redfish documentation for information on which iDRAC version supports firmware features." 
-Exit
-}
+Write-Host "`n- WARNING, validating '$image_filename' image. This may take a few minutes to complete depending on image size"
+} 
+
+$u = "https://$idrac_ip/redfish/v1/UpdateService/FirmwareInventory"
 
 # GET command to get software inventory for all devices
 
-$u = "https://$idrac_ip/redfish/v1/UpdateService/FirmwareInventory"
 $result = Invoke-WebRequest -Uri $u -Credential $credential -Method Get -UseBasicParsing 
 $ETag=$result.Headers.ETag
 $matches = ([regex]'Installed-.+?}').Matches($result)
@@ -171,6 +187,7 @@ if ($view_fw_inventory_only -eq "n")
 return
 }
 
+#Write-Host "`n- WARNING, validating firmware image, this may take up to one minute.`n"
 $complete_path=$image_directory_path + "\" + $image_filename
 $headers = @{"if-match" = $ETag}
 
@@ -207,13 +224,15 @@ $get_version=$get_version.Replace('"',"")
 $get_fw_version=$get_version.Split("-")
 
 Write-Host
-Write-Host "- Warning, firmware DUP version to install is:"$get_fw_version[-1]
+Write-Host "- Warning, image version to install is:"$get_fw_version[-1]
 $compare_version=$get_version.Replace("Available","Installed")
-Write-Host
+#Write-Host
+#Write-Host $compare_version
+#Write-Host
 
 if ($result1.StatusCode -eq 201)
 {
-    [String]::Format("- PASS, statuscode {0} returned successfully, download payload to iDRAC success",$result1.StatusCode)
+    [String]::Format("- PASS, statuscode {0} returned successfully for POST command to download payload image to iDRAC",$result1.StatusCode)
 }
 else
 {
@@ -235,7 +254,7 @@ $job_id=$job_id_search.Split("/")[-1]
 
 if ($result2.StatusCode -eq 202)
 {
-    [String]::Format("- PASS, statuscode {0} returned successfully, download job ID {1} created successfully",$result2.StatusCode, $job_id)
+    [String]::Format("- PASS, statuscode {0} returned successfully for POST command to create update job ID {1}",$result2.StatusCode, $job_id)
     Write-Host
 }
 else
@@ -254,6 +273,7 @@ if ($InstallOption -eq "Now" -or $InstallOption -eq "NowAndReboot")
 {
 $end_time = $start_time.AddMinutes(30)
 $force_count=0
+Write-Host "- WARNING, script will now loop polling the job status until marked completed`n"
 while ($overall_job_output.JobState -ne "Completed")
 {
 $loop_time = Get-Date
@@ -337,12 +357,23 @@ $force_count++
 }
 }
 }
-Write-Host
-[String]::Format("- PASS, {0} job ID marked as completed!",$job_id)
+#Write-Host
+#[String]::Format("- PASS, {0} job ID marked as completed!",$job_id)
 $get_current_time=Get-Date -DisplayHint Time
 $final_time=$get_current_time-$get_time_old
 $final_completion_time=$final_time | select Minutes,Seconds 
-Write-Host "  Job completed in $final_completion_time"
+Write-Host "`n- PASS, Job ID $job_id successfully marked completed. Job completed in $final_completion_time`n"
+Write-Host "- Detailed final job status results for job ID '$job_id':"
+$overall_job_output
+if ($overall_job_output.Name -eq "update:DCIM:INSTALLED#iDRAC.Embedded.1-1#IDRACinfo")
+{
+Write-Host "`n- WARNING, iDRAC update detected. Script will wait 5 minutes for iDRAC to reset and come back up before verify firmware version`n"
+Start-Sleep 300
+}
+else
+{
+Start-Sleep 10
+} 
 }
 
 # Code for NextReboot install option, this will check for job status of scheduled
@@ -388,23 +419,38 @@ return
 }
 
 
-
-$u9 = "https://$idrac_ip/redfish/v1/UpdateService/FirmwareInventory/$compare_version"
-
 # GET command to check final version was installed successfully
 
-try
+if ($image_filename.Contains(".pm"))
 {
-$result3 = Invoke-WebRequest -Uri $u9 -Credential $credential -Method Get -UseBasicParsing
-$new_version = $compare_version.Split("-")[-1]
-Write-Host
-Write-Host "- PASS, verified new firmware version installed is: $new_version"
-}
-catch
-{
-Write-Host "- FAIL, new version not installed is: $new_version"
 return
 }
+else
+{
 
-
+$u = "https://$idrac_ip/redfish/v1/UpdateService/FirmwareInventory/$compare_version"
+try
+    {
+    $result = Invoke-WebRequest -Uri $u -Credential $credential -Method Get -UseBasicParsing -ErrorVariable RespErr
+    }
+    catch
+    {
+    Write-Host
+    $RespErr
+    return
+    }
+	    if ($result.StatusCode -eq 200)
+	    {
+        $new_version = $compare_version.Split("-")[-1]
+        Write-Host "- PASS, verified new image version installed is: $new_version"
+	    }
+	    else
+	    {
+        $new_version = $compare_version.Split("-")[-1]
+        Write-Host "- FAIL, new version not installed is: $new_version"
+	    }
+return
 }
+}
+
+
