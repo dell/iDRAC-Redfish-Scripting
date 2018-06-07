@@ -6,7 +6,7 @@
 # NOTE: Supported values for Install_Option are: Now, NowAndReboot and NextReboot. Make sure you pass in the exact value as stated (values are case sensitive). For NextReboot value, the update job will still get created and scheduled but will not get applied until the next server reboot executed by the user.
 #
 # _author_ = Texas Roemer <Texas_Roemer@Dell.com>
-# _version_ = 3.0
+# _version_ = 4.0
 #
 # Copyright (c) 2017, Dell, Inc.
 #
@@ -18,7 +18,8 @@
 # http://www.gnu.org/licenses/old-licenses/gpl-2.0.txt.
 #
 
-import requests, json, sys, re, time, warnings
+import requests, json, sys, re, time, warnings, subprocess
+
 
 from datetime import datetime
 
@@ -119,7 +120,10 @@ def check_new_FW_version():
         pass
     else:
         print("\n- WARNING, checking new firmware version installed for updated device")
-        req = requests.get('https://%s/redfish/v1/UpdateService/FirmwareInventory/%s' % (idrac_ip, new_FW_version), auth=(idrac_username, idrac_password), verify=False)
+        try:
+            req = requests.get('https://%s/redfish/v1/UpdateService/FirmwareInventory/%s' % (idrac_ip, new_FW_version), auth=(idrac_username, idrac_password), verify=False)
+        except:
+            req = requests.get('https://%s/redfish/v1/UpdateService/FirmwareInventory/%s' % (idrac_ip, new_FW_version), auth=(idrac_username, idrac_password), verify=False)
         statusCode = req.status_code
         data = req.json()
         if dup_version == data[u'Version']:
@@ -128,19 +132,82 @@ def check_new_FW_version():
             print("\n- FAIL, New installed firmware version incorrect, error is: %s" % data)
             sys.exit()
 
+# Function to check network connection for iDRAC update 
+
+def check_idrac_connection():
+    command="ping %s -n 5" % idrac_ip
+    execute_command=subprocess.Popen(command, stdout=subprocess.PIPE, shell=True).communicate()[0]
+    re_search=re.search("Lost = .+? ",execute_command).group()
+    if re_search != 'Lost = 0 ':
+        ping_status = "lost"
+    else:
+        ping_status = "good"
+    if ping_status == "lost":
+            print("- WARNING, iDRAC network connection lost due to slow network response or iDRAC reset to apply firmware update. Waiting 6 minutes to access iDRAC again to check final job status and FW version")
+            time.sleep(360)
+            while True:
+                command="ping %s -n 5" % idrac_ip
+                execute_command=subprocess.Popen(command, stdout=subprocess.PIPE, shell=True).communicate()[0]
+                re_search=re.search("Lost = .+? ",execute_command).group()
+                if re_search != 'Lost = 0 ':
+                    ping_status = "lost"
+                else:
+                    ping_status = "good"
+                if ping_status == "lost":
+                    print("- WARNING, unable to ping iDRAC IP, script will wait 1 minute and try again")
+                    time.sleep(60)
+                    continue
+                else:
+                    print("- PASS, successful ping reply to iDRAC IP, script will wait 3 minutes for iDRAC to be ready")
+                    time.sleep(180)
+                    break
+            try:
+                req = requests.get('https://%s/redfish/v1/TaskService/Tasks/%s' % (idrac_ip, job_id), auth=(idrac_username, idrac_password), verify=False)
+            except:
+                req = requests.get('https://%s/redfish/v1/TaskService/Tasks/%s' % (idrac_ip, job_id), auth=(idrac_username, idrac_password), verify=False)
+                
+            statusCode = req.status_code
+            data = req.json()
+            if data[u"TaskState"] == "Completed":
+                print("\n- PASS, job ID %s successfuly marked completed, detailed final job status results:\n" % data[u"Id"])
+                for i in data[u'Oem'][u'Dell'].items():
+                    print("%s: %s" % (i[0],i[1]))
+                check_new_FW_version()
+            else:
+                print("\n- FAIL, job ID %s is not marked completed, current job status is: %s" % (job_id, data[u"TaskState"]))
+            sys.exit()
+    else:
+        pass
+
 # Function to check the job status for host reboot needed
 
 def check_job_status_host_reboot():
-    print("\n- WARNING, script will now loop polling the job status until marked completed") 
-    time.sleep(15)
     while True:
-        req = requests.get('https://%s/redfish/v1/TaskService/Tasks/%s' % (idrac_ip, job_id), auth=(idrac_username, idrac_password), verify=False)
+        check_idrac_connection()
+        try:
+            req = requests.get('https://%s/redfish/v1/TaskService/Tasks/%s' % (idrac_ip, job_id), auth=(idrac_username, idrac_password), verify=False)
+        except:
+            print("- WARNING, iDRAC network connection lost due to slow network response or iDRAC reset to apply firmware update. Waiting 6 minutes to access iDRAC again to check final job status and FW version")
+            time.sleep(360)
+            req = requests.get('https://%s/redfish/v1/TaskService/Tasks/%s' % (idrac_ip, job_id), auth=(idrac_username, idrac_password), verify=False)
+            statusCode = req.status_code
+            data = req.json()
+            if data[u"TaskState"] == "Completed":
+                print("\n- PASS, job ID %s successfuly marked completed, detailed final job status results:\n" % data[u"Id"])
+                for i in data[u'Oem'][u'Dell'].items():
+                    print("%s: %s" % (i[0],i[1]))
+                check_new_FW_version()
+                break
+            else:
+                print("\n- FAIL, job ID %s is not marked completed, current job status is: %s" % (job_id, data[u"TaskState"]))
+            sys.exit()
+            
         statusCode = req.status_code
         data = req.json()
         message_string=data[u"Messages"]
         current_time=(datetime.now()-start_time)
         if statusCode == 202 or statusCode == 200:
-            time.sleep(1)
+            pass
         else:
             print("Query job ID command failed, error code is: %s" % statusCode)
             sys.exit()
@@ -151,18 +218,25 @@ def check_job_status_host_reboot():
             print("\n- PASS, job ID %s successfuly marked completed, detailed final job status results:\n" % data[u"Id"])
             for i in data[u'Oem'][u'Dell'].items():
                 print("%s: %s" % (i[0],i[1]))
-            #print("\n- Job ID = "+data[u"Id"])
-            #print("- Name = "+data[u"Name"])
-            #try:
-                #print("- Message = "+message_string[0][u"Message"])
-            #except:
-                #print("- Message = "+data[u"Messages"][0][u"Message"])
-            #print("- JobStatus = "+data[u"TaskState"])
             print("\n- %s completed in: %s" % (job_id, str(current_time)[0:7]))
             if data[u"Name"] == "Firmware Update: iDRAC":
-                print("\n- WARNING, iDRAC update performed. Script will wait 3 minutes for iDRAC to reset and come back up before checking new firmware version")
-                time.sleep(180)
-                break
+                print("\n- WARNING, iDRAC update performed. Script will wait 6 minutes for iDRAC to reset and come back up before checking new firmware version")
+                time.sleep(360)
+                while True:
+                    command="ping %s -n 5" % idrac_ip
+                    execute_command=subprocess.Popen(command, stdout=subprocess.PIPE, shell=True).communicate()[0]
+                    re_search=re.search("Lost = .+? ",execute_command).group()
+                    if re_search != 'Lost = 0 ':
+                        ping_status = "lost"
+                    else:
+                        ping_status = "good"
+                    if ping_status == "lost":
+                        print("- WARNING, unable to ping iDRAC IP, script will wait 1 minute and try again")
+                        time.sleep(60)
+                        continue
+                    else:
+                        print("- PASS, successful ping reply to iDRAC IP")
+                        return
             else:
                 break
         elif data[u"TaskState"] == "Completed with Errors" or data[u"TaskState"] == "Failed":
@@ -176,7 +250,10 @@ def check_job_status_host_reboot():
             print("\n- %s completed in: %s" % (job_id, str(current_time)[0:7]))
             sys.exit()
         else:
-            print("- Message: %s" % message_string[0][u"Message"])
+            if "d9" in file_image_name or "d8" in file_image_name or "d7" in file_image_name:
+                print("- Message: Downloading package \"%s\"" % file_image_name)
+            else:
+                print("- Message: %s" % message_string[0][u"Message"])
             time.sleep(1)
             continue
 
@@ -190,7 +267,6 @@ def check_job_status():
         message_string=data[u"Messages"]
         current_time=(datetime.now()-start_time)
         if statusCode == 202 or statusCode == 200:
-            #print("\n- Query job ID command passed\n")
             time.sleep(10)
         else:
             print("Query job ID command failed, error code is: %s" % statusCode)
