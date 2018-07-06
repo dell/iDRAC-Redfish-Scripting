@@ -1,5 +1,5 @@
 #
-# GetPowerStateREDFISH. Python script using Redfish API to get ethernet interface information.
+# GetEthernetInterfacesREDFISH. Python script using Redfish API to get ethernet interface information.
 #
 # 
 #
