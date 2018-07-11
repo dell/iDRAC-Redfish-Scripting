@@ -65,6 +65,9 @@ def get_storage_controllers():
 def get_virtual_disks():
     response = requests.get('https://%s/redfish/v1/Systems/System.Embedded.1/Storage/%s/Volumes' % (idrac_ip, controller),verify=False,auth=(idrac_username, idrac_password))
     data = response.json()
+    if response.status_code != 200:
+        print("- FAIL, GET command failed, error is: %s" % data)
+        sys.exit()
     vd_list=[]
     if data[u'Members'] == []:
         print("\n- WARNING, no volumes detected for %s" % controller)
@@ -72,7 +75,7 @@ def get_virtual_disks():
     else:
         for i in data[u'Members']:
             vd_list.append(i[u'@odata.id'][54:])
-    print("\n- Virtual disk(s) detected for controller %s -" % controller,)
+    print("\n- Virtual disk(s) detected for controller %s -" % controller)
     print("\n")
     supported_vds=[]
     volume_type=[]
@@ -96,6 +99,9 @@ def get_virtual_disks():
 def get_virtual_disks_details():
     response = requests.get('https://%s/redfish/v1/Systems/System.Embedded.1/Storage/%s/Volumes' % (idrac_ip, controller),verify=False,auth=(idrac_username, idrac_password))
     data = response.json()
+    if response.status_code != 200:
+        print("- FAIL, GET command failed, error is: %s" % data)
+        sys.exit()
     vd_list=[]
     if data[u'Members'] == []:
         print("\n- WARNING, no volume(s) detected for %s" % controller)
