@@ -86,7 +86,7 @@ def get_virtual_disks():
     else:
         for i in data[u'Members']:
             vd_list.append(i[u'@odata.id'][54:])
-    print("\n- Supported virtual disk(s) detected to delete for controller %s -" % controller,)
+    print("\n- Supported virtual disk(s) detected to delete for controller %s -" % controller)
     print("\n")
     supported_vds=[]
     volume_type=[]
