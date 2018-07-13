@@ -26,8 +26,9 @@ parser.add_argument('-ip',help='iDRAC IP address', required=True)
 parser.add_argument('-u', help='iDRAC username', required=True)
 parser.add_argument('-p', help='iDRAC password', required=True)
 parser.add_argument('-c', help='Get server storage controllers, pass in \"y\". To get detailed information for the storage controllers, pass in \"yy\"', required=False)
-parser.add_argument('-d', help='Get supported secure erase devices, pass in storage controller FQDD, Example "\RAID.Integrated.1-1\"', required=False)
-parser.add_argument('-s', help='Pass in device FQDD for secure erase operation. Supported devices are ISE, SED drives or PCIe SSD devices', required=False)
+parser.add_argument('-d', help='Get controller drives, pass in storage controller FQDD, Example "\RAID.Integrated.1-1\"', required=False)
+parser.add_argument('-sd', help='Get supported secure erase devices, pass in storage controller FQDD, Example "\RAID.Integrated.1-1\"', required=False)
+parser.add_argument('-s', help='Pass in device FQDD for secure erase operation. Supported devices are ISE, SED drives or PCIe SSD devices(drives and cards)', required=False)
 args=vars(parser.parse_args())
 
 idrac_ip=args["ip"]
@@ -45,6 +46,9 @@ elif args["s"]:
 def get_storage_controllers():
     response = requests.get('https://%s/redfish/v1/Systems/System.Embedded.1/Storage' % idrac_ip,verify=False,auth=(idrac_username, idrac_password))
     data = response.json()
+    if response.status_code != 200:
+        print("\n- FAIL, GET command failed to get storage controllers, error is %s" % data)
+        sys.exit()
     print("\n- Server controller(s) detected -\n")
     controller_list=[]
     for i in data[u'Members']:
@@ -63,6 +67,9 @@ def get_controller_disks():
     response = requests.get('https://%s/redfish/v1/Systems/System.Embedded.1/Storage/%s' % (idrac_ip, controller),verify=False,auth=(idrac_username, idrac_password))
     data = response.json()
     drive_list=[]
+    if response.status_code != 200:
+        print("\n- FAIL, either controller not found on server or typo in controller FQDD name")
+        sys.exit()
     if data[u'Drives'] == []:
         print("\n- WARNING, no drives detected for %s" % controller)
         sys.exit()
@@ -71,6 +78,50 @@ def get_controller_disks():
         for i in data[u'Drives']:
             drive_list.append(i[u'@odata.id'][53:])
             print(i[u'@odata.id'][53:])
+
+def get_secure_erase_devices():
+    response = requests.get('https://%s/redfish/v1/Systems/System.Embedded.1/Storage/%s' % (idrac_ip, args["sd"]),verify=False,auth=(idrac_username, idrac_password))
+    data = response.json()
+    drive_list=[]
+    if response.status_code != 200:
+        print("\n- FAIL, either controller not found on server or typo in controller FQDD name")
+        sys.exit()
+        
+    if data[u'Drives'] == []:
+        print("\n- WARNING, no drives detected for %s" % args["sd"])
+        sys.exit()
+    else:
+        for i in data[u'Drives']:
+            drive_list.append(i[u'@odata.id'][53:])
+        secure_erase_devices=[]
+        for i in drive_list:
+            response = requests.get('https://%s/redfish/v1/Systems/System.Embedded.1/Storage/Drives/%s' % (idrac_ip, i),verify=False,auth=(idrac_username, idrac_password))
+            data = response.json()
+            for ii in data.items():
+                if ii[1] == "SelfEncryptingDrive":
+                    secure_erase_devices.append(i)
+        if "PCIe" in args["sd"]:
+            response = requests.get('https://%s/redfish/v1/Systems/System.Embedded.1/Bios' % idrac_ip,verify=False,auth=(idrac_username, idrac_password))
+            data = response.json()
+            current_value = data[u'Attributes']['NvmeMode']
+            if current_value == "Raid":
+                print("\n- WARNING, BIOS attribute NvmeMode set to Raid, erasing PCIe SSD devices not supported")
+                sys.exit()
+            else:
+                print("\n- Supported Secure Erase PCIe SSD Devices Detected -\n")
+                for i in drive_list:
+                    print(i)
+                sys.exit()
+        else:
+            if secure_erase_devices == []:
+                print("\n- FAIL, no supported secure drives detected")
+                sys.exit()
+            else:
+                print("\n- Supported secure erase drives detected for controller %s -\n" % args["sd"])
+                for i in secure_erase_devices:
+                    print(i)
+            sys.exit()
+    
     
     
 def secure_erase():
@@ -209,6 +260,8 @@ if __name__ == "__main__":
         get_storage_controllers()
     elif args["d"]:
         get_controller_disks()
+    elif args["sd"]:
+        get_secure_erase_devices()
     elif args["s"]:
         secure_erase()
         if job_type == "realtime":
