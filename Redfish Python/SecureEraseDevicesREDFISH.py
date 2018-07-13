@@ -27,7 +27,7 @@ parser.add_argument('-u', help='iDRAC username', required=True)
 parser.add_argument('-p', help='iDRAC password', required=True)
 parser.add_argument('-c', help='Get server storage controllers, pass in \"y\". To get detailed information for the storage controllers, pass in \"yy\"', required=False)
 parser.add_argument('-d', help='Get controller drives, pass in storage controller FQDD, Example "\RAID.Integrated.1-1\"', required=False)
-parser.add_argument('-sd', help='Get supported secure erase devices, pass in storage controller FQDD, Example "\RAID.Integrated.1-1\"', required=False)
+parser.add_argument('-sd', help='Get controller SED drives or PCIe SSD devices only, pass in controller FQDD, Examples "\RAID.Integrated.1-1\", \"PCIeExtender.Slot.7\"', required=False)
 parser.add_argument('-s', help='Pass in device FQDD for secure erase operation. Supported devices are ISE, SED drives or PCIe SSD devices(drives and cards)', required=False)
 args=vars(parser.parse_args())
 
@@ -117,7 +117,7 @@ def get_secure_erase_devices():
                 print("\n- FAIL, no supported secure drives detected")
                 sys.exit()
             else:
-                print("\n- Supported secure erase drives detected for controller %s -\n" % args["sd"])
+                print("\n- Supported secure erase SED drives detected for controller %s -\n" % args["sd"])
                 for i in secure_erase_devices:
                     print(i)
             sys.exit()
