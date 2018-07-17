@@ -143,7 +143,7 @@ def check_idrac_connection():
     else:
         ping_status = "good"
     if ping_status == "lost":
-            print("- WARNING, iDRAC network connection lost due to slow network response or iDRAC reset to apply firmware update. Waiting 6 minutes to access iDRAC again to check final job status and FW version")
+            print("- WARNING, iDRAC network connection lost due to slow network response or iDRAC reset to apply firmware update. Waiting 6 minutes to access iDRAC again")
             time.sleep(360)
             while True:
                 command="ping %s -n 5" % idrac_ip
@@ -187,7 +187,7 @@ def check_job_status_host_reboot():
         try:
             req = requests.get('https://%s/redfish/v1/TaskService/Tasks/%s' % (idrac_ip, job_id), auth=(idrac_username, idrac_password), verify=False)
         except:
-            print("- WARNING, iDRAC network connection lost due to slow network response or iDRAC reset to apply firmware update. Waiting 6 minutes to access iDRAC again to check final job status and FW version")
+            print("- WARNING, iDRAC network connection lost due to slow network response or iDRAC reset to apply firmware update. Waiting 6 minutes to access iDRAC again")
             time.sleep(360)
             req = requests.get('https://%s/redfish/v1/TaskService/Tasks/%s' % (idrac_ip, job_id), auth=(idrac_username, idrac_password), verify=False)
             statusCode = req.status_code
