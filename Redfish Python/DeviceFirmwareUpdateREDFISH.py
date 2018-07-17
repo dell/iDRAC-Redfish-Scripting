@@ -6,7 +6,7 @@
 # NOTE: Supported values for Install_Option are: Now, NowAndReboot and NextReboot. Make sure you pass in the exact value as stated (values are case sensitive). For NextReboot value, the update job will still get created and scheduled but will not get applied until the next server reboot executed by the user.
 #
 # _author_ = Texas Roemer <Texas_Roemer@Dell.com>
-# _version_ = 4.0
+# _version_ = 5.0
 #
 # Copyright (c) 2017, Dell, Inc.
 #
@@ -215,7 +215,7 @@ def check_job_status_host_reboot():
             print("- FAIL: Job failed, current message is: %s" % data[u"Messages"])
             sys.exit()
         elif data[u"TaskState"] == "Completed":
-            print("\n- PASS, job ID %s successfuly marked completed, detailed final job status results:\n" % data[u"Id"])
+            print("\n- PASS, job ID %s successfully marked completed, detailed final job status results:\n" % data[u"Id"])
             for i in data[u'Oem'][u'Dell'].items():
                 print("%s: %s" % (i[0],i[1]))
             print("\n- %s completed in: %s" % (job_id, str(current_time)[0:7]))
