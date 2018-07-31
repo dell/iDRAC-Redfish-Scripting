@@ -4,7 +4,7 @@
 # 
 #
 # _author_ = Texas Roemer <Texas_Roemer@Dell.com>
-# _version_ = 2.0
+# _version_ = 3.0
 #
 # Copyright (c) 2017, Dell, Inc.
 #
@@ -28,6 +28,7 @@ parser.add_argument('-u', help='iDRAC username', required=True)
 parser.add_argument('-p', help='iDRAC password', required=True)
 parser.add_argument('-t', help='Pass in Target value to get component attributes. You can pass in \"ALL" to get all component attributes or pass in a specific component to get only those attributes. Supported values are: ALL, System, BIOS, IDRAC, NIC, FC, LifecycleController, RAID.', required=True)
 parser.add_argument('-e', help='Pass in ExportUse value. Supported values are Default, Clone and Replace. If you don\'t use this parameter, default setting is Default or Normal export.', required=False)
+parser.add_argument('-i', help='Pass in IncludeInExport value. Supported values are 0 for \"Default\", 1 for \"IncludeReadOnly\", 2 for \"IncludePasswordHashValues\" or 3 for \"IncludeReadOnly,IncludePasswordHashValues\". If you don\'t use this parameter, default setting is Default for IncludeInExport.', required=False)
 args=vars(parser.parse_args())
 
 idrac_ip=args["ip"]
@@ -38,8 +39,17 @@ url = 'https://%s/redfish/v1/Managers/iDRAC.Embedded.1/Actions/Oem/EID_674_Manag
 payload = {"ExportFormat":"XML","ShareParameters":{"Target":args["t"]}}
 if args["e"]:
     payload["ExportUse"] = args["e"]
-else:
-    pass
+if args["i"]:
+    if args["i"] == "1":
+        payload["IncludeInExport"] = "Default"
+    if args["i"] == "2":
+        payload["IncludeInExport"] = "IncludeReadOnly"
+    if args["i"] == "3":
+        payload["IncludeInExport"] = "IncludePasswordHashValues"
+    if args["i"] == "4":
+        payload["IncludeInExport"] = "IncludeReadOnly,IncludePasswordHashValues"
+
+
 headers = {'content-type': 'application/json'}
 response = requests.post(url, data=json.dumps(payload), headers=headers, verify=False, auth=(idrac_username,idrac_password))
 
