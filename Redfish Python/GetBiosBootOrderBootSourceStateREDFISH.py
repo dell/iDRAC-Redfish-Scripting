@@ -16,20 +16,34 @@
 # http://www.gnu.org/licenses/old-licenses/gpl-2.0.txt.
 #
 
-import requests, json, sys, re, time, warnings
+import requests, json, sys, re, time, warnings, argparse
 
 from datetime import datetime
 
 warnings.filterwarnings("ignore")
 
-try:
-    idrac_ip = sys.argv[1]
-    idrac_username = sys.argv[2]
-    idrac_password = sys.argv[3]
-except:
-    print("""- FAIL: You must pass in script name along with iDRAC IP/iDRAC username/iDRAC password
-      Example: \"script_name.py 192.168.0.120 root calvin\"""")
-    sys.exit()
+parser=argparse.ArgumentParser(description="Python script using Redfish API to get the current boot order and current boot source state for the boot devices.")
+parser.add_argument('-ip',help='iDRAC IP address', required=True)
+parser.add_argument('-u', help='iDRAC username', required=True)
+parser.add_argument('-p', help='iDRAC password', required=True)
+
+
+args=vars(parser.parse_args())
+
+idrac_ip=args["ip"]
+idrac_username=args["u"]
+idrac_password=args["p"]
+
+### Function to check if iDRAC version detected is supported for this feature using Redfish
+
+def check_supported_idrac_version():
+    response = requests.get('https://%s/redfish/v1/Systems/System.Embedded.1/BootSources' % idrac_ip,verify=False,auth=(idrac_username, idrac_password))
+    data = response.json()
+    if response.status_code != 200:
+        print("\n- WARNING, iDRAC version installed does not support this feature using Redfish API")
+        sys.exit()
+    else:
+        pass
 
 ### Function to get BIOS current boot mode
 
@@ -46,6 +60,9 @@ def get_bios_boot_source_state():
     global boot_seq
     response = requests.get('https://%s/redfish/v1/Systems/System.Embedded.1/BootSources' % idrac_ip,verify=False,auth=(idrac_username, idrac_password))
     data = response.json()
+    if data[u'Attributes'] == {}:
+        print("\n- WARNING, no %s boot order devices detected for iDRAC IP %s" % (current_boot_mode,idrac_ip))
+        sys.exit()
     
     if current_boot_mode == "Uefi":
         boot_seq = "UefiBootSeq"
@@ -63,14 +80,14 @@ def get_bios_boot_source_state():
             if ii == "Name":
                 print("\n")
 
-    print("""\n- Boot source devices are also copied to \"boot_devices.txt\" file. If executing script to
-enable / disable multiple boot sources, this file will be used.""")
+    print("\n- Boot source devices are also copied to \"boot_devices.txt\" file. If executing script to enable / disable multiple boot sources, this file will be used.")
 
        
 
 ### Run code
 
 if __name__ == "__main__":
+    check_supported_idrac_version()
     get_bios_boot_mode()
     get_bios_boot_source_state()
 

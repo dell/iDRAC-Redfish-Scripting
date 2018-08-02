@@ -77,7 +77,7 @@ while True:
     req = requests.get('https://%s/redfish/v1/TaskService/Tasks/%s' % (idrac_ip, job_id), auth=(idrac_username, idrac_password), verify=False)
     d=req.__dict__
     if "<SystemConfiguration Model" in str(d):
-        print("\n- Export locally successfully passed. Attributes exported:\n")
+        print("\n- Export locally job ID %s successfully completed. Attributes exported:\n" % job_id)
         zz=re.search("<SystemConfiguration.+</SystemConfiguration>",str(d)).group()
 
         #Below code is needed to parse the string to set up in pretty XML format
@@ -105,7 +105,7 @@ while True:
         req = requests.get('https://%s/redfish/v1/Managers/iDRAC.Embedded.1/Jobs/%s' % (idrac_ip, job_id), auth=(idrac_username, idrac_password), verify=False)
         
         data = req.json()
-        print("- WARNING, final job status results -\n")
+        print("- WARNING, final detailed job status results for job ID %s -\n" % job_id)
         for i in data.items():
             print("%s: %s" % (i[0],i[1]))
         print("\n Exported attributes also saved in file: %s" % filename)
@@ -128,8 +128,9 @@ while True:
         print("\n-FAIL, Timeout of 10 minutes has been reached before marking the job completed.")
         sys.exit()
 
-    else: 
-        for i in data.items():
+    else:
+        print("- WARNING, job ID %s not marked completed, current job details\n" % job_id)
+        for i in data['Oem']['Dell'].items():
             print("%s: %s" % (i[0],i[1]))
         print("\n")
         time.sleep(1)

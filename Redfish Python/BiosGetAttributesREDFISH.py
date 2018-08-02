@@ -16,31 +16,41 @@
 # http://www.gnu.org/licenses/old-licenses/gpl-2.0.txt.
 #
 
-import requests, json, sys, re, time, os, warnings
+import requests, json, sys, re, time, os, warnings, argparse
 
 from datetime import datetime
 
 warnings.filterwarnings("ignore")
 
-try:
-    idrac_ip = sys.argv[1]
-    idrac_username = sys.argv[2]
-    idrac_password = sys.argv[3]
-except:
-    print("- FAIL: You must pass in script name along with iDRAC IP / iDRAC username / iDRAC password")
-    sys.exit()
+parser=argparse.ArgumentParser(description="Python script using Redfish API to get all BIOS attributes or get current value for one specific attribute")
+parser.add_argument('-ip',help='iDRAC IP address', required=True)
+parser.add_argument('-u', help='iDRAC username', required=True)
+parser.add_argument('-p', help='iDRAC password', required=True)
+parser.add_argument('-a', help='Pass in the attribute name you want to change current value, Note: make sure to type the attribute name exactly due to case senstive. Example: MemTest will work but memtest will fail', required=False)
+
+args=vars(parser.parse_args())
+
+idrac_ip=args["ip"]
+idrac_username=args["u"]
+idrac_password=args["p"]
 
 try:
     os.remove("bios_attributes.txt")
 except:
     pass
 
-# Function to get BIOS attributes /current settings
+def check_supported_idrac_version():
+    response = requests.get('https://%s/redfish/v1/Systems/System.Embedded.1/Bios' % idrac_ip,verify=False,auth=(idrac_username, idrac_password))
+    data = response.json()
+    if response.status_code != 200:
+        print("\n- WARNING, iDRAC version installed does not support this feature using Redfish API")
+        sys.exit()
+    else:
+        pass
+
 
 def get_bios_attributes():
     f=open("bios_attributes.txt","a")
-    global current_value
-    global pending_value
     response = requests.get('https://%s/redfish/v1/Systems/System.Embedded.1/Bios' % idrac_ip,verify=False,auth=(idrac_username,idrac_password))
     data = response.json()
     d=datetime.now()
@@ -59,8 +69,23 @@ def get_bios_attributes():
     print("\n- Attributes are also captured in \"bios_attributes.txt\" file")
     f.close()
 
-#Run Code
+def get_specific_bios_attribute():
+    response = requests.get('https://%s/redfish/v1/Systems/System.Embedded.1/Bios' % idrac_ip,verify=False,auth=(idrac_username,idrac_password))
+    data = response.json()
+    for i in data[u'Attributes'].items():
+        if i[0] == args["a"]:
+            print("\n- Current value for attribute \"%s\" is \"%s\"\n" % (args["a"], i[1]))
+            sys.exit()
+    print("\n- FAIL, unable to get attribute current value. Either attribute doesn't exist for this BIOS version or typo in attribute name")
     
-get_bios_attributes()
+
+
+if __name__ == "__main__":
+    check_supported_idrac_version()
+    if args["a"]:
+       get_specific_bios_attribute()
+    else:
+        get_bios_attributes()
+    
 
 

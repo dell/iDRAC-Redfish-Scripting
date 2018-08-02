@@ -22,29 +22,49 @@
 # http://www.gnu.org/licenses/old-licenses/gpl-2.0.txt.
 #
 
-import requests, json, sys, re, time, warnings
+import requests, json, sys, re, time, warnings, argparse
 
 from datetime import datetime
 
 warnings.filterwarnings("ignore")
 
-try:
-    idrac_ip = sys.argv[1]
-    idrac_username = sys.argv[2]
-    idrac_password = sys.argv[3]
-    attribute_name = sys.argv[4]
-    pending_value = sys.argv[5]
-except:
-    print("- FAIL: You must pass in script name along with iDRAC IP / iDRAC username / iDRAC password / attribute name / attribute value. Example: \"script_name.py 192.168.0.120 root calvin MemTest Enabled\"")
-    sys.exit()
+parser=argparse.ArgumentParser(description="Python script using Redfish API to change one BIOS attribute cuurent value")
+parser.add_argument('-ip',help='iDRAC IP address', required=True)
+parser.add_argument('-u', help='iDRAC username', required=True)
+parser.add_argument('-p', help='iDRAC password', required=True)
+parser.add_argument('-a', help='Pass in the attribute name you want to change current value, Note: make sure to type the attribute name exactly due to case senstive. Example: MemTest will work but memtest will fail', required=True)
+parser.add_argument('-v', help='Pass in the attribute value you want to change to. Note: make sure to type the attribute value exactly due to case senstive. Example: Disabled will work but disabled will fail', required=True)
+
+args=vars(parser.parse_args())
+
+idrac_ip=args["ip"]
+idrac_username=args["u"]
+idrac_password=args["p"]
+attribute_name = args["a"]
+pending_value = args["v"]
+
+### Function to check if current iDRAC version detected is supported by Redfish
+
+def check_supported_idrac_version():
+    response = requests.get('https://%s/redfish/v1/Systems/System.Embedded.1/Bios' % idrac_ip,verify=False,auth=(idrac_username, idrac_password))
+    data = response.json()
+    if response.status_code != 200:
+        print("\n- WARNING, iDRAC version installed does not support this feature using Redfish API")
+        sys.exit()
+    else:
+        pass
+
 
 ### Function to get BIOS attribute current value
 
 def get_attribute_current_value():
     global current_value
-    response = requests.get('https://%s/redfish/v1/Systems/System.Embedded.1/Bios' % idrac_ip,verify=False,auth=(idrac_username, idrac_password))
+    response = requests.get('https://%s/redfish/v1/Systems/System.Embedded.1/Bios' % idrac_ip,verify=False,auth=(idrac_username,idrac_password))
     data = response.json()
-    current_value = data[u'Attributes'][attribute_name]
+    for i in data[u'Attributes'].items():
+        if i[0] == args["a"]:
+            current_value = i[1]
+            print("\n- Current value for attribute \"%s\" is \"%s\"" % (args["a"], i[1]))
 
                     
 ### Function to set BIOS attribute pending value
@@ -189,12 +209,14 @@ def get_new_current_value():
 
 ### Run code
 
-get_attribute_current_value()
-set_bios_attribute()
-create_bios_config_job()
-get_job_status()
-reboot_server()
-loop_job_status()
-get_new_current_value()
+if __name__ == "__main__":
+    check_supported_idrac_version()
+    get_attribute_current_value()
+    set_bios_attribute()
+    create_bios_config_job()
+    get_job_status()
+    reboot_server()
+    loop_job_status()
+    get_new_current_value()
 
 
