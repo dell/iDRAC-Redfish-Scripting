@@ -25,7 +25,7 @@
 # {"Index": 0, "Enabled": true, "Id": "BIOS.Setup.1-1#UefiBootSeq#RAID.Mezzanine.1-1#6f9a42098226e9297f899d1039d4558e", "Name": "RAID.Mezzanine.1-1"}]
 #
 # _author_ = Texas Roemer <Texas_Roemer@Dell.com>
-# _version_ = 1.0
+# _version_ = 2.0
 #
 # Copyright (c) 2017, Dell, Inc.
 #
@@ -38,20 +38,34 @@
 #
 
 
-import requests, json, sys, re, time, warnings, pickle
+import requests, json, sys, re, time, warnings, pickle, argparse
 
 from datetime import datetime
 
 warnings.filterwarnings("ignore")
 
-try:
-    idrac_ip = sys.argv[1]
-    idrac_username = sys.argv[2]
-    idrac_password = sys.argv[3]
-except:
-    print("""- FAIL: You must pass in script name along with iDRAC IP/iDRAC username/iDRAC password
-      Example: \"script_name.py 192.168.0.120 root calvin\"""")
-    sys.exit()
+parser=argparse.ArgumentParser(description="Python script using Redfish API to either change the boot order or enable /disable boot order devices")
+parser.add_argument('-ip',help='iDRAC IP address', required=True)
+parser.add_argument('-u', help='iDRAC username', required=True)
+parser.add_argument('-p', help='iDRAC password', required=True)
+
+
+args=vars(parser.parse_args())
+
+idrac_ip=args["ip"]
+idrac_username=args["u"]
+idrac_password=args["p"]
+
+### Function to check if iDRAC version detected is supported for this feature using Redfish
+
+def check_supported_idrac_version():
+    response = requests.get('https://%s/redfish/v1/Systems/System.Embedded.1/BootSources' % idrac_ip,verify=False,auth=(idrac_username, idrac_password))
+    data = response.json()
+    if response.status_code != 200:
+        print("\n- WARNING, iDRAC version installed does not support this feature using Redfish API")
+        sys.exit()
+    else:
+        pass
 
 ### Function to get BIOS current boot mode
 
@@ -69,6 +83,9 @@ def get_bios_boot_source_state():
     global boot_device_list_from_file
     response = requests.get('https://%s/redfish/v1/Systems/System.Embedded.1/BootSources' % idrac_ip,verify=False,auth=(idrac_username, idrac_password))
     data = response.json()
+    if data[u'Attributes'] == {}:
+        print("\n- WARNING, no %s boot order devices detected for iDRAC IP %s" % (current_boot_mode,idrac_ip))
+        sys.exit()
     
     if current_boot_mode == "Uefi":
         boot_seq = "UefiBootSeq"
@@ -80,18 +97,34 @@ def get_bios_boot_source_state():
     with open('boot_devices.txt', 'r') as i:
         boot_device_list_from_file=json.load(i)
     
+
     for i in get_boot_devices:
-        for ii in i:
-            print("%s : %s" % (ii, i[ii]))
-            if ii == "Name":
+        for ii in i.items():
+            #print("%s: %s" % (ii[0], ii[1]))
+            if ii[0] == "Enabled":
+                if ii[1] == True:
+                    print("Enabled: true")
+                elif ii[1] == False:
+                    print("Enabled: false")
+            else:
+                print("%s: %s" % (ii[0], ii[1]))
+            if ii[0] == "Name":
                 print("\n")
     time.sleep(3)
     print("\n- WARNING, changing boot devices to these values based off \"boot_devices.txt\" file:\n")
 
+
     for i in boot_device_list_from_file:
-        for ii in i:
-            print("%s : %s" % (ii, i[ii]))
-            if ii == "Name":
+        for ii in i.items():
+            #print("%s: %s" % (ii[0], ii[1]))
+            if ii[0] == "Enabled":
+                if ii[1] == True:
+                    print("Enabled: true")
+                elif ii[1] == False:
+                    print("Enabled: false")
+            else:
+                print("%s: %s" % (ii[0], ii[1]))
+            if ii[0] == "Name":
                 print("\n")
     time.sleep(3)
 
@@ -105,9 +138,9 @@ def set_bios_boot_source_state():
     data=response.json()
     statusCode = response.status_code
     if statusCode == 200:
-        print("- PASS: Command passed to set pending boot device changes.")
+        print("- PASS: PATCH command passed to set pending boot device changes.")
     else:
-        print("\n- FAIL, Command failed, errror code is %s" % statusCode)
+        print("\n- FAIL, PATCH command failed, errror code is %s" % statusCode)
         detail_message=str(response.__dict__)
         print(detail_message)
         sys.exit()
@@ -123,9 +156,9 @@ def create_bios_config_job():
     statusCode = response.status_code
     
     if statusCode == 200:
-        print("- PASS: Command passed to create target config job, status code 200 returned.")
+        print("- PASS: POST command passed to create target config job, status code 200 returned.")
     else:
-        print("\n- FAIL, Command failed, status code is %s\n" % statusCode)
+        print("- FAIL, POST command failed to create BIOS config job, status code is %s\n" % statusCode)
         detail_message=str(response.__dict__)
         print(detail_message)
         sys.exit()

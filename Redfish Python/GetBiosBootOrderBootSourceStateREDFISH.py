@@ -4,7 +4,7 @@
 # NOTE: Recommended to run this script first to get current boot order / boot source state before execute ChangeBootOrderBootSourceStateREDFISH script.
 #
 # _author_ = Texas Roemer <Texas_Roemer@Dell.com>
-# _version_ = 1.0
+# _version_ = 2.0
 #
 # Copyright (c) 2017, Dell, Inc.
 #
@@ -74,12 +74,21 @@ def get_bios_boot_source_state():
     
     print("- Current boot order devices and their boot source state:\n")
     
-    for i in get_boot_devices:
-        for ii in i:
-            print("%s : %s" % (ii, i[ii]))
-            if ii == "Name":
-                print("\n")
 
+
+    for i in get_boot_devices:
+        for ii in i.items():
+            #print("%s: %s" % (ii[0], ii[1]))
+            if ii[0] == "Enabled":
+                if ii[1] == True:
+                    print("Enabled: true")
+                elif ii[1] == False:
+                    print("Enabled: false")
+            else:
+                print("%s: %s" % (ii[0], ii[1]))
+            if ii[0] == "Name":
+                print("\n")
+    
     print("\n- Boot source devices are also copied to \"boot_devices.txt\" file. If executing script to enable / disable multiple boot sources, this file will be used.")
 
        
