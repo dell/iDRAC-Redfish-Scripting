@@ -29,7 +29,7 @@ warnings.filterwarnings("ignore")
 
 
 parser = argparse.ArgumentParser(description='Python script using Redfish API to get current next boot onetime boot setting and supported values or set next boot onetime boot device.')
-parser.add_argument('-i', help='iDRAC IP Address', required=False, type=str)
+parser.add_argument('-ip', help='iDRAC IP Address', required=False, type=str)
 parser.add_argument('-u', help='iDRAC username', required=False, type=str)
 parser.add_argument('-p', help='iDRAC username pasword', required=False, type=str)
 parser.add_argument('-e', help='pass in "y" to print executing script examples', required=False, type=str)
@@ -40,12 +40,12 @@ parser.add_argument('-r', help='user option, pass in \"y\" if you want the serve
 
 args = parser.parse_args()
 
-idrac_ip=args.i
+idrac_ip=args.ip
 idrac_username=args.u
 idrac_password=args.p
 
 if args.e == "y":
-  print("\n- SetNextOneTimeBootDeviceREDFISH -i 191.268.0.120 -u root -p calvin -c, this will get the current next boot setting and possible values.\n- SetNextOneTimeBootDeviceREDFISH -i 192.168.0.10 -u root -p calvin -o Pxe -r y, this will set next one time boot to PXE and reboot the server now. Once the system completes POST, system will PXE boot.\n- SetNextOneTimeBootDevivceREDFISH -i 192.168.0.120 -u root -p calvin -o UefiTarget -U http://192.168.0.130/dellshell.efi -r y. This will set UEFI target path, set next onetime boot to UefiTarget and reboot the server now.")
+  print("\n- SetNextOneTimeBootDeviceREDFISH -ip 191.268.0.120 -u root -p calvin -c, this will get the current next boot setting and possible values.\n- SetNextOneTimeBootDeviceREDFISH -ip 192.168.0.10 -u root -p calvin -o Pxe -r y, this will set next one time boot to PXE and reboot the server now. Once the system completes POST, system will PXE boot.\n- SetNextOneTimeBootDeviceREDFISH.py -ip 192.168.0.120 -u root -p calvin -o UefiTarget -U VenHw(986D1755-B9D0-4F8D-A0DA-D1DB18672045) -r y. This example will reboot the server and one time boot to the Uefi target vendor device ID which is HTTP device path. The vendor device ID string information is in F2 UEFI Device Manager.")
 
 ### Function to get current next boot onetime boot setting possible values for onetime boot
 
