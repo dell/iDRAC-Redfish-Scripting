@@ -2,7 +2,7 @@
 # ImportSystemConfigurationLocalFilenameREDFISH. Python script using Redfish API to import system configuration profile attributes locally from a configuration file.
 #
 # _author_ = Texas Roemer <Texas_Roemer@Dell.com>
-# _version_ = 2.0
+# _version_ = 3.0
 #
 # Copyright (c) 2017, Dell, Inc.
 #
@@ -58,7 +58,7 @@ if args["p"]:
 
 payload["ImportBuffer"]=xml_string
 headers = {'content-type': 'application/json'}
-response = requests.post(url, data=json.dumps(payload), headers=headers, verify=False, auth=('root','calvin'))
+response = requests.post(url, data=json.dumps(payload), headers=headers, verify=False, auth=(idrac_username, idrac_password))
 
 #print '\n- Response status code is: %s' % response.status_code
 
