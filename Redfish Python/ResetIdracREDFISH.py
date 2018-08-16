@@ -2,10 +2,10 @@
 # ResetIdracREDFISH. Python script using Redfish API to reset iDRAC.
 #
 # NOTE: Once the script is complete, iDRAC will reset to complete the process and you will lose network connection. iDRAC should be back up within a few minutes.
-# To execute script, pass in script name along with iDRAC IP address / iDRAC username / iDRAC password.
+# 
 #
 # _author_ = Texas Roemer <Texas_Roemer@Dell.com>
-# _version_ = 1.0
+# _version_ = 2.0
 #
 # Copyright (c) 2017, Dell, Inc.
 #
