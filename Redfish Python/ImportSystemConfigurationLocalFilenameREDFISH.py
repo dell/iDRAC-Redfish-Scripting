@@ -2,7 +2,7 @@
 # ImportSystemConfigurationLocalFilenameREDFISH. Python script using Redfish API to import system configuration profile attributes locally from a configuration file.
 #
 # _author_ = Texas Roemer <Texas_Roemer@Dell.com>
-# _version_ = 3.0
+# _version_ = 4.0
 #
 # Copyright (c) 2017, Dell, Inc.
 #
@@ -107,7 +107,7 @@ while True:
         sys.exit()
     elif "Successfully imported" in final_message_string or "completed with errors" in final_message_string or "Successfully imported" in final_message_string:
         print("- PASS, job ID %s successfully marked completed\n" % job_id)
-        print("\n- Detailed jb results for job ID %s\n" % job_id)
+        print("\n- Detailed job results for job ID %s\n" % job_id)
         for i in data['Oem']['Dell'].items():
             print("%s: %s" % (i[0], i[1]))
         print("\n- %s completed in: %s" % (job_id, str(current_time)[0:7]))
@@ -125,7 +125,7 @@ while True:
                     pass
 
         sys.exit()
-    elif "No changes" in final_message_string:
+    elif "No changes" in final_message_string or "No configuration changes" in final_message_string:
         print("- Job ID = "+data[u"Id"])
         print("- Name = "+data[u"Name"])
         try:

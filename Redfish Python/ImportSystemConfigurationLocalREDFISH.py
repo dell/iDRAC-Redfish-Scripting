@@ -6,7 +6,7 @@
 # NOTE: Before executing the script, modify the payload dictionary with supported parameters. For payload dictionary supported parameters, refer to schema "https://'iDRAC IP'/redfish/v1/Managers/iDRAC.Embedded.1/"
 #
 # _author_ = Texas Roemer <Texas_Roemer@Dell.com>
-# _version_ = 2.0
+# _version_ = 3.0
 #
 # Copyright (c) 2017, Dell, Inc.
 #
@@ -36,7 +36,7 @@ idrac_password=args["p"]
     
 url = 'https://%s/redfish/v1/Managers/iDRAC.Embedded.1/Actions/Oem/EID_674_Manager.ImportSystemConfiguration' % idrac_ip
 
-# Make sure to modify this payload dictionary first before you execute the script.
+# Make sure to modify this payload dictionary first before you execute the script. Payload listed below is an example of showing the correct format. 
  
 payload = {"ShutdownType":"Forced","ImportBuffer":"<SystemConfiguration><Component FQDD=\"iDRAC.Embedded.1\"><Attribute Name=\"Telnet.1#Enable\">Disabled</Attribute></Component></SystemConfiguration>","ShareParameters":{"Target":"All"}}
 
@@ -76,17 +76,8 @@ while True:
     else:
         print("Query job ID command failed, error code is: %s" % statusCode)
         sys.exit()
-    if "failed" in final_message_string or "completed with errors" in final_message_string or "Not one" in final_message_string:
+    if "failed" in final_message_string or "completed with errors" in final_message_string or "Not one" in final_message_string or "not compliant" in final_message_string or "Unable to complete" in final_message_string or "The system could not be shut down" in final_message_string:
         print("\n- FAIL, detailed job message is: %s" % data[u"Messages"])
-        sys.exit()
-    elif "Successfully imported" in final_message_string or "completed with errors" in final_message_string or "Successfully imported" in final_message_string:
-        print("- Job ID = "+data[u"Id"])
-        print("- Name = "+data[u"Name"])
-        try:
-            print("- Message = "+message_string[0][u"Message"])
-        except:
-            print("- Message = %s" % message_string[len(message_string)-1][u"Message"])
-        print("\n- %s completed in: %s" % (job_id, str(current_time)[0:7]))
         sys.exit()
     elif "No reboot Server" in final_message_string:
         try:
@@ -94,7 +85,27 @@ while True:
         except:
             print("- Message = %s" % message_string[len(message_string)-1][u"Message"])
         sys.exit()
-    elif "No changes" in final_message_string:
+    elif "Successfully imported" in final_message_string or "completed with errors" in final_message_string or "Successfully imported" in final_message_string:
+        print("- PASS, job ID %s successfully marked completed\n" % job_id)
+        print("\n- Detailed job results for job ID %s\n" % job_id)
+        for i in data['Oem']['Dell'].items():
+            print("%s: %s" % (i[0], i[1]))
+        print("\n- %s completed in: %s" % (job_id, str(current_time)[0:7]))
+        print("\n- Config results for job ID %s\n" % job_id)
+        for i in data['Messages']:
+            for ii in i.items():
+                if ii[0] == "Oem":
+                    for iii in ii[1]['Dell'].items():
+                        if iii[0] == 'NewValue':
+                            print("%s: %s" % (iii[0], iii[1]))
+                            print("\n")
+                        else:
+                            print("%s: %s" % (iii[0], iii[1]))
+                else:
+                    pass
+
+        sys.exit()
+    elif "No changes" in final_message_string or "No configuration changes" in final_message_string:
         print("- Job ID = "+data[u"Id"])
         print("- Name = "+data[u"Name"])
         try:
