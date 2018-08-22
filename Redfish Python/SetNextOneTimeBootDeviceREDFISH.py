@@ -81,9 +81,9 @@ def set_next_boot_onetime_boot_device():
     time.sleep(5)
     if statusCode == 200:
       if args.o == "UefiTarget" and args.U:
-        print("\n- PASS: Command passed to set UEFI target path to \"%s\" and next boot onetime boot device to: %s" % (args.U,args.o))
+        print("\n- PASS: PATCH command passed to set UEFI target path to \"%s\" and next boot onetime boot device to: %s" % (args.U,args.o))
       else:
-        print("\n- PASS, Command passed to set next boot onetime boot device to: \"%s\"" % args.o)
+        print("\n- PASS, PATCH command passed to set next boot onetime boot device to: \"%s\"" % args.o)
     else:
       print("\n- FAIL, Command failed, errror code is %s" % statusCode)
       detail_message=str(response.__dict__)
@@ -91,55 +91,58 @@ def set_next_boot_onetime_boot_device():
       sys.exit()
 
 
-### Function to reboot the server
+### Function to reboot or  power on the server
                                                                           
 def reboot_server():
-  if args.o == "None":
-    print("\n- Next boot onetime boot device set to \"%s\", no reboot server action is required" % args.o)
-    sys.exit()
-  elif args.r == "y":
     response = requests.get('https://%s/redfish/v1/Systems/System.Embedded.1/' % idrac_ip,verify=False,auth=(idrac_username, idrac_password))
     data = response.json()
     print("\n- WARNING, Current server power state is: %s" % data[u'PowerState'])
     if data[u'PowerState'] == "On":
-      url = 'https://%s/redfish/v1/Systems/System.Embedded.1/Actions/ComputerSystem.Reset' % idrac_ip
-      payload = {'ResetType': 'ForceOff'}
-      headers = {'content-type': 'application/json'}
-      response = requests.post(url, data=json.dumps(payload), headers=headers, verify=False, auth=(idrac_username,idrac_password))
-      statusCode = response.status_code
-      if statusCode == 204:
-        print("\n- PASS, Command passed to power OFF server, code return is %s" % statusCode)
-      else:
-        print("\n- FAIL, Command failed to power OFF server, status code is: %s\n" % statusCode)
-        print("Extended Info Message: {0}".format(response.json()))
-        sys.exit()
-      time.sleep(10)
-      payload = {'ResetType': 'On'}
-      headers = {'content-type': 'application/json'}
-      response = requests.post(url, data=json.dumps(payload), headers=headers, verify=False, auth=(idrac_username,idrac_password))
-      statusCode = response.status_code
-      if statusCode == 204:
-        print("\n- PASS, Command passed to power ON server, code return is %s" % statusCode)
-      else:
-        print("\n- FAIL, Command failed to power ON server, status code is: %s\n" % statusCode)
-        print("Extended Info Message: {0}".format(response.json()))
-        sys.exit()
+        url = 'https://%s/redfish/v1/Systems/System.Embedded.1/Actions/ComputerSystem.Reset' % idrac_ip
+        payload = {'ResetType': 'ForceOff'}
+        headers = {'content-type': 'application/json'}
+        response = requests.post(url, data=json.dumps(payload), headers=headers, verify=False, auth=(idrac_username,idrac_password))
+        statusCode = response.status_code
+        if statusCode == 204:
+            print("- PASS, Command passed to power OFF server, code return is %s" % statusCode)
+        else:
+            print("\n- FAIL, Command failed to power OFF server, status code is: %s\n" % statusCode)
+            print("Extended Info Message: {0}".format(response.json()))
+            sys.exit()
+        while True:
+            response = requests.get('https://%s/redfish/v1/Systems/System.Embedded.1/' % idrac_ip,verify=False,auth=(idrac_username, idrac_password))
+            data = response.json()
+            if data[u'PowerState'] == "Off":
+                print("- PASS, GET command passed to verify server is in OFF state")
+                break
+            else:
+                continue
+            
+        payload = {'ResetType': 'On'}
+        headers = {'content-type': 'application/json'}
+        response = requests.post(url, data=json.dumps(payload), headers=headers, verify=False, auth=(idrac_username,idrac_password))
+        statusCode = response.status_code
+        if statusCode == 204:
+            print("- PASS, Command passed to power ON server, code return is %s" % statusCode)
+        else:
+            print("\n- FAIL, Command failed to power ON server, status code is: %s\n" % statusCode)
+            print("Extended Info Message: {0}".format(response.json()))
+            sys.exit()
+    elif data[u'PowerState'] == "Off":
+        url = 'https://%s/redfish/v1/Systems/System.Embedded.1/Actions/ComputerSystem.Reset' % idrac_ip
+        payload = {'ResetType': 'On'}
+        headers = {'content-type': 'application/json'}
+        response = requests.post(url, data=json.dumps(payload), headers=headers, verify=False, auth=(idrac_username,idrac_password))
+        statusCode = response.status_code
+        if statusCode == 204:
+            print("- PASS, Command passed to power ON server, code return is %s" % statusCode)
+        else:
+            print("\n- FAIL, Command failed to power ON server, status code is: %s\n" % statusCode)
+            print("Extended Info Message: {0}".format(response.json()))
+            sys.exit()
     else:
-      url = 'https://%s/redfish/v1/Systems/System.Embedded.1/Actions/ComputerSystem.Reset' % idrac_ip
-      payload = {'ResetType': 'On'}
-      headers = {'content-type': 'application/json'}
-      response = requests.post(url, data=json.dumps(payload), headers=headers, verify=False, auth=(idrac_username,idrac_password))
-      statusCode = response.status_code
-      if statusCode == 204:
-        print("\n- PASS, Command passed to power ON server, code return is %s" % statusCode)
-      else:
-        print("\n- FAIL, Command failed to power ON server, status code is: %s\n" % statusCode)
-        print("Extended Info Message: {0}".format(response.json()))
+        print("- FAIL, unable to get current server power state to perform either reboot or power on")
         sys.exit()
-    print("\n- Flag will now be set during POST and server will onetime boot to device \"%s\"" % args.o)
-  elif args.r == "n":
-    print("\n- User selected to not reboot the server now but next boot onetime boot is still set to \"%s\" which will occur on next server reboot." % args.o)
-    sys.exit()
 
 
 

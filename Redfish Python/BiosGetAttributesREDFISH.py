@@ -4,7 +4,7 @@
 # NOTE: Recommended to run this script first to get attributes and current values before executing BiosSetAttributeREDFISH script.
 #
 # _author_ = Texas Roemer <Texas_Roemer@Dell.com>
-# _version_ = 1.0
+# _version_ = 3.0
 #
 # Copyright (c) 2017, Dell, Inc.
 #
@@ -26,7 +26,7 @@ parser=argparse.ArgumentParser(description="Python script using Redfish API to g
 parser.add_argument('-ip',help='iDRAC IP address', required=True)
 parser.add_argument('-u', help='iDRAC username', required=True)
 parser.add_argument('-p', help='iDRAC password', required=True)
-parser.add_argument('-a', help='Pass in the attribute name you want to change current value, Note: make sure to type the attribute name exactly due to case senstive. Example: MemTest will work but memtest will fail', required=False)
+parser.add_argument('-a', help='Pass in the attribute name you want to get the current value, Note: make sure to type the attribute name exactly due to case senstive. Example: MemTest will work but memtest will fail', required=False)
 
 args=vars(parser.parse_args())
 
@@ -76,7 +76,8 @@ def get_specific_bios_attribute():
         if i[0] == args["a"]:
             print("\n- Current value for attribute \"%s\" is \"%s\"\n" % (args["a"], i[1]))
             sys.exit()
-    print("\n- FAIL, unable to get attribute current value. Either attribute doesn't exist for this BIOS version or typo in attribute name")
+    print("\n- FAIL, unable to get attribute current value. Either attribute doesn't exist for this BIOS version, typo in attribute name or case incorrect")
+    sys.exit()
     
 
 
