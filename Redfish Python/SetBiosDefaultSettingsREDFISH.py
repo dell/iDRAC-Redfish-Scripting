@@ -4,7 +4,7 @@
 # NOTE: For reboot_now option, pass in "y" if you want to reboot the server now or "n" which will still set the flag to set BIOS to default settings but not reboot the server now. Reset to default will get applied when the next manual reboot of the server occurs.
 #
 # _author_ = Texas Roemer <Texas_Roemer@Dell.com>
-# _version_ = 2.0
+# _version_ = 3.0
 #
 # Copyright (c) 2017, Dell, Inc.
 #
@@ -68,7 +68,7 @@ def reboot_server():
                 print("\n- FAIL, Command failed to power OFF server, status code is: %s\n" % statusCode)
                 print("Extended Info Message: {0}".format(response.json()))
                 sys.exit()
-            time.sleep(10)
+            time.sleep(30)
             payload = {'ResetType': 'On'}
             headers = {'content-type': 'application/json'}
             response = requests.post(url, data=json.dumps(payload), headers=headers, verify=False, auth=(idrac_username,idrac_password))
