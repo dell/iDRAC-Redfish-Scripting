@@ -6,7 +6,7 @@
 # NOTE: Before executing the script, modify the payload dictionary with supported parameters. For payload dictionary supported parameters, refer to schema "https://'iDRAC IP'/redfish/v1/Managers/iDRAC.Embedded.1/"
 #
 # _author_ = Texas Roemer <Texas_Roemer@Dell.com>
-# _version_ = 3.0
+# _version_ = 4.0
 #
 # Copyright (c) 2017, Dell, Inc.
 #
@@ -38,17 +38,19 @@ url = 'https://%s/redfish/v1/Managers/iDRAC.Embedded.1/Actions/Oem/EID_674_Manag
 
 # Make sure to modify this payload dictionary first before you execute the script. Payload listed below is an example of showing the correct format. 
  
-payload = {"ShutdownType":"Forced","ImportBuffer":"<SystemConfiguration><Component FQDD=\"iDRAC.Embedded.1\"><Attribute Name=\"Telnet.1#Enable\">Disabled</Attribute></Component></SystemConfiguration>","ShareParameters":{"Target":"All"}}
+payload = {"ImportBuffer":"<SystemConfiguration><Component FQDD=\"iDRAC.Embedded.1\"><Attribute Name=\"Time.1#Timezone\">CST6CDT</Attribute></Component></SystemConfiguration>","ShareParameters":{"Target":"All"}}
 
 headers = {'content-type': 'application/json'}
 response = requests.post(url, data=json.dumps(payload), headers=headers, verify=False, auth=(idrac_username,idrac_password))
 
 d=str(response.__dict__)
+print d
 
 try:
     z=re.search("JID_.+?,",d).group()
 except:
-    print("\n- FAIL: detailed error message: {0}".format(response.__dict__['_content']))
+    print("\n- FAIL: status code %s returned" % response.status_code)
+    print("- Detailed error information: %s" % d)
     sys.exit()
 
 job_id=re.sub("[,']","",z)

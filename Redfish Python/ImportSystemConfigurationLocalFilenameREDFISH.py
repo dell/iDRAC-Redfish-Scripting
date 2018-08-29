@@ -2,7 +2,7 @@
 # ImportSystemConfigurationLocalFilenameREDFISH. Python script using Redfish API to import system configuration profile attributes locally from a configuration file.
 #
 # _author_ = Texas Roemer <Texas_Roemer@Dell.com>
-# _version_ = 4.0
+# _version_ = 5.0
 #
 # Copyright (c) 2017, Dell, Inc.
 #
@@ -68,7 +68,8 @@ d=str(response.__dict__)
 try:
     z=re.search("JID_.+?,",d).group()
 except:
-    print("\n- FAIL: detailed error message: {0}".format(response.__dict__['_content']))
+    print("\n- FAIL: status code %s returned" % response.status_code)
+    print("- Detailed error information: %s" % d)
     sys.exit()
 
 job_id=re.sub("[,']","",z)
