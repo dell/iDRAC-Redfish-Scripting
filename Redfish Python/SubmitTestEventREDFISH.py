@@ -187,7 +187,6 @@ def get_set_ipmi_alert_iDRAC_setting():
 
 def create_subscription():
     url = "https://%s/redfish/v1/EventService/Subscriptions" % idrac_ip
-    #payload = {"Destination": "https://100.65.84.70","EventTypes": ["Alert"],"Context": "root","Protocol": "Redfish"}
     payload = {"Destination": destination,"EventTypes": [event_type],"Context": "root","Protocol": "Redfish"}
     headers = {'content-type': 'application/json'}
     response = requests.post(url, data=json.dumps(payload), headers=headers, verify=False,auth=(idrac_username, idrac_password))
@@ -198,7 +197,6 @@ def create_subscription():
         sys.exit()
     
 def submit_test_event():
-    #payload = {"Destination": "https://100.65.84.70","EventTypes": ["Alert"],"Context": "Root","Protocol": "Redfish","MessageId":"TMP0118"}
     payload = {"Destination": destination,"EventTypes": event_type,"Context": "Root","Protocol": "Redfish","MessageId":message_id}
     url = "https://%s/redfish/v1/EventService/Actions/EventService.SubmitTestEvent" % idrac_ip
     headers = {'content-type': 'application/json'}
