@@ -44,7 +44,7 @@ headers = {'content-type': 'application/json'}
 response = requests.post(url, data=json.dumps(payload), headers=headers, verify=False, auth=(idrac_username,idrac_password))
 
 d=str(response.__dict__)
-print d
+#print d
 
 try:
     z=re.search("JID_.+?,",d).group()
@@ -63,33 +63,50 @@ else:
 response_output=response.__dict__
 job_id=response_output["headers"]["Location"]
 job_id=re.search("JID_.+",job_id).group()
-start_time=datetime.now()
 
+
+start_time=datetime.now()
 while True:
     req = requests.get('https://%s/redfish/v1/TaskService/Tasks/%s' % (idrac_ip, job_id), auth=(idrac_username, idrac_password), verify=False)
     statusCode = req.status_code
     data = req.json()
-    message_string=data[u"Messages"]
-    final_message_string=str(message_string)
+    #message_string=data[u"Messages"]
+    #final_message_string=str(message_string)
     current_time=(datetime.now()-start_time)
+    #print data
     if statusCode == 202 or statusCode == 200:
         pass
         time.sleep(3)
     else:
         print("Query job ID command failed, error code is: %s" % statusCode)
         sys.exit()
-    if "failed" in final_message_string or "completed with errors" in final_message_string or "Not one" in final_message_string or "not compliant" in final_message_string or "Unable to complete" in final_message_string or "The system could not be shut down" in final_message_string:
-        print("\n- FAIL, detailed job message is: %s" % data[u"Messages"])
+    if "failed" in data[u'Oem'][u'Dell'][u'Message'] or "completed with errors" in data[u'Oem'][u'Dell'][u'Message'] or "Not one" in data[u'Oem'][u'Dell'][u'Message'] or "not compliant" in data[u'Oem'][u'Dell'][u'Message'] or "Unable" in data[u'Oem'][u'Dell'][u'Message'] or "The system could not be shut down" in data[u'Oem'][u'Dell'][u'Message']:
+        print("- FAIL, Job ID %s marked as %s but detected issue(s). See detailed job results below for more information on failure\n" % (job_id, data[u'Oem'][u'Dell'][u'JobState']))
+        print("- Detailed job results for job ID %s\n" % job_id)
+        for i in data['Oem']['Dell'].items():
+            print("%s: %s" % (i[0], i[1]))
+        print("\n- Config results for job ID %s\n" % job_id)
+        for i in data['Messages']:
+            for ii in i.items():
+                if ii[0] == "Oem":
+                    for iii in ii[1]['Dell'].items():
+                        if iii[0] == 'NewValue':
+                            print("%s: %s" % (iii[0], iii[1]))
+                            print("\n")
+                        else:
+                            print("%s: %s" % (iii[0], iii[1]))
+                else:
+                    pass
         sys.exit()
-    elif "No reboot Server" in final_message_string:
-        try:
-            print("- Message = "+message_string[0][u"Message"])
-        except:
-            print("- Message = %s" % message_string[len(message_string)-1][u"Message"])
-        sys.exit()
-    elif "Successfully imported" in final_message_string or "completed with errors" in final_message_string or "Successfully imported" in final_message_string:
-        print("- PASS, job ID %s successfully marked completed\n" % job_id)
+    elif "No reboot Server" in data[u'Oem'][u'Dell'][u'Message']:
+        print("- PASS, job ID %s successfully marked completed. NoReboot value detected and config changes will not be applied until next manual server reboot\n" % job_id)
         print("\n- Detailed job results for job ID %s\n" % job_id)
+        for i in data['Oem']['Dell'].items():
+            print("%s: %s" % (i[0], i[1]))
+        sys.exit()
+    elif "Successfully imported" in data[u'Oem'][u'Dell'][u'Message'] or "completed with errors" in data[u'Oem'][u'Dell'][u'Message'] or "Successfully imported" in data[u'Oem'][u'Dell'][u'Message']:
+        print("- PASS, job ID %s successfully marked completed\n" % job_id)
+        print("- Detailed job results for job ID %s\n" % job_id)
         for i in data['Oem']['Dell'].items():
             print("%s: %s" % (i[0], i[1]))
         print("\n- %s completed in: %s" % (job_id, str(current_time)[0:7]))
@@ -107,21 +124,15 @@ while True:
                     pass
 
         sys.exit()
-    elif "No changes" in final_message_string or "No configuration changes" in final_message_string:
-        print("- Job ID = "+data[u"Id"])
-        print("- Name = "+data[u"Name"])
-        try:
-            print("- Message = "+message_string[0][u"Message"])
-        except:
-            print("- Message = %s" % message_string[len(message_string)-1][u"Message"])
-        print("\n- %s completed in: %s" % (job_id, str(current_time)[0:7]))
+    elif "No changes" in data[u'Oem'][u'Dell'][u'Message'] or "No configuration changes" in data[u'Oem'][u'Dell'][u'Message']:
+        print("\n- PASS, job ID %s marked completed\n" % job_id)
+        print("- Detailed job results for job ID %s\n" % job_id)
+        for i in data['Oem']['Dell'].items():
+            print("%s: %s" % (i[0], i[1]))
         sys.exit()
     else:
-        print("- Job not marked completed, current status is: %s" % data[u"TaskState"])
-        print("- Message: %s\n" % message_string[0][u"Message"])
+        print("- WARNING, JobStatus not completed, current status: \"%s\", percent complete: \"%s\"" % (data[u'Oem'][u'Dell'][u'Message'],data[u'Oem'][u'Dell'][u'PercentComplete']))
         time.sleep(1)
         continue
-        
-    
 
 

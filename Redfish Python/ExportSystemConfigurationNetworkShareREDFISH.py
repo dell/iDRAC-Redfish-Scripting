@@ -1,10 +1,10 @@
 #
-# ExportServerConfigurationNetworkShareREDFISH. Python script using Redfish API to export the system configuration to a network share.
+# ExportServerConfigurationNetworkShareREDFISH. Python script using Redfish API to export server configuration profile to a supported network share.
 #
-# NOTE: Before executing the script, modify the payload dictionary with supported parameters. For payload dictionary supported parameters, refer to schema "https://'iDRAC IP'/redfish/v1/Managers/iDRAC.Embedded.1/"
+# 
 #
 # _author_ = Texas Roemer <Texas_Roemer@Dell.com>
-# _version_ = 1.0
+# _version_ = 2.0
 #
 # Copyright (c) 2017, Dell, Inc.
 #
@@ -17,86 +17,141 @@
 #
 
 
-import requests, json, sys, re, time, warnings
+import requests, json, sys, re, time, warnings, argparse
 
 from datetime import datetime
 
 warnings.filterwarnings("ignore")
 
-try:
-    idrac_ip = sys.argv[1]
-    idrac_username = sys.argv[2]
-    idrac_password = sys.argv[3]
-    file = sys.argv[4]
-except:
-    print("\n- FAIL, you must pass in script name along with iDRAC IP/iDRAC username/iDRAC paassword/file name")
-    sys.exit()
+parser=argparse.ArgumentParser(description="Python script using Redfish API to export server configuration profile (SCP) to a supported network share")
+parser.add_argument('-ip',help='iDRAC IP address', required=True)
+parser.add_argument('-u', help='iDRAC username', required=True)
+parser.add_argument('-p', help='iDRAC password', required=True)
+parser.add_argument('script_examples',action="store_true",help='ExportSystemConfigurationNetworkShareREDFISH.py -ip 192.168.0.120 -u root -p calvin -t ALL -xf XML --ipaddress 192.168.0.130 --sharetype NFS --sharename /nfs --filename SCP_export_R740, this example is going to export attributes for all devices in a default XML SCP file to a NFS share. \nExportSystemConfigurationNetworkShareREDFISH.py -ip 192.168.0.120 -u root -p calvin -t BIOS -xf JSON --ipaddress 192.168.0.140 --sharetype CIFS --sharename cifs_share_vm --filename R740_scp_file -e Clone --username administrator --password password, this example is going to export only BIOS attributes in a clone JSON SCP file to a CIFS share.')
+parser.add_argument('--ipaddress', help='Pass in the IP address of the network share', required=True)
+parser.add_argument('--sharetype', help='Pass in the share type of the network share. Supported values are NFS, CIFS, HTTP, HTTPS.', required=True)
+parser.add_argument('--sharename', help='Pass in the network share share name', required=True)
+parser.add_argument('--username', help='Pass in the CIFS username', required=False)
+parser.add_argument('--password', help='Pass in the CIFS username pasword', required=False)
+parser.add_argument('--workgroup', help='Pass in the workgroup of your CIFS network share. This argument is optional', required=False)
+parser.add_argument('-t', help='Pass in Target value to get component attributes. You can pass in \"ALL" to get all component attributes or pass in a specific component to get only those attributes. Supported values are: ALL, System, BIOS, IDRAC, NIC, FC, LifecycleController, RAID.', required=True)
+parser.add_argument('-e', help='Pass in ExportUse value. Supported values are Default, Clone and Replace. If you don\'t use this parameter, default setting is Default or Normal export.', required=False)
+parser.add_argument('-i', help='Pass in IncludeInExport value. Supported values are 0 for \"Default\", 1 for \"IncludeReadOnly\", 2 for \"IncludePasswordHashValues\" or 3 for \"IncludeReadOnly,IncludePasswordHashValues\". If you don\'t use this parameter, default setting is Default for IncludeInExport.', required=False)
+parser.add_argument('--filename', help='Pass in unique filename for the SCP file which will get created on the network share', required=True)
+parser.add_argument('-xf', help='Pass in the format type for SCP file generated. Supported values are XML and JSON', required=True)
+parser.add_argument('--ignorecertwarning', help='Supported values are Off and On. This argument is only required if using HTTPS for share type', required=False)
+
+
+args=vars(parser.parse_args())
+
+idrac_ip=args["ip"]
+idrac_username=args["u"]
+idrac_password=args["p"]
+
+
+def export_server_configuration_profile():
+    global job_id
+    method = "ExportSystemConfiguration"
+    url = 'https://%s/redfish/v1/Managers/iDRAC.Embedded.1/Actions/Oem/EID_674_Manager.ExportSystemConfiguration' % idrac_ip
+    payload = {"ExportFormat":args['xf'],"ShareParameters":{"Target":args["t"]}}
+    if args["e"]:
+        payload["ExportUse"] = args["e"]
+    if args["i"]:
+        if args["i"] == "1":
+            payload["IncludeInExport"] = "Default"
+        if args["i"] == "2":
+            payload["IncludeInExport"] = "IncludeReadOnly"
+        if args["i"] == "3":
+            payload["IncludeInExport"] = "IncludePasswordHashValues"
+        if args["i"] == "4":
+            payload["IncludeInExport"] = "IncludeReadOnly,IncludePasswordHashValues"
+    if args["ipaddress"]:
+        payload["ShareParameters"]["IPAddress"] = args["ipaddress"]
+    if args["sharetype"]:
+        payload["ShareParameters"]["ShareType"] = args["sharetype"]
+    if args["sharename"]:
+        payload["ShareParameters"]["ShareName"] = args["sharename"]
+    if args["filename"]:
+            payload["ShareParameters"]["FileName"] = args["filename"]
+    if args["username"]:
+        payload["ShareParameters"]["UserName"] = args["username"]
+    if args["password"]:
+        payload["ShareParameters"]["Password"] = args["password"]
+    if args["workgroup"]:
+        payload["ShareParameters"]["Workgroup"] = args["workgroup"]
+    if args["ignorecertwarning"]:
+        payload["IgnoreCertWarning"] = args["ignorecertwarning"]
+    print("\n- WARNING, arguments and values for %s method\n" % method)
+    for i in payload.items():
+        if i[0] == "ShareParameters":
+            for ii in i[1].items():
+                if ii[0] == "Password":
+                    print("Password: **********")
+                else:
+                    print("%s: %s" % (ii[0],ii[1]))
+        else:
+            print("%s: %s" % (i[0],i[1]))
     
-url = 'https://%s/redfish/v1/Managers/iDRAC.Embedded.1/Actions/Oem/EID_674_Manager.ExportSystemConfiguration' % idrac_ip
+    url = 'https://%s/redfish/v1/Managers/iDRAC.Embedded.1/Actions/Oem/EID_674_Manager.ExportSystemConfiguration' % idrac_ip  
+    headers = {'content-type': 'application/json'}
+    response = requests.post(url, data=json.dumps(payload), headers=headers, verify=False, auth=(idrac_username,idrac_password))
+    d=str(response.__dict__)
 
-payload = {"ExportFormat":"XML","ExportUse":"Default","ShareParameters":{"Target":"All","IPAddress":"192.168.0.130","ShareName":"cifs_share","ShareType":"CIFS","FileName":file,"UserName":"user","Password":"password"}}  
-headers = {'content-type': 'application/json'}
-response = requests.post(url, data=json.dumps(payload), headers=headers, verify=False, auth=(idrac_username,idrac_password))
-
-d=str(response.__dict__)
-
-try:
-    z=re.search("JID_.+?,",d).group()
-except:
-    print("\n- FAIL: detailed error message: {0}".format(response.__dict__['_content']))
-    sys.exit()
-
-job_id=re.sub("[,']","",z)
-if response.status_code != 202:
-    print("\n- FAIL, status code not 202\n, code is: %s" % response.status_code)   
-    sys.exit()
-else:
-    print("\n- %s successfully created for ExportSystemConfiguration method\n" % (job_id)) 
-
-response_output=response.__dict__
-job_id=response_output["headers"]["Location"]
-job_id=re.search("JID_.+",job_id).group()
-start_time=datetime.now()
-
-while True:
-    req = requests.get('https://%s/redfish/v1/TaskService/Tasks/%s' % (idrac_ip, job_id), auth=(idrac_username, idrac_password), verify=False)
-    statusCode = req.status_code
-    data = req.json()
-    message_string=data[u"Messages"]
-    current_time=(datetime.now()-start_time)
-    if statusCode == 202 or statusCode == 200:
-        print("- Query job ID command passed\n")
-        time.sleep(10)
-    else:
-        print("- FAIL, query job ID command failed, error code is: %s" % statusCode)
+    try:
+        z=re.search("JID_.+?,",d).group()
+    except:
+        print("\n- FAIL: detailed error message: {0}".format(response.__dict__['_content']))
         sys.exit()
-    if "failed" in data[u"Messages"] or "completed with errors" in data[u"Messages"]:
-        print("Job failed, current message is: %s" % data[u"Messages"])
-        sys.exit()
-    elif data[u"TaskState"] == "Completed":
-        print("\n Job ID = "+data[u"Id"])
-        print(" Name = "+data[u"Name"])
-        try:
-            print(" Message = "+message_string[0][u"Message"])
-        except:
-            print(" "+data[u"Messages"][0][u"Message"])
-        print(" JobStatus = "+data[u"TaskState"])
-        print("\n %s completed in: %s" % (job_id, str(current_time)[0:7]))
-        sys.exit()
-    elif data[u"TaskState"] == "Completed with Errors" or data[u"TaskState"] == "Failed":
-        print("\nJob ID = "+data[u"Id"])
-        print("Name = "+data[u"Name"])
-        try:
-            print("Message = "+message_string[0][u"Message"])
-        except:
-            print(data[u"Messages"][0][u"Message"])
-        print("JobStatus = "+data[u"TaskState"])
-        print("\n%s completed in: %s" % (job_id, str(current_time)[0:7]))
+
+    job_id=re.sub("[,']","",z)
+    if response.status_code != 202:
+        print("\n- FAIL, status code not 202\n, code is: %s" % response.status_code)   
         sys.exit()
     else:
-        print("- Job not marked completed, current status is: %s" % data[u"TaskState"])
-        print("- Message: %s\n" % message_string[0][u"Message"])
-        time.sleep(1)
-        continue
-        
+        print("\n- %s successfully created for ExportSystemConfiguration method\n" % (job_id)) 
+
+    response_output=response.__dict__
+    job_id=response_output["headers"]["Location"]
+    job_id=re.search("JID_.+",job_id).group()
+
+
+def loop_job_status():
+    start_time=datetime.now()
+    while True:
+        req = requests.get('https://%s/redfish/v1/Managers/iDRAC.Embedded.1/Jobs/%s' % (idrac_ip, job_id), auth=(idrac_username, idrac_password), verify=False)
+        current_time=(datetime.now()-start_time)
+        statusCode = req.status_code
+        if statusCode == 200:
+            pass
+        else:
+            print("\n- FAIL, Command failed to check job status, return code is %s" % statusCode)
+            print("Extended Info Message: {0}".format(req.json()))
+            sys.exit()
+        data = req.json()
+        if str(current_time)[0:7] >= "0:05:00":
+            print("\n- FAIL: Timeout of 5 minutes has been hit, script stopped\n")
+            sys.exit()
+        elif "Fail" in data[u'Message'] or "fail" in data[u'Message']:
+            print("- FAIL: job ID %s failed, failed message is: %s" % (job_id, data[u'Message']))
+            sys.exit()
+        elif data[u'JobState'] == "Completed":
+            if data[u'Message'] == "Successfully exported Server Configuration Profile":
+                print("\n--- PASS, Final Detailed Job Status Results ---\n")
+            else:
+                print("\n--- FAIL, Final Detailed Job Status Results ---\n")
+            for i in data.items():
+                if "odata" in i[0] or "MessageArgs" in i[0] or "TargetSettingsURI" in i[0]:
+                    pass
+                else:
+                    print("%s: %s" % (i[0],i[1]))
+            break
+        else:
+            print("- WARNING, JobStatus not completed, current status: \"%s\", percent complete: \"%s\"" % (data[u'Message'],data[u'PercentComplete']))
+            time.sleep(1)
+
+
+if __name__ == "__main__":
+    export_server_configuration_profile()
+    loop_job_status()
+    
     
