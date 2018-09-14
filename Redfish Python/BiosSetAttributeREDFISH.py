@@ -1,5 +1,5 @@
 #
-# BiosSetAttributeREDFISH. Python script using Redfish API to set BIOS attribute.
+# BiosSetAttributeREDFISH. Python script using Redfish API to set one or multiple BIOS attributes.
 #
 # NOTE: For all attributes, supported values, refer to the Dell atttribute registry.
 #
@@ -7,10 +7,8 @@
 #
 # NOTE: When passing in attribute name / value, make sure you pass in the exact string. Attribute name / value are case sensitive.
 #
-# NOTE: If you want to set multiple BIOS attributes, modify the script and pass in each attribute name / value in the payload nested dictionary for PATCH command. Example: payload = {"Attributes":{"MemTest":"Enabled","EmbSata":"RaidMode"}} 
-#
 # _author_ = Texas Roemer <Texas_Roemer@Dell.com>
-# _version_ = 2.0
+# _version_ = 3.0
 #
 # Copyright (c) 2017, Dell, Inc.
 #
@@ -28,20 +26,20 @@ from datetime import datetime
 
 warnings.filterwarnings("ignore")
 
-parser=argparse.ArgumentParser(description="Python script using Redfish API to change one BIOS attribute cuurent value")
+parser=argparse.ArgumentParser(description="Python script using Redfish API to change one or multiple BIOS attributes")
 parser.add_argument('-ip',help='iDRAC IP address', required=True)
 parser.add_argument('-u', help='iDRAC username', required=True)
 parser.add_argument('-p', help='iDRAC password', required=True)
-parser.add_argument('-a', help='Pass in the attribute name you want to change current value, Note: make sure to type the attribute name exactly due to case senstive. Example: MemTest will work but memtest will fail', required=True)
-parser.add_argument('-v', help='Pass in the attribute value you want to change to. Note: make sure to type the attribute value exactly due to case senstive. Example: Disabled will work but disabled will fail', required=True)
+parser.add_argument('script_examples',action="store_true",help='BiosSetAttributeREDFISH.py -ip 192.168.0.120 -u root -p calvin -a MemTest -v Disabled, this example will set one BIOS attribute. BiosSetAttributeREDFISH.py -ip 192.168.0.120 -u root -p calvin -an LogicalProc,EmbSata -av Disabled,AhciMode, this example is setting multiple BIOS attributes')
+parser.add_argument('-an', help='Pass in the attribute name you want to change current value, Note: make sure to type the attribute name exactly due to case senstive. Example: MemTest will work but memtest will fail. If you want to configure multiple attribute names, make sure to use a comma separator between each attribute name.', required=True)
+parser.add_argument('-av', help='Pass in the attribute value you want to change to. Note: make sure to type the attribute value exactly due to case senstive. Example: Disabled will work but disabled will fail. If you want to configure multiple attribute values, make sure to use a comma separator between each attribute value.', required=True)
 
 args=vars(parser.parse_args())
 
 idrac_ip=args["ip"]
 idrac_username=args["u"]
 idrac_password=args["p"]
-attribute_name = args["a"]
-pending_value = args["v"]
+
 
 ### Function to check if current iDRAC version detected is supported by Redfish
 
@@ -54,31 +52,30 @@ def check_supported_idrac_version():
     else:
         pass
 
-
-### Function to get BIOS attribute current value
-
-def get_attribute_current_value():
-    global current_value
-    response = requests.get('https://%s/redfish/v1/Systems/System.Embedded.1/Bios' % idrac_ip,verify=False,auth=(idrac_username,idrac_password))
-    data = response.json()
-    for i in data[u'Attributes'].items():
-        if i[0] == args["a"]:
-            current_value = i[1]
-            print("\n- Current value for attribute \"%s\" is \"%s\"" % (args["a"], i[1]))
-
                     
 ### Function to set BIOS attribute pending value
 
 def set_bios_attribute():
-    print("\n- WARNING: Current value for %s is: %s, setting to: %s" % (attribute_name, current_value, pending_value))
-    time.sleep(2)
+    global payload
+    #print("\n- WARNING: Current value for %s is: %s, setting to: %s" % (attribute_name, current_value, pending_value))
+    #time.sleep(2)
     url = 'https://%s/redfish/v1/Systems/System.Embedded.1/Bios/Settings' % idrac_ip
-    payload = {"Attributes":{attribute_name:pending_value}}
+    #payload = {"Attributes":{attribute_name:pending_value}}
+    payload = {"Attributes":{}}
+    attribute_names = args["an"].split(",")
+    attribute_values = args["av"].split(",")
+    for i,ii in zip(attribute_names, attribute_values):
+        payload["Attributes"][i] = ii
+    print("\n- WARNING, script will be setting BIOS attributes -\n")
+    for i in payload["Attributes"].items():
+        print("Attribute Name: %s, setting new value to: %s" % (i[0], i[1]))
+    
     headers = {'content-type': 'application/json'}
     response = requests.patch(url, data=json.dumps(payload), headers=headers, verify=False,auth=(idrac_username, idrac_password))
     statusCode = response.status_code
     if statusCode == 200:
-        print("- PASS: Command passed to set BIOS attribute %s pending value to %s" % (attribute_name, pending_value))
+        #print("- PASS: Command passed to set BIOS attribute %s pending value to %s" % (attribute_name, pending_value))
+        print("\n- PASS: PATCH command passed to set BIOS attribute pending values")
     else:
         print("\n- FAIL, Command failed, errror code is %s" % statusCode)
         detail_message=str(response.__dict__)
@@ -92,7 +89,6 @@ def create_bios_config_job():
     global job_id
     global start_time
     url = 'https://%s/redfish/v1/Managers/iDRAC.Embedded.1/Jobs' % idrac_ip
-    #payload = {"Target":"BIOS.Setup.1-1","RebootJobType":"PowerCycle"}
     payload = {"TargetSettingsURI":"/redfish/v1/Systems/System.Embedded.1/Bios/Settings"}
     headers = {'content-type': 'application/json'}
     response = requests.post(url, data=json.dumps(payload), headers=headers, verify=False,auth=(idrac_username, idrac_password))
@@ -107,7 +103,7 @@ def create_bios_config_job():
     d=str(response.__dict__)
     z=re.search("JID_.+?,",d).group()
     job_id=re.sub("[,']","",z)
-    print("- WARNING: %s job ID successfully created\n" % job_id)
+    print("- WARNING: %s job ID successfully created" % job_id)
     start_time=datetime.now()
     
 ### Function to verify job is marked as scheduled before rebooting the server
@@ -127,10 +123,6 @@ def get_job_status():
         data = req.json()
         if data[u'Message'] == "Task successfully scheduled.":
             print("- PASS, %s job id successfully scheduled, rebooting the server to apply config changes" % job_id)
-            #print(" JobID = "+data[u'Id'])
-            #print(" Name = "+data[u'Name'])
-            #print(" Message = "+data[u'Message'])
-            #print(" PercentComplete = "+str(data[u'PercentComplete'])+"\n")
             break
         else:
             print("- WARNING: JobStatus not scheduled, current status is: %s" % data[u'Message'])
@@ -149,6 +141,7 @@ def reboot_server():
         statusCode = response.status_code
         if statusCode == 204:
             print("- PASS, Command passed to power OFF server, code return is %s" % statusCode)
+            time.sleep(10)
         else:
             print("\n- FAIL, Command failed to power OFF server, status code is: %s\n" % statusCode)
             print("Extended Info Message: {0}".format(response.json()))
@@ -222,29 +215,30 @@ def loop_job_status():
             time.sleep(30)
 
 
-### Function to check attribute new current value
-
-def get_new_current_value():
-    response = requests.get('https://%s/redfish/v1/Systems/System.Embedded.1/Bios' % idrac_ip,verify=False,auth=(idrac_username, idrac_password))
+def get_new_attribute_values():
+    print("- WARNING, checking new attribute values - \n")
+    response = requests.get('https://%s/redfish/v1/Systems/System.Embedded.1/Bios' % idrac_ip,verify=False,auth=(idrac_username,idrac_password))
     data = response.json()
-    current_value_new = data[u'Attributes'][attribute_name]
-    if current_value_new == pending_value:
-        print("- PASS, BIOS attribute \"%s\" new current value is: %s" % (attribute_name, pending_value))
-    else:
-        print("n\- FAIL, BIOS attribute \"%s\" attribute not set to: %s" % (attribute_name, current_value))
-        sys.exit()
+    new_attributes_dict=data[u'Attributes']
+    new_attribute_values = {"Attributes":{}}
+    for i in new_attributes_dict.items():
+        for ii in payload["Attributes"].items():
+            if i[0] == ii[0]:
+                if i[1].lower() == ii[1].lower():
+                    print("- PASS, Attribute %s successfully set to %s" % (i[0],i[1]))
+                else:
+                    print("- FAIL, Attribute %s not set to %s" % (i[0],i[1]))
 
 
 ### Run code
 
 if __name__ == "__main__":
     check_supported_idrac_version()
-    get_attribute_current_value()
     set_bios_attribute()
     create_bios_config_job()
     get_job_status()
     reboot_server()
     loop_job_status()
-    get_new_current_value()
+    get_new_attribute_values()
 
 

@@ -2,7 +2,7 @@
 # CreateVirtualDiskREDFISH. Python script using Redfish API to either get controllers / disks / virtual disks / supported RAID levels or create virtual disk.
 #
 # _author_ = Texas Roemer <Texas_Roemer@Dell.com>
-# _version_ = 2.0
+# _version_ = 3.0
 #
 # Copyright (c) 2018, Dell, Inc.
 #
@@ -25,6 +25,7 @@ parser=argparse.ArgumentParser(description="Python script using Redfish API to e
 parser.add_argument('-ip',help='iDRAC IP address', required=True)
 parser.add_argument('-u', help='iDRAC username', required=True)
 parser.add_argument('-p', help='iDRAC password', required=True)
+parser.add_argument('script_examples',action="store_true",help='CreateVirtualDiskREDFISH.py -ip 192.168.0.120 -u root -p calvin -v RAID.Slot.6-1, this example will get current volumes for RAID controller RAID.Slot.6-1. CreateVirtualDiskREDFISH.py -ip 192.168.0.120 -u root -p calvin -C RAID.Slot.6-1 -V y -D Disk.Bay.0:Enclosure.Internal.0-1:RAID.Slot.6-1 -R 0, this example will create a one disk RAID 0 volume')
 parser.add_argument('-c', help='Get server storage controller FQDDs, pass in \"y\". To get detailed information for all controllerse detected, pass in \"yy\"', required=False)
 parser.add_argument('-cc', help='Pass in controller FQDD, this argument is used with -s to get support RAID levels for the controller', required=False)
 parser.add_argument('-d', help='Get server storage controller disk FQDDs only, pass in storage controller FQDD, Example "\RAID.Integrated.1-1\"', required=False)
@@ -137,14 +138,21 @@ def get_pdisks():
     response = requests.get('https://%s/redfish/v1/Systems/System.Embedded.1/Storage/%s' % (idrac_ip, controller),verify=False,auth=(idrac_username, idrac_password))
     data = response.json()
     drive_list=[]
+    if response.status_code == 200 or response.status_code == 202:
+        pass
+    else:
+        print("- FAIL, GET command failed, detailed error information: %s" % data)
+        sys.exit()
     if data[u'Drives'] == []:
         print("\n- WARNING, no drives detected for %s" % controller)
         sys.exit()
     else:
         print("\n- Drive(s) detected for %s -\n" % controller)
         for i in data[u'Drives']:
-            drive_list.append(i[u'@odata.id'][53:])
-            print(i[u'@odata.id'][53:])
+            response = requests.get('https://%s/redfish/v1/Systems/System.Embedded.1/Storage/Drives/%s' % (idrac_ip, i[u'@odata.id'].split("/")[-1]),verify=False,auth=(idrac_username, idrac_password))
+            data = response.json()
+            print("Disk: %s, RaidStatus: %s" % (i[u'@odata.id'].split("/")[-1], data[u'Oem'][u'Dell'][u'DellPhysicalDisk'][u'RaidStatus']))
+    #print("\n- FAIL, either typo in FQDD name or FQDD does not exist on the server")
     if args["dd"]:
       for i in drive_list:
           response = requests.get('https://%s/redfish/v1/Systems/System.Embedded.1/Storage/Drives/%s' % (idrac_ip, i),verify=False,auth=(idrac_username, idrac_password))
@@ -306,54 +314,27 @@ def get_job_status():
 
 
 def reboot_server():
-    response = requests.get('https://%s/redfish/v1/Systems/System.Embedded.1/' % idrac_ip,verify=False,auth=(idrac_username, idrac_password))
-    data = response.json()
-    print("\n- WARNING, Current server power state is: %s" % data[u'PowerState'])
-    if data[u'PowerState'] == "On":
-        url = 'https://%s/redfish/v1/Systems/System.Embedded.1/Actions/ComputerSystem.Reset' % idrac_ip
-        payload = {'ResetType': 'ForceOff'}
-        headers = {'content-type': 'application/json'}
-        response = requests.post(url, data=json.dumps(payload), headers=headers, verify=False, auth=(idrac_username,idrac_password))
-        statusCode = response.status_code
-        if statusCode == 204:
-            print("- PASS, Command passed to power OFF server, code return is %s" % statusCode)
-        else:
-            print("\n- FAIL, Command failed to power OFF server, status code is: %s\n" % statusCode)
-            print("Extended Info Message: {0}".format(response.json()))
-            sys.exit()
-        while True:
-            response = requests.get('https://%s/redfish/v1/Systems/System.Embedded.1/' % idrac_ip,verify=False,auth=(idrac_username, idrac_password))
-            data = response.json()
-            if data[u'PowerState'] == "Off":
-                print("- PASS, GET command passed to verify server is in OFF state")
-                break
-            else:
-                continue
-            
-        payload = {'ResetType': 'On'}
-        headers = {'content-type': 'application/json'}
-        response = requests.post(url, data=json.dumps(payload), headers=headers, verify=False, auth=(idrac_username,idrac_password))
-        statusCode = response.status_code
-        if statusCode == 204:
-            print("- PASS, Command passed to power ON server, code return is %s" % statusCode)
-        else:
-            print("\n- FAIL, Command failed to power ON server, status code is: %s\n" % statusCode)
-            print("Extended Info Message: {0}".format(response.json()))
-            sys.exit()
-    elif data[u'PowerState'] == "Off":
-        url = 'https://%s/redfish/v1/Systems/System.Embedded.1/Actions/ComputerSystem.Reset' % idrac_ip
-        payload = {'ResetType': 'On'}
-        headers = {'content-type': 'application/json'}
-        response = requests.post(url, data=json.dumps(payload), headers=headers, verify=False, auth=(idrac_username,idrac_password))
-        statusCode = response.status_code
-        if statusCode == 204:
-            print("- PASS, Command passed to power ON server, code return is %s" % statusCode)
-        else:
-            print("\n- FAIL, Command failed to power ON server, status code is: %s\n" % statusCode)
-            print("Extended Info Message: {0}".format(response.json()))
-            sys.exit()
+    url = 'https://%s/redfish/v1/Systems/System.Embedded.1/Actions/ComputerSystem.Reset' % idrac_ip
+    payload = {'ResetType': 'ForceOff'}
+    headers = {'content-type': 'application/json'}
+    response = requests.post(url, data=json.dumps(payload), headers=headers, verify=False, auth=(idrac_username,idrac_password))
+    statusCode = response.status_code
+    if statusCode == 204:
+        print("\n- PASS, Command passed to power OFF server, code return is %s\n" % statusCode)
     else:
-        print("- FAIL, unable to get current server power state to perform either reboot or power on")
+        print("\n- FAIL, Command failed to power OFF server, status code is: %s\n" % statusCode)
+        print("Extended Info Message: {0}".format(response.json()))
+        sys.exit()
+    time.sleep(10)
+    payload = {'ResetType': 'On'}
+    headers = {'content-type': 'application/json'}
+    response = requests.post(url, data=json.dumps(payload), headers=headers, verify=False, auth=(idrac_username,idrac_password))
+    statusCode = response.status_code
+    if statusCode == 204:
+        print("\n- PASS, Command passed to power ON server, code return is %s\n" % statusCode)
+    else:
+        print("\n- FAIL, Command failed to power ON server, status code is: %s\n" % statusCode)
+        print("Extended Info Message: {0}".format(response.json()))
         sys.exit()
 
 if __name__ == "__main__":
