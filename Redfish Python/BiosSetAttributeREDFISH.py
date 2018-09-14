@@ -8,7 +8,7 @@
 # NOTE: When passing in attribute name / value, make sure you pass in the exact string. Attribute name / value are case sensitive.
 #
 # _author_ = Texas Roemer <Texas_Roemer@Dell.com>
-# _version_ = 3.0
+# _version_ = 4.0
 #
 # Copyright (c) 2017, Dell, Inc.
 #
@@ -57,10 +57,7 @@ def check_supported_idrac_version():
 
 def set_bios_attribute():
     global payload
-    #print("\n- WARNING: Current value for %s is: %s, setting to: %s" % (attribute_name, current_value, pending_value))
-    #time.sleep(2)
     url = 'https://%s/redfish/v1/Systems/System.Embedded.1/Bios/Settings' % idrac_ip
-    #payload = {"Attributes":{attribute_name:pending_value}}
     payload = {"Attributes":{}}
     attribute_names = args["an"].split(",")
     attribute_values = args["av"].split(",")
@@ -135,15 +132,15 @@ def reboot_server():
     print("\n- WARNING, Current server power state is: %s" % data[u'PowerState'])
     if data[u'PowerState'] == "On":
         url = 'https://%s/redfish/v1/Systems/System.Embedded.1/Actions/ComputerSystem.Reset' % idrac_ip
-        payload = {'ResetType': 'ForceOff'}
+        payload = {'ResetType': 'GracefulShutdown'}
         headers = {'content-type': 'application/json'}
         response = requests.post(url, data=json.dumps(payload), headers=headers, verify=False, auth=(idrac_username,idrac_password))
         statusCode = response.status_code
         if statusCode == 204:
-            print("- PASS, Command passed to power OFF server, code return is %s" % statusCode)
+            print("- PASS, Command passed to gracefully power OFF server, code return is %s" % statusCode)
             time.sleep(10)
         else:
-            print("\n- FAIL, Command failed to power OFF server, status code is: %s\n" % statusCode)
+            print("\n- FAIL, Command failed to gracefully power OFF server, status code is: %s\n" % statusCode)
             print("Extended Info Message: {0}".format(response.json()))
             sys.exit()
         while True:
