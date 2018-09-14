@@ -4,7 +4,7 @@
 # 
 #
 # _author_ = Texas Roemer <Texas_Roemer@Dell.com>
-# _version_ = 6.0
+# _version_ = 7.0
 #
 # Copyright (c) 2017, Dell, Inc.
 #
@@ -80,7 +80,7 @@ def get_FW_inventory():
         data = req.json()
         updateable_status = data[u'Updateable']
         version = data[u'Version']
-        device_name = data[u'Oem'][u'Dell'][u'DellSoftwareInventory'][u'ElementName']
+        device_name = data[u'Name']
         print("Device Name: %s, Firmware Version: %s, Updatable: %s" % (device_name, version, updateable_status))
     sys.exit()
     

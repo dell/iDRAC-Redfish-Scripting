@@ -2,7 +2,7 @@
 # DeviceFirmwareSimpleUpdateREDFISH. Python script using Redfish API to update a device firmware with DMTF action SimpleUpdate. Supported file image types are Windows DUPs, d7/d9 image or pm files.
 #
 # _author_ = Texas Roemer <Texas_Roemer@Dell.com>
-# _version_ = 1.0
+# _version_ = 2.0
 #
 # Copyright (c) 2018, Dell, Inc.
 #
@@ -52,6 +52,7 @@ def get_FW_inventory():
     req = requests.get('https://%s/redfish/v1/UpdateService/FirmwareInventory/' % (idrac_ip), auth=(idrac_username, idrac_password), verify=False)
     statusCode = req.status_code
     data = req.json()
+    
     installed_devices=[]
     for i in data[u'Members']:
         for ii in i.items():
@@ -63,7 +64,7 @@ def get_FW_inventory():
         data = req.json()
         updateable_status = data[u'Updateable']
         version = data[u'Version']
-        device_name = data[u'Oem'][u'Dell'][u'DellSoftwareInventory'][u'ElementName']
+        device_name = data[u'Name']
         print("Device Name: %s, Firmware Version: %s, Updatable: %s" % (device_name, version, updateable_status))
     sys.exit()
     
