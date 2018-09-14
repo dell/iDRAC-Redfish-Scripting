@@ -2,7 +2,7 @@
 # CreateVirtualDiskREDFISH. Python script using Redfish API to either get controllers / disks / virtual disks / supported RAID levels or create virtual disk.
 #
 # _author_ = Texas Roemer <Texas_Roemer@Dell.com>
-# _version_ = 3.0
+# _version_ = 4.0
 #
 # Copyright (c) 2018, Dell, Inc.
 #
@@ -151,8 +151,10 @@ def get_pdisks():
         for i in data[u'Drives']:
             response = requests.get('https://%s/redfish/v1/Systems/System.Embedded.1/Storage/Drives/%s' % (idrac_ip, i[u'@odata.id'].split("/")[-1]),verify=False,auth=(idrac_username, idrac_password))
             data = response.json()
-            print("Disk: %s, RaidStatus: %s" % (i[u'@odata.id'].split("/")[-1], data[u'Oem'][u'Dell'][u'DellPhysicalDisk'][u'RaidStatus']))
-    #print("\n- FAIL, either typo in FQDD name or FQDD does not exist on the server")
+            if data[u'Links'][u'Volumes'] == []:
+                print("Disk: %s, RaidStatus: Disk is not part of a RAID volume" % (i[u'@odata.id'].split("/")[-1]))
+            else:
+                print("Disk: %s, RaidStatus: Disk is part of a RAID volume, RAID volume is: %s" % (i[u'@odata.id'].split("/")[-1],data[u'Links'][u'Volumes'][0][u'@odata.id'].split("/")[-1] ))
     if args["dd"]:
       for i in drive_list:
           response = requests.get('https://%s/redfish/v1/Systems/System.Embedded.1/Storage/Drives/%s' % (idrac_ip, i),verify=False,auth=(idrac_username, idrac_password))
