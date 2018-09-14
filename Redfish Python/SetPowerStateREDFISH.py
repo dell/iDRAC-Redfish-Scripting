@@ -1,12 +1,9 @@
 #
 # SetPowerStateREDFISH. Python script using Redfish API to change current server power state.
 #
-# NOTE: Recommended to run GetPowerStateREDFISH script first to get current server power state.
-#
-# NOTE: For power_state_ioption, make sure you pass in the exact string value as returned from GetPowerStateREDFISH script. These values are case sensitive.
 #
 # _author_ = Texas Roemer <Texas_Roemer@Dell.com>
-# _version_ = 1.0
+# _version_ = 3.0
 #
 # Copyright (c) 2017, Dell, Inc.
 #
@@ -19,34 +16,59 @@
 #
 
 
-import requests, json, sys, re, time, warnings
+import requests, json, sys, re, time, warnings, argparse
 
 warnings.filterwarnings("ignore")
 
-try:
-    idrac_ip = sys.argv[1]
-    idrac_username = sys.argv[2]
-    idrac_password = sys.argv[3]
-    power_state_option = sys.argv[4]
+parser=argparse.ArgumentParser(description="Python script using Redfish API to either get current server power state and possible power state values or execute server power state change")
+parser.add_argument('-ip',help='iDRAC IP address', required=True)
+parser.add_argument('-u', help='iDRAC username', required=True)
+parser.add_argument('-p', help='iDRAC password', required=True)
+parser.add_argument('script_examples',action="store_true",help='SetPowerStateREDFISH.py -ip 192.168.0.120 -u root -p calvin -g y, this example will return the current power state of the server and supported values for changing the server power state. SetPowerStateREDFISH.py -ip 100.65.205.66 -u root -p calvin -r On, this example will power on the server') 
+parser.add_argument('-g', help='Get current power state of the server and possible values for ComputerSystem.Reset action, pass in \"y\" ', required=False)
+parser.add_argument('-r', help='Pass in the computer system reset type you want to perform. To get supported possible values, execute the script with -g argument', required=False)
 
-except:
-    print("- FAIL: You must pass in script name along with iDRAC IP / iDRAC username / iDRAC password. / power state option. Example: \"script_name.py 192.168.0.120 root calvin On\"")
-    sys.exit()
+args=vars(parser.parse_args())
 
-response = requests.get('https://%s/redfish/v1/Systems/System.Embedded.1/' % idrac_ip,verify=False,auth=(idrac_username, idrac_password))
-data = response.json()
-print("\n- Current server power state is: %s, setting new server power state to: %s" % (data[u'PowerState'], power_state_option))
+idrac_ip=args["ip"]
+idrac_username=args["u"]
+idrac_password=args["p"]
 
-url = 'https://%s/redfish/v1/Systems/System.Embedded.1/Actions/ComputerSystem.Reset' % idrac_ip
-payload = {'ResetType': power_state_option}
-headers = {'content-type': 'application/json'}
-response = requests.post(url, data=json.dumps(payload), headers=headers, verify=False, auth=(idrac_username,idrac_password))
 
-statusCode = response.status_code
-if statusCode == 204:
-    print("\n- PASS, status code %s returned, server power state successfully set to \"%s\"\n" % (statusCode, power_state_option))
-else:
-    print("\n- FAIL, Command failed, status code %s returned\n" % statusCode)
-    print(response.json())
-    sys.exit()
+def get_current_power_state():
+    response = requests.get('https://%s/redfish/v1/Systems/System.Embedded.1/' % idrac_ip,verify=False,auth=(idrac_username, idrac_password))
+    data = response.json()
+    print("\n- WARNING, Current server power state is: %s\n" % data[u'PowerState'])
+    print("- Supported values for server power control are:\n")
+    for i in data[u'Actions'][u'#ComputerSystem.Reset'][u'ResetType@Redfish.AllowableValues']:
+        print(i)
+
+def set_power_state():
+    response = requests.get('https://%s/redfish/v1/Systems/System.Embedded.1/' % idrac_ip,verify=False,auth=(idrac_username, idrac_password))
+    data = response.json()
+    print("\n- WARNING, setting new server power state to: %s" % (args["r"]))
+
+    url = 'https://%s/redfish/v1/Systems/System.Embedded.1/Actions/ComputerSystem.Reset' % idrac_ip
+    payload = {'ResetType': args["r"]}
+    headers = {'content-type': 'application/json'}
+    response = requests.post(url, data=json.dumps(payload), headers=headers, verify=False, auth=(idrac_username,idrac_password))
+
+
+    statusCode = response.status_code
+    if statusCode == 204:
+        print("\n- PASS, status code %s returned, server power state successfully set to \"%s\"\n" % (statusCode, args["r"]))
+    else:
+        print("\n- FAIL, Command failed, status code %s returned\n" % statusCode)
+        print(response.json())
+        sys.exit()
+
+if __name__ == "__main__":
+    if args["g"]:
+        get_current_power_state()
+    elif args["r"]:
+        set_power_state()
+    else:
+        print("- FAIL, incorrect parameter(s) passed in or missing required parameters")
+        
+        
 
