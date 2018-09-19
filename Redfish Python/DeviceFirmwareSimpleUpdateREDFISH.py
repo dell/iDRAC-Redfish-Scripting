@@ -2,7 +2,7 @@
 # DeviceFirmwareSimpleUpdateREDFISH. Python script using Redfish API to update a device firmware with DMTF action SimpleUpdate. Supported file image types are Windows DUPs, d7/d9 image or pm files.
 #
 # _author_ = Texas Roemer <Texas_Roemer@Dell.com>
-# _version_ = 2.0
+# _version_ = 3.0
 #
 # Copyright (c) 2018, Dell, Inc.
 #
@@ -51,8 +51,6 @@ def get_FW_inventory():
     print("\n- WARNING, current devices detected with firmware version and updateable status -\n")
     req = requests.get('https://%s/redfish/v1/UpdateService/FirmwareInventory/' % (idrac_ip), auth=(idrac_username, idrac_password), verify=False)
     statusCode = req.status_code
-    data = req.json()
-    
     installed_devices=[]
     for i in data[u'Members']:
         for ii in i.items():
@@ -71,15 +69,19 @@ def get_FW_inventory():
 
 def download_image_payload():
     global available_entry
+    global http_push_uri
     print("\n- WARNING, downloading \"%s\" image, this may take a few minutes depending on the size of the image" % args["f"])
-    req = requests.get('https://%s/redfish/v1/UpdateService/FirmwareInventory/' % (idrac_ip), auth=(idrac_username, idrac_password), verify=False)
+    req = requests.get('https://%s/redfish/v1/UpdateService/' % (idrac_ip), auth=(idrac_username, idrac_password), verify=False)
+    data = req.json()
+    http_push_uri = data[u'HttpPushUri']
+    req = requests.get('https://%s%s' % (idrac_ip, http_push_uri), auth=(idrac_username, idrac_password), verify=False)
     statusCode = req.status_code
     data = req.json()
     ImageLocation = args["l"]
     filename = args["f"]
     ImagePath = ImageLocation + "\\" + filename
     ETag = req.headers['ETag']
-    url = 'https://%s/redfish/v1/UpdateService/FirmwareInventory' % (idrac_ip)
+    url = 'https://%s%s' % (idrac_ip, http_push_uri)
     files = {'file': (filename, open(ImagePath, 'rb'), 'multipart/form-data')}
     headers = {"if-match": ETag}
     response = requests.post(url, files=files, auth = (idrac_username, idrac_password), verify=False, headers=headers)
@@ -99,7 +101,7 @@ def download_image_payload():
 def install_image_payload():
     global job_id
     url = 'https://%s/redfish/v1/UpdateService/Actions/UpdateService.SimpleUpdate' % (idrac_ip)
-    payload = {"ImageURI":"/redfish/v1/UpdateService/FirmwareInventory/%s" % available_entry}
+    payload = {"ImageURI":"%s/%s" % (http_push_uri, available_entry)}
     headers = {'content-type': 'application/json'}
     response = requests.post(url, data=json.dumps(payload), headers=headers, verify=False,auth=(idrac_username,idrac_password))
     if response.status_code == 202 or response.status_code == 200:
@@ -161,45 +163,74 @@ def check_job_status():
 def reboot_server():
     response = requests.get('https://%s/redfish/v1/Systems/System.Embedded.1/' % idrac_ip,verify=False,auth=(idrac_username, idrac_password))
     data = response.json()
-    current_power_state = data[u'PowerState']
-    if current_power_state == "On":
-        print("\n- WARNING, server in ON state, server will now reboot to apply the update(s)")
+    print("\n- WARNING, Current server power state is: %s" % data[u'PowerState'])
+    if data[u'PowerState'] == "On":
         url = 'https://%s/redfish/v1/Systems/System.Embedded.1/Actions/ComputerSystem.Reset' % idrac_ip
         payload = {'ResetType': 'GracefulShutdown'}
         headers = {'content-type': 'application/json'}
         response = requests.post(url, data=json.dumps(payload), headers=headers, verify=False, auth=(idrac_username,idrac_password))
         statusCode = response.status_code
         if statusCode == 204:
-            print("\n- PASS, Command passed to gracefully shutdown the server, status code is %s\n" % statusCode)
+            print("- PASS, Command passed to gracefully power OFF server, code return is %s" % statusCode)
+            time.sleep(10)
         else:
-            print("\n- FAIL, Command failed to gracefully shutdown the server, status code is: %s\n" % statusCode)
+            print("\n- FAIL, Command failed to gracefully power OFF server, status code is: %s\n" % statusCode)
             print("Extended Info Message: {0}".format(response.json()))
             sys.exit()
-        time.sleep(15)
+        count = 0
+        while True:
+            response = requests.get('https://%s/redfish/v1/Systems/System.Embedded.1/' % idrac_ip,verify=False,auth=(idrac_username, idrac_password))
+            data = response.json()
+            if data[u'PowerState'] == "Off":
+                print("- PASS, GET command passed to verify server is in OFF state")
+                break
+            elif count == 20:
+                print("- WARNING, unable to graceful shutdown the server, will perform forced shutdown now")
+                url = 'https://%s/redfish/v1/Systems/System.Embedded.1/Actions/ComputerSystem.Reset' % idrac_ip
+                payload = {'ResetType': 'ForceOff'}
+                headers = {'content-type': 'application/json'}
+                response = requests.post(url, data=json.dumps(payload), headers=headers, verify=False, auth=(idrac_username,idrac_password))
+                statusCode = response.status_code
+                if statusCode == 204:
+                    print("- PASS, Command passed to forcefully power OFF server, code return is %s" % statusCode)
+                    time.sleep(15)
+                    break
+                else:
+                    print("\n- FAIL, Command failed to gracefully power OFF server, status code is: %s\n" % statusCode)
+                    print("Extended Info Message: {0}".format(response.json()))
+                    sys.exit()
+                
+            else:
+                time.sleep(2)
+                count+=1
+                continue
+            
         payload = {'ResetType': 'On'}
         headers = {'content-type': 'application/json'}
         response = requests.post(url, data=json.dumps(payload), headers=headers, verify=False, auth=(idrac_username,idrac_password))
         statusCode = response.status_code
         if statusCode == 204:
-            print("\n- PASS, Command passed to power ON server, code return is %s\n" % statusCode)
+            print("- PASS, Command passed to power ON server, code return is %s" % statusCode)
         else:
             print("\n- FAIL, Command failed to power ON server, status code is: %s\n" % statusCode)
             print("Extended Info Message: {0}".format(response.json()))
             sys.exit()
-        
-    if current_power_state == "Off":
+    elif data[u'PowerState'] == "Off":
         url = 'https://%s/redfish/v1/Systems/System.Embedded.1/Actions/ComputerSystem.Reset' % idrac_ip
-        print("\n- WARNING, server in OFF state, server will now power ON to perform the update(s)")
         payload = {'ResetType': 'On'}
         headers = {'content-type': 'application/json'}
         response = requests.post(url, data=json.dumps(payload), headers=headers, verify=False, auth=(idrac_username,idrac_password))
         statusCode = response.status_code
         if statusCode == 204:
-            print("\n- PASS, Command passed to power ON server, code return is %s\n" % statusCode)
+            print("- PASS, Command passed to power ON server, code return is %s" % statusCode)
         else:
             print("\n- FAIL, Command failed to power ON server, status code is: %s\n" % statusCode)
             print("Extended Info Message: {0}".format(response.json()))
             sys.exit()
+    else:
+        print("- FAIL, unable to get current server power state to perform either reboot or power on")
+        sys.exit()
+
 
 def loop_check_final_job_status():
     start_time=datetime.now()
