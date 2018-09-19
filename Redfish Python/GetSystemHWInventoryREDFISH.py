@@ -2,7 +2,7 @@
 # GetSystemHWInventoryREDFISH. Python script using Redfish API to get system hardware inventory
 #
 # _author_ = Texas Roemer <Texas_Roemer@Dell.com>
-# _version_ = 1.0
+# _version_ = 2.0
 #
 # Copyright (c) 2018, Dell, Inc.
 #
@@ -222,6 +222,7 @@ def get_fan_information():
         print(message)
     if data[u'Links'][u'CooledBy'] == []:
         print("- WARNING, no fans detected for system")
+        sys.exit()
     else:
         for i in data[u'Links'][u'CooledBy']:
             response = requests.get('https://%s%s' % (idrac_ip, i[u'@odata.id']),verify=False,auth=(idrac_username, idrac_password))
@@ -267,6 +268,7 @@ def get_ps_information():
         print(message)
     if data[u'Links'][u'PoweredBy'] == []:
         print("- WARNING, no power supplies detected for system")
+        sys.exit()
     else:
         for i in data[u'Links'][u'PoweredBy']:
             response = requests.get('https://%s%s' % (idrac_ip, i[u'@odata.id']),verify=False,auth=(idrac_username, idrac_password))
