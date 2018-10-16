@@ -4,7 +4,7 @@
 # 
 #
 # _author_ = Texas Roemer <Texas_Roemer@Dell.com>
-# _version_ = 7.0
+# _version_ = 8.0
 #
 # Copyright (c) 2017, Dell, Inc.
 #
@@ -16,7 +16,7 @@
 # http://www.gnu.org/licenses/old-licenses/gpl-2.0.txt.
 #
 
-import requests, json, sys, re, time, warnings, subprocess, argparse
+import requests, json, sys, re, time, warnings, subprocess, argparse, os
 
 
 from datetime import datetime
@@ -97,7 +97,7 @@ def download_image_payload():
     data = req.json()
     filename = file_image_name.lower()
     ImageLocation = firmware_image_location
-    ImagePath = ImageLocation + "\\" + filename
+    ImagePath = os.path.join(ImageLocation, filename)
     ETag = req.headers['ETag']
     url = 'https://%s/redfish/v1/UpdateService/FirmwareInventory' % (idrac_ip)
     files = {'file': (filename, open(ImagePath, 'rb'), 'multipart/form-data')}

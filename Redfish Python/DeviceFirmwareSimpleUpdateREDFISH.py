@@ -2,7 +2,7 @@
 # DeviceFirmwareSimpleUpdateREDFISH. Python script using Redfish API to update a device firmware with DMTF action SimpleUpdate. Supported file image types are Windows DUPs, d7/d9 image or pm files.
 #
 # _author_ = Texas Roemer <Texas_Roemer@Dell.com>
-# _version_ = 4.0
+# _version_ = 5.0
 #
 # Copyright (c) 2018, Dell, Inc.
 #
@@ -14,7 +14,7 @@
 # http://www.gnu.org/licenses/old-licenses/gpl-2.0.txt.
 #
 
-import requests, json, sys, re, time, warnings, argparse
+import requests, json, sys, re, time, warnings, argparse, os
 
 from datetime import datetime
 
@@ -80,7 +80,7 @@ def download_image_payload():
     data = req.json()
     ImageLocation = args["l"]
     filename = args["f"]
-    ImagePath = ImageLocation + "\\" + filename
+    ImagePath = os.path.join(ImageLocation, filename)
     ETag = req.headers['ETag']
     url = 'https://%s%s' % (idrac_ip, http_push_uri)
     files = {'file': (filename, open(ImagePath, 'rb'), 'multipart/form-data')}
