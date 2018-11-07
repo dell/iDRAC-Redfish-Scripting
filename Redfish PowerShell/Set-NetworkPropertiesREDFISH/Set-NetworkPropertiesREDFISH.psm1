@@ -1,6 +1,6 @@
 <#
 _author_ = Texas Roemer <Texas_Roemer@Dell.com>
-_version_ = 1.0
+_version_ = 2.0
 Copyright (c) 2018, Dell, Inc.
 
 This software is licensed to you under the GNU General Public License,
@@ -47,9 +47,9 @@ param(
     [Parameter(Mandatory=$True)]
     [string]$idrac_ip,
     [Parameter(Mandatory=$True)]
-    [string]$username,
+    [string]$idrac_username,
     [Parameter(Mandatory=$True)]
-    [string]$password,
+    [string]$idrac_password,
     [Parameter(Mandatory=$False)]
     [string]$get_network_device_IDs,
     [Parameter(Mandatory=$False)]
@@ -121,8 +121,8 @@ Ignore-SSLCertificates
 
 
 [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::TLS12
-$user = $username
-$pass= $password
+$user = $idrac_username
+$pass= $idrac_password
 $secpasswd = ConvertTo-SecureString $pass -AsPlainText -Force
 $credential = New-Object System.Management.Automation.PSCredential($user, $secpasswd)
 
