@@ -401,7 +401,7 @@ $JsonBody = @{"@Redfish.SettingsApplyTime"=@{"ApplyTime"="OnReset"}} | ConvertTo
         Write-Host "`n- FAIL, status code $status_code returned for PATCH command" -ForegroundColor Red
         return
         }
-$q=$result.RawContent | ConvertTo-Json
+$q=$result.RawContent | ConvertTo-Json -Compress
 $j=[regex]::Match($q, "JID_.+?r").captures.groups[0].value
 $job_id=$j.Replace("\r","")
 Write-Host "- WARNING, job ID created for reboot now config job is: '$job_id'"
@@ -423,7 +423,7 @@ Write-Host "- WARNING, job ID created for reboot now config job is: '$job_id'"
     }
     Write-Host "`n- PASS, reboot now job ID '$job_id' successfully marked as scheduled, rebooting the server`n"
     
-$JsonBody = @{ "ResetType" = "ForceOff"} | ConvertTo-Json
+$JsonBody = @{ "ResetType" = "ForceOff"} | ConvertTo-Json -Compress
 
 $u4 = "https://$idrac_ip/redfish/v1/Systems/System.Embedded.1/Actions/ComputerSystem.Reset"
 $result1 = Invoke-WebRequest -Uri $u4 -Credential $credential -Method Post -Body $JsonBody -ContentType 'application/json'
@@ -439,7 +439,7 @@ $result1 = Invoke-WebRequest -Uri $u4 -Credential $credential -Method Post -Body
     return
     }
 
-$JsonBody = @{ "ResetType" = "On"} | ConvertTo-Json
+$JsonBody = @{ "ResetType" = "On"} | ConvertTo-Json -Compress
 
 $u4 = "https://$idrac_ip/redfish/v1/Systems/System.Embedded.1/Actions/ComputerSystem.Reset"
 $result1 = Invoke-WebRequest -Uri $u4 -Credential $credential -Method Post -Body $JsonBody -ContentType 'application/json'
@@ -522,7 +522,7 @@ $JsonBody = @{"@Redfish.SettingsApplyTime"=@{"ApplyTime"="OnReset"}} | ConvertTo
         Write-Host "`n- FAIL, status code $status_code returned for PATCH command" -ForegroundColor Red
         return
         }
-$q=$result.RawContent | ConvertTo-Json
+$q=$result.RawContent | ConvertTo-Json -Compress
 $j=[regex]::Match($q, "JID_.+?r").captures.groups[0].value
 $job_id=$j.Replace("\r","")
 Write-Host "- WARNING, job ID created for reboot now config job is: '$job_id'"
