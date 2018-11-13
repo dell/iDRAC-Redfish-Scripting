@@ -1,6 +1,6 @@
 <#
 _author_ = Texas Roemer <Texas_Roemer@Dell.com>
-_version_ = 2.0
+_version_ = 1.0
 Copyright (c) 2018, Dell, Inc.
 
 This software is licensed to you under the GNU General Public License,
@@ -260,7 +260,7 @@ return
 
 if ($result1.StatusCode -eq 202)
 {
-    $q=$result1.RawContent | ConvertTo-Json
+    $q=$result1.RawContent | ConvertTo-Json -Compress
     $j=[regex]::Match($q, "JID_.+?r").captures.groups[0].value
     $job_id=$j.Replace("\r","")
     [String]::Format("`n- PASS, statuscode {0} returned to successfully check consistency on virtual disk {1}, {2} job ID created",$result1.StatusCode,$check_consistency_virtual_disk,$job_id)
@@ -393,7 +393,7 @@ $host_power_state = $z.PowerState
 if ($host_power_state -eq "On")
 {
 $JsonBody = @{ "ResetType" = "ForceOff"
-    } | ConvertTo-Json
+    } | ConvertTo-Json -Compress
 
 
 $u4 = "https://$idrac_ip/redfish/v1/Systems/System.Embedded.1/Actions/ComputerSystem.Reset"
@@ -411,7 +411,7 @@ else
 }
 
 $JsonBody = @{ "ResetType" = "On"
-    } | ConvertTo-Json
+    } | ConvertTo-Json -Compress
 
 
 $u4 = "https://$idrac_ip/redfish/v1/Systems/System.Embedded.1/Actions/ComputerSystem.Reset"
@@ -431,7 +431,7 @@ else
 else
 {
 $JsonBody = @{ "ResetType" = "On"
-    } | ConvertTo-Json
+    } | ConvertTo-Json -Compress
 
 
 $u4 = "https://$idrac_ip/redfish/v1/Systems/System.Embedded.1/Actions/ComputerSystem.Reset"
