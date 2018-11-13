@@ -270,7 +270,7 @@ if ($set_enclosure_asset_tag -ne "" -and $asset_tag -ne "" -and $job_type -ne ""
 $u1 = "https://$idrac_ip/redfish/v1/Chassis/$set_enclosure_asset_tag/Settings"
 
 $JsonBody = @{ "AssetTag" = $asset_tag
-    } | ConvertTo-Json
+    } | ConvertTo-Json -Compress
 
 try
 {
@@ -304,7 +304,7 @@ return
 
 if ($job_type -eq "r")
 {
-$JsonBody = @{ "@Redfish.SettingsApplyTime" = @{"ApplyTime"="Immediate"}} | ConvertTo-Json
+$JsonBody = @{ "@Redfish.SettingsApplyTime" = @{"ApplyTime"="Immediate"}} | ConvertTo-Json -Compress
 try
 {
 $result1 = Invoke-WebRequest -Uri $u1 -Credential $credential -Method Patch -Body $JsonBody -ContentType 'application/json' -ErrorVariable RespErr
@@ -406,7 +406,7 @@ if ($job_type -eq "s")
 {
 $u1 = "https://$idrac_ip/redfish/v1/Chassis/$set_enclosure_asset_tag/Settings"
 
-$JsonBody = @{ "@Redfish.SettingsApplyTime" = @{"ApplyTime"="OnReset"}} | ConvertTo-Json
+$JsonBody = @{ "@Redfish.SettingsApplyTime" = @{"ApplyTime"="OnReset"}} | ConvertTo-Json -Compress
 try
 {
 $result1 = Invoke-WebRequest -Uri $u1 -Credential $credential -Method Patch -Body $JsonBody -ContentType 'application/json' -ErrorVariable RespErr
@@ -459,7 +459,7 @@ $host_power_state = $z.PowerState
 if ($host_power_state -eq "On")
 {
 $JsonBody = @{ "ResetType" = "ForceOff"
-    } | ConvertTo-Json
+    } | ConvertTo-Json -Compress
 
 
 $u4 = "https://$idrac_ip/redfish/v1/Systems/System.Embedded.1/Actions/ComputerSystem.Reset"
@@ -478,7 +478,7 @@ else
 }
 
 $JsonBody = @{ "ResetType" = "On"
-    } | ConvertTo-Json
+    } | ConvertTo-Json -Compress
 
 
 $u4 = "https://$idrac_ip/redfish/v1/Systems/System.Embedded.1/Actions/ComputerSystem.Reset"
@@ -499,7 +499,7 @@ else
 else
 {
 $JsonBody = @{ "ResetType" = "On"
-    } | ConvertTo-Json
+    } | ConvertTo-Json -Compress
 
 
 $u4 = "https://$idrac_ip/redfish/v1/Systems/System.Embedded.1/Actions/ComputerSystem.Reset"
