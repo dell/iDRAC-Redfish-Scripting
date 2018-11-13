@@ -197,7 +197,7 @@ return
 }
 if ($result1.StatusCode -eq 202)
 {
-    $q=$result1.RawContent | ConvertTo-Json
+    $q=$result1.RawContent | ConvertTo-Json -Compress
     $j=[regex]::Match($q, "JID_.+?r").captures.groups[0].value
     $job_id=$j.Replace("\r","")
     [String]::Format("`n- PASS, statuscode {0} returned to successfully erase '{1}' device, {2} job ID created",$result1.StatusCode, $secure_erase_device, $job_id)
@@ -322,7 +322,7 @@ $host_power_state = $z.PowerState
 if ($host_power_state -eq "On")
 {
 $JsonBody = @{ "ResetType" = "ForceOff"
-    } | ConvertTo-Json
+    } | ConvertTo-Json -Compress
 
 
 $u4 = "https://$idrac_ip/redfish/v1/Systems/System.Embedded.1/Actions/ComputerSystem.Reset"
@@ -341,7 +341,7 @@ else
 }
 
 $JsonBody = @{ "ResetType" = "On"
-    } | ConvertTo-Json
+    } | ConvertTo-Json -Compress
 
 
 $u4 = "https://$idrac_ip/redfish/v1/Systems/System.Embedded.1/Actions/ComputerSystem.Reset"
@@ -361,7 +361,7 @@ else
 else
 {
 $JsonBody = @{ "ResetType" = "On"
-    } | ConvertTo-Json
+    } | ConvertTo-Json -Compress
 
 
 $u4 = "https://$idrac_ip/redfish/v1/Systems/System.Embedded.1/Actions/ComputerSystem.Reset"
