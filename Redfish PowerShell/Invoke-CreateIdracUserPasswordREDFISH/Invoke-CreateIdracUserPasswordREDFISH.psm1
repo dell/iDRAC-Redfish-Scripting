@@ -1,6 +1,6 @@
 <#
 _author_ = Texas Roemer <Texas_Roemer@Dell.com>
-_version_ = 1.0
+_version_ = 2.0
 Copyright (c) 2018, Dell, Inc.
 
 This software is licensed to you under the GNU General Public License,
@@ -151,7 +151,8 @@ if ($idrac_user_enable -eq "false")
 $enable_status = $false
 }
 
-$JsonBody = @{UserName = $idrac_new_username; Password= $idrac_new_password; RoleId = $idrac_user_privilege; Enabled = $enable_status} | ConvertTo-Json
+$JsonBody = @{UserName = $idrac_new_username; Password= $idrac_new_password; RoleId = $idrac_user_privilege; Enabled = $enable_status} | ConvertTo-Json -Compress
+
 Write-Host "`n- Parameters being used to create iDRAC user id $idrac_user_id -`n"
 
 $parameters_used = $JsonBody.Replace("{","")
@@ -159,7 +160,17 @@ $parameters_used = $parameters_used.Replace("}","")
 $parameters_used
 
 $u1 = "https://$idrac_ip/redfish/v1/Managers/iDRAC.Embedded.1/Accounts/$idrac_user_id"
-$result1 = Invoke-WebRequest -Uri $u1 -Credential $credential -Method Patch -Body $JsonBody -ContentType 'application/json'
+
+try
+{
+$result1 = Invoke-WebRequest -Uri $u1 -Credential $credential -Method Patch -Body $JsonBody -ContentType 'application/json' -ErrorVariable RespErr
+}
+catch
+{
+Write-Host
+$RespErr
+return
+}
 
 
 if ($result1.StatusCode -eq 200)
@@ -214,10 +225,20 @@ $JsonBody = @{Enabled = $false; RoleId = "None"} | ConvertTo-Json
 $u1 = "https://$idrac_ip/redfish/v1/Managers/iDRAC.Embedded.1/Accounts/$delete_idrac_user"
 $result1 = Invoke-WebRequest -Uri $u1 -Credential $credential -Method Patch -Body $JsonBody -ContentType 'application/json'
 
-$JsonBody = @{UserName = ""} | ConvertTo-Json
+$JsonBody = @{UserName = ""} | ConvertTo-Json -Compress
 
 $u1 = "https://$idrac_ip/redfish/v1/Managers/iDRAC.Embedded.1/Accounts/$delete_idrac_user"
-$result1 = Invoke-WebRequest -Uri $u1 -Credential $credential -Method Patch -Body $JsonBody -ContentType 'application/json'
+
+try
+{
+$result1 = Invoke-WebRequest -Uri $u1 -Credential $credential -Method Patch -Body $JsonBody -ContentType 'application/json' -ErrorVariable RespErr
+}
+catch
+{
+Write-Host
+$RespErr
+return
+}
 
 if ($result1.StatusCode -eq 200)
 {
