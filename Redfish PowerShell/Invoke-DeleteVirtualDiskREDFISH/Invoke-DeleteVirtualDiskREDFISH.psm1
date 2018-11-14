@@ -424,8 +424,10 @@ $result = Invoke-WebRequest -Uri $u -Credential $credential -Method Get -UseBasi
 $z=$result.Content | ConvertFrom-Json
 $host_power_state = $z.PowerState
 
+
 if ($host_power_state -eq "On")
 {
+Write-Host "- WARNING, server power state ON, rebooting the server to execute staged configuration job"
 $JsonBody = @{ "ResetType" = "ForceOff"
     } | ConvertTo-Json -Compress
 
@@ -437,7 +439,7 @@ $result1 = Invoke-WebRequest -Uri $u4 -Credential $credential -Method Post -Body
     if ($result1.StatusCode -eq 204)
     {
     [String]::Format("- PASS, statuscode {0} returned successfully to power OFF the server",$result1.StatusCode)
-    Start-Sleep 10
+    Start-Sleep 15
     }
     else
     {
@@ -464,8 +466,9 @@ $result1 = Invoke-WebRequest -Uri $u4 -Credential $credential -Method Post -Body
     return
     }
 }
-else
+if ($host_power_state -eq "Off")
 {
+Write-Host "- WARNING, server power state OFF, powering ON server to execute staged configuration job"
 $JsonBody = @{ "ResetType" = "On"
     } | ConvertTo-Json -Compress
 
@@ -473,47 +476,54 @@ $JsonBody = @{ "ResetType" = "On"
 $u4 = "https://$idrac_ip/redfish/v1/Systems/System.Embedded.1/Actions/ComputerSystem.Reset"
 $result1 = Invoke-WebRequest -Uri $u4 -Credential $credential -Method Post -Body $JsonBody -ContentType 'application/json'
 
-
-    if ($result1.StatusCode -eq 204)
-    {
+if ($result1.StatusCode -eq 204)
+{
     [String]::Format("- PASS, statuscode {0} returned successfully to power ON the server",$result1.StatusCode)
     Write-Host
-    }
-    else
-    {
+}
+else
+{
     [String]::Format("- FAIL, statuscode {0} returned",$result1.StatusCode)
     return
-    }
+}
 }
 
 
 while ($overall_job_output.JobState -ne "Completed")
 {
 $u5 ="https://$idrac_ip/redfish/v1/Managers/iDRAC.Embedded.1/Jobs/$job_id"
-$result = Invoke-WebRequest -Uri $u5 -Credential $credential -Method Get -UseBasicParsing -ContentType 'application/json'
- 
+try
+    {
+    $result = Invoke-WebRequest -Uri $u5 -Credential $credential -Method Get -UseBasicParsing -ContentType 'application/json' -ErrorVariable RespErr
+    }
+    catch
+    {
+    Write-Host
+    $RespErr
+    return
+    }
 $overall_job_output=$result.Content | ConvertFrom-Json
 if ($overall_job_output.Message -eq "Job failed." -or $overall_job_output.Message -eq "Failed")
-{
-Write-Host
-[String]::Format("- FAIL, job not marked as completed, detailed error info: {0}",$overall_job_output)
-return
-}
-else
-{
-[String]::Format("- WARNING, job not marked completed, current status is: {0} Precent complete is: {1}",$overall_job_output.Message,$overall_job_output.PercentComplete)
-Start-Sleep 10
-}
+    {
+    Write-Host
+    [String]::Format("- FAIL, job not marked as completed, detailed error info: {0}",$overall_job_output)
+    return
+    }
+    else
+    {
+    [String]::Format("- WARNING, job not marked completed, current status is: {0} Precent complete is: {1}",$overall_job_output.Message,$overall_job_output.PercentComplete)
+    Start-Sleep 10
+    }
 }
 Start-Sleep 10
 Write-Host
 [String]::Format("- PASS, {0} job ID marked as completed!",$job_id)
 Write-Host "`n- Detailed final job status results:"
 $u5 ="https://$idrac_ip/redfish/v1/Managers/iDRAC.Embedded.1/Jobs/$job_id"
-$result = Invoke-WebRequest -Uri $u5 -Credential $credential -Method Get -UseBasicParsing -ContentType 'application/json'
-
+$result = Invoke-WebRequest -Uri $u5 -Credential $credential -Method Get -UseBasicParsing -ContentType 'application/json' 
 $overall_job_output=$result.Content | ConvertFrom-Json
 $overall_job_output
+
 
 $controller_id=$delete_virtual_disk.Split(":")[1]
 
