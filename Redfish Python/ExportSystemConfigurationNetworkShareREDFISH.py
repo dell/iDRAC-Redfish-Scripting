@@ -4,7 +4,7 @@
 # 
 #
 # _author_ = Texas Roemer <Texas_Roemer@Dell.com>
-# _version_ = 2.0
+# _version_ = 3.0
 #
 # Copyright (c) 2017, Dell, Inc.
 #
@@ -28,17 +28,18 @@ parser.add_argument('-ip',help='iDRAC IP address', required=True)
 parser.add_argument('-u', help='iDRAC username', required=True)
 parser.add_argument('-p', help='iDRAC password', required=True)
 parser.add_argument('script_examples',action="store_true",help='ExportSystemConfigurationNetworkShareREDFISH.py -ip 192.168.0.120 -u root -p calvin -t ALL -xf XML --ipaddress 192.168.0.130 --sharetype NFS --sharename /nfs --filename SCP_export_R740, this example is going to export attributes for all devices in a default XML SCP file to a NFS share. \nExportSystemConfigurationNetworkShareREDFISH.py -ip 192.168.0.120 -u root -p calvin -t BIOS -xf JSON --ipaddress 192.168.0.140 --sharetype CIFS --sharename cifs_share_vm --filename R740_scp_file -e Clone --username administrator --password password, this example is going to export only BIOS attributes in a clone JSON SCP file to a CIFS share.')
-parser.add_argument('--ipaddress', help='Pass in the IP address of the network share', required=True)
-parser.add_argument('--sharetype', help='Pass in the share type of the network share. Supported values are NFS, CIFS, HTTP, HTTPS.', required=True)
-parser.add_argument('--sharename', help='Pass in the network share share name', required=True)
+parser.add_argument('-st', help='Pass in \"y\" to get supported share types for your iDRAC firmware version', required=False)
+parser.add_argument('--ipaddress', help='Pass in the IP address of the network share', required=False)
+parser.add_argument('--sharetype', help='Pass in the share type of the network share. If needed, use argument -st to get supported values for your iDRAC firmware version', required=False)
+parser.add_argument('--sharename', help='Pass in the network share share name', required=False)
 parser.add_argument('--username', help='Pass in the CIFS username', required=False)
 parser.add_argument('--password', help='Pass in the CIFS username pasword', required=False)
 parser.add_argument('--workgroup', help='Pass in the workgroup of your CIFS network share. This argument is optional', required=False)
-parser.add_argument('-t', help='Pass in Target value to get component attributes. You can pass in \"ALL" to get all component attributes or pass in a specific component to get only those attributes. Supported values are: ALL, System, BIOS, IDRAC, NIC, FC, LifecycleController, RAID.', required=True)
+parser.add_argument('-t', help='Pass in Target value to get component attributes. You can pass in \"ALL" to get all component attributes or pass in a specific component to get only those attributes. Supported values are: ALL, System, BIOS, IDRAC, NIC, FC, LifecycleController, RAID.', required=False)
 parser.add_argument('-e', help='Pass in ExportUse value. Supported values are Default, Clone and Replace. If you don\'t use this parameter, default setting is Default or Normal export.', required=False)
 parser.add_argument('-i', help='Pass in IncludeInExport value. Supported values are 0 for \"Default\", 1 for \"IncludeReadOnly\", 2 for \"IncludePasswordHashValues\" or 3 for \"IncludeReadOnly,IncludePasswordHashValues\". If you don\'t use this parameter, default setting is Default for IncludeInExport.', required=False)
-parser.add_argument('--filename', help='Pass in unique filename for the SCP file which will get created on the network share', required=True)
-parser.add_argument('-xf', help='Pass in the format type for SCP file generated. Supported values are XML and JSON', required=True)
+parser.add_argument('--filename', help='Pass in unique filename for the SCP file which will get created on the network share', required=False)
+parser.add_argument('-xf', help='Pass in the format type for SCP file generated. Supported values are XML and JSON', required=False)
 parser.add_argument('--ignorecertwarning', help='Supported values are Off and On. This argument is only required if using HTTPS for share type', required=False)
 
 
@@ -48,6 +49,19 @@ idrac_ip=args["ip"]
 idrac_username=args["u"]
 idrac_password=args["p"]
 
+def get_sharetypes():
+    req = requests.get('https://%s/redfish/v1/Managers/iDRAC.Embedded.1' % (idrac_ip), auth=(idrac_username, idrac_password), verify=False)
+    data = req.json()
+    print("\n- ExportSystemConfiguration supported share types for iDRAC %s\n" % idrac_ip)
+    if u'OemManager.v1_0_0#OemManager.ExportSystemConfiguration' in data[u'Actions'][u'Oem']:
+        share_types = data[u'Actions'][u'Oem'][u'OemManager.v1_0_0#OemManager.ExportSystemConfiguration'][u'ShareParameters'][u'ShareType@Redfish.AllowableValues']
+    else:
+        share_types = data[u'Actions'][u'Oem'][u'OemManager.v1_1_0#OemManager.ExportSystemConfiguration'][u'ShareParameters'][u'ShareType@Redfish.AllowableValues']
+    for i in share_types:
+        if i == "LOCAL":
+            pass
+        else:
+            print(i)
 
 def export_server_configuration_profile():
     global job_id
@@ -151,7 +165,10 @@ def loop_job_status():
 
 
 if __name__ == "__main__":
-    export_server_configuration_profile()
-    loop_job_status()
+    if args["st"]:
+        get_sharetypes()
+    else:
+        export_server_configuration_profile()
+        loop_job_status()
     
     

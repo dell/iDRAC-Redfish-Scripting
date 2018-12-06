@@ -4,7 +4,7 @@
 # 
 #
 # _author_ = Texas Roemer <Texas_Roemer@Dell.com>
-# _version_ = 3.0
+# _version_ = 4.0
 #
 # Copyright (c) 2017, Dell, Inc.
 #
@@ -27,14 +27,15 @@ parser.add_argument('-ip',help='iDRAC IP address', required=True)
 parser.add_argument('-u', help='iDRAC username', required=True)
 parser.add_argument('-p', help='iDRAC password', required=True)
 parser.add_argument('script_examples',action="store_true",help='ImportSystemConfigurationNetworkShareREDFISH.py -ip 192.168.0.120 -u root -p calvin -t ALL --ipaddress 192.168.0.130 --sharetype NFS --sharename /nfs --filename SCP_export_R740, this example is going to import SCP file from NFS share and apply all attribute changes for all components. \nImportSystemConfigurationNetworkShareREDFISH.py -ip 192.168.0.120 -u root -p calvin -t BIOS --ipaddress 192.168.0.140 --sharetype CIFS --sharename cifs_share_vm --filename R740_scp_file -s Forced --username administrator --password password, this example is going to only apply BIOS changes from the SCP file on the CIFS share along with forcing a server power reboot.')
-parser.add_argument('--ipaddress', help='Pass in the IP address of the network share', required=True)
-parser.add_argument('--sharetype', help='Pass in the share type of the network share. Supported values are NFS, CIFS, HTTP, HTTPS.', required=True)
-parser.add_argument('--sharename', help='Pass in the network share share name', required=True)
+parser.add_argument('-st', help='Pass in \"y\" to get supported share types for your iDRAC firmware version', required=False)
+parser.add_argument('--ipaddress', help='Pass in the IP address of the network share', required=False)
+parser.add_argument('--sharetype', help='Pass in the share type of the network share. If needed, use argument -st to get supported values for your iDRAC firmware version', required=False)
+parser.add_argument('--sharename', help='Pass in the network share share name', required=False)
 parser.add_argument('--username', help='Pass in the CIFS username', required=False)
 parser.add_argument('--password', help='Pass in the CIFS username pasword', required=False)
 parser.add_argument('--workgroup', help='Pass in the workgroup of your CIFS network share. This argument is optional', required=False)
-parser.add_argument('-t', help='Pass in Target value to import component attributes. You can pass in \"ALL" to import all component attributes or pass in a specific component to import only those attributes. Supported values are: ALL, System, BIOS, IDRAC, NIC, FC, LifecycleController, RAID.', required=True)
-parser.add_argument('--filename', help='Pass in the filename of the SCP file which is on the network share you are using', required=True)
+parser.add_argument('-t', help='Pass in Target value to import component attributes. You can pass in \"ALL" to import all component attributes or pass in a specific component to import only those attributes. Supported values are: ALL, System, BIOS, IDRAC, NIC, FC, LifecycleController, RAID.', required=False)
+parser.add_argument('--filename', help='Pass in the filename of the SCP file which is on the network share you are using', required=False)
 parser.add_argument('--ignorecertwarning', help='Supported values are Off and On. This argument is only required if using HTTPS for share type', required=False)
 parser.add_argument('-s', help='Pass in ShutdownType value. Supported values are Graceful, Forced and NoReboot. If you don\'t use this optional parameter, default value is Graceful. NOTE: If you pass in NoReboot value, configuration changes will not be applied until the next server manual reboot.', required=False)
 parser.add_argument('-e', help='Pass in end HostPowerState value. Supported values are On and Off. If you don\'t use this optional parameter, default value is On', required=False)
@@ -45,6 +46,20 @@ args=vars(parser.parse_args())
 idrac_ip=args["ip"]
 idrac_username=args["u"]
 idrac_password=args["p"]
+
+def get_sharetypes():
+    req = requests.get('https://%s/redfish/v1/Managers/iDRAC.Embedded.1' % (idrac_ip), auth=(idrac_username, idrac_password), verify=False)
+    data = req.json()
+    print("\n- ImportSystemConfiguration supported share types for iDRAC %s\n" % idrac_ip)
+    if u'OemManager.v1_0_0#OemManager.ImportSystemConfiguration' in data[u'Actions'][u'Oem']:
+        share_types = data[u'Actions'][u'Oem'][u'OemManager.v1_0_0#OemManager.ImportSystemConfiguration'][u'ShareParameters'][u'ShareType@Redfish.AllowableValues']
+    else:
+        share_types = data[u'Actions'][u'Oem'][u'OemManager.v1_1_0#OemManager.ImportSystemConfiguration'][u'ShareParameters'][u'ShareType@Redfish.AllowableValues']
+    for i in share_types:
+        if i == "LOCAL":
+            pass
+        else:
+            print(i)
     
 def import_server_configuration_profile():
     global job_id
@@ -177,6 +192,9 @@ def loop_job_status():
             continue
 
 if __name__ == "__main__":
-    import_server_configuration_profile()
-    loop_job_status()
+    if args["st"]:
+        get_sharetypes()
+    else:
+        import_server_configuration_profile()
+        loop_job_status()
         
