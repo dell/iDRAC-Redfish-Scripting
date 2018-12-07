@@ -4,7 +4,7 @@
 # 
 #
 # _author_ = Texas Roemer <Texas_Roemer@Dell.com>
-# _version_ = 3.0
+# _version_ = 4.0
 #
 # Copyright (c) 2017, Dell, Inc.
 #
@@ -40,7 +40,7 @@ parser.add_argument('-e', help='Pass in ExportUse value. Supported values are De
 parser.add_argument('-i', help='Pass in IncludeInExport value. Supported values are 0 for \"Default\", 1 for \"IncludeReadOnly\", 2 for \"IncludePasswordHashValues\" or 3 for \"IncludeReadOnly,IncludePasswordHashValues\". If you don\'t use this parameter, default setting is Default for IncludeInExport.', required=False)
 parser.add_argument('--filename', help='Pass in unique filename for the SCP file which will get created on the network share', required=False)
 parser.add_argument('-xf', help='Pass in the format type for SCP file generated. Supported values are XML and JSON', required=False)
-parser.add_argument('--ignorecertwarning', help='Supported values are Off and On. This argument is only required if using HTTPS for share type', required=False)
+parser.add_argument('--ignorecertwarning', help='Supported values are Enabled and Disabled. This argument is only required if using HTTPS for share type', required=False)
 
 
 args=vars(parser.parse_args())
@@ -94,7 +94,7 @@ def export_server_configuration_profile():
     if args["workgroup"]:
         payload["ShareParameters"]["Workgroup"] = args["workgroup"]
     if args["ignorecertwarning"]:
-        payload["IgnoreCertWarning"] = args["ignorecertwarning"]
+        payload["ShareParameters"]["IgnoreCertificateWarning"] = args["ignorecertwarning"]
     print("\n- WARNING, arguments and values for %s method\n" % method)
     for i in payload.items():
         if i[0] == "ShareParameters":
@@ -105,8 +105,7 @@ def export_server_configuration_profile():
                     print("%s: %s" % (ii[0],ii[1]))
         else:
             print("%s: %s" % (i[0],i[1]))
-    
-    url = 'https://%s/redfish/v1/Managers/iDRAC.Embedded.1/Actions/Oem/EID_674_Manager.ExportSystemConfiguration' % idrac_ip  
+            
     headers = {'content-type': 'application/json'}
     response = requests.post(url, data=json.dumps(payload), headers=headers, verify=False, auth=(idrac_username,idrac_password))
     d=str(response.__dict__)

@@ -4,7 +4,7 @@
 # 
 #
 # _author_ = Texas Roemer <Texas_Roemer@Dell.com>
-# _version_ = 4.0
+# _version_ = 5.0
 #
 # Copyright (c) 2017, Dell, Inc.
 #
@@ -36,7 +36,7 @@ parser.add_argument('--password', help='Pass in the CIFS username pasword', requ
 parser.add_argument('--workgroup', help='Pass in the workgroup of your CIFS network share. This argument is optional', required=False)
 parser.add_argument('-t', help='Pass in Target value to import component attributes. You can pass in \"ALL" to import all component attributes or pass in a specific component to import only those attributes. Supported values are: ALL, System, BIOS, IDRAC, NIC, FC, LifecycleController, RAID.', required=False)
 parser.add_argument('--filename', help='Pass in the filename of the SCP file which is on the network share you are using', required=False)
-parser.add_argument('--ignorecertwarning', help='Supported values are Off and On. This argument is only required if using HTTPS for share type', required=False)
+parser.add_argument('--ignorecertwarning', help='Supported values are Disabled and Enabled. This argument is only required if using HTTPS for share type', required=False)
 parser.add_argument('-s', help='Pass in ShutdownType value. Supported values are Graceful, Forced and NoReboot. If you don\'t use this optional parameter, default value is Graceful. NOTE: If you pass in NoReboot value, configuration changes will not be applied until the next server manual reboot.', required=False)
 parser.add_argument('-e', help='Pass in end HostPowerState value. Supported values are On and Off. If you don\'t use this optional parameter, default value is On', required=False)
 
@@ -85,7 +85,7 @@ def import_server_configuration_profile():
     if args["workgroup"]:
         payload["ShareParameters"]["Workgroup"] = args["workgroup"]
     if args["ignorecertwarning"]:
-        payload["IgnoreCertWarning"] = args["ignorecertwarning"]
+        payload["ShareParameters"]["IgnoreCertificateWarning"] = args["ignorecertwarning"]
     print("\n- WARNING, arguments and values for %s method\n" % method)
     for i in payload.items():
         if i[0] == "ShareParameters":
