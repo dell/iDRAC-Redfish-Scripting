@@ -2,7 +2,7 @@
 # DeviceFirmwareSimpleUpdateREDFISH. Python script using Redfish API to update a device firmware with DMTF action SimpleUpdate. Supported file image types are Windows DUPs, d7/d9 image or pm files.
 #
 # _author_ = Texas Roemer <Texas_Roemer@Dell.com>
-# _version_ = 5.0
+# _version_ = 6.0
 #
 # Copyright (c) 2018, Dell, Inc.
 #
@@ -149,10 +149,10 @@ def check_job_status():
             break
         elif "completed successfully" in data[u'Oem'][u'Dell'][u'Message']:
             print("\n- PASS, job ID %s successfully marked completed, detailed final job status results:\n" % data[u"Id"])
-            print("\n- %s completed in: %s" % (job_id, str(current_time)[0:7]))
             for i in data[u'Oem'][u'Dell'].items():
                 print("%s: %s" % (i[0],i[1]))
-            break
+            print("\n- %s completed in: %s" % (job_id, str(current_time)[0:7]))
+            sys.exit()
         else:
             if "d9" in args["f"] or "d8" in args["f"] or "d7" in args["f"]:
                 print("- Message: Downloading package \"%s\"" % args["f"])
