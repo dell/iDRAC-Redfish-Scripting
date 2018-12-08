@@ -4,7 +4,7 @@
 # 
 #
 # _author_ = Texas Roemer <Texas_Roemer@Dell.com>
-# _version_ = 5.0
+# _version_ = 6.0
 #
 # Copyright (c) 2017, Dell, Inc.
 #
@@ -36,7 +36,7 @@ parser.add_argument('--password', help='Pass in the CIFS username pasword', requ
 parser.add_argument('--workgroup', help='Pass in the workgroup of your CIFS network share. This argument is optional', required=False)
 parser.add_argument('-t', help='Pass in Target value to import component attributes. You can pass in \"ALL" to import all component attributes or pass in a specific component to import only those attributes. Supported values are: ALL, System, BIOS, IDRAC, NIC, FC, LifecycleController, RAID.', required=False)
 parser.add_argument('--filename', help='Pass in the filename of the SCP file which is on the network share you are using', required=False)
-parser.add_argument('--ignorecertwarning', help='Supported values are Disabled and Enabled. This argument is only required if using HTTPS for share type', required=False)
+parser.add_argument('--ignorecertwarning', help='Supported values are Disabled and Enabled. This argument is only required if using HTTPS for share type. If you don\'t pass in this argument when using HTTPS, default iDRAC setting is Enabled', required=False)
 parser.add_argument('-s', help='Pass in ShutdownType value. Supported values are Graceful, Forced and NoReboot. If you don\'t use this optional parameter, default value is Graceful. NOTE: If you pass in NoReboot value, configuration changes will not be applied until the next server manual reboot.', required=False)
 parser.add_argument('-e', help='Pass in end HostPowerState value. Supported values are On and Off. If you don\'t use this optional parameter, default value is On', required=False)
 
@@ -112,7 +112,7 @@ def import_server_configuration_profile():
         print("\n- FAIL, status code not 202\n, code is: %s" % response.status_code)   
         sys.exit()
     else:
-        print("\n- Job ID %s successfully created for %s method\n" % (job_id, method)) 
+        print("\n- Job ID \"%s\" successfully created for %s method\n" % (job_id, method)) 
 
     response_output=response.__dict__
     job_id=response_output["headers"]["Location"]
@@ -126,10 +126,7 @@ def loop_job_status():
         req = requests.get('https://%s/redfish/v1/TaskService/Tasks/%s' % (idrac_ip, job_id), auth=(idrac_username, idrac_password), verify=False)
         statusCode = req.status_code
         data = req.json()
-        #message_string=data[u"Messages"]
-        #final_message_string=str(message_string)
         current_time=(datetime.now()-start_time)
-        #print data
         if statusCode == 202 or statusCode == 200:
             pass
             time.sleep(3)
@@ -145,12 +142,9 @@ def loop_job_status():
             for i in data['Messages']:
                 for ii in i.items():
                     if ii[0] == "Oem":
+                        print "-" * 80
                         for iii in ii[1]['Dell'].items():
-                            if iii[0] == 'NewValue':
-                                print("%s: %s" % (iii[0], iii[1]))
-                                print("\n")
-                            else:
-                                print("%s: %s" % (iii[0], iii[1]))
+                            print("%s: %s" % (iii[0], iii[1]))
                     else:
                         pass
             sys.exit()
@@ -166,16 +160,13 @@ def loop_job_status():
             for i in data['Oem']['Dell'].items():
                 print("%s: %s" % (i[0], i[1]))
             print("\n- %s completed in: %s" % (job_id, str(current_time)[0:7]))
-            print("\n- Config results for job ID %s\n" % job_id)
+            print("\n- Config results for job ID %s -\n" % job_id)
             for i in data['Messages']:
                 for ii in i.items():
                     if ii[0] == "Oem":
+                        print "-" * 80
                         for iii in ii[1]['Dell'].items():
-                            if iii[0] == 'NewValue':
-                                print("%s: %s" % (iii[0], iii[1]))
-                                print("\n")
-                            else:
-                                print("%s: %s" % (iii[0], iii[1]))
+                            print("%s: %s" % (iii[0], iii[1]))
                     else:
                         pass
 

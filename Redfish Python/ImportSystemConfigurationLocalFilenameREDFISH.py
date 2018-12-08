@@ -2,7 +2,7 @@
 # ImportSystemConfigurationLocalFilenameREDFISH. Python script using Redfish API to import system configuration profile attributes locally from a configuration file.
 #
 # _author_ = Texas Roemer <Texas_Roemer@Dell.com>
-# _version_ = 6.0
+# _version_ = 8.0
 #
 # Copyright (c) 2017, Dell, Inc.
 #
@@ -90,33 +90,27 @@ while True:
     req = requests.get('https://%s/redfish/v1/TaskService/Tasks/%s' % (idrac_ip, job_id), auth=(idrac_username, idrac_password), verify=False)
     statusCode = req.status_code
     data = req.json()
-    #message_string=data[u"Messages"]
-    #final_message_string=str(message_string)
     current_time=(datetime.now()-start_time)
-    #print data
     if statusCode == 202 or statusCode == 200:
         pass
         time.sleep(3)
     else:
         print("Query job ID command failed, error code is: %s" % statusCode)
         sys.exit()
-    if "failed" in data[u'Oem'][u'Dell'][u'Message'] or "completed with errors" in data[u'Oem'][u'Dell'][u'Message'] or "Not one" in data[u'Oem'][u'Dell'][u'Message'] or "not compliant" in data[u'Oem'][u'Dell'][u'Message'] or "Unable" in data[u'Oem'][u'Dell'][u'Message'] or "The system could not be shut down" in data[u'Oem'][u'Dell'][u'Message']:
+    if "failed" in data[u'Oem'][u'Dell'][u'Message'] or "completed with errors" in data[u'Oem'][u'Dell'][u'Message'] or "Not one" in data[u'Oem'][u'Dell'][u'Message'] or "not compliant" in data[u'Oem'][u'Dell'][u'Message'] or "Unable" in data[u'Oem'][u'Dell'][u'Message'] or "The system could not be shut down" in data[u'Oem'][u'Dell'][u'Message'] or "No device configuration" in data[u'Oem'][u'Dell'][u'Message']:
         print("- FAIL, Job ID %s marked as %s but detected issue(s). See detailed job results below for more information on failure\n" % (job_id, data[u'Oem'][u'Dell'][u'JobState']))
         print("- Detailed job results for job ID %s\n" % job_id)
         for i in data['Oem']['Dell'].items():
             print("%s: %s" % (i[0], i[1]))
         print("\n- Config results for job ID %s\n" % job_id)
         for i in data['Messages']:
-            for ii in i.items():
-                if ii[0] == "Oem":
-                    for iii in ii[1]['Dell'].items():
-                        if iii[0] == 'NewValue':
+                for ii in i.items():
+                    if ii[0] == "Oem":
+                        print "-" * 80
+                        for iii in ii[1]['Dell'].items():
                             print("%s: %s" % (iii[0], iii[1]))
-                            print("\n")
-                        else:
-                            print("%s: %s" % (iii[0], iii[1]))
-                else:
-                    pass
+                    else:
+                        pass
         sys.exit()
     elif "No reboot Server" in data[u'Oem'][u'Dell'][u'Message']:
         print("- PASS, job ID %s successfully marked completed. NoReboot value detected and config changes will not be applied until next manual server reboot\n" % job_id)
@@ -132,16 +126,13 @@ while True:
         print("\n- %s completed in: %s" % (job_id, str(current_time)[0:7]))
         print("\n- Config results for job ID %s\n" % job_id)
         for i in data['Messages']:
-            for ii in i.items():
-                if ii[0] == "Oem":
-                    for iii in ii[1]['Dell'].items():
-                        if iii[0] == 'NewValue':
+                for ii in i.items():
+                    if ii[0] == "Oem":
+                        print "-" * 80
+                        for iii in ii[1]['Dell'].items():
                             print("%s: %s" % (iii[0], iii[1]))
-                            print("\n")
-                        else:
-                            print("%s: %s" % (iii[0], iii[1]))
-                else:
-                    pass
+                    else:
+                        pass
 
         sys.exit()
     elif "No changes" in data[u'Oem'][u'Dell'][u'Message'] or "No configuration changes" in data[u'Oem'][u'Dell'][u'Message']:
