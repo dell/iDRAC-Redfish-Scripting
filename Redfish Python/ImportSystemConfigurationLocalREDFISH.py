@@ -38,7 +38,7 @@ url = 'https://%s/redfish/v1/Managers/iDRAC.Embedded.1/Actions/Oem/EID_674_Manag
 
 # Make sure to modify this payload dictionary first before you execute the script. Payload listed below is an example of showing the correct format. 
  
-payload = {"ImportBuffer":"<SystemConfiguration><Component FQDD=\"iDRAC.Embedded.1\"><Attribute Name=\"Time.1#Timezone\">CST6CDT</Attribute></Component></SystemConfiguration>","ShareParameters":{"Target":"All"}}
+payload = {"ImportBuffer":"<SystemConfiguration><Component FQDD=\"iDRAC.Embedded.1\"><Attribute Name=\"Telnet.1#Enable\">Enabled</Attribute></Component></SystemConfiguration>","ShareParameters":{"Target":"ALL"}}
 
 headers = {'content-type': 'application/json'}
 response = requests.post(url, data=json.dumps(payload), headers=headers, verify=False, auth=(idrac_username,idrac_password))
