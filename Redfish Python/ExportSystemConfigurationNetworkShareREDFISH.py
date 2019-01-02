@@ -4,7 +4,7 @@
 # 
 #
 # _author_ = Texas Roemer <Texas_Roemer@Dell.com>
-# _version_ = 4.0
+# _version_ = 5.0
 #
 # Copyright (c) 2017, Dell, Inc.
 #
@@ -31,9 +31,9 @@ parser.add_argument('script_examples',action="store_true",help='ExportSystemConf
 parser.add_argument('-st', help='Pass in \"y\" to get supported share types for your iDRAC firmware version', required=False)
 parser.add_argument('--ipaddress', help='Pass in the IP address of the network share', required=False)
 parser.add_argument('--sharetype', help='Pass in the share type of the network share. If needed, use argument -st to get supported values for your iDRAC firmware version', required=False)
-parser.add_argument('--sharename', help='Pass in the network share share name', required=False)
+parser.add_argument('--sharename', help='Pass in the network share name', required=False)
 parser.add_argument('--username', help='Pass in the CIFS username', required=False)
-parser.add_argument('--password', help='Pass in the CIFS username pasword', required=False)
+parser.add_argument('--password', help='Pass in the CIFS username password', required=False)
 parser.add_argument('--workgroup', help='Pass in the workgroup of your CIFS network share. This argument is optional', required=False)
 parser.add_argument('-t', help='Pass in Target value to get component attributes. You can pass in \"ALL" to get all component attributes or pass in a specific component to get only those attributes. Supported values are: ALL, System, BIOS, IDRAC, NIC, FC, LifecycleController, RAID.', required=False)
 parser.add_argument('-e', help='Pass in ExportUse value. Supported values are Default, Clone and Replace. If you don\'t use this parameter, default setting is Default or Normal export.', required=False)
