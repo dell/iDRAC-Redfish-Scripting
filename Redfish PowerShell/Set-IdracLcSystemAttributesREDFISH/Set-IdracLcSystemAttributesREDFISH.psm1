@@ -1,6 +1,6 @@
 <#
 _author_ = Texas Roemer <Texas_Roemer@Dell.com>
-_version_ = 1.0
+_version_ = 2.0
 
 Copyright (c) 2017, Dell, Inc.
 
@@ -115,7 +115,7 @@ $u = "https://$idrac_ip/redfish/v1/Managers/System.Embedded.1/Attributes"
 } 
 
 
-$result = Invoke-WebRequest -Uri $u -Credential $credential -Method Get -UseBasicParsing 
+$result = Invoke-WebRequest -Uri $u -Credential $credential -Method Get -UseBasicParsing -Headers @{"Accept"="application/json"}
 Write-Host
 
 $get_all_attributes=$result.Content | ConvertFrom-Json | Select Attributes
@@ -201,7 +201,7 @@ Write-Host
 
 # PATCH command to set attribute pending value
 
-$result1 = Invoke-WebRequest -Uri $u -Credential $credential -Method Patch -Body $JsonBody -ContentType 'application/json'
+$result1 = Invoke-WebRequest -Uri $u -Credential $credential -Method Patch -Body $JsonBody -ContentType 'application/json' -Headers @{"Accept"="application/json"}
 #$raw_content=$result1.RawContent | ConvertTo-Json -Compress
 
 
@@ -220,7 +220,7 @@ else
 
 # GET command to verify new attribute values are set correctly 
 
-$result = Invoke-WebRequest -Uri $u -Credential $credential -Method Get -UseBasicParsing 
+$result = Invoke-WebRequest -Uri $u -Credential $credential -Method Get -UseBasicParsing -Headers @{"Accept"="application/json"} 
 Write-Host
 if ($result.StatusCode -eq 200)
 {
