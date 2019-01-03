@@ -1,6 +1,6 @@
 ﻿<#
 _author_ = Texas Roemer <Texas_Roemer@Dell.com>
-_version_ = 1.0
+_version_ = 2.0
 
 Copyright (c) 2017, Dell, Inc.
 
@@ -125,7 +125,7 @@ $u = "https://$idrac_ip/redfish/v1/Managers/iDRAC.Embedded.1/Actions/Oem/$full_m
 
 # POST command to import preview configuration file
 
-$result1 = Invoke-WebRequest -Uri $u -Credential $credential -Method Post -Body $JsonBody -ContentType 'application/json'
+$result1 = Invoke-WebRequest -Uri $u -Credential $credential -Method Post -Body $JsonBody -ContentType 'application/json' -Headers @{"Accept"="application/json"}
 $raw_content=$result1.RawContent | ConvertTo-Json -Compress
 $job_id_search=[regex]::Match($raw_content, "JID_.+?r").captures.groups[0].value
 $job_id=$job_id_search.Replace("\r","")
@@ -154,7 +154,7 @@ while ($overall_job_output.JobState -ne "Completed")
 {
 $loop_time = Get-Date
 $u5 ="https://$idrac_ip/redfish/v1/Managers/iDRAC.Embedded.1/Jobs/$job_id"
-$result = Invoke-WebRequest -Uri $u5 -Credential $credential -Method Get -UseBasicParsing -ContentType 'application/json'
+$result = Invoke-WebRequest -Uri $u5 -Credential $credential -Method Get -UseBasicParsing -Headers @{"Accept"="application/json"}
 $overall_job_output=$result.Content | ConvertFrom-Json
 if ($overall_job_output.JobState -eq "Failed") {
 Write-Host
@@ -189,11 +189,6 @@ Start-Sleep 2
 Write-Host
 [String]::Format("- {0} job ID marked as completed",$job_id)
 [String]::Format("- Final job status is: {0}",$overall_job_output.Message)
-$get_current_time=Get-Date -DisplayHint Time
-$final_time=$get_current_time-$get_time_old
-$final_completion_time=$final_time | select Minutes,Seconds 
-Write-Host
-Write-Host "- Job completed in $final_completion_time"
 }
 
 
