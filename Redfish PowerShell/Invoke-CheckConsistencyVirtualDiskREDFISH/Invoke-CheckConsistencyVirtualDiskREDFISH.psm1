@@ -1,6 +1,6 @@
 <#
 _author_ = Texas Roemer <Texas_Roemer@Dell.com>
-_version_ = 1.0
+_version_ = 3.0
 Copyright (c) 2018, Dell, Inc.
 
 This software is licensed to you under the GNU General Public License,
@@ -100,7 +100,7 @@ if ($get_virtual_disks -ne "")
 $u = "https://$idrac_ip/redfish/v1/Systems/System.Embedded.1/Storage/$get_virtual_disks/Volumes"
 try
 {
-$result = Invoke-WebRequest -Uri $u -Credential $credential -Method Get -UseBasicParsing -ErrorVariable RespErr
+$result = Invoke-WebRequest -Uri $u -Credential $credential -Method Get -UseBasicParsing -ErrorVariable RespErr -Headers @{"Accept"="application/json"}
 }
 catch
 {
@@ -177,7 +177,7 @@ return
 if ($get_storage_controllers -eq "yy")
 {
 $u = "https://$idrac_ip/redfish/v1/Systems/System.Embedded.1/Storage"
-$result = Invoke-WebRequest -Uri $u -Credential $credential -Method Get -UseBasicParsing
+$result = Invoke-WebRequest -Uri $u -Credential $credential -Method Get -UseBasicParsing -Headers @{"Accept"="application/json"}
 if ($result.StatusCode -eq 200)
 {
     [String]::Format("`n- PASS, statuscode {0} returned successfully to get storage controller(s)",$result.StatusCode)
@@ -194,7 +194,7 @@ Write-Host
 while ($count -ne $number_of_controller_entries)
 {
 $u = "https://$idrac_ip/redfish/v1/Systems/System.Embedded.1/Storage"
-$result = Invoke-WebRequest -Uri $u -Credential $credential -Method Get -UseBasicParsing
+$result = Invoke-WebRequest -Uri $u -Credential $credential -Method Get -UseBasicParsing -Headers @{"Accept"="application/json"}
 if ($result.StatusCode -ne 200)
 {
     [String]::Format("`n- FAIL, statuscode {0} returned",$result.StatusCode)
@@ -206,7 +206,7 @@ $z=[string]$z
 $z=$z.Replace("@{@odata.id=","")
 $z=$z.Replace('}',"")
 $u="https://$idrac_ip"+$z
-$r = Invoke-WebRequest -Uri $u -Credential $credential -Method Get -UseBasicParsing
+$r = Invoke-WebRequest -Uri $u -Credential $credential -Method Get -UseBasicParsing -Headers @{"Accept"="application/json"}
 $z=$r.Content | ConvertFrom-Json
 [String]::Format("- Detailed information for controller {0} -`n", $z.Id)
 $r.Content | ConvertFrom-Json
@@ -220,7 +220,7 @@ return
 if ($get_storage_controllers -eq "y")
 {
 $u = "https://$idrac_ip/redfish/v1/Systems/System.Embedded.1/Storage"
-$r = Invoke-WebRequest -Uri $u -Credential $credential -Method Get -UseBasicParsing
+$r = Invoke-WebRequest -Uri $u -Credential $credential -Method Get -UseBasicParsing -Headers @{"Accept"="application/json"}
 if ($r.StatusCode -eq 200)
 {
     [String]::Format("`n- PASS, statuscode {0} returned successfully to get storage controller(s)",$r.StatusCode)
@@ -248,7 +248,7 @@ if ($check_consistency_virtual_disk -ne "")
 $u1 = "https://$idrac_ip/redfish/v1/Systems/System.Embedded.1/Storage/Volumes/$check_consistency_virtual_disk/Actions/Volume.CheckConsistency"
 try
 {
-$result1 = Invoke-WebRequest -Uri $u1 -Credential $credential -Method Post -Body $JsonBody -ContentType 'application/json' -ErrorVariable RespErr
+$result1 = Invoke-WebRequest -Uri $u1 -Credential $credential -Method Post -Body $JsonBody -ContentType 'application/json' -ErrorVariable RespErr -Headers @{"Accept"="application/json"}
 }
 catch
 {
@@ -274,7 +274,7 @@ else
 
 
 $u3 ="https://$idrac_ip/redfish/v1/Managers/iDRAC.Embedded.1/Jobs/$job_id"
-$result = Invoke-WebRequest -Uri $u3 -Credential $credential -Method Get -UseBasicParsing -ContentType 'application/json'
+$result = Invoke-WebRequest -Uri $u3 -Credential $credential -Method Get -UseBasicParsing -ContentType 'application/json' -Headers @{"Accept"="application/json"}
 if ($result.StatusCode -eq 200)
 {
     [String]::Format("`n- PASS, statuscode {0} returned to successfully query job ID {1}",$result.StatusCode,$job_id)
@@ -307,7 +307,7 @@ while ($overall_job_output.JobState -ne "Completed")
 $u5 ="https://$idrac_ip/redfish/v1/Managers/iDRAC.Embedded.1/Jobs/$job_id"
 try
 {
-$result = Invoke-WebRequest -Uri $u5 -Credential $credential -Method Get -UseBasicParsing -ContentType 'application/json' -ErrorVariable RespErr
+$result = Invoke-WebRequest -Uri $u5 -Credential $credential -Method Get -UseBasicParsing -ContentType 'application/json' -ErrorVariable RespErr -Headers @{"Accept"="application/json"}
 }
 catch
 {
@@ -334,12 +334,12 @@ Start-Sleep 10
 [String]::Format("- PASS, {0} job ID marked as completed!",$job_id)
 Write-Host "`n- Detailed final job status results:"
 $u5 ="https://$idrac_ip/redfish/v1/Managers/iDRAC.Embedded.1/Jobs/$job_id"
-$result = Invoke-WebRequest -Uri $u5 -Credential $credential -Method Get -UseBasicParsing -ContentType 'application/json'
+$result = Invoke-WebRequest -Uri $u5 -Credential $credential -Method Get -UseBasicParsing -ContentType 'application/json' -Headers @{"Accept"="application/json"}
 $overall_job_output=$result.Content | ConvertFrom-Json
 $overall_job_output
 
 $u = "https://$idrac_ip/redfish/v1/Systems/System.Embedded.1/Storage/Volumes/$check_consistency_virtual_disk"
-$result = Invoke-WebRequest -Uri $u -Credential $credential -Method Get -UseBasicParsing
+$result = Invoke-WebRequest -Uri $u -Credential $credential -Method Get -UseBasicParsing -Headers @{"Accept"="application/json"}
 $zz=$result.Content | ConvertFrom-Json
 $z=$result.Content 
 $j=[regex]::Match($z, "OperationName.+?]").captures.groups[0].value
@@ -368,7 +368,7 @@ if ($job_type -eq "staged_config")
 while ($overall_job_output.Message -ne "Task successfully scheduled.")
 {
 $u5 ="https://$idrac_ip/redfish/v1/Managers/iDRAC.Embedded.1/Jobs/$job_id"
-$result = Invoke-WebRequest -Uri $u5 -Credential $credential -Method Get -UseBasicParsing -ContentType 'application/json'
+$result = Invoke-WebRequest -Uri $u5 -Credential $credential -Method Get -UseBasicParsing -ContentType 'application/json' -Headers @{"Accept"="application/json"}
 $overall_job_output=$result.Content | ConvertFrom-Json
 if ($overall_job_output.JobState -eq "Failed")
 {
@@ -386,7 +386,7 @@ Start-Sleep 1
 Write-Host "`n- PASS, $job_id successfully scheduled, rebooting server"
 
 $u = "https://$idrac_ip/redfish/v1/Systems/System.Embedded.1"
-$result = Invoke-WebRequest -Uri $u -Credential $credential -Method Get -UseBasicParsing
+$result = Invoke-WebRequest -Uri $u -Credential $credential -Method Get -UseBasicParsing -Headers @{"Accept"="application/json"}
 $z=$result.Content | ConvertFrom-Json
 $host_power_state = $z.PowerState
 
@@ -397,7 +397,7 @@ $JsonBody = @{ "ResetType" = "ForceOff"
 
 
 $u4 = "https://$idrac_ip/redfish/v1/Systems/System.Embedded.1/Actions/ComputerSystem.Reset"
-$result1 = Invoke-WebRequest -Uri $u4 -Credential $credential -Method Post -Body $JsonBody -ContentType 'application/json'
+$result1 = Invoke-WebRequest -Uri $u4 -Credential $credential -Method Post -Body $JsonBody -ContentType 'application/json' -Headers @{"Accept"="application/json"}
 
 if ($result1.StatusCode -eq 204)
 {
@@ -415,7 +415,7 @@ $JsonBody = @{ "ResetType" = "On"
 
 
 $u4 = "https://$idrac_ip/redfish/v1/Systems/System.Embedded.1/Actions/ComputerSystem.Reset"
-$result1 = Invoke-WebRequest -Uri $u4 -Credential $credential -Method Post -Body $JsonBody -ContentType 'application/json'
+$result1 = Invoke-WebRequest -Uri $u4 -Credential $credential -Method Post -Body $JsonBody -ContentType 'application/json' -Headers @{"Accept"="application/json"}
 
 if ($result1.StatusCode -eq 204)
 {
@@ -435,7 +435,7 @@ $JsonBody = @{ "ResetType" = "On"
 
 
 $u4 = "https://$idrac_ip/redfish/v1/Systems/System.Embedded.1/Actions/ComputerSystem.Reset"
-$result1 = Invoke-WebRequest -Uri $u4 -Credential $credential -Method Post -Body $JsonBody -ContentType 'application/json'
+$result1 = Invoke-WebRequest -Uri $u4 -Credential $credential -Method Post -Body $JsonBody -ContentType 'application/json' -Headers @{"Accept"="application/json"}
 
 
 if ($result1.StatusCode -eq 204)
@@ -454,7 +454,7 @@ else
 while ($overall_job_output.JobState -ne "Completed")
 {
 $u5 ="https://$idrac_ip/redfish/v1/Managers/iDRAC.Embedded.1/Jobs/$job_id"
-$result = Invoke-WebRequest -Uri $u5 -Credential $credential -Method Get -UseBasicParsing -ContentType 'application/json'
+$result = Invoke-WebRequest -Uri $u5 -Credential $credential -Method Get -UseBasicParsing -ContentType 'application/json' -Headers @{"Accept"="application/json"}
 
 $overall_job_output=$result.Content | ConvertFrom-Json
 if ($overall_job_output.Message -eq "Job failed." -or $overall_job_output.Message -eq "Failed")
@@ -474,14 +474,14 @@ Write-Host
 [String]::Format("- PASS, {0} job ID marked as completed!",$job_id)
 Write-Host "`n- Detailed final job status results:"
 $u5 ="https://$idrac_ip/redfish/v1/Managers/iDRAC.Embedded.1/Jobs/$job_id"
-$result = Invoke-WebRequest -Uri $u5 -Credential $credential -Method Get -UseBasicParsing -ContentType 'application/json'
+$result = Invoke-WebRequest -Uri $u5 -Credential $credential -Method Get -UseBasicParsing -ContentType 'application/json' -Headers @{"Accept"="application/json"}
 
 $overall_job_output=$result.Content | ConvertFrom-Json
 $overall_job_output
 
 Start-Sleep 10
 $u = "https://$idrac_ip/redfish/v1/Systems/System.Embedded.1/Storage/Volumes/$check_consistency_virtual_disk"
-$result = Invoke-WebRequest -Uri $u -Credential $credential -Method Get -UseBasicParsing
+$result = Invoke-WebRequest -Uri $u -Credential $credential -Method Get -UseBasicParsing -Headers @{"Accept"="application/json"}
 $zz=$result.Content | ConvertFrom-Json
 $z=$result.Content 
 $j=[regex]::Match($z, "OperationName.+?]").captures.groups[0].value
