@@ -1,7 +1,7 @@
 ﻿
 <#
 _author_ = Texas Roemer <Texas_Roemer@Dell.com>
-_version_ = 1.0
+_version_ = 2.0
 
 Copyright (c) 2018, Dell, Inc.
 
@@ -119,7 +119,7 @@ $u = "https://$idrac_ip/redfish/v1/Managers/iDRAC.Embedded.1/Actions/Oem/$full_m
 
 try
 {
-$result1 = Invoke-WebRequest -Uri $u -Credential $credential -Method Post -Body $JsonBody -ContentType 'application/json' -ErrorVariable RespErr
+$result1 = Invoke-WebRequest -Uri $u -Credential $credential -Method Post -Body $JsonBody -ContentType 'application/json' -ErrorVariable RespErr -Headers @{"Accept"="application/json"}
 }
 catch
 {
@@ -153,7 +153,7 @@ while ($overall_job_output.JobState -ne "Completed")
 {
 $loop_time = Get-Date
 $u5 ="https://$idrac_ip/redfish/v1/Managers/iDRAC.Embedded.1/Jobs/$job_id"
-$result = Invoke-WebRequest -Uri $u5 -Credential $credential -Method Get -UseBasicParsing -ContentType 'application/json'
+$result = Invoke-WebRequest -Uri $u5 -Credential $credential -Method Get -UseBasicParsing -ContentType 'application/json' -Headers @{"Accept"="application/json"}
 $overall_job_output=$result.Content | ConvertFrom-Json 
 $overall_job_output
 
@@ -176,7 +176,7 @@ $overall_job_output
     if ($overall_job_output.Message -eq "Import of Server Configuration Profile operation completed with errors." -or $overall_job_output.Message -eq "Unable to complete application of configuration profile values.") 
     {
     $u5 ="https://$idrac_ip/redfish/v1/TaskService/Tasks/$job_id"
-    $result = Invoke-WebRequest -Uri $u5 -Credential $credential -Method Get -UseBasicParsing -ContentType 'application/json'
+    $result = Invoke-WebRequest -Uri $u5 -Credential $credential -Method Get -UseBasicParsing -ContentType 'application/json' -Headers @{"Accept"="application/json"}
     Write-Host "`n- WARNING, failure detected for import job id '$job_id'. Check 'Messages' property below for more information on the failure.`n"
     $result.Content | ConvertFrom-Json
     return
@@ -196,8 +196,8 @@ continue
 
 
 Write-Host "`n- WARNING, import job id '$job_id' completed. Final job status results -`n"
-$u6 ="https://$idrac_ip/redfish/v1/Managers/iDRAC.Embedded.1/Jobs/$job_id"
-$result6 = Invoke-WebRequest -Uri $u6 -Credential $credential -Method Get -UseBasicParsing -ContentType 'application/json'
+$u6 ="https://$idrac_ip/redfish/v1/Managers/iDRAC.Embedded.1/Jobs/$job_id" 
+$result6 = Invoke-WebRequest -Uri $u6 -Credential $credential -Method Get -UseBasicParsing -ContentType 'application/json' -Headers @{"Accept"="application/json"}
 $result6.Content | ConvertFrom-Json
 
 
