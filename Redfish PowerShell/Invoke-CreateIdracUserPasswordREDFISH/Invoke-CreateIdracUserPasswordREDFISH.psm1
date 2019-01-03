@@ -1,6 +1,6 @@
 <#
 _author_ = Texas Roemer <Texas_Roemer@Dell.com>
-_version_ = 2.0
+_version_ = 3.0
 Copyright (c) 2018, Dell, Inc.
 
 This software is licensed to you under the GNU General Public License,
@@ -108,7 +108,7 @@ Write-Host "`n- WARNING, executing GET command to get iDRAC user account $idrac_
 
 $u = "https://$idrac_ip/redfish/v1/Managers/iDRAC.Embedded.1/Accounts/$idrac_user_id"
 try {
-$result = Invoke-WebRequest -Uri $u -Credential $credential -Method Get -UseBasicParsing
+$result = Invoke-WebRequest -Uri $u -Credential $credential -Method Get -UseBasicParsing -Headers @{"Accept"="application/json"}
 $result.Content | ConvertFrom-Json
 }
 catch {
@@ -127,7 +127,7 @@ foreach ($i in $count_range)
 {
 $u = "https://$idrac_ip/redfish/v1/Managers/iDRAC.Embedded.1/Accounts/$i"
 try {
-$result = Invoke-WebRequest -Uri $u -Credential $credential -Method Get -UseBasicParsing
+$result = Invoke-WebRequest -Uri $u -Credential $credential -Method Get -UseBasicParsing -Headers @{"Accept"="application/json"}
 $result.Content | ConvertFrom-Json
 }
 catch {
@@ -163,7 +163,7 @@ $u1 = "https://$idrac_ip/redfish/v1/Managers/iDRAC.Embedded.1/Accounts/$idrac_us
 
 try
 {
-$result1 = Invoke-WebRequest -Uri $u1 -Credential $credential -Method Patch -Body $JsonBody -ContentType 'application/json' -ErrorVariable RespErr
+$result1 = Invoke-WebRequest -Uri $u1 -Credential $credential -Method Patch -Body $JsonBody -ContentType 'application/json' -ErrorVariable RespErr -Headers @{"Accept"="application/json"}
 }
 catch
 {
@@ -186,7 +186,7 @@ else
 $u = "https://$idrac_ip/redfish/v1/Managers/iDRAC.Embedded.1/Accounts/$idrac_user_id"
 try
 {
-$result = Invoke-WebRequest -Uri $u -Credential $credential -Method Get -UseBasicParsing -ErrorVariable RespErr
+$result = Invoke-WebRequest -Uri $u -Credential $credential -Method Get -UseBasicParsing -ErrorVariable RespErr -Headers @{"Accept"="application/json"}
 }
 catch
 {
@@ -223,7 +223,7 @@ Write-Host "`n- WARNING, deleting iDRAC user account $delete_idrac_user"
 $JsonBody = @{Enabled = $false; RoleId = "None"} | ConvertTo-Json
 
 $u1 = "https://$idrac_ip/redfish/v1/Managers/iDRAC.Embedded.1/Accounts/$delete_idrac_user"
-$result1 = Invoke-WebRequest -Uri $u1 -Credential $credential -Method Patch -Body $JsonBody -ContentType 'application/json'
+$result1 = Invoke-WebRequest -Uri $u1 -Credential $credential -Method Patch -Body $JsonBody -ContentType 'application/json' -Headers @{"Accept"="application/json"}
 
 $JsonBody = @{UserName = ""} | ConvertTo-Json -Compress
 
@@ -231,7 +231,7 @@ $u1 = "https://$idrac_ip/redfish/v1/Managers/iDRAC.Embedded.1/Accounts/$delete_i
 
 try
 {
-$result1 = Invoke-WebRequest -Uri $u1 -Credential $credential -Method Patch -Body $JsonBody -ContentType 'application/json' -ErrorVariable RespErr
+$result1 = Invoke-WebRequest -Uri $u1 -Credential $credential -Method Patch -Body $JsonBody -ContentType 'application/json' -ErrorVariable RespErr -Headers @{"Accept"="application/json"}
 }
 catch
 {
@@ -253,7 +253,7 @@ else
 $u = "https://$idrac_ip/redfish/v1/Managers/iDRAC.Embedded.1/Accounts/$delete_idrac_user"
 try
 {
-$result = Invoke-WebRequest -Uri $u -Credential $credential -Method Get -UseBasicParsing -ErrorVariable RespErr
+$result = Invoke-WebRequest -Uri $u -Credential $credential -Method Get -UseBasicParsing -ErrorVariable RespErr -Headers @{"Accept"="application/json"}
 }
 catch
 {
