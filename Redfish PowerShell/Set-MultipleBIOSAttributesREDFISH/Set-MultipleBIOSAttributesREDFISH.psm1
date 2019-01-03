@@ -1,6 +1,6 @@
 <#
 _author_ = Texas Roemer <Texas_Roemer@Dell.com>
-_version_ = 1.0
+_version_ = 2.0
 
 Copyright (c) 2017, Dell, Inc.
 
@@ -95,7 +95,7 @@ $u = "https://$idrac_ip/redfish/v1/Systems/System.Embedded.1/Bios"
 
 # GET command to get all BIOS attributes and current values
 
-$result = Invoke-WebRequest -Uri $u -Credential $credential -Method Get -UseBasicParsing 
+$result = Invoke-WebRequest -Uri $u -Credential $credential -Method Get -UseBasicParsing -Headers @{"Accept"="application/json"} 
 Write-Host
 
 $get_all_attributes=$result.Content | ConvertFrom-Json | Select Attributes
@@ -161,7 +161,7 @@ $u1 = "https://$idrac_ip/redfish/v1/Systems/System.Embedded.1/Bios/Settings"
 
 # PATCH command to set attribute pending value
 
-$result1 = Invoke-WebRequest -Uri $u1 -Credential $credential -Method Patch -Body $JsonBody -ContentType 'application/json'
+$result1 = Invoke-WebRequest -Uri $u1 -Credential $credential -Method Patch -Body $JsonBody -ContentType 'application/json' -Headers @{"Accept"="application/json"}
 
 if ($result1.StatusCode -eq 200)
 {
@@ -182,7 +182,7 @@ $u2 = "https://$idrac_ip/redfish/v1/Managers/iDRAC.Embedded.1/Jobs"
 
 # POST command to create BIOS config job
 
-$result1 = Invoke-WebRequest -Uri $u2 -Credential $credential -Method Post -Body $JsonBody -ContentType 'application/json'
+$result1 = Invoke-WebRequest -Uri $u2 -Credential $credential -Method Post -Body $JsonBody -ContentType 'application/json' -Headers @{"Accept"="application/json"}
 $raw_content=$result1.RawContent | ConvertTo-Json -Compress
 $jobID_search=[regex]::Match($raw_content, "JID_.+?r").captures.groups[0].value
 $job_id=$jobID_search.Replace("\r","")
@@ -203,7 +203,7 @@ $u3 ="https://$idrac_ip/redfish/v1/Managers/iDRAC.Embedded.1/Jobs/$job_id"
 
 # GET command to check job status of scheduled before rebooting the server
 
-$result = Invoke-WebRequest -Uri $u3 -Credential $credential -Method Get -UseBasicParsing -ContentType 'application/json'
+$result = Invoke-WebRequest -Uri $u3 -Credential $credential -Method Get -UseBasicParsing -ContentType 'application/json' -Headers @{"Accept"="application/json"}
 $overall_job_output=$result.Content | ConvertFrom-Json
 
 if ($overall_job_output.JobState -eq "Scheduled")
@@ -227,7 +227,7 @@ $u4 = "https://$idrac_ip/redfish/v1/Systems/System.Embedded.1/Actions/ComputerSy
 
 # POST command to power OFF the server
 
-$result1 = Invoke-WebRequest -Uri $u4 -Credential $credential -Method Post -Body $JsonBody -ContentType 'application/json'
+$result1 = Invoke-WebRequest -Uri $u4 -Credential $credential -Method Post -Body $JsonBody -ContentType 'application/json' -Headers @{"Accept"="application/json"}
 
 
 if ($result1.StatusCode -eq 204)
@@ -249,7 +249,7 @@ $u4 = "https://$idrac_ip/redfish/v1/Systems/System.Embedded.1/Actions/ComputerSy
 
 # POST command to power ON the server
 
-$result1 = Invoke-WebRequest -Uri $u4 -Credential $credential -Method Post -Body $JsonBody -ContentType 'application/json'
+$result1 = Invoke-WebRequest -Uri $u4 -Credential $credential -Method Post -Body $JsonBody -ContentType 'application/json' -Headers @{"Accept"="application/json"}
 
 if ($result1.StatusCode -eq 204)
 {
@@ -276,7 +276,7 @@ $u5 ="https://$idrac_ip/redfish/v1/Managers/iDRAC.Embedded.1/Jobs/$job_id"
 
 # GET command to loop query the job status until marked completed or failed
 
-$result = Invoke-WebRequest -Uri $u5 -Credential $credential -Method Get -UseBasicParsing -ContentType 'application/json'
+$result = Invoke-WebRequest -Uri $u5 -Credential $credential -Method Get -UseBasicParsing -ContentType 'application/json' -Headers @{"Accept"="application/json"}
 $overall_job_output=$result.Content | ConvertFrom-Json
 if ($overall_job_output.JobState -eq "Failed")
 {
@@ -307,7 +307,7 @@ $u6 = "https://$idrac_ip/redfish/v1/Systems/System.Embedded.1/Bios"
 
 # GET command to verify new attribute values are set correctly 
 
-$result = Invoke-WebRequest -Uri $u6 -Credential $credential -Method Get -UseBasicParsing 
+$result = Invoke-WebRequest -Uri $u6 -Credential $credential -Method Get -UseBasicParsing -Headers @{"Accept"="application/json"} 
 Write-Host
 if ($result.StatusCode -eq 200)
 {
