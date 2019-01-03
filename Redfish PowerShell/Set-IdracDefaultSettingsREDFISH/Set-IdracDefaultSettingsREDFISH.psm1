@@ -1,6 +1,6 @@
 <#
 _author_ = Texas Roemer <Texas_Roemer@Dell.com>
-_version_ = 1.0
+_version_ = 2.0
 
 Copyright (c) 2017, Dell, Inc.
 
@@ -81,7 +81,7 @@ $credential = New-Object System.Management.Automation.PSCredential($user, $secpa
 $JsonBody = @{'ResetType'= 'All'} | ConvertTo-Json -Compress
 
 $u1 = "https://$idrac_ip/redfish/v1/Managers/iDRAC.Embedded.1/Actions/Oem/DellManager.ResetToDefaults"
-$result1 = Invoke-WebRequest -Uri $u1 -Credential $credential -Method Post -Body $JsonBody -ContentType 'application/json'
+$result1 = Invoke-WebRequest -Uri $u1 -Credential $credential -Method Post -Body $JsonBody -ContentType 'application/json' -Headers @{"Accept"="application/json"}
 
 if ($result1.StatusCode -eq 200)
 {
