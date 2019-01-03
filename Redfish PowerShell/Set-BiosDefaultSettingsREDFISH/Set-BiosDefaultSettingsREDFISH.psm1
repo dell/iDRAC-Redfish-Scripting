@@ -1,6 +1,6 @@
 <#
 _author_ = Texas Roemer <Texas_Roemer@Dell.com>
-_version_ = 2.0
+_version_ = 3.0
 
 Copyright (c) 2017, Dell, Inc.
 
@@ -87,7 +87,7 @@ $credential = New-Object System.Management.Automation.PSCredential($user, $secpa
 
 $u2 = "https://$idrac_ip/redfish/v1/Systems/System.Embedded.1/Bios/Actions/Bios.ResetBios/"
 
-$result1 = Invoke-WebRequest -Uri $u2 -Credential $credential -Method Post -ContentType 'application/json'
+$result1 = Invoke-WebRequest -Uri $u2 -Credential $credential -Method Post -ContentType 'application/json' -Headers @{"Accept"="application/json"}
 Start-Sleep 5
 
 if ($result1.StatusCode -eq 200)
@@ -119,7 +119,7 @@ return
 Write-Host "`n- WARNING, user selected to reboot the server now to apply BIOS reset to defaults."
 
 $u = "https://$idrac_ip/redfish/v1/Systems/System.Embedded.1/"
-$result = Invoke-WebRequest -Uri $u -Credential $credential -Method Get -UseBasicParsing 
+$result = Invoke-WebRequest -Uri $u -Credential $credential -Method Get -UseBasicParsing -Headers @{"Accept"="application/json"}
 
 if ($result.StatusCode -eq 200)
 {
@@ -157,7 +157,7 @@ $u4 = "https://$idrac_ip/redfish/v1/Systems/System.Embedded.1/Actions/ComputerSy
 
 # POST command to power OFF the server
 
-$result1 = Invoke-WebRequest -Uri $u4 -Credential $credential -Method Post -Body $JsonBody -ContentType 'application/json'
+$result1 = Invoke-WebRequest -Uri $u4 -Credential $credential -Method Post -Body $JsonBody -ContentType 'application/json' -Headers @{"Accept"="application/json"}
 
 if ($result1.StatusCode -eq 204)
 {
@@ -178,7 +178,7 @@ $u4 = "https://$idrac_ip/redfish/v1/Systems/System.Embedded.1/Actions/ComputerSy
 
 # POST command to power ON the server
 
-$result1 = Invoke-WebRequest -Uri $u4 -Credential $credential -Method Post -Body $JsonBody -ContentType 'application/json'
+$result1 = Invoke-WebRequest -Uri $u4 -Credential $credential -Method Post -Body $JsonBody -ContentType 'application/json' -Headers @{"Accept"="application/json"}
 
 if ($result1.StatusCode -eq 204)
 {
@@ -202,7 +202,7 @@ $u4 = "https://$idrac_ip/redfish/v1/Systems/System.Embedded.1/Actions/ComputerSy
 
 # POST command to power ON the server
 
-$result1 = Invoke-WebRequest -Uri $u4 -Credential $credential -Method Post -Body $JsonBody -ContentType 'application/json'
+$result1 = Invoke-WebRequest -Uri $u4 -Credential $credential -Method Post -Body $JsonBody -ContentType 'application/json' -Headers @{"Accept"="application/json"}
 
 if ($result1.StatusCode -eq 204)
 {
