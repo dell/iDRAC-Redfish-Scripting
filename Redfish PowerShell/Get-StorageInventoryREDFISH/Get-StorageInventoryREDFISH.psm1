@@ -1,6 +1,6 @@
 <#
 _author_ = Texas Roemer <Texas_Roemer@Dell.com>
-_version_ = 1.0
+_version_ = 2.0
 
 Copyright (c) 2017, Dell, Inc.
 
@@ -84,29 +84,36 @@ $credential = New-Object System.Management.Automation.PSCredential($user, $secpa
 
 if ($get_storage_controllers -eq "y")
 {
-$u = "https://$idrac_ip/redfish/v1/Systems/System.Embedded.1/Storage/Controllers"
-$result = Invoke-WebRequest -Uri $u -Credential $credential -Method Get -UseBasicParsing 
-
-Write-Host
-if ($result.StatusCode -eq 200)
+$u = "https://$idrac_ip/redfish/v1/Systems/System.Embedded.1/Storage"
+try
 {
-    [String]::Format("- PASS, statuscode {0} returned successfully to get storge controllers",$result.StatusCode)
+$r = Invoke-WebRequest -Uri $u -Credential $credential -Method Get -UseBasicParsing -ErrorVariable RespErr -Headers @{"Accept"="application/json"}
+}
+catch
+{
+Write-Host
+$RespErr
+return
+}
+if ($r.StatusCode -eq 200)
+{
+    [String]::Format("`n- PASS, statuscode {0} returned successfully to get storage controller(s)",$r.StatusCode)
 }
 else
 {
-    [String]::Format("- FAIL, statuscode {0} returned",$result.StatusCode)
+    [String]::Format("`n- FAIL, statuscode {0} returned",$result.StatusCode)
+    return
 }
 
+$a=$r.Content
 
-$get_content = $result.Content | ConvertFrom-Json
-$ht_new = @{}
-$get_content.psobject.properties | Foreach { $ht_new[$_.Name] = $_.Value }
-Write-Host "`n- Supported controllers detected:`n"
-foreach ($i in $ht_new.Members)
-{
-$i=[string]$i
-$i.Split("/")[7].Replace("}","")
-}
+Write-Host
+$regex = [regex] '/Storage/.+?"'
+$allmatches = $regex.Matches($a)
+$z=$allmatches.Value.Replace('/Storage/',"")
+$controllers=$z.Replace('"',"")
+Write-Host "- Server controllers detected -`n"
+$controllers
 Write-Host
 return
 }
@@ -116,29 +123,36 @@ if ($get_storage_controllers -eq "n")
 return
 }
 
-if ($get_disks -eq "y")
+if ($get_disks -eq "y" -and $storage_controller -ne "")
 {
-$u = "https://$idrac_ip/redfish/v1/Systems/System.Embedded.1/Storage/Controllers/$storage_controller"
-$result = Invoke-WebRequest -Uri $u -Credential $credential -Method Get -UseBasicParsing 
+$u = "https://$idrac_ip/redfish/v1/Systems/System.Embedded.1/Storage/$storage_controller"
+    try
+    {
+    $result = Invoke-WebRequest -Uri $u -Credential $credential -Method Get -UseBasicParsing -ErrorVariable RespErr -Headers @{"Accept"="application/json"}
+    }
+    catch
+    {
+    Write-Host
+    $RespErr
+    return
+    }
 
+$z=$result.Content | ConvertFrom-Json
+$count = 0
+Write-Host "`n- Drives detected for controller '$storage_controller' -`n"
+$raw_device_count=0
+    foreach ($item in $z.Drives)
+    {
+    $zz=[string]$item
+    $zz=$zz.Split("/")[-1]
+    $drive=$zz.Replace("}","")
+    $u = "https://$idrac_ip/redfish/v1/Systems/System.Embedded.1/Storage/Drives/$drive"
+    $result = Invoke-WebRequest -Uri $u -Credential $credential -Method Get -UseBasicParsing -Headers @{"Accept"="application/json"}
+    $zz=$result.Content | ConvertFrom-Json
+    $zz.id
+    }
 Write-Host
-if ($result.StatusCode -eq 200)
-{
-    [String]::Format("- PASS, statuscode {0} returned successfully to get disks and backplane",$result.StatusCode)
-}
-else
-{
-    [String]::Format("- FAIL, statuscode {0} returned",$result.StatusCode)
-}
-
-[String]::Format("`n- Current disk(s) and backplane(s) detected for controller ""{0}"":",$storage_controller)
-$get_content = $result.Content | ConvertFrom-Json
-
-foreach ($i in $get_content.Devices)
-{
-$i
-}
-
+return
 }
 }
 
