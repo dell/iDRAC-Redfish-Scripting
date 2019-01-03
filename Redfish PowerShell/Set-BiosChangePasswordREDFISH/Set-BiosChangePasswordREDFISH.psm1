@@ -1,6 +1,6 @@
 <#
 _author_ = Texas Roemer <Texas_Roemer@Dell.com>
-_version_ = 1.0
+_version_ = 2.0
 
 Copyright (c) 2018, Dell, Inc.
 
@@ -104,7 +104,7 @@ function check_supported_idrac_version
 $u = "https://$idrac_ip/redfish/v1/Systems/System.Embedded.1/Bios"
     try
     {
-    $result = Invoke-WebRequest -Uri $u -Credential $credential -Method Get -UseBasicParsing -ErrorVariable RespErr
+    $result = Invoke-WebRequest -Uri $u -Credential $credential -Method Get -UseBasicParsing -ErrorVariable RespErr -Headers @{"Accept"="application/json"}
     }
     catch
     {
@@ -140,7 +140,7 @@ else
 
 try
 {
-$result1 = Invoke-WebRequest -Uri $u2 -Credential $credential -Method Post -Body $JsonBody -ContentType 'application/json' -ErrorVariable RespErr
+$result1 = Invoke-WebRequest -Uri $u2 -Credential $credential -Method Post -Body $JsonBody -ContentType 'application/json' -ErrorVariable RespErr -Headers @{"Accept"="application/json"}
 }
 catch
 {
@@ -191,7 +191,7 @@ $JsonBody = @{ "TargetSettingsURI" ="/redfish/v1/Systems/System.Embedded.1/Bios/
 $u2 = "https://$idrac_ip/redfish/v1/Managers/iDRAC.Embedded.1/Jobs"
 
 
-$result1 = Invoke-WebRequest -Uri $u2 -Credential $credential -Method Post -Body $JsonBody -ContentType 'application/json'
+$result1 = Invoke-WebRequest -Uri $u2 -Credential $credential -Method Post -Body $JsonBody -ContentType 'application/json' -Headers @{"Accept"="application/json"}
 $raw_content=$result1.RawContent | ConvertTo-Json -Compress
 $jobID_search=[regex]::Match($raw_content, "JID_.+?r").captures.groups[0].value
 $job_id=$jobID_search.Replace("\r","")
@@ -212,7 +212,7 @@ $u3 ="https://$idrac_ip/redfish/v1/Managers/iDRAC.Embedded.1/Jobs/$job_id"
 
 # GET command to check job status of scheduled before rebooting the server
 
-$result = Invoke-WebRequest -Uri $u3 -Credential $credential -Method Get -UseBasicParsing -ContentType 'application/json'
+$result = Invoke-WebRequest -Uri $u3 -Credential $credential -Method Get -UseBasicParsing -ContentType 'application/json' -Headers @{"Accept"="application/json"}
 $overall_job_output=$result.Content | ConvertFrom-Json
 
 if ($overall_job_output.JobState -eq "Scheduled")
@@ -236,7 +236,7 @@ $u4 = "https://$idrac_ip/redfish/v1/Systems/System.Embedded.1/Actions/ComputerSy
 
 # POST command to power OFF the server
 
-$result1 = Invoke-WebRequest -Uri $u4 -Credential $credential -Method Post -Body $JsonBody -ContentType 'application/json'
+$result1 = Invoke-WebRequest -Uri $u4 -Credential $credential -Method Post -Body $JsonBody -ContentType 'application/json' -Headers @{"Accept"="application/json"}
 
 
 if ($result1.StatusCode -eq 204)
@@ -258,7 +258,7 @@ $u4 = "https://$idrac_ip/redfish/v1/Systems/System.Embedded.1/Actions/ComputerSy
 
 # POST command to power ON the server
 
-$result1 = Invoke-WebRequest -Uri $u4 -Credential $credential -Method Post -Body $JsonBody -ContentType 'application/json'
+$result1 = Invoke-WebRequest -Uri $u4 -Credential $credential -Method Post -Body $JsonBody -ContentType 'application/json' -Headers @{"Accept"="application/json"}
 
 if ($result1.StatusCode -eq 204)
 {
@@ -285,7 +285,7 @@ $u5 ="https://$idrac_ip/redfish/v1/Managers/iDRAC.Embedded.1/Jobs/$job_id"
 
 # GET command to loop query the job status until marked completed or failed
 
-$result = Invoke-WebRequest -Uri $u5 -Credential $credential -Method Get -UseBasicParsing -ContentType 'application/json'
+$result = Invoke-WebRequest -Uri $u5 -Credential $credential -Method Get -UseBasicParsing -ContentType 'application/json' -Headers @{"Accept"="application/json"}
 $overall_job_output=$result.Content | ConvertFrom-Json
 if ($overall_job_output.JobState -eq "Failed")
 {
