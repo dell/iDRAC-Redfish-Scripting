@@ -1,6 +1,6 @@
 <#
 _author_ = Texas Roemer <Texas_Roemer@Dell.com>
-_version_ = 2.0
+_version_ = 3.0
 Copyright (c) 2018, Dell, Inc.
 
 This software is licensed to you under the GNU General Public License,
@@ -101,7 +101,7 @@ function check_supported_idrac_version
 $u = "https://$idrac_ip/redfish/v1/Systems/System.Embedded.1/NetworkAdapters"
     try
     {
-    $result = Invoke-WebRequest -Uri $u -Credential $credential -Method Get -UseBasicParsing -ErrorVariable RespErr
+    $result = Invoke-WebRequest -Uri $u -Credential $credential -Method Get -UseBasicParsing -ErrorVariable RespErr -Headers @{"Accept"="application/json"}
     }
     catch
     {
@@ -148,7 +148,7 @@ if ($get_network_device_IDs -eq "y")
 $u = "https://$idrac_ip/redfish/v1/Systems/System.Embedded.1/NetworkAdapters"
     try
     {
-    $result = Invoke-WebRequest -Uri $u -Credential $credential -Method Get -UseBasicParsing -ErrorVariable RespErr
+    $result = Invoke-WebRequest -Uri $u -Credential $credential -Method Get -UseBasicParsing -ErrorVariable RespErr -Headers @{"Accept"="application/json"}
     }
     catch
     {
@@ -183,7 +183,7 @@ Write-Host "- Network Device IDs Detected for iDRAC $idrac_ip -`n" -ForegroundCo
         $u = "https://$idrac_ip/redfish/v1/Systems/System.Embedded.1/NetworkAdapters/$i/NetworkDeviceFunctions"
             try
             {
-            $result = Invoke-WebRequest -Uri $u -Credential $credential -Method Get -UseBasicParsing -ErrorVariable RespErr
+            $result = Invoke-WebRequest -Uri $u -Credential $credential -Method Get -UseBasicParsing -ErrorVariable RespErr -Headers @{"Accept"="application/json"}
             }
             catch
             {
@@ -212,7 +212,7 @@ if ($get_detail_network_device_ID_info -ne "")
 $u = "https://$idrac_ip/redfish/v1/Systems/System.Embedded.1/NetworkAdapters/$get_detail_network_device_ID_info"
     try
     {
-    $result = Invoke-WebRequest -Uri $u -Credential $credential -Method Get -UseBasicParsing -ErrorVariable RespErr
+    $result = Invoke-WebRequest -Uri $u -Credential $credential -Method Get -UseBasicParsing -ErrorVariable RespErr -Headers @{"Accept"="application/json"}
     }
     catch
     {
@@ -244,7 +244,7 @@ $port_id=$s[0]+"-"+$s[1]
 $u = "https://$idrac_ip/redfish/v1/Systems/System.Embedded.1/NetworkAdapters/$device_id/NetworkPorts/$port_id"
     try
     {
-    $result = Invoke-WebRequest -Uri $u -Credential $credential -Method Get -UseBasicParsing -ErrorVariable RespErr
+    $result = Invoke-WebRequest -Uri $u -Credential $credential -Method Get -UseBasicParsing -ErrorVariable RespErr -Headers @{"Accept"="application/json"}
     }
     catch
     {
@@ -275,7 +275,7 @@ $device_id=$s[0]
 $u = "https://$idrac_ip/redfish/v1/Systems/System.Embedded.1/NetworkAdapters/$device_id/NetworkDeviceFunctions/$get_network_port_properties"
     try
     {
-    $result = Invoke-WebRequest -Uri $u -Credential $credential -Method Get -UseBasicParsing -ErrorVariable RespErr
+    $result = Invoke-WebRequest -Uri $u -Credential $credential -Method Get -UseBasicParsing -ErrorVariable RespErr -Headers @{"Accept"="application/json"}
     }
     catch
     {
@@ -349,7 +349,7 @@ $device_id=$s[0]
 $u = "https://$idrac_ip/redfish/v1/Systems/System.Embedded.1/NetworkAdapters/$device_id/NetworkDeviceFunctions/$set_network_properties/Settings"
     try
     {
-    $result = Invoke-WebRequest -Uri $u -Credential $credential -Method Patch -Body $JsonBody -ContentType 'application/json' -ErrorVariable RespErr
+    $result = Invoke-WebRequest -Uri $u -Credential $credential -Method Patch -Body $JsonBody -ContentType 'application/json' -ErrorVariable RespErr -Headers @{"Accept"="application/json"}
     }
     catch
     {
@@ -381,7 +381,7 @@ $u = "https://$idrac_ip/redfish/v1/Systems/System.Embedded.1/NetworkAdapters/$de
 $JsonBody = @{"@Redfish.SettingsApplyTime"=@{"ApplyTime"="OnReset"}} | ConvertTo-Json -Compress
     try
     {
-    $result = Invoke-WebRequest -Uri $u -Credential $credential -Method Patch -Body $JsonBody -ContentType 'application/json' -ErrorVariable RespErr
+    $result = Invoke-WebRequest -Uri $u -Credential $credential -Method Patch -Body $JsonBody -ContentType 'application/json' -ErrorVariable RespErr -Headers @{"Accept"="application/json"}
     }
     catch
     {
@@ -409,7 +409,7 @@ Write-Host "- WARNING, job ID created for reboot now config job is: '$job_id'"
     while ($overall_job_output.JobState -ne "Scheduled")
     {
     $u5 ="https://$idrac_ip/redfish/v1/Managers/iDRAC.Embedded.1/Jobs/$job_id"
-    $result = Invoke-WebRequest -Uri $u5 -Credential $credential -Method Get -UseBasicParsing -ContentType 'application/json'
+    $result = Invoke-WebRequest -Uri $u5 -Credential $credential -Method Get -UseBasicParsing -ContentType 'application/json' -Headers @{"Accept"="application/json"}
     $overall_job_output=$result.Content | ConvertFrom-Json
         if ($overall_job_output.JobState -eq "Failed") 
         {
@@ -426,7 +426,7 @@ Write-Host "- WARNING, job ID created for reboot now config job is: '$job_id'"
 $JsonBody = @{ "ResetType" = "ForceOff"} | ConvertTo-Json -Compress
 
 $u4 = "https://$idrac_ip/redfish/v1/Systems/System.Embedded.1/Actions/ComputerSystem.Reset"
-$result1 = Invoke-WebRequest -Uri $u4 -Credential $credential -Method Post -Body $JsonBody -ContentType 'application/json'
+$result1 = Invoke-WebRequest -Uri $u4 -Credential $credential -Method Post -Body $JsonBody -ContentType 'application/json' -Headers @{"Accept"="application/json"}
 
     if ($result1.StatusCode -eq 204)
     {
@@ -442,7 +442,7 @@ $result1 = Invoke-WebRequest -Uri $u4 -Credential $credential -Method Post -Body
 $JsonBody = @{ "ResetType" = "On"} | ConvertTo-Json -Compress
 
 $u4 = "https://$idrac_ip/redfish/v1/Systems/System.Embedded.1/Actions/ComputerSystem.Reset"
-$result1 = Invoke-WebRequest -Uri $u4 -Credential $credential -Method Post -Body $JsonBody -ContentType 'application/json'
+$result1 = Invoke-WebRequest -Uri $u4 -Credential $credential -Method Post -Body $JsonBody -ContentType 'application/json' -Headers @{"Accept"="application/json"}
 
     if ($result1.StatusCode -eq 204)
     {
@@ -467,7 +467,7 @@ while ($overall_job_output.JobState -ne "Completed")
 {
 $loop_time = Get-Date
 $u5 ="https://$idrac_ip/redfish/v1/Managers/iDRAC.Embedded.1/Jobs/$job_id"
-$result = Invoke-WebRequest -Uri $u5 -Credential $credential -Method Get -UseBasicParsing -ContentType 'application/json'
+$result = Invoke-WebRequest -Uri $u5 -Credential $credential -Method Get -UseBasicParsing -ContentType 'application/json' -Headers @{"Accept"="application/json"}
 $overall_job_output=$result.Content | ConvertFrom-Json
     if ($overall_job_output.JobState -eq "Failed")
     {
@@ -504,7 +504,7 @@ $u = "https://$idrac_ip/redfish/v1/Systems/System.Embedded.1/NetworkAdapters/$de
 $JsonBody = @{"@Redfish.SettingsApplyTime"=@{"ApplyTime"="OnReset"}} | ConvertTo-Json -Compress
     try
     {
-    $result = Invoke-WebRequest -Uri $u -Credential $credential -Method Patch -Body $JsonBody -ContentType 'application/json' -ErrorVariable RespErr
+    $result = Invoke-WebRequest -Uri $u -Credential $credential -Method Patch -Body $JsonBody -ContentType 'application/json' -ErrorVariable RespErr -Headers @{"Accept"="application/json"}
     }
     catch
     {
@@ -530,7 +530,7 @@ Write-Host "- WARNING, job ID created for reboot now config job is: '$job_id'"
     while ($overall_job_output.JobState -ne "Scheduled")
     {
     $u5 ="https://$idrac_ip/redfish/v1/Managers/iDRAC.Embedded.1/Jobs/$job_id"
-    $result = Invoke-WebRequest -Uri $u5 -Credential $credential -Method Get -UseBasicParsing -ContentType 'application/json'
+    $result = Invoke-WebRequest -Uri $u5 -Credential $credential -Method Get -UseBasicParsing -ContentType 'application/json' -Headers @{"Accept"="application/json"}
     $overall_job_output=$result.Content | ConvertFrom-Json
         if ($overall_job_output.JobState -eq "Failed") 
         {
