@@ -1,6 +1,6 @@
 <#
 _author_ = Texas Roemer <Texas_Roemer@Dell.com>
-_version_ = 1.0
+_version_ = 2.0
 
 Copyright (c) 2017, Dell, Inc.
 
@@ -88,7 +88,7 @@ $JsonBody = @{'Password'= $idrac_new_password} | ConvertTo-Json -Compress
 
 
 $u1 = "https://$idrac_ip/redfish/v1/Managers/iDRAC.Embedded.1/Accounts/$idrac_user_id"
-$result1 = Invoke-WebRequest -Uri $u1 -Credential $credential -Method Patch -Body $JsonBody -ContentType 'application/json'
+$result1 = Invoke-WebRequest -Uri $u1 -Credential $credential -Method Patch -Body $JsonBody -ContentType 'application/json' -Headers @{"Accept"="application/json"}
 
 if ($result1.StatusCode -eq 200)
 {
@@ -113,7 +113,7 @@ Write-Host "`n- WARNING, executing GET command with new user password to validat
 $u = "https://$idrac_ip/redfish/v1/Managers/iDRAC.Embedded.1/Accounts/$idrac_user_id"
 
 try {
-$result = Invoke-WebRequest -Uri $u -Credential $credential -Method Get -UseBasicParsing
+$result = Invoke-WebRequest -Uri $u -Credential $credential -Method Get -UseBasicParsing -Headers @{"Accept"="application/json"}
 }
 catch {
 Write-Host "`n- FAIL, new password verification failed for iDRAC user"
