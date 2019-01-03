@@ -1,6 +1,6 @@
 <#
 _author_ = Texas Roemer <Texas_Roemer@Dell.com>
-_version_ = 3.0
+_version_ = 4.0
 
 Copyright (c) 2017, Dell, Inc.
 
@@ -114,7 +114,7 @@ $ErrorActionPreference = "Stop"
 $u = "https://$idrac_ip/redfish/v1/UpdateService/FirmwareInventory"
     try
     {
-    $result = Invoke-WebRequest -Uri $u -Credential $credential -Method Get -UseBasicParsing -ErrorAction Stop
+    $result = Invoke-WebRequest -Uri $u -Credential $credential -Method Get -UseBasicParsing -ErrorAction Stop -Headers @{"Accept"="application/json"}
     }
     catch
     {
@@ -138,7 +138,7 @@ $u = "https://$idrac_ip/redfish/v1/UpdateService/FirmwareInventory"
 
 # GET command to get software inventory for all devices
 
-$result = Invoke-WebRequest -Uri $u -Credential $credential -Method Get -UseBasicParsing 
+$result = Invoke-WebRequest -Uri $u -Credential $credential -Method Get -UseBasicParsing -Headers @{"Accept"="application/json"} 
 $ETag=$result.Headers.ETag
 $matches = ([regex]'Installed-.+?}').Matches($result)
 $new_count=$matches.count - 1
@@ -157,7 +157,7 @@ $new=$new.Replace('"',"")
 $u9 = "https://$idrac_ip/redfish/v1/UpdateService/FirmwareInventory/$new"
 try 
 {
-$result = Invoke-WebRequest -Uri $u9 -Credential $credential -Method Get -UseBasicParsing
+$result = Invoke-WebRequest -Uri $u9 -Credential $credential -Method Get -UseBasicParsing -Headers @{"Accept"="application/json"}
 }
 catch
 {
@@ -214,7 +214,7 @@ $bodyLines = (
 
 # POST command to download the image payload to the iDRAC
 
-$result1 = Invoke-WebRequest -Uri $u -Credential $credential -Method Post -ContentType "multipart/form-data; boundary=`"$boundary`"" -Headers $headers -Body $bodyLines
+$result1 = Invoke-WebRequest -Uri $u -Credential $credential -Method Post -ContentType "multipart/form-data; boundary=`"$boundary`"" -Headers $headers -Body $bodyLines -Headers @{"Accept"="application/json"}
 
 $get_content=$result1.Content
 $Location = $result1.Headers['Location']
@@ -246,7 +246,7 @@ $JsonBody="{""SoftwareIdentityURIs"":[""$Location""],""InstallUpon"":""$InstallO
 
 # POST command to create update job ID
 
-$result2 = Invoke-WebRequest -Uri $u2 -Credential $credential -Method Post -Body $JsonBody -ContentType 'application/json' 
+$result2 = Invoke-WebRequest -Uri $u2 -Credential $credential -Method Post -Body $JsonBody -ContentType 'application/json' -Headers @{"Accept"="application/json"} 
  
 
 $job_id_search=$result2.Headers['Location']
@@ -281,7 +281,7 @@ $u5 ="https://$idrac_ip/redfish/v1/Managers/iDRAC.Embedded.1/Jobs/$job_id"
 
 # GET command to loop query the job until marked completed or failed
 
-$result = Invoke-WebRequest -Uri $u5 -Credential $credential -Method Get -UseBasicParsing -ContentType 'application/json'
+$result = Invoke-WebRequest -Uri $u5 -Credential $credential -Method Get -UseBasicParsing -ContentType 'application/json' -Headers @{"Accept"="application/json"}
 $overall_job_output=$result.Content | ConvertFrom-Json
 if ($overall_job_output.JobState -eq "Failed")
 {
@@ -311,7 +311,7 @@ $u4 = "https://$idrac_ip/redfish/v1/Systems/System.Embedded.1/Actions/ComputerSy
 
 # POST command to power OFF the server
 
-$result1 = Invoke-WebRequest -Uri $u4 -Credential $credential -Method Post -Body $JsonBody -ContentType 'application/json'
+$result1 = Invoke-WebRequest -Uri $u4 -Credential $credential -Method Post -Body $JsonBody -ContentType 'application/json' -Headers @{"Accept"="application/json"}
 
 if ($result1.StatusCode -eq 204)
 {
@@ -332,7 +332,7 @@ $u4 = "https://$idrac_ip/redfish/v1/Systems/System.Embedded.1/Actions/ComputerSy
 
 # POST command to power ON the server
 
-$result1 = Invoke-WebRequest -Uri $u4 -Credential $credential -Method Post -Body $JsonBody -ContentType 'application/json'
+$result1 = Invoke-WebRequest -Uri $u4 -Credential $credential -Method Post -Body $JsonBody -ContentType 'application/json' -Headers @{"Accept"="application/json"}
 
 
 if ($result1.StatusCode -eq 204)
@@ -388,7 +388,7 @@ $u5 ="https://$idrac_ip/redfish/v1/Managers/iDRAC.Embedded.1/Jobs/$job_id"
 
 # GET command to loop query the job until marked completed or failed
 
-$result = Invoke-WebRequest -Uri $u5 -Credential $credential -Method Get -UseBasicParsing -ContentType 'application/json'
+$result = Invoke-WebRequest -Uri $u5 -Credential $credential -Method Get -UseBasicParsing -ContentType 'application/json' -Headers @{"Accept"="application/json"}
 $overall_job_output=$result.Content | ConvertFrom-Json
 if ($overall_job_output.JobState -eq "Failed")
 {
@@ -431,7 +431,7 @@ else
 $u = "https://$idrac_ip/redfish/v1/UpdateService/FirmwareInventory/$compare_version"
 try
     {
-    $result = Invoke-WebRequest -Uri $u -Credential $credential -Method Get -UseBasicParsing -ErrorVariable RespErr
+    $result = Invoke-WebRequest -Uri $u -Credential $credential -Method Get -UseBasicParsing -ErrorVariable RespErr -Headers @{"Accept"="application/json"}
     }
     catch
     {
