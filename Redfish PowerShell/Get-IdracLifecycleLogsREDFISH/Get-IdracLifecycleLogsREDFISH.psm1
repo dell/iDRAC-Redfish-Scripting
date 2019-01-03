@@ -1,6 +1,6 @@
 <#
 _author_ = Texas Roemer <Texas_Roemer@Dell.com>
-_version_ = 1.0
+_version_ = 2.0
 
 Copyright (c) 2017, Dell, Inc.
 
@@ -83,7 +83,16 @@ $credential = New-Object System.Management.Automation.PSCredential($user, $secpa
 
 
 $u = "https://$idrac_ip/redfish/v1/Managers/iDRAC.Embedded.1/Logs/Lclog"
-$result = Invoke-WebRequest -Uri $u -Credential $credential -Method Get -UseBasicParsing 
+try
+{
+$result = Invoke-WebRequest -Uri $u -Credential $credential -Method Get -UseBasicParsing -ErrorVariable RespErr -Headers @{"Accept"="application/json"}
+}
+catch
+{
+Write-Host
+$RespErr
+return
+}
 
 if ($result.StatusCode -eq 200)
 {
