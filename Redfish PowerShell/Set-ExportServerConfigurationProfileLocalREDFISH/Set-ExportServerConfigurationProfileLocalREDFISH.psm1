@@ -1,6 +1,6 @@
 ﻿<#
 _author_ = Texas Roemer <Texas_Roemer@Dell.com>
-_version_ = 2.0
+_version_ = 3.0
 
 Copyright (c) 2018, Dell, Inc.
 
@@ -21,6 +21,7 @@ http://www.gnu.org/licenses/old-licenses/gpl-2.0.txt
    - idrac_username (iDRAC user name) REQUIRED
    - idrac_password (iDRAC user name password) REQUIRED
    - Target (Supported values: ALL, RAID, BIOS, iDRAC, NIC, FC, LifecycleController, System, Alerts) REQUIRED
+   - ExportUse (Supported values: Default, Clone and Replace) OPTIONAL. Note: If argument not used, value of "Default" will be used for export.
    
 
 .EXAMPLE
@@ -29,6 +30,9 @@ http://www.gnu.org/licenses/old-licenses/gpl-2.0.txt
 .EXAMPLE
    Set-ExportServerConfigurationProfileLocalREDFISH -idrac_ip 192.168.0.120 -idrac_username root -idrac_password calvin -Target "RAID,BIOS"
    This example will export only RAID and BIOS server component attributes locally to the screen and copy them to a file.
+.EXAMPLE
+   Set-ExportServerConfigurationProfileLocalREDFISH -idrac_ip 192.168.0.120 -idrac_username root -idrac_password calvin -Target RAID -ExportUse Clone
+   This example will perform a clone export and export only RAID component attributes locally to the screen and copy them to a file.
 #>
 
 function Set-ExportServerConfigurationProfileLocalREDFISH {
@@ -41,13 +45,20 @@ param(
     [Parameter(Mandatory=$True)]
     $idrac_password,
     [Parameter(Mandatory=$True)]
-    [string]$Target
+    [string]$Target,
+    [Parameter(Mandatory=$False)]
+    [string]$ExportUse
     )
 
 
 $ExportFormat = "XML"
 
 $share_info=@{"ExportFormat"=$ExportFormat;"ShareParameters"=@{"Target"=$Target}}
+
+if ($ExportUse -ne "")
+{
+$share_info["ExportUse"] = $ExportUse
+}
 
 $JsonBody = $share_info | ConvertTo-Json -Compress
 
