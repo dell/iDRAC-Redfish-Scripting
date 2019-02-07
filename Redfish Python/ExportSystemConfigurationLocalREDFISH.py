@@ -4,7 +4,7 @@
 # 
 #
 # _author_ = Texas Roemer <Texas_Roemer@Dell.com>
-# _version_ = 3.0
+# _version_ = 4.0
 #
 # Copyright (c) 2017, Dell, Inc.
 #
@@ -28,7 +28,7 @@ parser.add_argument('-u', help='iDRAC username', required=True)
 parser.add_argument('-p', help='iDRAC password', required=True)
 parser.add_argument('-t', help='Pass in Target value to get component attributes. You can pass in \"ALL" to get all component attributes or pass in a specific component to get only those attributes. Supported values are: ALL, System, BIOS, IDRAC, NIC, FC, LifecycleController, RAID.', required=True)
 parser.add_argument('-e', help='Pass in ExportUse value. Supported values are Default, Clone and Replace. If you don\'t use this parameter, default setting is Default or Normal export.', required=False)
-parser.add_argument('-i', help='Pass in IncludeInExport value. Supported values are 0 for \"Default\", 1 for \"IncludeReadOnly\", 2 for \"IncludePasswordHashValues\" or 3 for \"IncludeReadOnly,IncludePasswordHashValues\". If you don\'t use this parameter, default setting is Default for IncludeInExport.', required=False)
+parser.add_argument('-i', help='Pass in IncludeInExport value. Supported values are 1 for \"Default\", 2 for \"IncludeReadOnly\", 3 for \"IncludePasswordHashValues\" or 4 for \"IncludeReadOnly,IncludePasswordHashValues\". If you don\'t use this parameter, default setting is Default for IncludeInExport.', required=False)
 args=vars(parser.parse_args())
 
 idrac_ip=args["ip"]
@@ -48,7 +48,6 @@ if args["i"]:
         payload["IncludeInExport"] = "IncludePasswordHashValues"
     if args["i"] == "4":
         payload["IncludeInExport"] = "IncludeReadOnly,IncludePasswordHashValues"
-
 
 headers = {'content-type': 'application/json'}
 response = requests.post(url, data=json.dumps(payload), headers=headers, verify=False, auth=(idrac_username,idrac_password))
@@ -115,7 +114,12 @@ while True:
         
     statusCode = req.status_code
     data = req.json()
-    message_string=data[u"Messages"]
+    try:
+        message_string=data[u"Messages"]
+    except:
+        print statusCode
+        print data
+        sys.exit()
     current_time=(datetime.now()-start_time)
 
     if statusCode == 202 or statusCode == 200:
@@ -129,10 +133,8 @@ while True:
         sys.exit()
 
     else:
-        print("- WARNING, job ID %s not marked completed, current job details\n" % job_id)
-        for i in data['Oem']['Dell'].items():
-            print("%s: %s" % (i[0],i[1]))
-        print("\n")
+        print("- WARNING, JobStatus not completed, current status: \"%s\", percent complete: \"%s\"" % (data[u'Oem'][u'Dell'][u'Message'],data[u'Oem'][u'Dell'][u'PercentComplete']))
+        #print data
         time.sleep(1)
         continue
 
