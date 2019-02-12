@@ -1,6 +1,6 @@
 <#
 _author_ = Texas Roemer <Texas_Roemer@Dell.com>
-_version_ = 4.0
+_version_ = 5.0
 
 Copyright (c) 2017, Dell, Inc.
 
@@ -137,7 +137,6 @@ Write-Host "`n- WARNING, validating '$image_filename' image. This may take a few
 $u = "https://$idrac_ip/redfish/v1/UpdateService/FirmwareInventory"
 
 # GET command to get software inventory for all devices
-
 $result = Invoke-WebRequest -Uri $u -Credential $credential -Method Get -UseBasicParsing -Headers @{"Accept"="application/json"} 
 $ETag=$result.Headers.ETag
 $matches = ([regex]'Installed-.+?}').Matches($result)
@@ -189,7 +188,7 @@ return
 
 #Write-Host "`n- WARNING, validating firmware image, this may take up to one minute.`n"
 $complete_path=$image_directory_path + "\" + $image_filename
-$headers = @{"if-match" = $ETag}
+$headers = @{"if-match" = $ETag; "Accept"="application/json"}
 
 # Code to read the image file for download to the iDRAC
 
@@ -213,8 +212,7 @@ $bodyLines = (
 ) -join $LF
 
 # POST command to download the image payload to the iDRAC
-
-$result1 = Invoke-WebRequest -Uri $u -Credential $credential -Method Post -ContentType "multipart/form-data; boundary=`"$boundary`"" -Headers $headers -Body $bodyLines -Headers @{"Accept"="application/json"}
+$result1 = Invoke-WebRequest -Uri $u -Credential $credential -Method Post -ContentType "multipart/form-data; boundary=`"$boundary`"" -Headers $headers -Body $bodyLines 
 
 $get_content=$result1.Content
 $Location = $result1.Headers['Location']
