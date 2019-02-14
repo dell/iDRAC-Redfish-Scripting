@@ -201,15 +201,16 @@ def loop_job_status():
                     print("%s: %s" % (i[0],i[1]))
             break
         else:
-            print("- WARNING, JobStatus not completed, current status is: \"%s\", precent completion is: \"%s\"" % (data[u'Message'],data[u'PercentComplete']))
-            
+            print("- WARNING, JobStatus not completed, current status is: \"%s\", percent completion is: \"%s\"" % (data[u'Message'],data[u'PercentComplete']))
+            time.sleep(5)
+
 
 def get_job_status():
     while True:
         req = requests.get('https://%s/redfish/v1/Managers/iDRAC.Embedded.1/Jobs/%s' % (idrac_ip, job_id), auth=(idrac_username, idrac_password), verify=False)
         statusCode = req.status_code
         if statusCode == 200:
-            print("\n- PASS, Command passed to check job status, code 200 returned")
+            pass
             time.sleep(5)
         else:
             print("\n- FAIL, Command failed to check job status, return code is %s" % statusCode)
@@ -217,7 +218,7 @@ def get_job_status():
             sys.exit()
         data = req.json()
         if data[u'Message'] == "Task successfully scheduled.":
-            print("\n- WARNING, staged config job marked as scheduled, rebooting the system\n")
+            print("\n- WARNING, staged config job marked as scheduled, power on or rebooting the system to execute config job")
             break
         else:
             print("\n- WARNING: JobStatus not scheduled, current status is: %s\n" % data[u'Message'])
@@ -226,53 +227,43 @@ def get_job_status():
 def reboot_server():
     response = requests.get('https://%s/redfish/v1/Systems/System.Embedded.1/' % idrac_ip,verify=False,auth=(idrac_username, idrac_password))
     data = response.json()
-    print("\n- WARNING, Current server power state is: %s" % data[u'PowerState'])
-    if data[u'PowerState'] == "On":
+    current_power_state = data[u'PowerState']
+    if current_power_state == "On":
         url = 'https://%s/redfish/v1/Systems/System.Embedded.1/Actions/ComputerSystem.Reset' % idrac_ip
         payload = {'ResetType': 'ForceOff'}
         headers = {'content-type': 'application/json'}
         response = requests.post(url, data=json.dumps(payload), headers=headers, verify=False, auth=(idrac_username,idrac_password))
         statusCode = response.status_code
         if statusCode == 204:
-            print("- PASS, Command passed to power OFF server, code return is %s" % statusCode)
+            print("\n- PASS, Command passed to power OFF server, code return is %s\n" % statusCode)
         else:
             print("\n- FAIL, Command failed to power OFF server, status code is: %s\n" % statusCode)
             print("Extended Info Message: {0}".format(response.json()))
             sys.exit()
-        while True:
-            response = requests.get('https://%s/redfish/v1/Systems/System.Embedded.1/' % idrac_ip,verify=False,auth=(idrac_username, idrac_password))
-            data = response.json()
-            if data[u'PowerState'] == "Off":
-                print("- PASS, GET command passed to verify server is in OFF state")
-                break
-            else:
-                continue
-            
+        time.sleep(10)
         payload = {'ResetType': 'On'}
         headers = {'content-type': 'application/json'}
         response = requests.post(url, data=json.dumps(payload), headers=headers, verify=False, auth=(idrac_username,idrac_password))
         statusCode = response.status_code
         if statusCode == 204:
-            print("- PASS, Command passed to power ON server, code return is %s" % statusCode)
+            print("\n- PASS, Command passed to power ON server, code return is %s\n" % statusCode)
         else:
             print("\n- FAIL, Command failed to power ON server, status code is: %s\n" % statusCode)
             print("Extended Info Message: {0}".format(response.json()))
             sys.exit()
-    elif data[u'PowerState'] == "Off":
+    if current_power_state == "Off":
         url = 'https://%s/redfish/v1/Systems/System.Embedded.1/Actions/ComputerSystem.Reset' % idrac_ip
         payload = {'ResetType': 'On'}
         headers = {'content-type': 'application/json'}
         response = requests.post(url, data=json.dumps(payload), headers=headers, verify=False, auth=(idrac_username,idrac_password))
         statusCode = response.status_code
         if statusCode == 204:
-            print("- PASS, Command passed to power ON server, code return is %s" % statusCode)
+            print("\n- PASS, Command passed to power ON server, code return is %s\n" % statusCode)
         else:
             print("\n- FAIL, Command failed to power ON server, status code is: %s\n" % statusCode)
             print("Extended Info Message: {0}".format(response.json()))
             sys.exit()
-    else:
-        print("- FAIL, unable to get current server power state to perform either reboot or power on")
-        sys.exit()
+        
 
 if __name__ == "__main__":
     check_supported_idrac_version()
