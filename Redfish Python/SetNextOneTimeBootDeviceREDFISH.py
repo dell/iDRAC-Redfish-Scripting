@@ -3,7 +3,7 @@
 #
 #
 # _author_ = Texas Roemer <Texas_Roemer@Dell.com>
-# _version_ = 3.0
+# _version_ = 4.0
 #
 # Copyright (c) 2017, Dell, Inc.
 #
@@ -164,6 +164,8 @@ if __name__ == "__main__":
     else:
         print("- FAIL, invalid value passed in for -r argument. Check script help for supported values")
         sys.exit()
+  else:
+      print("\n- FAIL, either missing or invalid parameter(s) passed in. If needed, see script help text for supported parameters and script examples")
 
 
 
