@@ -156,7 +156,7 @@ if __name__ == "__main__":
   elif args["o"] and args["r"]:
     set_next_boot_onetime_boot_device()
     if args["r"] == "n":
-      print("- WARNING, no reboot selected for -r argument. Onetime boot will be applied on next manaul server reboot")
+      print("- WARNING, no reboot selected for -r argument. Onetime boot will be applied on next manual server reboot")
       sys.exit()
     elif args["r"] == "y":
         reboot_server()
