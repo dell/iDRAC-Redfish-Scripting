@@ -1,6 +1,6 @@
 <#
 _author_ = Texas Roemer <Texas_Roemer@Dell.com>
-_version_ = 5.0
+_version_ = 6.0
 
 Copyright (c) 2017, Dell, Inc.
 
@@ -129,10 +129,7 @@ $u = "https://$idrac_ip/redfish/v1/UpdateService/FirmwareInventory"
 	    }
 
 
-if ($InstallOption -ne "")
-{
-Write-Host "`n- WARNING, validating '$image_filename' image. This may take a few minutes to complete depending on image size"
-} 
+ 
 
 $u = "https://$idrac_ip/redfish/v1/UpdateService/FirmwareInventory"
 
@@ -186,7 +183,7 @@ if ($view_fw_inventory_only -eq "n")
 return
 }
 
-#Write-Host "`n- WARNING, validating firmware image, this may take up to one minute.`n"
+Write-Host "`n- WARNING, validating firmware image, this may take up to one minute.`n"
 $complete_path=$image_directory_path + "\" + $image_filename
 $headers = @{"if-match" = $ETag; "Accept"="application/json"}
 
@@ -212,7 +209,16 @@ $bodyLines = (
 ) -join $LF
 
 # POST command to download the image payload to the iDRAC
-$result1 = Invoke-WebRequest -Uri $u -Credential $credential -Method Post -ContentType "multipart/form-data; boundary=`"$boundary`"" -Headers $headers -Body $bodyLines 
+try
+{
+$result1 = Invoke-WebRequest -Uri $u -Credential $credential -Method Post -ContentType "multipart/form-data; boundary=`"$boundary`"" -Headers $headers -Body $bodyLines -ErrorVariable RespErr
+}
+catch
+{
+Write-Host
+$RespErr
+return
+} 
 
 $get_content=$result1.Content
 $Location = $result1.Headers['Location']
