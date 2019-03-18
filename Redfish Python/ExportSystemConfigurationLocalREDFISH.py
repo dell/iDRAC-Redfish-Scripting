@@ -1,10 +1,10 @@
 #
-# ExportServerConfigurationLocalREDFISH. Python script using Redfish API to export the system configuration locally. By default, POST command print all attributes to the screen. This script will also capture these attributes into a file.
+# ExportServerConfigurationLocalREDFISH. Python script using Redfish API with OEM extension to export the system configuration locally. By default, POST command print all attributes to the screen. This script will also capture these attributes into a file.
 #
 # 
 #
 # _author_ = Texas Roemer <Texas_Roemer@Dell.com>
-# _version_ = 4.0
+# _version_ = 5.0
 #
 # Copyright (c) 2017, Dell, Inc.
 #
@@ -22,7 +22,7 @@ from datetime import datetime
 
 warnings.filterwarnings("ignore")
 
-parser=argparse.ArgumentParser(description="Python script using Redfish API to export the host server configuration profile locally.")
+parser=argparse.ArgumentParser(description="Python script using Redfish API with OEM extension to export the host server configuration profile locally.")
 parser.add_argument('-ip',help='iDRAC IP address', required=True)
 parser.add_argument('-u', help='iDRAC username', required=True)
 parser.add_argument('-p', help='iDRAC password', required=True)
@@ -78,13 +78,24 @@ while True:
     if "<SystemConfiguration Model" in str(d):
         print("\n- Export locally job ID %s successfully completed. Attributes exported:\n" % job_id)
         zz=re.search("<SystemConfiguration.+</SystemConfiguration>",str(d)).group()
-
+        try:
+            security_string = re.search('<Attribute Name="GUI.1#SecurityPolicyMessage">.+?>', zz).group()
+        except:
+            pass
+    
         #Below code is needed to parse the string to set up in pretty XML format
         q=zz.replace("\\n"," ")
         q=q.replace("<!--  ","<!--")
         q=q.replace(" -->","-->")
         del_attribute='<Attribute Name="SerialRedirection.1#QuitKey">^\\\\</Attribute>'
-        q=q.replace(del_attribute,"")
+        try:
+            q=q.replace(del_attribute,"")
+        except:
+            pass
+        try:
+            q=q.replace(security_string,"")
+        except:
+            pass
         l=q.split("> ")
         export_xml=[]
         for i in l:
