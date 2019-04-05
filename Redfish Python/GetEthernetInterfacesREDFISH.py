@@ -4,7 +4,7 @@
 # 
 #
 # _author_ = Texas Roemer <Texas_Roemer@Dell.com>
-# _version_ = 2.0
+# _version_ = 3.0
 #
 # Copyright (c) 2018, Dell, Inc.
 #
@@ -24,9 +24,10 @@ parser = argparse.ArgumentParser(description='Python script using Redfish API to
 parser.add_argument('-ip', help='iDRAC IP Address', required=True)
 parser.add_argument('-u', help='iDRAC username', required=True)
 parser.add_argument('-p', help='iDRAC password', required=True)
+parser.add_argument('script_examples',action="store_true",help='GetEthernetInterfacesREDFISH.py -ip 192.168.0.120 -u root -p calvin -d NIC.Integrated.1-1-1, this example will return detailed information for NIC.Integrated.1-1-1 only. GetEthernetInterfacesREDFISH.py -ip 192.168.0.120 -u root -p calvin -s LinkStatus,PermanentMACAddress,IPv4Addresses, this example will only return these specific properties for all NIC interfaces detected')
 parser.add_argument('-e', help='Get current ethernet FQDDs for the server, pass in \"y\". To get detailed information for all ethernet FQDDs, pass in \"yy\"', required=False)
 parser.add_argument('-d', help='Get ethernet FQDD detailed information for a specific FQDD, pass in ethernet FQDD. Example, pass in NIC.Integrated.1-1-1', required=False)
-parser.add_argument('-s', help='Get specific FQDD property for all ethernet devices, pass in property name. To get the list of property names, first execute \"-e yy\" to get detailed information which will return the property values. Make sure to pass in the exact string as this value is case sensitive', required=False)
+parser.add_argument('-s', help='Get specific FQDD property for all ethernet devices, pass in property name. To get the list of property names, first execute \"-e yy\" to get detailed information which will return the property values. Make sure to pass in the exact string as this value is case sensitive. Note: Multiple properties can be passed in by using a comma separator', required=False)
 
 args = vars(parser.parse_args())
 
@@ -36,10 +37,10 @@ idrac_password=args["p"]
 if args["d"]:
     fqdd = args["d"]
 if args["s"]:
-    specific_property = args["s"]
-                    
-    
-
+    if "," in args["s"]:
+        specific_property = args["s"].split(",")
+    else:
+        specific_property = [args["s"]]
 
 
 
@@ -66,7 +67,7 @@ def get_ethernet_interfaces():
             else:
                 pass
 
-def get_specific_ethernet_property():
+def get_specific_ethernet_property_old():
     response = requests.get('https://%s/redfish/v1/Systems/System.Embedded.1/EthernetInterfaces' % idrac_ip,verify=False,auth=(idrac_username, idrac_password))
     data = response.json()
     print("\n"),
@@ -87,6 +88,25 @@ def get_specific_ethernet_property():
                         correct_value=1
     if correct_value == 0:
         print("- WARNING, invalid property value entered. Make sure you pass in supported value and the case is correct.")
+
+
+def get_specific_ethernet_property():
+    response = requests.get('https://%s/redfish/v1/Systems/System.Embedded.1/EthernetInterfaces' % idrac_ip,verify=False,auth=(idrac_username, idrac_password))
+    data = response.json()
+    nic_fqdds = []
+    for i in data[u'Members']:
+        for ii in i.items():
+            fqdd = (ii[1].split("/")[-1])
+            nic_fqdds.append(fqdd)
+    for i in nic_fqdds:
+        response = requests.get('https://%s/redfish/v1/Systems/System.Embedded.1/EthernetInterfaces/%s' % (idrac_ip, i),verify=False,auth=(idrac_username, idrac_password))
+        data = response.json()
+        print("\n- Specific properties for FQDD %s -\n" % i)
+        for ii in specific_property:
+            if ii in data.keys():
+                print("%s: %s" % (ii, data[ii]))
+            else:
+                print("- WARNING, unable to locate property \"%s\". Either spelling of property is incorrect or property not supported for %s" % (ii, i))
                 
 
 def get_FQDD_details():
