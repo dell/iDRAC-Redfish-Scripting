@@ -2,7 +2,7 @@
 # InsertEjectVirtualMediaREDFISH. Python script using Redfish API DMTF to either get virtual media information, insert or eject virtual media
 #
 # _author_ = Texas Roemer <Texas_Roemer@Dell.com>
-# _version_ = 1.0
+# _version_ = 2.0
 #
 # Copyright (c) 2019, Dell, Inc.
 #
@@ -108,7 +108,7 @@ def eject_virtual_media():
     else:
         print("- FAIL, invalid value passed in for argument d")
         sys.exit()
-    print("\n - WARNING, eject(unattached) \"%s\" virtual media device \"%s\"" % (media_device, args["i"]))
+    print("\n - WARNING, eject(unattached) \"%s\" virtual media device" % (media_device))
     payload = {}
     headers = {'content-type': 'application/json'}
     response = requests.post(url, data=json.dumps(payload), headers=headers, verify=False, auth=(idrac_username,idrac_password))
