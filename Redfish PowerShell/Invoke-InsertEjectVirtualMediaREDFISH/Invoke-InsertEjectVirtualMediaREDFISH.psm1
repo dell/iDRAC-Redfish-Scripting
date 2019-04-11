@@ -25,7 +25,7 @@ http://www.gnu.org/licenses/old-licenses/gpl-2.0.txt
    - get_virtual_media_info: Pass in "y" to get current virtual media information.
    - virtual_media_action: Type of action you want to perform. Pass in "1" if you want perform Insert, pass in "2" if you want to perform Eject.
    - virtual_media_device: Type of virtual media device you want to use. Pass in "1" for CD or "2" for removable disk. 
-   - uri_path: For insert virtual media, pass in the HTTP or HTTPS URI path of the remote image. Note: If attaching removable disk, only supported file type is .img', required=False)
+   - uri_path: For insert virtual media, pass in the HTTP or HTTPS URI path of the remote image. Note: If attaching removable disk, only supported file type is .img'
 .EXAMPLE
    .\Invoke-InsertEjectVirtualMediaREDFISH.ps1 -idrac_ip 192.168.0.120 -idrac_username root -idrac_password calvin -get_virtual_media_info y
    This example will return virtual media information for virtual CD and virtual removable disk.
