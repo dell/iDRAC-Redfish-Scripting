@@ -1,6 +1,6 @@
 <#
 _author_ = Texas Roemer <Texas_Roemer@Dell.com>
-_version_ = 2.0
+_version_ = 3.0
 
 Copyright (c) 2017, Dell, Inc.
 
@@ -94,7 +94,7 @@ if ($get_power_state_only -eq "y")
 {
 
 $u = "https://$idrac_ip/redfish/v1/Systems/System.Embedded.1/"
-$result = Invoke-WebRequest -Uri $u -Credential $credential -Method Get -UseBasicParsing 
+$result = Invoke-WebRequest -Uri $u -Credential $credential -Method Get -UseBasicParsing -Headers @{"Accept"="application/json"} 
 
 if ($result.StatusCode -eq 200)
 {
@@ -141,7 +141,7 @@ $JsonBody = @{ "ResetType" = $power_request_value
 
 
 $u4 = "https://$idrac_ip/redfish/v1/Systems/System.Embedded.1/Actions/ComputerSystem.Reset"
-$result1 = Invoke-WebRequest -Uri $u4 -Credential $credential -Method Post -Body $JsonBody -ContentType 'application/json'
+$result1 = Invoke-WebRequest -Uri $u4 -Credential $credential -Method Post -Body $JsonBody -ContentType 'application/json' -Headers @{"Accept"="application/json"}
 
 if ($result1.StatusCode -eq 204)
 {
