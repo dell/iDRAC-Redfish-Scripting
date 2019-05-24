@@ -2,7 +2,7 @@
 # GetDeleteiDRACSessionsREDFISH. Python script using Redfish API to either get current iDRAC sessions or delete iDRAC session
 #
 # _author_ = Texas Roemer <Texas_Roemer@Dell.com>
-# _version_ = 1.0
+# _version_ = 2.0
 #
 # Copyright (c) 2019, Dell, Inc.
 #
@@ -68,9 +68,12 @@ def get_current_iDRAC_sessions():
 
 def get_session_id_RACADM():
     racadm_get_ssninfo_command = "racadm -r %s -u %s -p %s --nocertwarn getssninfo" % (idrac_ip, idrac_username, idrac_password)
-    racadm_command = subprocess.Popen(racadm_get_ssninfo_command,stdout=subprocess.PIPE, shell=True).communicate()[0]
-    print("\n- Current active sessions for iDRAC %s using RACADM command -\n" % idrac_ip)
-    print(racadm_command)        
+    try:
+        racadm_command = subprocess.Popen(racadm_get_ssninfo_command,stdout=subprocess.PIPE, shell=True).communicate()[0]
+        print("\n- Current active sessions for iDRAC %s using RACADM command -\n" % idrac_ip)
+        print(racadm_command)
+    except:
+        print("- FAIL, either remote RACADM is not installed or invalid iDRAC IP address passed in")
     
 # Function to delete session
 
