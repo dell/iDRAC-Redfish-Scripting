@@ -2,7 +2,7 @@
 # DeviceFirmwareSimpleUpdateTransferProtocolREDFISH. Python script using Redfish API to update a device firmware with DMTF standard SimpleUpdate with TransferProtocol. Only supported file image type is Windows Dell Update Packages(DUPs).
 #
 # _author_ = Texas Roemer <Texas_Roemer@Dell.com>
-# _version_ = 1.0
+# _version_ = 2.0
 #
 # Copyright (c) 2019, Dell, Inc.
 #
@@ -87,7 +87,7 @@ def get_supported_protocols():
     data = req.json()
     print("\n- Supported protocols for TransferProtocol parameter (-t argument) -\n")
     for i in data[u'Actions'][u'#UpdateService.SimpleUpdate'][u'TransferProtocol@Redfish.AllowableValues']:
-        print i
+        print(i)
     
 def install_image_payload():
     global job_id

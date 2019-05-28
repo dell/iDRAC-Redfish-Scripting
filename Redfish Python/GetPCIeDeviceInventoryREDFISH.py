@@ -2,7 +2,7 @@
 # GetPCIeDeviceInventoryREDFISH. Python script using Redfish API DMTF to get server PCIeDevice inventory.
 #
 # _author_ = Texas Roemer <Texas_Roemer@Dell.com>
-# _version_ = 1.0
+# _version_ = 2.0
 #
 # Copyright (c) 2019, Dell, Inc.
 #
@@ -58,7 +58,7 @@ def get_pcie_device_inventory():
         f=open("pcie_devices.txt","a")
         for i in data[u'PCIeDevices']:
             for ii in i.items():
-                print ii[1]
+                print(ii[1])
                 pcie_devices.append(ii[1])
         if args["d"] == "yy":
             for i in pcie_devices:
@@ -66,11 +66,11 @@ def get_pcie_device_inventory():
                 statusCode = req.status_code
                 data = req.json()
                 message = "\n\n- Detailed information for URI \"%s\"\n\n" % i
-                print message
+                print(message)
                 f.writelines(message)
                 for ii in data.items():
                     device = "%s: %s" % (ii[0], ii[1])
-                    print device
+                    print(device)
                     f.writelines("%s%s" % ("\n",device))
                     
         else:       
@@ -92,7 +92,7 @@ def get_pcie_function_inventory():
         f=open("pcie_function.txt","a")
         for i in data[u'PCIeFunctions']:
             for ii in i.items():
-                print ii[1]
+                print(ii[1])
                 pcie_devices.append(ii[1])
         if args["f"] == "yy":
             for i in pcie_devices:
@@ -100,11 +100,11 @@ def get_pcie_function_inventory():
                 statusCode = req.status_code
                 data = req.json()
                 message = "\n\n- Detailed information for URI \"%s\"\n\n" % i
-                print message
+                print(message)
                 f.writelines(message)
                 for ii in data.items():
                     device = "%s: %s" % (ii[0], ii[1])
-                    print device
+                    print(device)
                     f.writelines("%s%s" % ("\n",device))
                     
         else:       
