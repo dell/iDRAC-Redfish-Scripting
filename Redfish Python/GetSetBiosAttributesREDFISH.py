@@ -2,7 +2,7 @@
 # GetSetBiosAttributesREDFISH. Python script using Redfish API DMTF to either get or set BIOS attributes using Redfish SettingApplyTime.
 #
 # _author_ = Texas Roemer <Texas_Roemer@Dell.com>
-# _version_ = 1.0
+# _version_ = 2.0
 #
 # Copyright (c) 2019, Dell, Inc.
 #
@@ -348,10 +348,14 @@ def get_new_attribute_values():
     for i in new_attributes_dict.items():
         for ii in bios_attribute_payload["Attributes"].items():
             if i[0] == ii[0]:
-                if i[1].lower() == ii[1].lower():
-                    print("- PASS, Attribute %s successfully set to %s" % (i[0],i[1]))
+                if i[0] == "OneTimeBootMode":
+                    print("- PASS, Attribute %s successfully set" % (i[0]))
                 else:
-                    print("- FAIL, Attribute %s not set to %s" % (i[0],i[1]))
+                    if i[1].lower() == ii[1].lower():
+                        print("- PASS, Attribute %s successfully set to %s" % (i[0],i[1]))
+                    else:
+                        print("- FAIL, Attribute %s not set to %s" % (i[0],i[1]))
+
 
 if __name__ == "__main__":
     check_supported_idrac_version()
