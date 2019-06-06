@@ -1,6 +1,6 @@
 <#
 _author_ = Texas Roemer <Texas_Roemer@Dell.com>
-_version_ = 1.0
+_version_ = 2.0
 Copyright (c) 2019, Dell, Inc.
 
 This software is licensed to you under the GNU General Public License,
@@ -115,24 +115,6 @@ $pass= $idrac_password
 $secpasswd = ConvertTo-SecureString $pass -AsPlainText -Force
 $global:credential = New-Object System.Management.Automation.PSCredential($user, $secpasswd)
 }
-
-# Function to test if iDRAC version supports this cmdlet
-
-function test_iDRAC_version 
-
-{
-$u = "https://$idrac_ip/redfish/v1/Dell/Systems/System.Embedded.1/DellOSDeploymentService"
-    try 
-    {
-    $result = Invoke-WebRequest -Uri $u -Credential $credential -Method Get -UseBasicParsing -Headers @{"Accept"="application/json"} -ErrorVariable RespErr
-    }
-    catch
-    {
-    Write-Host "`n- WARNING, iDRAC version installed does not support this feature using Redfish API"
-    return
-    }
-}
-
 
 # Function to get network ISO attach status
 
@@ -300,7 +282,26 @@ Write-Host
 
 Ignore-SSLCertificates
 setup_idrac_creds
-test_iDRAC_version
+
+# Code to check for supported iDRAC version installed
+
+$u = "https://$idrac_ip/redfish/v1/Dell/Systems/System.Embedded.1/DellOSDeploymentService"
+try
+{
+$result = Invoke-WebRequest -Uri $u -Credential $credential -Method Get -UseBasicParsing -ErrorVariable RespErr -Headers @{"Accept"="application/json"}
+}
+catch
+{
+}
+if ($result.StatusCode -eq 200 -or $result.StatusCode -eq 202)
+{
+}
+else
+{
+Write-Host "`n- WARNING, iDRAC version detected does not support this feature using Redfish API`n"
+$result
+return
+}
 
 if ($get_attach_status -ne "")
 {
