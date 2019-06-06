@@ -1,6 +1,6 @@
 <#
 _author_ = Texas Roemer <Texas_Roemer@Dell.com>
-_version_ = 1.0
+_version_ = 2.0
 Copyright (c) 2019, Dell, Inc.
 
 This software is licensed to you under the GNU General Public License,
@@ -306,7 +306,19 @@ Write-Host
 
 Ignore-SSLCertificates
 setup_idrac_creds
-test_iDRAC_version
+
+# Code to check for supported iDRAC version
+
+$u = "https://$idrac_ip/redfish/v1/Dell/Systems/System.Embedded.1/DellOSDeploymentService"
+try 
+{
+$result = Invoke-WebRequest -Uri $u -Credential $credential -Method Get -UseBasicParsing -Headers @{"Accept"="application/json"} -ErrorVariable RespErr
+}
+catch
+{
+Write-Host "`n- WARNING, iDRAC version installed does not support this feature using Redfish API`n"
+return
+}
 
 if ($get_driver_pack_info -ne "")
 {
