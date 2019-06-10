@@ -2,7 +2,7 @@
 # LockVirtualDiskREDFISH. Python script using Redfish API with OEM extension to lock a virtual disk.
 #
 # _author_ = Texas Roemer <Texas_Roemer@Dell.com>
-# _version_ = 1.0
+# _version_ = 2.0
 #
 # Copyright (c) 2018, Dell, Inc.
 #
@@ -64,8 +64,10 @@ def get_storage_controllers():
     print("\n- Server controller(s) detected -\n")
     controller_list=[]
     for i in data[u'Members']:
-        controller_list.append(i[u'@odata.id'][46:])
-        print(i[u'@odata.id'][46:])
+        for ii in i.items():
+            controller = ii[1].split("/")[-1]
+            controller_list.append(controller)
+            print(controller)
     
 
 
@@ -75,28 +77,34 @@ def get_pdisks():
     response = requests.get('https://%s/redfish/v1/Systems/System.Embedded.1/Storage/%s' % (idrac_ip, controller),verify=False,auth=(idrac_username, idrac_password))
     data = response.json()
     drive_list=[]
-    if data[u'Drives'] == []:
-        print("\n- WARNING, no drives detected for %s" % controller)
-        sys.exit()
-    else:
-        print("\n- Drive(s) detected for %s -\n" % controller)
-        for i in data[u'Drives']:
-            drive_list.append(i[u'@odata.id'][53:])
-            print(i[u'@odata.id'][53:])
-    if args["dd"]:
-      for i in drive_list:
-          response = requests.get('https://%s/redfish/v1/Systems/System.Embedded.1/Storage/Drives/%s' % (idrac_ip, i),verify=False,auth=(idrac_username, idrac_password))
-          data = response.json()
-          
-          print("\n - Detailed drive information for %s -\n" % i)
-          for ii in data.items():
-              print("%s: %s" % (ii[0],ii[1]))
-              if ii[0] == "Links":
-                  print "\n"
-                  if ii[1]["Volumes"] != []:
-                      disk_used_created_vds.append(i)
-                  else:
-                      available_disks.append(i)
+    try:
+        if data[u'Drives'] == []:
+            print("\n- WARNING, no drives detected for %s" % controller)
+            sys.exit()
+        else:
+            print("\n- Drive(s) detected for %s -\n" % controller)
+            for i in data[u'Drives']:
+                for ii in i.items():
+                    disk = ii[1].split("/")[-1]
+                    drive_list.append(disk)
+                    print(disk)
+        if args["dd"]:
+          for i in drive_list:
+              response = requests.get('https://%s/redfish/v1/Systems/System.Embedded.1/Storage/Drives/%s' % (idrac_ip, i),verify=False,auth=(idrac_username, idrac_password))
+              data = response.json()
+              
+              print("\n - Detailed drive information for %s -\n" % i)
+              for ii in data.items():
+                  print("%s: %s" % (ii[0],ii[1]))
+                  if ii[0] == "Links":
+                      print "\n"
+                      if ii[1]["Volumes"] != []:
+                          disk_used_created_vds.append(i)
+                      else:
+                          available_disks.append(i)
+    except:
+        print("\n- FAIL, GET command failed. Check to make sure you passed in correct controller FQDD")
+        
           
 
 def check_drive_capabiity():
@@ -108,7 +116,9 @@ def check_drive_capabiity():
         sys.exit()
     else:
         for i in data[u'Drives']:
-            drive_list.append(i[u'@odata.id'][53:])
+            for ii in i.items():
+                disk = ii[1].split("/")[-1]
+                drive_list.append(disk)
     print("\n - WARNING, Disk FQDD, encryption ability status for controller %s disk(s)\n" % args["e"])
     for i in drive_list:
       response = requests.get('https://%s/redfish/v1/Systems/System.Embedded.1/Storage/Drives/%s' % (idrac_ip, i),verify=False,auth=(idrac_username, idrac_password))
@@ -128,7 +138,9 @@ def get_virtual_disks():
         sys.exit()
     else:
         for i in data[u'Members']:
-            vd_list.append(i[u'@odata.id'][54:])
+            for ii in i.items():
+                vd = ii[1].split("/")[-1]
+                vd_list.append(vd)
     print("\n- Volume(s) detected for %s controller -\n" % args["v"])
     for ii in vd_list:
         response = requests.get('https://%s/redfish/v1/Systems/System.Embedded.1/Storage/Volumes/%s' % (idrac_ip, ii),verify=False,auth=(idrac_username, idrac_password))
@@ -149,8 +161,10 @@ def get_virtual_disk_details():
     else:
         print("\n- Volume(s) detected for %s controller -\n" % args["vv"])
         for i in data[u'Members']:
-            vd_list.append(i[u'@odata.id'][54:])
-            print(i[u'@odata.id'][54:])
+            for ii in i.items():
+                vd = ii[1].split("/")[-1]
+                vd_list.append(vd)
+                print(vd)
     for ii in vd_list:
         response = requests.get('https://%s/redfish/v1/Systems/System.Embedded.1/Storage/Volumes/%s' % (idrac_ip, ii),verify=False,auth=(idrac_username, idrac_password))
         data = response.json()
@@ -170,7 +184,9 @@ def check_lock_VDs():
         sys.exit()
     else:
         for i in data[u'Members']:
-            vd_list.append(i[u'@odata.id'][54:])
+            for ii in i.items():
+                vd = ii[1].split("/")[-1]
+                vd_list.append(vd)
     print("\n- Volume(s) detected for %s controller -\n" % args["cl"])
     for ii in vd_list:
         response = requests.get('https://%s/redfish/v1/Systems/System.Embedded.1/Storage/Volumes/%s' % (idrac_ip, ii),verify=False,auth=(idrac_username, idrac_password))
