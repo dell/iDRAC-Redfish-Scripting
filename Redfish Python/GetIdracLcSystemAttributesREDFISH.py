@@ -6,7 +6,7 @@
 # NOTE: Possible supported values for attribute_group parameter are: idrac, lc and system.
 #
 # _author_ = Texas Roemer <Texas_Roemer@Dell.com>
-# _version_ = 5.0
+# _version_ = 6.0
 #
 # Copyright (c) 2017, Dell, Inc.
 #
@@ -30,7 +30,7 @@ parser.add_argument('-u', help='iDRAC username', required=True)
 parser.add_argument('-p', help='iDRAC password', required=True)
 parser.add_argument('script_examples',action="store_true",help='GetIdracLcSystemAttributesREDFISH.py -ip 192.168.0.120 -u root -p calvin -g idrac, this example wil get all iDRAC attributes and echo them to the screen along with copy output to a file. GetIdracLcSystemAttributesREDFISH.py -ip 192.168.0.120 -u root -p calvin -g idrac -an LDAPRoleGroup.1.Privilege, this example will only return current value for attribute LDAPRoleGroup.1.Privilege. GetIdracLcSystemAttributesREDFISH.py -ip 192.168.0.120 -u root -p calvin -g idrac -ar y, this example will return the attribute registry for iDRAC, LC and System attributes.') 
 parser.add_argument('-g', help='Get attributes, pass in the group name of the attributes you want to get. Supported values are \"idrac\", \"lc\" and \"system\"', required=False)
-parser.add_argument('-an', help='Get specific attribute value, pass in the attribute name', required=False)
+parser.add_argument('-an', help='Get specific attribute value, pass in the attribute name. Make sure to also pass in -g option with the group name.', required=False)
 parser.add_argument('-ar', help='Pass in \"y\" to get the attribute registry for all iDRAC, System and LC attributes. This option is helpful for viewing attributes to see if they are read only or read write, supported possible values.', required=False)
 parser.add_argument('-s', help='Get attribute registry information for a specific attribute, pass in the attribute name', required=False)
 
