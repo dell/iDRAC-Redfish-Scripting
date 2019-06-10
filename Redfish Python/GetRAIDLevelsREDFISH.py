@@ -183,7 +183,7 @@ def get_supported_RAID_levels():
     raid_supported_string_values = []
     print("\n- RAID levels currently available to create based off available disks -\n")
     for i in data[u'VDRAIDEnumArray']:
-        print i
+        print (i)
         
 
 if __name__ == "__main__":
