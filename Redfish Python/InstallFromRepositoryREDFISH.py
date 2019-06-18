@@ -2,7 +2,7 @@
 # InstallFromRepositoryREDFISH. Python script using Redfish API with OEM extension to either get firmware version for all devices, get repository update list or install firmware from a repository on a network share.
 #
 # _author_ = Texas Roemer <Texas_Roemer@Dell.com>
-# _version_ = 1.0
+# _version_ = 2.0
 #
 # Copyright (c) 2019, Dell, Inc.
 #
@@ -229,7 +229,7 @@ def loop_job_status(x):
         if str(current_time)[0:7] >= "2:00:00":
             print("\n- FAIL: Timeout of 2 hours has been reached, script stopped\n")
             sys.exit()
-        elif "Fail" in data[u'Message'] or "fail" in data[u'Message'] or "invalid" in data[u'Message'] or "unable" in data[u'Message'] or "Unable" in data[u'Message'] or "not" in data[u'Message']:
+        elif "Fail" in data[u'Message'] or "fail" in data[u'Message'] or "invalid" in data[u'Message'] or "unable" in data[u'Message'] or "Unable" in data[u'Message'] or "not" in data[u'Message'] or "cancel" in data[u'Message'] or "Cancel" in data[u'Message']:
             print("- FAIL: Job ID %s failed, detailed error message is: %s" % (x, data[u'Message']))
             sys.exit()
         elif data[u'Message'] == "Job for this device is already present.":
@@ -240,6 +240,7 @@ def loop_job_status(x):
             print("\n- Final detailed job results -\n")
             for i in data.items():
                 print("%s: %s" % (i[0], i[1]))
+            print("\n")
             if data['JobType'] == "RepositoryUpdate":
                 if args["applyupdate"] == "False":
                     print("\n- WARNING, \"ApplyUpdate = False\" selected, execute script with -r agrument to view the repo update list which will report devices detected for firmware updates")
@@ -279,7 +280,7 @@ def check_schedule_update_job():
             print("Job ID: %s, Job Name: %s, Job Message: %s" % (x,data[u'Name'],data[u'Message']))
         sys.exit()
     else:
-        print("\n- WARNING, no scheduled update jobs detected, server will not reboot to apply the update(s)")
+        pass
 
         
    
