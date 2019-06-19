@@ -2,7 +2,7 @@
 # SecureEraseDevicesREDFISH. Python script using Redfish API to either get storage controllers/supported secure erase devices and erase supported devices.
 #
 # _author_ = Texas Roemer <Texas_Roemer@Dell.com>
-# _version_ = 3.0
+# _version_ = 4.0
 #
 # Copyright (c) 2018, Dell, Inc.
 #
@@ -28,7 +28,7 @@ parser.add_argument('-p', help='iDRAC password', required=True)
 parser.add_argument('-c', help='Get server storage controllers, pass in \"y\". To get detailed information for the storage controllers, pass in \"yy\"', required=False)
 parser.add_argument('-d', help='Get controller drives, pass in storage controller FQDD, Example "\RAID.Integrated.1-1\"', required=False)
 parser.add_argument('-sd', help='Get controller SED drives or PCIe SSD devices only, pass in controller FQDD, Examples "\RAID.Integrated.1-1\", \"PCIeExtender.Slot.7\"', required=False)
-parser.add_argument('-s', help='Pass in device FQDD for secure erase operation. Supported devices are ISE, SED drives or PCIe SSD devices(drives and cards. NOTE: If using iDRAC 7/8, only PCIeSSD drvices are supported for SecureErase)', required=False)
+parser.add_argument('-s', help='Pass in device FQDD for secure erase operation. Supported devices are ISE, SED drives or PCIe SSD devices(drives and cards). NOTE: If using iDRAC 7/8, only PCIeSSD devices are supported for SecureErase', required=False)
 args=vars(parser.parse_args())
 
 idrac_ip=args["ip"]
