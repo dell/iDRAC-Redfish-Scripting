@@ -1,6 +1,6 @@
 <#
 _author_ = Texas Roemer <Texas_Roemer@Dell.com>
-_version_ = 2.0
+_version_ = 4.0
 Copyright (c) 2018, Dell, Inc.
 
 This software is licensed to you under the GNU General Public License,
@@ -18,7 +18,7 @@ http://www.gnu.org/licenses/old-licenses/gpl-2.0.txt
 .Synopsis
    Cmdlet used to either get controllers, get supported secure erase devices or execute secure erase devices
 .DESCRIPTION
-   Cmdlet used to either get storage controllers, get secure erase devices or secure erase devices using iDRAC Redfish API.
+   Cmdlet used to either get storage controllers, get secure erase devices or secure erase devices using iDRAC Redfish API NOTE: If erasing SED / ISE drives, make sure these drives are not part of a RAID volume. RAID volume must be deleted first before you can erase the drives.
    - idrac_ip: Pass in iDRAC IP address
    - idrac_username: Pass in iDRAC username
    - idrac_password: Pass in iDRAC username password
@@ -83,6 +83,7 @@ Ignore-SSLCertificates
 
 
 [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::TLS12
+#[Net.ServicePointManager]::SecurityProtocol = "TLS12, TLS11, TLS"
 $user = $idrac_username
 $pass= $idrac_password
 $secpasswd = ConvertTo-SecureString $pass -AsPlainText -Force
