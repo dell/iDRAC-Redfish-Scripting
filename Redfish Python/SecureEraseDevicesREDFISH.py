@@ -2,7 +2,7 @@
 # SecureEraseDevicesREDFISH. Python script using Redfish API to either get storage controllers/supported secure erase devices and erase supported devices.
 #
 # _author_ = Texas Roemer <Texas_Roemer@Dell.com>
-# _version_ = 4.0
+# _version_ = 5.0
 #
 # Copyright (c) 2018, Dell, Inc.
 #
@@ -21,7 +21,7 @@ from datetime import datetime
 
 warnings.filterwarnings("ignore")
 
-parser=argparse.ArgumentParser(description="Python script using Redfish API to either get storage controllers/supported secure erase devices and erase supported devices")
+parser=argparse.ArgumentParser(description="Python script using Redfish API to either get storage controllers/supported secure erase devices and erase supported devices. NOTE: If erasing SED / ISE drives, make sure these drives are not part of a RAID volume. RAID volume must be deleted first before you can erase the drives")
 parser.add_argument('-ip',help='iDRAC IP address', required=True)
 parser.add_argument('-u', help='iDRAC username', required=True)
 parser.add_argument('-p', help='iDRAC password', required=True)
@@ -76,8 +76,9 @@ def get_controller_disks():
     else:
         print("\n- Drive(s) detected for %s -\n" % controller)
         for i in data[u'Drives']:
-            drive_list.append(i[u'@odata.id'][53:])
-            print(i[u'@odata.id'][53:])
+            drive = i[u'@odata.id'].split("/")[-1]
+            print(drive)
+            drive_list.append(drive)
 
 def get_secure_erase_devices():
     response = requests.get('https://%s/redfish/v1/Systems/System.Embedded.1/Storage/%s' % (idrac_ip, args["sd"]),verify=False,auth=(idrac_username, idrac_password))
@@ -92,7 +93,7 @@ def get_secure_erase_devices():
         sys.exit()
     else:
         for i in data[u'Drives']:
-            drive_list.append(i[u'@odata.id'][53:])
+            drive_list.append(i[u'@odata.id'].split("/")[-1])
         secure_erase_devices=[]
         for i in drive_list:
             response = requests.get('https://%s/redfish/v1/Systems/System.Embedded.1/Storage/Drives/%s' % (idrac_ip, i),verify=False,auth=(idrac_username, idrac_password))
