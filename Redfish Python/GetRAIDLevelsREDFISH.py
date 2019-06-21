@@ -2,7 +2,7 @@
 # GetRAIDLevelsREDFISH. Python script using Redfish API with OEM extension to get supported RAID levels for storage controller
 #
 # _author_ = Texas Roemer <Texas_Roemer@Dell.com>
-# _version_ = 1.0
+# _version_ = 3.0
 #
 # Copyright (c) 2019, Dell, Inc.
 #
@@ -62,8 +62,10 @@ def get_storage_controllers():
     print("\n- Server controller(s) detected -\n")
     controller_list=[]
     for i in data[u'Members']:
-        controller_list.append(i[u'@odata.id'][46:])
-        print(i[u'@odata.id'][46:])
+        for ii in i.items():
+            controller = ii[1].split("/")[-1]
+            controller_list.append(controller)
+            print(controller)
     if args["c"] == "yy":
         for i in controller_list:
             response = requests.get('https://%s/redfish/v1/Systems/System.Embedded.1/Storage/%s' % (idrac_ip, i),verify=False,auth=(idrac_username, idrac_password))
@@ -87,8 +89,10 @@ def get_pdisks():
     else:
         print("\n- Drive(s) detected for %s -\n" % args["d"])
         for i in data[u'Drives']:
-            drive_list.append(i[u'@odata.id'][53:])
-            print(i[u'@odata.id'][53:])
+            for ii in i.items():
+                    disk = ii[1].split("/")[-1]
+                    drive_list.append(disk)
+                    print(disk)
     
 
 def get_supported_RAID_levels():
@@ -183,7 +187,7 @@ def get_supported_RAID_levels():
     raid_supported_string_values = []
     print("\n- RAID levels currently available to create based off available disks -\n")
     for i in data[u'VDRAIDEnumArray']:
-        print i
+        print(i)
         
 
 if __name__ == "__main__":

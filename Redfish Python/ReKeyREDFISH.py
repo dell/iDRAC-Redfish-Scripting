@@ -2,7 +2,7 @@
 # RekeyREDFISH. Python script using Redfish API with OEM extension to rekey or change the controller encryption key
 #
 # _author_ = Texas Roemer <Texas_Roemer@Dell.com>
-# _version_ = 1.0
+# _version_ = 4.0
 #
 # Copyright (c) 2018, Dell, Inc.
 #
@@ -29,6 +29,7 @@ parser.add_argument('script_examples',action="store_true",help='ReKeyREDFISH.py 
 parser.add_argument('-c', help='Get server storage controller FQDDs, pass in \"y\"', required=False)
 parser.add_argument('-g', help='Get current controller encryption settings, pass in controller FQDD, Example \"RAID.Slot.6-1\"', required=False)
 parser.add_argument('-e', help='Rekey the controller key, pass in controller FQDD, Example \"RAID.Slot.6-1\"', required=False)
+parser.add_argument('-m', help='Rekey the controller key, pass in encryption mode. Supported values are LKM(Local Key Management) and SEKM(Secure Enterprise Key Management). NOTE: If using LKM mode, you must also use arguments --oldkey, --newkey and -i', required=False)
 parser.add_argument('--oldkey', help='Pass in current(old) storage controller key passphrase', required=False)
 parser.add_argument('--newkey', help='Pass in the new storage controller key passphrase you want to set to. Note: Minimum length is 8 characters, must have at least 1 upper and 1 lowercase, 1 number and 1 special character Example \"Test123##\". Refer to Dell PERC documentation for more information.', required=False)
 parser.add_argument('-i', help='Pass in the current controller key id or pass in a new key id string to set', required=False)
@@ -57,8 +58,8 @@ def get_storage_controllers():
     print("\n- Server controller(s) detected -\n")
     controller_list=[]
     for i in data[u'Members']:
-        controller_list.append(i[u'@odata.id'][46:])
-        print(i[u'@odata.id'][46:])
+        controller_list.append(i[u'@odata.id'].split("/")[-1])
+        print(i[u'@odata.id'].split("/")[-1])
     if args["c"] == "yy":
         for i in controller_list:
             response = requests.get('https://%s/redfish/v1/Systems/System.Embedded.1/Storage/%s' % (idrac_ip, i),verify=False,auth=(idrac_username, idrac_password))
@@ -78,6 +79,10 @@ def get_controller_encryption_setting():
     print("EncryptionMode: %s" % data[u'Oem'][u'Dell'][u'DellController'][u'EncryptionMode'])
     print("EncryptionCapability: %s" % data[u'Oem'][u'Dell'][u'DellController'][u'EncryptionCapability'])
     print("SecurityStatus: %s" % data[u'Oem'][u'Dell'][u'DellController'][u'SecurityStatus'])
+    try:
+        print("KeyID: %s" % data[u'Oem'][u'Dell'][u'DellController'][u'KeyID'])
+    except:
+        pass
     
 
 
@@ -94,11 +99,17 @@ def rekey_controller_key():
         pass
     url = 'https://%s/redfish/v1/Dell/Systems/System.Embedded.1/DellRaidService/Actions/DellRaidService.ReKey' % (idrac_ip)
     headers = {'content-type': 'application/json'}
-    payload={"Mode":"LKM","TargetFQDD":args["e"],"OldKey":args["oldkey"],"NewKey":args["newkey"],"Keyid":args["i"]}
+    if args["m"].upper() == "LKM":
+        payload={"Mode":"LKM","TargetFQDD":args["e"],"OldKey":args["oldkey"],"NewKey":args["newkey"],"Keyid":args["i"]}
+    elif args["m"].upper() == "SEKM":
+        payload={"Mode":"SEKM","TargetFQDD":args["e"]}
+    else:
+        print("- FAIL, missing required parameters(s)")
+        sys.exit()
     response = requests.post(url, data=json.dumps(payload), headers=headers, verify=False,auth=(idrac_username,idrac_password))
     data = response.json()
     if response.status_code == 202:
-        print("\n- PASS: POST command passed to re key the controller for %s" % args["e"])
+        print("\n- PASS: POST command passed to rekey the controller for %s" % args["e"])
         try:
             job_id = response.headers['Location'].split("/")[-1]
         except:
@@ -166,7 +177,7 @@ if __name__ == "__main__":
         get_storage_controllers()
     elif args["g"]:
         get_controller_encryption_setting()
-    elif args["e"] and args["oldkey"] and args["i"] and args["newkey"]:
+    elif args["e"] and args["m"]:
         rekey_controller_key()
         loop_job_status()
     else:

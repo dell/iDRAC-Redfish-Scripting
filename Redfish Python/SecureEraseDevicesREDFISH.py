@@ -2,7 +2,7 @@
 # SecureEraseDevicesREDFISH. Python script using Redfish API to either get storage controllers/supported secure erase devices and erase supported devices.
 #
 # _author_ = Texas Roemer <Texas_Roemer@Dell.com>
-# _version_ = 5.0
+# _version_ = 6.0
 #
 # Copyright (c) 2018, Dell, Inc.
 #
@@ -52,8 +52,8 @@ def get_storage_controllers():
     print("\n- Server controller(s) detected -\n")
     controller_list=[]
     for i in data[u'Members']:
-        controller_list.append(i[u'@odata.id'][46:])
-        print(i[u'@odata.id'][46:])
+        controller_list.append(i[u'@odata.id'].split("/")[-1])
+        print(i[u'@odata.id'].split("/")[-1])
     if args["c"] == "yy":
         for i in controller_list:
             response = requests.get('https://%s/redfish/v1/Systems/System.Embedded.1/Storage/%s' % (idrac_ip, i),verify=False,auth=(idrac_username, idrac_password))

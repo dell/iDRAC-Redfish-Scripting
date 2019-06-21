@@ -2,7 +2,7 @@
 # ConvertToNonRAIDREDFISH. Python script using Redfish API with OEM extension to convert drives to non RAID state
 #
 # _author_ = Texas Roemer <Texas_Roemer@Dell.com>
-# _version_ = 1.0
+# _version_ = 2.0
 #
 # Copyright (c) 2019, Dell, Inc.
 #
@@ -55,11 +55,10 @@ def get_storage_controllers():
     print("\n- Server controller(s) detected -\n")
     controller_list=[]
     for i in data[u'Members']:
-        controller_list.append(i[u'@odata.id'][46:])
-        print(i[u'@odata.id'][46:])
+        controller_list.append(i[u'@odata.id'].split("/")[-1])
+        print(i[u'@odata.id'].split("/")[-1])
+
     
-
-
 def get_pdisks_check_raidstatus():
     disk_used_created_vds=[]
     available_disks=[]
@@ -73,7 +72,7 @@ def get_pdisks_check_raidstatus():
     else:
         
         for i in data[u'Drives']:
-            drive_list.append(i[u'@odata.id'][53:])
+            drive_list.append(i[u'@odata.id'].split("/")[-1])
     print("\n- Drives detected for controller \"%s\" and RaidStatus\n" % args["d"])
     for i in drive_list:
       response = requests.get('https://%s/redfish/v1/Systems/System.Embedded.1/Storage/Drives/%s' % (idrac_ip, i),verify=False,auth=(idrac_username, idrac_password))
@@ -92,7 +91,7 @@ def get_virtual_disks():
         sys.exit()
     else:
         for i in data[u'Members']:
-            vd_list.append(i[u'@odata.id'][54:])
+            vd_list.append(i[u'@odata.id'].split("/")[-1])
     print("\n- Volume(s) detected for %s controller -\n" % args["v"])
     for ii in vd_list:
         response = requests.get('https://%s/redfish/v1/Systems/System.Embedded.1/Storage/Volumes/%s' % (idrac_ip, ii),verify=False,auth=(idrac_username, idrac_password))

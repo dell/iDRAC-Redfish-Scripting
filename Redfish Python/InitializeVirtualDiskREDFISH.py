@@ -2,7 +2,7 @@
 # InitializeVirtualDiskREDFISH. Python script using Redfish API to either get controllers / current virtual disks or initialize virtual disk.
 #
 # _author_ = Texas Roemer <Texas_Roemer@Dell.com>
-# _version_ = 2.0
+# _version_ = 3.0
 #
 # Copyright (c) 2018, Dell, Inc.
 #
@@ -51,8 +51,8 @@ def get_storage_controllers():
     print("\n- Server controller(s) detected -\n")
     controller_list=[]
     for i in data[u'Members']:
-        controller_list.append(i[u'@odata.id'][46:])
-        print(i[u'@odata.id'][46:])
+        controller_list.append(i[u'@odata.id'].split("/")[-1])
+        print(i[u'@odata.id'].split("/")[-1])
     if args["c"] == "yy":
         for i in controller_list:
             response = requests.get('https://%s/redfish/v1/Systems/System.Embedded.1/Storage/%s' % (idrac_ip, i),verify=False,auth=(idrac_username, idrac_password))
@@ -74,7 +74,7 @@ def get_virtual_disks():
         sys.exit()
     else:
         for i in data[u'Members']:
-            vd_list.append(i[u'@odata.id'][54:])
+            vd_list.append(i[u'@odata.id'].split("/")[-1])
     print("\n- Virtual disk(s) detected for controller %s -" % controller)
     print("\n")
     supported_vds=[]
@@ -109,8 +109,8 @@ def get_virtual_disks_details():
     else:
         print("\n- Volume(s) detected for %s controller -\n" % controller)
         for i in data[u'Members']:
-            vd_list.append(i[u'@odata.id'][54:])
-            print(i[u'@odata.id'][54:])
+            vd_list.append(i[u'@odata.id'].split("/")[-1])
+            print(i[u'@odata.id'].split("/")[-1])
     for ii in vd_list:
         response = requests.get('https://%s/redfish/v1/Systems/System.Embedded.1/Storage/Volumes/%s' % (idrac_ip, ii),verify=False,auth=(idrac_username, idrac_password))
         data = response.json()

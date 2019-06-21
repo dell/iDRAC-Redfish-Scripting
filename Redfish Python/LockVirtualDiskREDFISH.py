@@ -2,7 +2,7 @@
 # LockVirtualDiskREDFISH. Python script using Redfish API with OEM extension to lock a virtual disk.
 #
 # _author_ = Texas Roemer <Texas_Roemer@Dell.com>
-# _version_ = 2.0
+# _version_ = 3.0
 #
 # Copyright (c) 2018, Dell, Inc.
 #
