@@ -1,6 +1,6 @@
 <#
 _author_ = Texas Roemer <Texas_Roemer@Dell.com>
-_version_ = 1.0
+_version_ = 2.0
 Copyright (c) 2019, Dell, Inc.
 
 This software is licensed to you under the GNU General Public License,
@@ -321,7 +321,7 @@ $JsonBody = @{"TargetFQDD"=$reset_storage_controller} | ConvertTo-Json -Compress
     {
     $job_id=$result1.Headers.Location.Split("/")[-1]
 
-    [String]::Format("`n- PASS, statuscode {0} returned to successfully create virtual disk for controller {1}, {2} job ID created",$result1.StatusCode,$create_virtual_disk,$job_id)
+    [String]::Format("`n- PASS, statuscode {0} returned to successfully reset storage controller {1}, {2} job ID created",$result1.StatusCode,$reset_storage_controller,$job_id)
     }
     else
     {
