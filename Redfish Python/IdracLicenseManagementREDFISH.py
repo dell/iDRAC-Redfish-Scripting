@@ -4,7 +4,7 @@
 # 
 #
 # _author_ = Texas Roemer <Texas_Roemer@Dell.com>
-# _version_ = 1.0
+# _version_ = 2.0
 #
 # Copyright (c) 2019, Dell, Inc.
 #
@@ -70,13 +70,11 @@ def get_idrac_license_info():
     if data[u'Members'] == []:
         print("\n- WARNING, no licenses detected for iDRAC %s" % idrac_ip)
     else:
-        print("\n- License(s) detected for iDRAC %s -" % idrac_ip)
-        for i in data[u'Members']:
+        print("\n- License(s) detected for iDRAC %s -\n" % idrac_ip)
+        for i in (data[u'Members']):
             for ii in i.items():
-                if ii[0] == "@odata.type":
-                    print("\n%s: %s" % (ii[0], ii[1]))
-                else:
-                    print("%s: %s" % (ii[0], ii[1]))
+                print("%s: %s" % (ii[0], ii[1]))
+            print("\n")
    
 
 def get_network_share_types():
