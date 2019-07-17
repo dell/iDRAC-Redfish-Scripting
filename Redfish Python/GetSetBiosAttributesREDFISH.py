@@ -2,7 +2,7 @@
 # GetSetBiosAttributesREDFISH. Python script using Redfish API DMTF to either get or set BIOS attributes using Redfish SettingApplyTime.
 #
 # _author_ = Texas Roemer <Texas_Roemer@Dell.com>
-# _version_ = 2.0
+# _version_ = 4.0
 #
 # Copyright (c) 2019, Dell, Inc.
 #
@@ -140,12 +140,18 @@ def bios_registry_get_specific_attribute():
     
 def create_bios_attribute_dict():
     global bios_attribute_payload
-    url = 'https://%s/redfish/v1/Systems/System.Embedded.1/Bios/Settings' % idrac_ip
     bios_attribute_payload = {"Attributes":{}}
     attribute_names = args["an"].split(",")
     attribute_values = args["av"].split(",")
     for i,ii in zip(attribute_names, attribute_values):
         bios_attribute_payload["Attributes"][i] = ii
+    response = requests.get('https://%s/redfish/v1/Systems/System.Embedded.1/Bios/BiosRegistry' % idrac_ip,verify=False,auth=(idrac_username,idrac_password))
+    data = response.json()
+    for i in bios_attribute_payload["Attributes"].items():
+        for ii in data[u'RegistryEntries']['Attributes']:
+            if i[0] in ii.values():
+                if ii[u'Type'] == "Integer":
+                    bios_attribute_payload['Attributes'][i[0]] = int(i[1])
     print("\n- WARNING, script will be setting BIOS attributes -\n")
     for i in bios_attribute_payload["Attributes"].items():
         print("Attribute Name: %s, setting new value to: %s" % (i[0], i[1]))
@@ -317,7 +323,20 @@ def reboot_server():
 def check_job_status_final():
     start_time=datetime.now()
     while True:
-        req = requests.get('https://%s/redfish/v1/TaskService/Tasks/%s' % (idrac_ip, job_id), auth=(idrac_username, idrac_password), verify=False)
+        count = 1
+        while True:
+            if count == 5:
+                print("- FAIL, unable to get job status after 5 attempts, script will exit")
+                sys.exit()
+            try:
+                req = requests.get('https://%s/redfish/v1/TaskService/Tasks/%s' % (idrac_ip, job_id), auth=(idrac_username, idrac_password), verify=False)
+                break
+            except Exception, error_message:
+                print("- FAIL, requests command failed to GET job status, detailed error information: \n%s" % error_message)
+                time.sleep(10)
+                print("- WARNING, script will now attempt to get job status again")
+                count+=1
+                continue
         current_time=(datetime.now()-start_time)
         statusCode = req.status_code
         if statusCode == 202 or statusCode == 200:
@@ -351,10 +370,20 @@ def get_new_attribute_values():
                 if i[0] == "OneTimeBootMode":
                     print("- PASS, Attribute %s successfully set" % (i[0]))
                 else:
-                    if i[1].lower() == ii[1].lower():
-                        print("- PASS, Attribute %s successfully set to %s" % (i[0],i[1]))
-                    else:
-                        print("- FAIL, Attribute %s not set to %s" % (i[0],i[1]))
+                    try:
+                        if i[1].lower() == ii[1].lower():
+                            print("- PASS, Attribute %s successfully set to \"%s\"" % (i[0],i[1]))
+                        else:
+                            print("- FAIL, Attribute %s not successfully set. Current value is \"%s\"" % (i[0],i[1]))
+                    except:
+                        pass
+                    try:
+                        if int(i[1]) == int(ii[1]):
+                            print("- PASS, Attribute %s successfully set to \"%s\"" % (i[0],i[1]))
+                        else:
+                            print("- FAIL, Attribute %s not successfully set. Current value is \"%s\"" % (i[0],i[1]))
+                    except:
+                        pass
 
 
 if __name__ == "__main__":
@@ -367,7 +396,7 @@ if __name__ == "__main__":
         bios_registry_get_specific_attribute()
     elif args["ar"]:
         bios_registry() 
-    elif args["an"] and args["av"]:
+    elif args["an"] and args["av"] and args["r"]:
         create_bios_attribute_dict()     
         if job_type == "n":
             create_next_boot_config_job()
@@ -380,6 +409,8 @@ if __name__ == "__main__":
             check_job_status_schedule()
         elif job_type == "s" and args["mt"] and args["dt"]:
             create_schedule_config_job()
+    else:
+        print("\n- FAIL, either missing parameter(s) or incorrect parameter(s) passed in. If needed, execute script with -h for script help")
         
             
         

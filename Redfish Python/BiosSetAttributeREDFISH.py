@@ -8,7 +8,7 @@
 # NOTE: When passing in attribute name / value, make sure you pass in the exact string. Attribute name / value are case sensitive.
 #
 # _author_ = Texas Roemer <Texas_Roemer@Dell.com>
-# _version_ = 4.0
+# _version_ = 6.0
 #
 # Copyright (c) 2017, Dell, Inc.
 #
@@ -63,6 +63,14 @@ def set_bios_attribute():
     attribute_values = args["av"].split(",")
     for i,ii in zip(attribute_names, attribute_values):
         payload["Attributes"][i] = ii
+
+    response = requests.get('https://%s/redfish/v1/Systems/System.Embedded.1/Bios/BiosRegistry' % idrac_ip,verify=False,auth=(idrac_username,idrac_password))
+    data = response.json()
+    for i in payload["Attributes"].items():
+        for ii in data[u'RegistryEntries']['Attributes']:
+            if i[0] in ii.values():
+                if ii[u'Type'] == "Integer":
+                    payload['Attributes'][i[0]] = int(i[1])
     print("\n- WARNING, script will be setting BIOS attributes -\n")
     for i in payload["Attributes"].items():
         print("Attribute Name: %s, setting new value to: %s" % (i[0], i[1]))
@@ -71,7 +79,6 @@ def set_bios_attribute():
     response = requests.patch(url, data=json.dumps(payload), headers=headers, verify=False,auth=(idrac_username, idrac_password))
     statusCode = response.status_code
     if statusCode == 200:
-        #print("- PASS: Command passed to set BIOS attribute %s pending value to %s" % (attribute_name, pending_value))
         print("\n- PASS: PATCH command passed to set BIOS attribute pending values")
     else:
         print("\n- FAIL, Command failed, errror code is %s" % statusCode)
@@ -197,8 +204,13 @@ def loop_job_status():
         if str(current_time)[0:7] >= "0:30:00":
             print("\n- FAIL: Timeout of 30 minutes has been hit, script stopped\n")
             sys.exit()
-        elif "Fail" in data[u'Message'] or "fail" in data[u'Message']:
+        elif "Fail" in data[u'Message'] or "fail" in data[u'Message'] or "error" in data[u'Message'] or "Error" in data[u'Message']:
             print("- FAIL: %s failed" % job_id)
+            print("\n- Final detailed job results -")
+            print("\n JobID = "+data[u'Id'])
+            print(" Name = "+data[u'Name'])
+            print(" Message = "+data[u'Message'])
+            print(" PercentComplete = "+str(data[u'PercentComplete'])+"\n")
             sys.exit()
         elif data[u'Message'] == "Job completed successfully.":
             print("\n- Final detailed job results -")
@@ -221,13 +233,24 @@ def get_new_attribute_values():
     for i in new_attributes_dict.items():
         for ii in payload["Attributes"].items():
             if i[0] == ii[0]:
-                if i[1].lower() == ii[1].lower():
-                    print("- PASS, Attribute %s successfully set to %s" % (i[0],i[1]))
+                if i[0] == "OneTimeBootMode":
+                    print("- PASS, Attribute %s successfully set" % (i[0]))
                 else:
-                    print("- FAIL, Attribute %s not set to %s" % (i[0],i[1]))
+                    try:
+                        if i[1].lower() == ii[1].lower():
+                            print("- PASS, Attribute %s successfully set to \"%s\"" % (i[0],i[1]))
+                        else:
+                            print("- FAIL, Attribute %s not successfully set. Current value is \"%s\"" % (i[0],i[1]))
+                    except:
+                        pass
+                    try:
+                        if int(i[1]) == int(ii[1]):
+                            print("- PASS, Attribute %s successfully set to \"%s\"" % (i[0],i[1]))
+                        else:
+                            print("- FAIL, Attribute %s not successfully set. Current value is \"%s\"" % (i[0],i[1]))
+                    except:
+                        pass
 
-
-### Run code
 
 if __name__ == "__main__":
     check_supported_idrac_version()
