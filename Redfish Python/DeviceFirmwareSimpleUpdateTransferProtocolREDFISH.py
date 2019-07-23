@@ -2,7 +2,7 @@
 # DeviceFirmwareSimpleUpdateTransferProtocolREDFISH. Python script using Redfish API to update a device firmware with DMTF standard SimpleUpdate with TransferProtocol. Only supported file image type is Windows Dell Update Packages(DUPs).
 #
 # _author_ = Texas Roemer <Texas_Roemer@Dell.com>
-# _version_ = 3.0
+# _version_ = 4.0
 #
 # Copyright (c) 2019, Dell, Inc.
 #
@@ -41,13 +41,15 @@ idrac_username=args["u"]
 idrac_password=args["p"]
 
 def check_supported_idrac_version():
-    response = requests.get('https://%s/redfish/v1/UpdateService/FirmwareInventory/' % idrac_ip,verify=False,auth=(idrac_username, idrac_password))
+    response = requests.get('https://%s/redfish/v1/UpdateService' % idrac_ip,verify=False,auth=(idrac_username, idrac_password))
     data = response.json()
-    if response.status_code != 200:
+    try:
+        for i in data[u'Actions'][u'#UpdateService.SimpleUpdate'][u'TransferProtocol@Redfish.AllowableValues']:
+            pass
+    except:
         print("\n- WARNING, iDRAC version installed does not support this feature using Redfish API")
         sys.exit()
-    else:
-        pass
+    
 
 def check_idrac_lost_connection():
     while True:
@@ -86,8 +88,12 @@ def get_supported_protocols():
     installed_devices=[]
     data = req.json()
     print("\n- Supported protocols for TransferProtocol parameter (-t argument) -\n")
-    for i in data[u'Actions'][u'#UpdateService.SimpleUpdate'][u'TransferProtocol@Redfish.AllowableValues']:
-        print(i)
+    try:
+        for i in data[u'Actions'][u'#UpdateService.SimpleUpdate'][u'TransferProtocol@Redfish.AllowableValues']:
+            print(i)
+    except:
+        print("- FAIL, unable to retrieve supported protocols")
+        sys.exit()
     
 def install_image_payload():
     global job_id
