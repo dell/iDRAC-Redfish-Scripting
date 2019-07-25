@@ -2,7 +2,7 @@
 _author_ = Texas Roemer <Texas_Roemer@Dell.com>
 _version_ = 2.0
 
-Copyright (c) 2017, Dell, Inc.
+Copyright (c) 2019, Dell, Inc.
 
 This software is licensed to you under the GNU General Public License,
 version 2 (GPLv2). There is NO WARRANTY for this software, express or
@@ -96,6 +96,27 @@ $user = $idrac_username
 $pass= $idrac_password
 $secpasswd = ConvertTo-SecureString $pass -AsPlainText -Force
 $credential = New-Object System.Management.Automation.PSCredential($user, $secpasswd)
+
+
+# Check for supported iDRAC version installed
+
+$u = "https://$idrac_ip/redfish/v1/Managers/iDRAC.Embedded.1/Attributes"
+    try
+    {
+    $result = Invoke-WebRequest -Uri $u -Credential $credential -Method Get -UseBasicParsing -ErrorVariable RespErr -Headers @{"Accept"="application/json"}
+    }
+    catch
+    {
+    }
+	    if ($result.StatusCode -eq 200 -or $result.StatusCode -eq 202)
+	    {
+	    }
+	    else
+	    {
+        Write-Host "`n- WARNING, iDRAC version detected does not support this feature using Redfish API"
+        $result
+	    return
+	    }
 
 
 
