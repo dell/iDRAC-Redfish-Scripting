@@ -2,7 +2,7 @@
 # SubmitTestEventREDFISH. Python script using Redfish API to either get event service properties, get event subscriptions, create / delete subscriptions or submit test event.
 #
 # _author_ = Texas Roemer <Texas_Roemer@Dell.com>
-# _version_ = 1.0
+# _version_ = 3.0
 #
 # Copyright (c) 2018, Dell, Inc.
 #
@@ -23,13 +23,15 @@ parser=argparse.ArgumentParser(description="Python script using Redfish API to e
 parser.add_argument('-ip',help='iDRAC IP address', required=True)
 parser.add_argument('-u', help='iDRAC username', required=True)
 parser.add_argument('-p', help='iDRAC password', required=True)
+parser.add_argument('script_examples',action="store_true",help='SubmitTestEventREDFISH.py -ip 192.168.0.120 -u root -p calvin -s yy, this example will get current subscription URIs and details. SubmitTestEventREDFISH.py -ip 192.168.0.120 -u root -p calvin -c y -D https://192.168.0.130 -E Alert -V MetricReport, this example will create a MetricReport subscription for alert events which will use 192.168.0.130 Redfish event listener. SubmitTestEventREDFISH.py -ip 192.168.0.120 -u root -p calvin --delete /redfish/v1/EventService/Subscriptions/c1a71140-ba1d-11e9-842f-d094662a05e6, this example will delete a subscription')
 parser.add_argument('-e', help='Get event service properties, pass in \"y\"', required=False)
 parser.add_argument('-s', help='Get event service subscriptions URIs, pass in \"y\". To get detailed information for each subscription URI, pass in \"yy\"', required=False)
-parser.add_argument('-c', help='Create subscription, pass in \"y\". You must also use agruments -D and -E to create a subscription', required=False)
-parser.add_argument('-t', help='Submit test event, pass in \"y\". You must also use argeuments -D, -E and -M to submit a test event', required=False)
+parser.add_argument('-c', help='Create subscription, pass in \"y\". You must also use agruments -D, -V and -E to create a subscription', required=False)
+parser.add_argument('-t', help='Submit test event, pass in \"y\". You must also use arguments -D, -E and -M to submit a test event', required=False)
 parser.add_argument('-D', help='Pass in Destination HTTPS URI path for either create subscription or send test event', required=False)
+parser.add_argument('-V', help='Pass in Event Format Type for creating a subscription. Supported values are \"Event\", \"MetricReport\" or \"None\"', required=False)
 parser.add_argument('-E', help='Pass in EventType value for either create subscription or send test event. Supported values are StatusChange, ResourceUpdated, ResourceAdded, ResourceRemoved, Alert.', required=False)
-parser.add_argument('-M', help='Pass in MessageID for sending test event.', required=False)
+parser.add_argument('-M', help='Pass in MessageID for sending test event. Example: TMP0118', required=False)
 parser.add_argument('--delete', help='Pass in complete service subscription URI to delete. Execute -s argument if needed to get subscription URIs', required=False)
 args=vars(parser.parse_args())
 
@@ -75,8 +77,6 @@ def get_event_service_subscriptions():
                 pass
 
 def delete_subscriptions():
-
-    #url = "https://%s/redfish/v1/EventService/Subscriptions/b247af96-2e25-11e8-8708-109836b1fe09" % idrac_ip
     url = "https://%s%s" % (idrac_ip, args["delete"])
     headers = {'content-type': 'application/json'}
     response = requests.delete(url, headers=headers, verify=False,auth=(idrac_username,idrac_password))
@@ -187,7 +187,6 @@ def get_set_ipmi_alert_iDRAC_setting():
 
 def create_subscription():
     url = "https://%s/redfish/v1/EventService/Subscriptions" % idrac_ip
-    payload = {"Destination": destination,"EventTypes": [event_type],"Context": "root","Protocol": "Redfish"}
     headers = {'content-type': 'application/json'}
     response = requests.post(url, data=json.dumps(payload), headers=headers, verify=False,auth=(idrac_username, idrac_password))
     if response.__dict__["status_code"] == 201:
@@ -213,7 +212,7 @@ if __name__ == "__main__":
         get_event_service_properties()
     elif args["s"] == "y" or args["s"] == "yy":
         get_event_service_subscriptions()
-    elif args["c"] =="y" and args["D"] != "" and args["E"] != "":
+    elif args["c"] =="y" and args["D"] != "" and args["E"] != "" and args["V"] != "":
         get_set_ipmi_alert_iDRAC_setting()
         create_subscription()
     elif args["t"] =="y" and args["D"] != "" and args["E"] != "" and args["M"] != "":
