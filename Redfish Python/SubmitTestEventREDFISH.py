@@ -2,7 +2,7 @@
 # SubmitTestEventREDFISH. Python script using Redfish API to either get event service properties, get event subscriptions, create / delete subscriptions or submit test event.
 #
 # _author_ = Texas Roemer <Texas_Roemer@Dell.com>
-# _version_ = 3.0
+# _version_ = 4.0
 #
 # Copyright (c) 2018, Dell, Inc.
 #
@@ -188,6 +188,7 @@ def get_set_ipmi_alert_iDRAC_setting():
 def create_subscription():
     url = "https://%s/redfish/v1/EventService/Subscriptions" % idrac_ip
     headers = {'content-type': 'application/json'}
+    payload = {"Destination": destination,"EventTypes": [event_type],"Context": "root","Protocol": "Redfish", "EventFormatType":args["V"]}
     response = requests.post(url, data=json.dumps(payload), headers=headers, verify=False,auth=(idrac_username, idrac_password))
     if response.__dict__["status_code"] == 201:
         print("- PASS, POST command passed, status code 201 returned, subscription successfully set for EventService")
