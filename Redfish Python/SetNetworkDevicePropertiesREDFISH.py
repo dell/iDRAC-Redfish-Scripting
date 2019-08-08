@@ -2,7 +2,7 @@
 # SetNetworkDevicePropertiesREDFISH. Python script using Redfish API to either get network devices/ports or set network properties.
 #
 # _author_ = Texas Roemer <Texas_Roemer@Dell.com>
-# _version_ = 2.0
+# _version_ = 3.0
 #
 # Copyright (c) 2018, Dell, Inc.
 #
@@ -91,16 +91,20 @@ def get_network_devices():
     print("\n- Network device ID(s) detected -\n")
     network_device_list=[]
     for i in data[u'Members']:
-        network_device_list.append(i[u'@odata.id'][54:])
-        print i[u'@odata.id'][54:]
+        for ii in i.items():
+            network_device = ii[1].split("/")[-1]
+            network_device_list.append(network_device)
+            print(network_device)
     for i in network_device_list:
+        port_list = []
         response = requests.get('https://%s/redfish/v1/Systems/System.Embedded.1/NetworkAdapters/%s' % (idrac_ip, i),verify=False,auth=(idrac_username, idrac_password))
         data = response.json()
-        data = str(data)
-        port_list=re.findall("/redfish/v1/Systems/System.Embedded.1/NetworkAdapters/%s/NetworkDeviceFunctions/.+?'" % i,data)
+        for ii in data[u'Controllers']:
+            for iii in ii[u'Links'][u'NetworkDeviceFunctions']:
+                for iiii in iii.items():
+                    port_list.append(iiii[1].split("/")[-1])
         print("\n- Network port ID(s) detected for %s -\n" % i)
         for i in port_list:
-            i=i.split("/")[-1].strip("'")
             print(i)
 
 def get_detail_network_device_info():   
@@ -111,7 +115,14 @@ def get_detail_network_device_info():
         if i[0] == "Controllers":
             for ii in i[1]:
                 for iii in ii.items():
-                    print(iii)
+                    if iii[0] == u'ControllerCapabilities':
+                        for _ in iii[1].items():
+                            print("%s: %s" % (_[0],_[1]))
+                    elif iii[0] == u'Links':
+                        for _ in iii[1].items():
+                            print("%s: %s" % (_[0],_[1]))
+                    else:
+                        print("%s: %s" % (iii[0],iii[1]))
         else:
             print("%s: %s" % (i[0],i[1]))
     sys.exit()
@@ -383,7 +394,8 @@ if __name__ == "__main__":
             get_job_status()
         elif job_type == "s" and args["st"] and args["dt"]:
             create_schedule_config_job()
-        
+    else:
+        print("\n- FAIL, missing argument(s) or incorrect argument(s) passed in")
             
         
 
