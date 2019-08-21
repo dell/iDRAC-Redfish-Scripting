@@ -104,7 +104,7 @@ def get_repo_based_update_list():
         print("\n-POST command failure results:\n %s" % data)
         sys.exit()
     print("\n- Repo Based Update List in XML format\n")
-    print data[u'PackageList']
+    print(data[u'PackageList'])
     f.writelines(data[u'PackageList'])
     f.close()
     print("\n- WARNING, get repo based update list data is also copied to file \"repo_based_update_list.xml\"")

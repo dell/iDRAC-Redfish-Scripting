@@ -45,7 +45,7 @@ def set_bios_reset_to_default():
     else:
         print("\n- FAIL, Command failed, errror code is %s" % statusCode)
         detail_message=str(response.__dict__)
-        print detail_message
+        print(detail_message)
         sys.exit()
     
 ### Function to check if reboot server is needed

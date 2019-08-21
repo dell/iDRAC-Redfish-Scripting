@@ -73,7 +73,7 @@ def change_bios_password():
     else:
         print("\n- FAIL, Command failed, errror code is %s" % statusCode)
         detail_message=str(response.__dict__)
-        print detail_message
+        print(detail_message)
         sys.exit()
     
 def create_bios_config_job():

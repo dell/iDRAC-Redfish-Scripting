@@ -94,8 +94,8 @@ def unpack_and_attach_driver_pack():
     payload={"OSName":args["U"]}
     response = requests.post(url, data=json.dumps(payload), headers=headers, verify=False,auth=(idrac_username,idrac_password))
     data = response.json()
-    #print dir(response)
-    #print response.headers
+    #print(dir(response))
+    #print(response.headers)
     concrete_job_uri = response.headers[u'Location']
     if response.status_code == 202 or response.status_code == 200:
         print("\n- PASS: POST command passed for %s method, status code %s returned" % (method, response.status_code))
@@ -138,8 +138,8 @@ def check_concrete_job_status():
             print("Extended Info Message: {0}".format(req.json()))
             sys.exit()
         data= req.json()
-        #print data[u'TaskState']
-        #print data[u'Messages'][0][u'Message']
+        #print(data[u'TaskState'])
+        #print(data[u'Messages'][0][u'Message'])
         #sys.exit()
 
         if str(current_time)[0:7] >= "0:30:00":
@@ -179,7 +179,7 @@ def check_concrete_job_status():
             sys.exit()
         else:
             print("- WARNING, concrete job not completed, current status is: \"%s\", job execution time is \"%s\"" % (data[u'TaskState'], current_time))
-            #print data
+            #print(data)
             time.sleep(3)    
     
 def check_attach_status(x):

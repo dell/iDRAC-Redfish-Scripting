@@ -61,7 +61,7 @@ payload["ImportBuffer"]=xml_string
 headers = {'content-type': 'application/json'}
 response = requests.post(url, data=json.dumps(payload), headers=headers, verify=False, auth=(idrac_username, idrac_password))
 
-#print '\n- Response status code is: %s' % response.status_code
+#print('\n- Response status code is: %s' % response.status_code)
 
 
 d=str(response.__dict__)
@@ -106,7 +106,7 @@ while True:
         for i in data['Messages']:
                 for ii in i.items():
                     if ii[0] == "Oem":
-                        print "-" * 80
+                        print("-" * 80)
                         for iii in ii[1]['Dell'].items():
                             print("%s: %s" % (iii[0], iii[1]))
                     else:
@@ -128,7 +128,7 @@ while True:
         for i in data['Messages']:
                 for ii in i.items():
                     if ii[0] == "Oem":
-                        print "-" * 80
+                        print("-" * 80)
                         for iii in ii[1]['Dell'].items():
                             print("%s: %s" % (iii[0], iii[1]))
                     else:

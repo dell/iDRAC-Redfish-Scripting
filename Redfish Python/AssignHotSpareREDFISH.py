@@ -110,7 +110,7 @@ def get_pdisks():
               for ii in data.items():
                   print("%s: %s" % (ii[0],ii[1]))
                   if ii[0] == "Links":
-                      print "\n"
+                      print("\n")
                       if ii[1]["Volumes"] != []:
                           disk_used_created_vds.append(i)
                       else:

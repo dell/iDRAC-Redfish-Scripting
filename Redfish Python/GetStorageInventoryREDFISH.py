@@ -78,7 +78,7 @@ def get_storage_disks():
             drive_list.append(i[u'@odata.id'].split("/")[-1])
             response = requests.get('https://%s/redfish/v1/Systems/System.Embedded.1/Storage/Drives/%s' % (idrac_ip, i[u'@odata.id'].split("/")[-1]),verify=False,auth=(idrac_username, idrac_password))
             data = response.json()
-            print i[u'@odata.id'].split("/")[-1]
+            print(i[u'@odata.id'].split("/")[-1])
     if args["dd"]:
       for i in drive_list:
           response = requests.get('https://%s/redfish/v1/Systems/System.Embedded.1/Storage/Drives/%s' % (idrac_ip, i),verify=False,auth=(idrac_username, idrac_password))

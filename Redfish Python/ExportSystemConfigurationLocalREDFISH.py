@@ -128,8 +128,8 @@ while True:
     try:
         message_string=data[u"Messages"]
     except:
-        print statusCode
-        print data
+        print(statusCode)
+        print(data)
         sys.exit()
     current_time=(datetime.now()-start_time)
 
@@ -145,7 +145,7 @@ while True:
 
     else:
         print("- WARNING, JobStatus not completed, current status: \"%s\", percent complete: \"%s\"" % (data[u'Oem'][u'Dell'][u'Message'],data[u'Oem'][u'Dell'][u'PercentComplete']))
-        #print data
+        #print(data)
         time.sleep(1)
         continue
 

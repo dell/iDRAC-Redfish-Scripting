@@ -85,7 +85,7 @@ while True:
         for i in data['Messages']:
                 for ii in i.items():
                     if ii[0] == "Oem":
-                        print "-" * 80
+                        print("-" * 80)
                         for iii in ii[1]['Dell'].items():
                             print("%s: %s" % (iii[0], iii[1]))
                     else:
@@ -107,7 +107,7 @@ while True:
         for i in data['Messages']:
                 for ii in i.items():
                     if ii[0] == "Oem":
-                        print "-" * 80
+                        print("-" * 80)
                         for iii in ii[1]['Dell'].items():
                             print("%s: %s" % (iii[0], iii[1]))
                     else:

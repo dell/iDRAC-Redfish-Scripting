@@ -72,7 +72,7 @@ def get_assembly_uris():
     for i in data[u'Assemblies']:
         for ii in i.items():
             if ii[0] == u'@odata.id':
-                print ii[1]
+                print(ii[1])
                 assembly_uris.append(ii[1])
     if args["A"]:
         f=open("assembly_inventory.txt","a")

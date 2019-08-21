@@ -75,7 +75,7 @@ def get_OS_network_devices():
             data = response.json()
             print("\n- Detailed information for network device %s -\n") % i
             for ii in data.items():
-                print "%s: %s" % (ii[0], ii[1])
+                print("%s: %s" % (ii[0], ii[1]))
             
         
 
