@@ -299,7 +299,7 @@ def loop_job_status():
                 if "odata" in i[0] or "MessageArgs" in i[0] or "TargetSettingsURI" in i[0]:
                     pass
                 else:
-                    print "%s: %s" % (i[0],i[1])
+                    print("%s: %s" % (i[0],i[1]))
             break
         else:
             print("- WARNING, JobStatus not completed, current status is: \"%s\", percent completion is: \"%s\"" % (data[u'Message'],data[u'PercentComplete']))
@@ -319,7 +319,7 @@ def get_job_status():
             sys.exit()
         data = req.json()
         if data[u'Message'] == "Task successfully scheduled.":
-            print "\n- WARNING, staged config job marked as scheduled, rebooting the system\n"
+            print("\n- WARNING, staged config job marked as scheduled, rebooting the system\n")
             break
         else:
             print("\n- WARNING: JobStatus not scheduled, current status is: %s\n" % data[u'Message'])

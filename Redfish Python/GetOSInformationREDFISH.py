@@ -68,7 +68,7 @@ while True:
         z=re.findall("ServerOS.+?->",str(d))
         for i in z:
             i=i.replace("</Attribute> -->","")
-            print i.replace(">"," = ")
+            print(i.replace(">"," = "))
         break
         req = requests.get('https://%s/redfish/v1/Managers/iDRAC.Embedded.1/Jobs/%s' % (idrac_ip, job_id), auth=(idrac_username, idrac_password), verify=False)
         
@@ -86,8 +86,8 @@ while True:
     try:
         message_string=data[u"Messages"]
     except:
-        print statusCode
-        print data
+        print(statusCode)
+        print(data)
         sys.exit()
     current_time=(datetime.now()-start_time)
 

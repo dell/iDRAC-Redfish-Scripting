@@ -40,12 +40,12 @@ def set_current_chassis_indicator_LED_state():
     payload = {'IndicatorLED': args["s"]}
     headers = {'content-type': 'application/json'}
     response = requests.patch(url, data=json.dumps(payload), headers=headers, verify=False, auth=(idrac_username,idrac_password))
-    #print response.__dict__
+    #print(response.__dict__)
     if response.status_code == 200:
         print("\n- PASS, PATCH command successfully completed \"%s\" request for chassis indicator LED" % args["s"])
     else:
         print("\n- FAIL, status code %s returned, detailed failure results:\n" % response.status_code)
-        print response.__dict__
+        print(response.__dict__)
         
 
 if __name__ == "__main__":

@@ -51,7 +51,7 @@ def get_event_service_properties():
     data = response.json()
     print("\n- WARNING, GET command output for EventService URI\n")
     for i in data.items():
-        print "%s: %s" % (i[0], i[1])
+        print("%s: %s" % (i[0], i[1]))
 
 def get_event_service_subscriptions():
     response = requests.get('https://%s/redfish/v1/EventService/Subscriptions' % idrac_ip,verify=False,auth=(idrac_username, idrac_password))
@@ -63,7 +63,7 @@ def get_event_service_subscriptions():
         print("\n- WARNING, subscriptions detected for iDRAC ip %s\n" % idrac_ip)
     for i in data["Members"]:
         for ii in i.items():
-            print ii[1]
+            print(ii[1])
     print("\n")
     for i in data["Members"]:
         for ii in i.items():

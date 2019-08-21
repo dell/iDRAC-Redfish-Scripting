@@ -66,7 +66,7 @@ def get_NVDIMM_information():
             message = "\n- Detailed NVDIMM information for URI \"%s\" -\n" % i
             f.writelines("\n")
             f.writelines(message)
-            print message
+            print(message)
             for ii in data.items():
                 if ii[0] == u'@odata.id' or ii[0] == u'@odata.context' or ii[0] == u'Metrics' or ii[0] == u'Links' or ii[0] == "Assembly" or ii[0] == u'@odata.type':
                     pass
