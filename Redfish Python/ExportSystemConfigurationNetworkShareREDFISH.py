@@ -4,7 +4,7 @@
 # 
 #
 # _author_ = Texas Roemer <Texas_Roemer@Dell.com>
-# _version_ = 5.0
+# _version_ = 6.0
 #
 # Copyright (c) 2017, Dell, Inc.
 #
@@ -88,7 +88,7 @@ def export_server_configuration_profile():
     if args["filename"]:
             payload["ShareParameters"]["FileName"] = args["filename"]
     if args["username"]:
-        payload["ShareParameters"]["UserName"] = args["username"]
+        payload["ShareParameters"]["Username"] = args["username"]
     if args["password"]:
         payload["ShareParameters"]["Password"] = args["password"]
     if args["workgroup"]:
@@ -109,10 +109,16 @@ def export_server_configuration_profile():
     headers = {'content-type': 'application/json'}
     response = requests.post(url, data=json.dumps(payload), headers=headers, verify=False, auth=(idrac_username,idrac_password))
     d=str(response.__dict__)
+    if "UserName" in response.__dict__['_content']:
+        payload["ShareParameters"]["UserName"] = args["username"]
+        response = requests.post(url, data=json.dumps(payload), headers=headers, verify=False, auth=(idrac_username,idrac_password))
+        d=str(response.__dict__)
+    else:
+        pass
 
     try:
         z=re.search("JID_.+?,",d).group()
-    except:
+    except:    
         print("\n- FAIL: detailed error message: {0}".format(response.__dict__['_content']))
         sys.exit()
 
