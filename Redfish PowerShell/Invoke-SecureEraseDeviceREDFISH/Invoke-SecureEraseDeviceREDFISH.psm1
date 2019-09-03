@@ -1,6 +1,6 @@
 <#
 _author_ = Texas Roemer <Texas_Roemer@Dell.com>
-_version_ = 4.0
+_version_ = 5.0
 Copyright (c) 2018, Dell, Inc.
 
 This software is licensed to you under the GNU General Public License,
@@ -185,10 +185,11 @@ return
 if ($secure_erase_device -ne "")
 {
 $u1 = "https://$idrac_ip/redfish/v1/Systems/System.Embedded.1/Storage/Drives/$secure_erase_device/Actions/Drive.SecureErase"
+$JsonBody = @{} | ConvertTo-Json -Compress
 
 try
 {
-$result1 = Invoke-WebRequest -Uri $u1 -Credential $credential -Method Post -ContentType 'application/json' -ErrorVariable RespErr -Headers @{"Accept"="application/json"}
+$result1 = Invoke-WebRequest -Uri $u1 -Credential $credential -Method Post -Body $JsonBody -ContentType 'application/json' -ErrorVariable RespErr -Headers @{"Accept"="application/json"}
 }
 catch
 {
