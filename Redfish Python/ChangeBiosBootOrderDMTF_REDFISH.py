@@ -3,7 +3,7 @@
 #
 #
 # _author_ = Texas Roemer <Texas_Roemer@Dell.com>
-# _version_ = 1.0
+# _version_ = 2.0
 #
 # Copyright (c) 2019, Dell, Inc.
 #
@@ -97,7 +97,7 @@ def change_boot_order():
     except:
         print("- FAIL, unable to find job ID in headers PATCH response, headers output is:\n%s" % response.headers)
         sys.exit()
-    print("- PASS, job ID \"%s\" successfuly created to change %s boot order sequence" % (job_id, current_boot_mode))
+    print("- PASS, job ID \"%s\" successfully created to change %s boot order sequence" % (job_id, current_boot_mode))
     
 def get_job_status_scheduled():
     while True:
