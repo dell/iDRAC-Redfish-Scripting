@@ -1,6 +1,6 @@
 <#
 _author_ = Texas Roemer <Texas_Roemer@Dell.com>
-_version_ = 2.0
+_version_ = 3.0
 
 Copyright (c) 2019, Dell, Inc.
 
@@ -18,8 +18,7 @@ http://www.gnu.org/licenses/old-licenses/gpl-2.0.txt
    IMPORTANT: Make sure you are using latest Powershell version 5 or newer to execute this cmdlet. Execute "Get-Host" to check the version.
 .DESCRIPTION
    Cmdlet used to either set one or multiple iDRAC, LC or System attributes or get current value of iDRAC, LC or System attributes. 
-   When setting attributes, you will be using "multiple_idrac_lc_system_attributes.txt" file. In this file, 
-   make sure you use the exact format as the example is in the file (attribute name:attribute value|attribute name:attribute value).
+   When setting multiple attributes, make sure to use comma separator between each attribute name/value and surround the values with double quotes. Each attribute name and value must align for the parameter values you are passing in. See examples for more details on how to configure multiple attributes correctly. 
    Also make sure you pass in exact name of the attribute and value since these are case sensitive. 
    Example: For attribute VNCServer.1.Enable, you must pass in "Enabled". Passing in "enabled" will fail.
 
@@ -29,17 +28,21 @@ http://www.gnu.org/licenses/old-licenses/gpl-2.0.txt
    - idrac_password: pass in idrac username password
    - attribute_group: supported values are: lc, idrac  or system.
      Pass in "lc" to get Lifecycle controller attributes. Pass in "idrac" to get iDRAC attributes. Pass in "system" to get System attributes.
-   - file_path: pass in the directory path where "multiple_idrac_lc_system_attributes.txt" file is located.
+   - attribute_name: pass in the attribute name(s) you want to configure
+   - attribute-value: pass in the attribute value(s) for the attributes you want to configure
    - view_attribute_list_only: pass in "y" to get attributes and current values
 .EXAMPLE
     This example shows getting only Lifecycle Controller attributes and current values
-    Set-IdracLcSystemAttributesREDFISH -idrac_ip 192.168.0.120 -username root -password calvin -attribute_group lc -view_attribute_list_only y 
+    Set-IdracLcSystemAttributesREDFISH -idrac_ip 192.168.0.120 -idrac_username root -idrac_password calvin -attribute_group lc -view_attribute_list_only y
 .EXAMPLE
-    This example shows setting all LC attributes listed in text file "multiple_idrac_lc_system_attributes.txt".
-    Set-IdracLcSystemAttributesREDFISH -idrac_ip 192.168.0.120 -username root -password calvin -attribute_group lc -file_path C:\Python27
+    This example shows setting one iDRAC attribute
+    Set-IdracLcSystemAttributesREDFISH -idrac_ip 192.168.0.120 -idrac_username root -idrac_password calvin -attribute_group idrac -attribute_name ADGroup.4.Privilege -attribute_value 511
+.EXAMPLE
+    This example shows setting multiple iDRAC attributes. It will set ADGroup.4.Privilege to 511, Telnet.1.Enable to Enabled and Security.1.CsrCommonName to blade_server
+    Set-IdracLcSystemAttributesREDFISH -idrac_ip 192.168.0.120 -idrac_username root -idrac_password calvin -attribute_group idrac -attribute_name "ADGroup.4.Privilege,Telnet.1.Enable,Security.1.CsrCommonName" -attribute_value "511,Enabled,blade_server"
    #>
 
-   function Set-IdracLcSystemAttributesREDFISH {
+function Set-IdracLcSystemAttributesREDFISH {
 
 
 param(
@@ -52,7 +55,9 @@ param(
     [Parameter(Mandatory=$True)]
     [string]$attribute_group,
     [Parameter(Mandatory=$False)]
-    [string]$file_path,
+    [string]$attribute_name,
+    [Parameter(Mandatory=$False)]
+    [string]$attribute_value,
     [Parameter(Mandatory=$False)]
     [string]$view_attribute_list_only
 
@@ -179,22 +184,64 @@ if ($view_attribute_list_only -eq "n")
 return
 }
 
+# Function to filter through multiple arrays
 
-# Create hashtable for attribute names and values from text file
-
-
-$input_key_values=Get-Content "$file_path\multiple_idrac_lc_system_attributes.txt"
-$dict = @{}
-$input_key_values.Split('|') |ForEach-Object {
-    # Split each pair into key and value
-    $key,$value = $_.Split(':')
-    # Populate $Dictionary
-    if ($value -match "^[\d\.]+$")
-    {
-    $value=[int]$value
+function zip($a1, $a2) {
+    while ($a1) {
+        $x, $a1 = $a1
+        $y, $a2 = $a2
+        $uri_ar = "https://$idrac_ip/redfish/v1/Registries/ManagerAttributeRegistry/ManagerAttributeRegistry.v1_0_0.json"
+        $result = Invoke-WebRequest -Uri $uri_ar -Credential $credential -Method Get -UseBasicParsing -Headers @{"Accept"="application/json"}
+        $convert_to_json=$result.Content | ConvertTo-Json
+        $attribute_search=[regex]::Match($convert_to_json, "$x.+?}").captures.groups[0].value
+        #$j
+        if ($attribute_search -match "Integer")
+        {
+        $y_new = [int]$y
+        $dict[$x] = $y_new
     }
-    $dict[$key] = $value
+    else
+    {
+    $dict[$x] = $y
+    }
+    }
 }
+
+# Compile hash table for PATCH command to set attribute(s)
+
+$dict=@{}
+Write-Host "`n- WARNING, checking attribute(s) against the Attribute Registry to get attribute type, this may take several seconds`n" 
+
+if ($attribute_name.Contains(","))
+    {
+    $attribute_name_list=$attribute_name.Split(",")
+    if ($attribute_value.Contains(","))
+    {
+    $attribute_value_list=$attribute_value.Split(",")
+    }
+    zip $attribute_name_list $attribute_value_list |% {$_.item1 + $_.item2}
+    $dict_final=@{"Attributes"=""}
+    $dict_final.("Attributes")=$dict 
+    $JsonBody = $dict_final | ConvertTo-Json -Compress
+    }
+else
+{
+$uri_ar = "https://$idrac_ip/redfish/v1/Registries/ManagerAttributeRegistry/ManagerAttributeRegistry.v1_0_0.json"
+$result = Invoke-WebRequest -Uri $uri_ar -Credential $credential -Method Get -UseBasicParsing -Headers @{"Accept"="application/json"}
+$convert_to_json=$result.Content | ConvertTo-Json
+
+$attribute_search=[regex]::Match($convert_to_json, "$attribute_name.+?}").captures.groups[0].value
+if ($attribute_search -match "Integer")
+{
+$attribute_value_new = [int]$attribute_value
+$dict = @{$attribute_name=$attribute_value_new}
+}
+else
+{
+$dict = @{$attribute_name=$attribute_value}
+}
+}
+
 
 
 $dict_final=@{"Attributes"=""}
@@ -218,19 +265,23 @@ foreach ($i in $dict.GetEnumerator())
 }
 Write-Host
 
-#$u1 = "https://$idrac_ip/redfish/v1/Systems/System.Embedded.1/Bios/Settings"
 
 # PATCH command to set attribute pending value
-
-$result1 = Invoke-WebRequest -Uri $u -Credential $credential -Method Patch -Body $JsonBody -ContentType 'application/json' -Headers @{"Accept"="application/json"}
-#$raw_content=$result1.RawContent | ConvertTo-Json -Compress
+try
+{
+$result1 = Invoke-WebRequest -Uri $u -Credential $credential -Method Patch -Body $JsonBody -ContentType 'application/json' -Headers @{"Accept"="application/json"} -ErrorVariable RespErr
+}
+catch
+{
+Write-Host
+$RespErr
+return
+}
 
 
 if ($result1.StatusCode -eq 200)
 {
-    #$code=$result1.StatusCode
-    #Write-Host -ForegroundColor Green "- PASS, statuscode $code returned to successfully set attributes pending value"
-    [String]::Format("- PASS, statuscode {0} returned to successfully set ""{1}"" attributes",$result1.StatusCode, $attribute_group.ToUpper())
+    [String]::Format("- PASS, statuscode {0} returned to successfully SET ""{1}"" attributes",$result1.StatusCode, $attribute_group.ToUpper())
 }
 else
 {
@@ -245,7 +296,7 @@ $result = Invoke-WebRequest -Uri $u -Credential $credential -Method Get -UseBasi
 Write-Host
 if ($result.StatusCode -eq 200)
 {
-    [String]::Format("- PASS, statuscode {0} returned successfully to get ""{1}"" attributes",$result.StatusCode,$attribute_group.ToUpper())
+    [String]::Format("- PASS, statuscode {0} returned to successfully GET ""{1}"" attributes",$result.StatusCode,$attribute_group.ToUpper())
 }
 else
 {
@@ -268,4 +319,8 @@ else
 [String]::Format("- FAIL, attribute {0} current value not successfully set to: {1}, current value is: {2}",$attribute_name,$i.Value,$get_attribute.$get_attribute_value)
 }
 }
+
+
+Write-Host
 }
+
