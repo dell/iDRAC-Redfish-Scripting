@@ -2,7 +2,7 @@
 # DeviceFirmwareSimpleUpdateREDFISH. Python script using Redfish API to update a device firmware with DMTF action SimpleUpdate. Supported file image types are Windows DUPs, d7/d9 image or pm files.
 #
 # _author_ = Texas Roemer <Texas_Roemer@Dell.com>
-# _version_ = 6.0
+# _version_ = 7.0
 #
 # Copyright (c) 2018, Dell, Inc.
 #
@@ -57,14 +57,21 @@ def get_FW_inventory():
         for ii in i.items():
             if "Installed" in ii[1]:
                 installed_devices.append(ii[1])
+    if installed_devices == []:
+        print("- FAIL, no INSTALLED URIs detected for firmware inventory")
+        sys.exit()
+    else:
+        print("-"*80)
     for i in installed_devices:
         req = requests.get('https://%s%s' % (idrac_ip, i), auth=(idrac_username, idrac_password), verify=False)
         statusCode = req.status_code
         data = req.json()
+        componentID = data[u'Oem'][u'Dell'][u'DellSoftwareInventory'][u'ComponentID']
         updateable_status = data[u'Updateable']
         version = data[u'Version']
         device_name = data[u'Name']
-        print("Device Name: %s, Firmware Version: %s, Updatable: %s" % (device_name, version, updateable_status))
+        print("Name: %s\nComponent ID: %s\nVersion: %s\nUpdatable: %s" % (device_name, componentID, version, updateable_status))
+        print("-"*80)
     sys.exit()
     
 
@@ -152,7 +159,6 @@ def check_job_status():
             for i in data[u'Oem'][u'Dell'].items():
                 print("%s: %s" % (i[0],i[1]))
             print("\n- %s completed in: %s" % (job_id, str(current_time)[0:7]))
-            sys.exit()
         else:
             if "d9" in args["f"] or "d8" in args["f"] or "d7" in args["f"]:
                 print("- Message: Downloading package \"%s\"" % args["f"])
@@ -246,6 +252,7 @@ def loop_check_final_job_status():
             print("Extended Info Message: {0}".format(req.json()))
             sys.exit()
         data = req.json()
+        #print data
         if str(current_time)[0:7] >= "2:00:00":
             print("\n- FAIL: Timeout of 2 hours has been hit, update job should of already been marked completed. Check the iDRAC job queue and LC logs to debug the issue\n")
             sys.exit()
@@ -270,7 +277,7 @@ if __name__ == "__main__":
     if args["g"]:
         get_FW_inventory()
     elif args["l"] and args["f"]:
-        download_image_payload()    
+        download_image_payload()
         install_image_payload()
         check_job_status()
         reboot_server()
