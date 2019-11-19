@@ -1,6 +1,6 @@
 <#
 _author_ = Texas Roemer <Texas_Roemer@Dell.com>
-_version_ = 1.0
+_version_ = 2.0
 Copyright (c) 2019, Dell, Inc.
 
 This software is licensed to you under the GNU General Public License,
@@ -135,6 +135,7 @@ $JsonBody = @{} | ConvertTo-Json -Compress
 if ($result1.StatusCode -eq 200)
 {
 $get_attach_status=$result1.Content |  ConvertFrom-Json
+
 [String]::Format("`n- PASS, POST command passed to get attach status. Current network ISO attach status is: {0}", $get_attach_status.ISOAttachStatus)
 }
 Write-Host
@@ -217,7 +218,7 @@ $get_attach_status=$result1.Content |  ConvertFrom-Json
     }
     else
     {
-    [String]::Format("`n- FAIL, network ISO not attached, current status is {0}, $get_attach_status.ISOAttachStatus")
+    [String]::Format("`n- FAIL, network ISO not attached, current status is {0}", $get_attach_status.ISOAttachStatus)
     }
 Write-Host
 }
@@ -268,7 +269,7 @@ $get_attach_status=$result1.Content |  ConvertFrom-Json
     }
     else
     {
-    [String]::Format("`n- FAIL, network ISO is not detached, current status is {0}, $get_attach_status.ISOAttachStatus")
+    [String]::Format("`n- FAIL, network ISO is not detached, current status is {0}", $get_attach_status.ISOAttachStatus)
     }
 Write-Host
 }
