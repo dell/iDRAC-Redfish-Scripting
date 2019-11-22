@@ -2,7 +2,7 @@
 # AssignHotSpareREDFISH. Python script using Redfish API to either assign dedicated or global hot spare
 #
 # _author_ = Texas Roemer <Texas_Roemer@Dell.com>
-# _version_ = 1.1
+# _version_ = 2
 #
 # Copyright (c) 2019, Dell, Inc.
 #
@@ -74,7 +74,7 @@ class AssignHotSpare(object):
                 return False
         else:
             json_dict = json.loads(response.text)
-            print('Dell Raid Service version found: {}\n'.format(json_dict.get(u'@odata.type')))
+            #print('Dell Raid Service version found: {}\n'.format(json_dict.get(u'@odata.type')))
             return True
 
     def get_storage_controllers(self, c):
@@ -257,16 +257,20 @@ class AssignHotSpare(object):
         else:
             return True
 
-    def assign_spare(self, disk_fqdd, virtual_disk_fqdd, hot_spare_type):
+    def assign_spare(self, disk_fqdd, hot_spare_type, virtual_disk_fqdd):
         usr = self.iuser
         pw = self.ipass
         method = "AssignSpare"
         url = self.url + 'Dell/Systems/System.Embedded.1/DellRaidService/Actions/DellRaidService.AssignSpare'
         headers = {'content-type': 'application/json'}
-        if hot_spare_type and hot_spare_type.lower() == "global":
+        if hot_spare_type and hot_spare_type.lower() == "global" and virtual_disk_fqdd == "global":
             payload = {"TargetFQDD": disk_fqdd}
         elif hot_spare_type and hot_spare_type.lower() == "dedicated":
-            payload = {"TargetFQDD": disk_fqdd, "VirtualDiskArray": [virtual_disk_fqdd]}
+            try:
+                payload = {"TargetFQDD": disk_fqdd, "VirtualDiskArray": [virtual_disk_fqdd]}
+            except:
+                print("\n- FAIL, missing argument -V for passing in virtual disk FQDD. This is required for assigning dedicated hotspare")
+                sys.exit()
         response = requests.post(url, data=json.dumps(payload), headers=headers, verify=self.verCert, auth=(usr, pw))
         if response.status_code == 202:
             print('\n-PASS: POST command passed to set disk "%s" as "%s" hot spare' % (disk_fqdd, hot_spare_type))
@@ -382,8 +386,8 @@ def main():
     parser.add_argument('script_examples', action="store_true",
                         help='AssignHotSpareREDFISH.py -ip 192.168.0.120 -u root -p calvin -H RAID.Mezzanine.1-1, this'
                              ' example will get disks and their hotspare status for controller RAID.Mezzanine.1-1. '
-                             'AssignHotSpareREDFISH.py -ip 192.168.0.120 -u root -p calvin -t global -a Disk.Bay.5:Encl'
-                             'osure.Internal.0-1:RAID.Mezzanine.1-1, this example will assign disk 5 as a global '
+                             'AssignHotSpareREDFISH.py -ip 192.168.0.120 -u root -p calvin -k -t global -a Disk.Bay.5:Encl'
+                             'osure.Internal.0-1:RAID.Mezzanine.1-1, this example will skip cert check and assign disk 5 as a global '
                              'hotspare')
     parser.add_argument('-k', help='Skip certificate verification. This is an insecure practice, use wisely.',
                         action='store_true', required=False)
@@ -464,10 +468,16 @@ def main():
         hotspare.get_virtual_disks(controller)
     elif args.vv:
         hotspare.get_virtual_disk_details(controller)
-    elif args.a and args.V and args.t:
-        hotspare.assign_spare(args.a, args.V, args.t)
+    elif args.a and args.t and args.V:
+        hotspare.assign_spare(args.a, args.t, args.V)
         hotspare.loop_job_status()
         hotspare.get_pdisk_hot_spare_final_status(args.a, args.t)
+    elif args.a and args.t:
+        hotspare.assign_spare(args.a, args.t, "global")
+        hotspare.loop_job_status()
+        hotspare.get_pdisk_hot_spare_final_status(args.a, args.t)
+    else:
+        print("\n- FAIL, either incorrect argument(s) passed in or argument(s) missing. Check help text(-h) if needed")
 
 
 if __name__ == "__main__":
