@@ -26,7 +26,7 @@ from datetime import datetime
 
 warnings.filterwarnings("ignore")
 
-parser=argparse.ArgumentParser(description="Python script using Redfish API DMTF method to get current firmware version for all devices iDRAC supports for updates. This script is excuting one GET command using OData feature $expand ")
+parser=argparse.ArgumentParser(description="Python script using Redfish API DMTF method to get current firmware version for all devices iDRAC supports for updates. This script is executing one GET command using OData feature $expand ")
 parser.add_argument('-ip',help='iDRAC IP address', required=True)
 parser.add_argument('-u', help='iDRAC username', required=True)
 parser.add_argument('-p', help='iDRAC password', required=True)

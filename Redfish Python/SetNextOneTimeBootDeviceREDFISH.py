@@ -68,7 +68,7 @@ def set_next_boot_onetime_boot_device():
       else:
         print("\n- PASS, PATCH command passed to set next boot onetime boot device to: \"%s\"" % args["o"])
     else:
-      print("\n- FAIL, Command failed, errror code is %s" % statusCode)
+      print("\n- FAIL, Command failed, error code is %s" % statusCode)
       detail_message=str(response.__dict__)
       print(detail_message)
       sys.exit()

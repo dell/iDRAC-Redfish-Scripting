@@ -22,7 +22,7 @@ http://www.gnu.org/licenses/old-licenses/gpl-2.0.txt
    - idrac_username, REQUIRED, pass in idrac user name
    - idrac_password, REQUIRED, pass in idrac password
    - view_current_boot_device_and_options, OPTIONAL, pass in a value of "y" to view current onetime boot device setting and possible supported values
-   - next_onetime_boot_device, OPTIONAL, pass in the device you want to next onetime boot to (Values are case senstive, make sure to pass in the exact string value. Example: "Pxe" is the correct value, "pxe" or "PXE" is the incorrect value ).
+   - next_onetime_boot_device, OPTIONAL, pass in the device you want to next onetime boot to (Values are case sensitive, make sure to pass in the exact string value. Example: "Pxe" is the correct value, "pxe" or "PXE" is the incorrect value ).
    - uefi_target_path, OPTIONAL, pass in the UEFI target path you want to one time boot to. This parameter should be used when setting next_onetime_boot_device to UefiTarget.
    - reboot_now, OPTIONAL, pass in "y" if you want the server to reboot now and boot to onetime boot device. Pass in "n" which will still set the onetime boot device but not reboot the server.
 .EXAMPLE

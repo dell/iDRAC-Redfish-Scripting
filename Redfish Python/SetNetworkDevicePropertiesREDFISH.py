@@ -282,7 +282,7 @@ def create_schedule_config_job():
         else:
             print("%s: %s" % (i[0],i[1]))
                     
-    print("\n\n- PASS, %s maintenance window config jid successfully created.\n\nJob will go to scheduled state once job start time has elapsed. You will need to schedule a seperate server reboot during the maintenance windows for the config job to execute.\n" % (job_id))
+    print("\n\n- PASS, %s maintenance window config jid successfully created.\n\nJob will go to scheduled state once job start time has elapsed. You will need to schedule a separate server reboot during the maintenance windows for the config job to execute.\n" % (job_id))
     
 start_time=datetime.now()
 

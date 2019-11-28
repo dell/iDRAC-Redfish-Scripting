@@ -45,7 +45,7 @@ elif args["D"]:
     virtual_disk=args["D"]
     controller=re.search(":.+",virtual_disk).group().strip(":")
 else:
-    print("- FAIL, you must pass in at least one agrument with -ip, -u and -p")
+    print("- FAIL, you must pass in at least one argument with -ip, -u and -p")
     sys.exit()
 
 def check_supported_idrac_version():

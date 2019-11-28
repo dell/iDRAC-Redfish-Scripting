@@ -29,7 +29,7 @@ http://www.gnu.org/licenses/old-licenses/gpl-2.0.txt
    - get_physical_disks_details: Pass in the controller FQDD to get detailed information for physical disks.
    - create_virtual_disk: Pass in the controller FQDD. Example, pass in "RAID.Slot.6-1".
    - raid_level: Pass in the RAID level you want to create. Possible supported values are: 0, 1, 5, 10 and 50. Note: Some RAID levels might not be supported based on your storage controller
-   - pdisks: Pass in disk FQDD to create virtual disk, pass in storage disk FQDD, Example: Disk.Bay.2:Enclosure.Internal.0-1:RAID.Mezzanine.1-1. You can pass in multiple drives, just use a comma seperator between each disk FQDD string
+   - pdisks: Pass in disk FQDD to create virtual disk, pass in storage disk FQDD, Example: Disk.Bay.2:Enclosure.Internal.0-1:RAID.Mezzanine.1-1. You can pass in multiple drives, just use a comma separator between each disk FQDD string
    - size: Pass in the size(CapacityBytes) in bytes for VD creation. This is OPTIONAL, if you don't pass in the size, VD creation will use full disk size to create the VD
    - stripesize: Pass in the stripesize(OptimumIOSizeBytes) in kilobytes for VD creation. This is OPTIONAL, if you don't pass in stripesize, controller will use the default value
    - name: Pass in the name for VD creation. This is OPTIONAL, if you don\'t pass in name, storage controller will use the default value
@@ -537,7 +537,7 @@ if ($job_type -eq "realtime_config")
         }
         else
         {
-        [String]::Format("- WARNING, job not marked completed, current status is: {0} Precent complete is: {1}",$overall_job_output.Message,$overall_job_output.PercentComplete)
+        [String]::Format("- WARNING, job not marked completed, current status is: {0} Percent complete is: {1}",$overall_job_output.Message,$overall_job_output.PercentComplete)
         Start-Sleep 3
         }
     }
@@ -692,7 +692,7 @@ if ($overall_job_output.Message -eq "Job failed." -or $overall_job_output.Messag
     }
     else
     {
-    [String]::Format("- WARNING, job not marked completed, current status is: {0} Precent complete is: {1}",$overall_job_output.Message,$overall_job_output.PercentComplete)
+    [String]::Format("- WARNING, job not marked completed, current status is: {0} Percent complete is: {1}",$overall_job_output.Message,$overall_job_output.PercentComplete)
     Start-Sleep 10
     }
 }

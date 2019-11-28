@@ -325,7 +325,7 @@ return
 }
 else
 {
-[String]::Format("- WARNING, job not marked completed, current status is: {0} Precent complete is: {1}",$overall_job_output.Message,$overall_job_output.PercentComplete)
+[String]::Format("- WARNING, job not marked completed, current status is: {0} Percent complete is: {1}",$overall_job_output.Message,$overall_job_output.PercentComplete)
 Start-Sleep 3
 }
 }
@@ -465,7 +465,7 @@ return
 }
 else
 {
-[String]::Format("- WARNING, job not marked completed, current status is: {0} Precent complete is: {1}",$overall_job_output.Message,$overall_job_output.PercentComplete)
+[String]::Format("- WARNING, job not marked completed, current status is: {0} Percent complete is: {1}",$overall_job_output.Message,$overall_job_output.PercentComplete)
 Start-Sleep 10
 }
 }
@@ -492,12 +492,12 @@ $operation_value = $zz.Operations
 
 if ($operation_value.Length -gt 0)
 {
-Write-Host "`n- PASS, check consistency operation currently in progess, current status is: $current_init_progress"
+Write-Host "`n- PASS, check consistency operation currently in progress, current status is: $current_init_progress"
 return
 }
 else
 {
-Write-Host "`n- FAIL, check consistency not in progess."
+Write-Host "`n- FAIL, check consistency not in progress."
 return
 }
 

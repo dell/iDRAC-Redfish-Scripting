@@ -198,7 +198,7 @@ def loop_job_status():
             print("- WARNING, job creation to completion time is: %s" % str(datetime.now()-start_time)[0:7])
             break
         else:
-            print("- WARNING, JobStatus not completed, current status is: \"%s\", precent completion is: \"%s\"" % (data[u'Message'],data[u'PercentComplete']))
+            print("- WARNING, JobStatus not completed, current status is: \"%s\", percent completion is: \"%s\"" % (data[u'Message'],data[u'PercentComplete']))
             print("- WARNING, current job execution time is: %s" % str(datetime.now()-start_time)[0:7])
             time.sleep(1)
 

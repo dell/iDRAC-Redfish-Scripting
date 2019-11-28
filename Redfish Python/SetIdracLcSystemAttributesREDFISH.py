@@ -161,7 +161,7 @@ if __name__ == "__main__":
         set_attributes()
         get_new_attribute_values()
     else:
-        print("- FAIL, either missing parameter(s) or invalid paramter value(s) passed in. Refer to help text if needed for supported parameters and values along with script examples")
+        print("- FAIL, either missing parameter(s) or invalid parameter value(s) passed in. Refer to help text if needed for supported parameters and values along with script examples")
     
 
 

@@ -98,7 +98,7 @@ $search=[regex]::Match($result1.Content, "BIOSRTDRequested value is modified suc
 }
 catch
 {
-Write-Host "`n- FAIL, unable to find succcess message string for reset to BIOS defaults POST command"
+Write-Host "`n- FAIL, unable to find success message string for reset to BIOS defaults POST command"
 return
 }
     [String]::Format("`n- PASS, statuscode {0} returned to successfully set BIOS reset to defaults flag. BIOS reset to defaults will be applied on next server reboot.",$result1.StatusCode)

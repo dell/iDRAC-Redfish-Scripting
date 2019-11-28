@@ -28,7 +28,7 @@ parser=argparse.ArgumentParser(description="Python script using Redfish API to g
 parser.add_argument('-ip',help='iDRAC IP address', required=True)
 parser.add_argument('-u', help='iDRAC username', required=True)
 parser.add_argument('-p', help='iDRAC password', required=True)
-parser.add_argument('script_examples',action="store_true",help='GetIdracLcSystemAttributesREDFISH.py -ip 192.168.0.120 -u root -p calvin -g idrac, this example wil get all iDRAC attributes and echo them to the screen along with copy output to a file. GetIdracLcSystemAttributesREDFISH.py -ip 192.168.0.120 -u root -p calvin -g idrac -an LDAPRoleGroup.1.Privilege, this example will only return current value for attribute LDAPRoleGroup.1.Privilege. GetIdracLcSystemAttributesREDFISH.py -ip 192.168.0.120 -u root -p calvin -g idrac -ar y, this example will return the attribute registry for iDRAC, LC and System attributes.') 
+parser.add_argument('script_examples',action="store_true",help='GetIdracLcSystemAttributesREDFISH.py -ip 192.168.0.120 -u root -p calvin -g idrac, this example will get all iDRAC attributes and echo them to the screen along with copy output to a file. GetIdracLcSystemAttributesREDFISH.py -ip 192.168.0.120 -u root -p calvin -g idrac -an LDAPRoleGroup.1.Privilege, this example will only return current value for attribute LDAPRoleGroup.1.Privilege. GetIdracLcSystemAttributesREDFISH.py -ip 192.168.0.120 -u root -p calvin -g idrac -ar y, this example will return the attribute registry for iDRAC, LC and System attributes.') 
 parser.add_argument('-g', help='Get attributes, pass in the group name of the attributes you want to get. Supported values are \"idrac\", \"lc\" and \"system\"', required=False)
 parser.add_argument('-an', help='Get specific attribute value, pass in the attribute name. Make sure to also pass in -g option with the group name.', required=False)
 parser.add_argument('-ar', help='Pass in \"y\" to get the attribute registry for all iDRAC, System and LC attributes. This option is helpful for viewing attributes to see if they are read only or read write, supported possible values.', required=False)
@@ -139,7 +139,7 @@ if __name__ == "__main__":
     elif args["g"]:
         get_attribute_group()
     else:
-        print("- FAIL, either missing parameter(s) or invalid paramter value(s) passed in. Refer to help text if needed for supported parameters and values along with script examples")
+        print("- FAIL, either missing parameter(s) or invalid parameter value(s) passed in. Refer to help text if needed for supported parameters and values along with script examples")
         
         
         
