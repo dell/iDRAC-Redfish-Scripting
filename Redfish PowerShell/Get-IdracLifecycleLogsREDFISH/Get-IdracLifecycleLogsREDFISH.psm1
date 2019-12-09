@@ -96,7 +96,7 @@ return
 
 if ($result.StatusCode -eq 200)
 {
-    [String]::Format("`n- PASS, statuscode {0} returned successfully to get lifecycle contoller(LC) logs`n",$result.StatusCode)
+    [String]::Format("`n- PASS, statuscode {0} returned successfully to get lifecycle controller(LC) logs`n",$result.StatusCode)
 }
 else
 {
@@ -121,7 +121,7 @@ catch [System.Management.Automation.ActionPreferenceStopException]
 }
 Write-Host -ForegroundColor Yellow "`n- WARNING, lifecycle logs also copied to ""lifecycle_logs.txt"" file"
 
-# Write lifecyle logs hashtable to "lifecycle_logs.txt" file
+# Write lifecycle logs hashtable to "lifecycle_logs.txt" file
 
 $get_date = Get-Date
 $time_stamp = [String]::Format("- LC logs collect timestamp: {0}",$get_date)

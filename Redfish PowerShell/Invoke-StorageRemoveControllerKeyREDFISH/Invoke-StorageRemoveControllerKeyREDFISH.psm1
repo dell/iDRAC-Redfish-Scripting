@@ -320,7 +320,7 @@ if ($job_type -eq "realtime_config")
         }
         else
         {
-        [String]::Format("- WARNING, job not marked completed, current status is: {0} Precent complete is: {1}",$overall_job_output.Message,$overall_job_output.PercentComplete)
+        [String]::Format("- WARNING, job not marked completed, current status is: {0} Percent complete is: {1}",$overall_job_output.Message,$overall_job_output.PercentComplete)
         Start-Sleep 10
         }
     }
@@ -393,7 +393,7 @@ if ($overall_job_output.Message -eq "Job failed." -or $overall_job_output.Messag
     }
     else
     {
-    [String]::Format("- WARNING, job not marked completed, current status is: {0} Precent complete is: {1}",$overall_job_output.Message,$overall_job_output.PercentComplete)
+    [String]::Format("- WARNING, job not marked completed, current status is: {0} Percent complete is: {1}",$overall_job_output.Message,$overall_job_output.PercentComplete)
     Start-Sleep 20
     }
 }

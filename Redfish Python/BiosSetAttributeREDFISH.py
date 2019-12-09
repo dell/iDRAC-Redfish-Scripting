@@ -1,7 +1,7 @@
 #
 # BiosSetAttributeREDFISH. Python script using Redfish API to set one or multiple BIOS attributes.
 #
-# NOTE: For all attributes, supported values, refer to the Dell atttribute registry.
+# NOTE: For all attributes, supported values, refer to the Dell attribute registry.
 #
 # NOTE: Recommended to execute BiosGetAttributesREDFISH script first. This will get all attributes and current values for the server.
 #
@@ -31,8 +31,8 @@ parser.add_argument('-ip',help='iDRAC IP address', required=True)
 parser.add_argument('-u', help='iDRAC username', required=True)
 parser.add_argument('-p', help='iDRAC password', required=True)
 parser.add_argument('script_examples',action="store_true",help='BiosSetAttributeREDFISH.py -ip 192.168.0.120 -u root -p calvin -a MemTest -v Disabled, this example will set one BIOS attribute. BiosSetAttributeREDFISH.py -ip 192.168.0.120 -u root -p calvin -an LogicalProc,EmbSata -av Disabled,AhciMode, this example is setting multiple BIOS attributes')
-parser.add_argument('-an', help='Pass in the attribute name you want to change current value, Note: make sure to type the attribute name exactly due to case senstive. Example: MemTest will work but memtest will fail. If you want to configure multiple attribute names, make sure to use a comma separator between each attribute name.', required=True)
-parser.add_argument('-av', help='Pass in the attribute value you want to change to. Note: make sure to type the attribute value exactly due to case senstive. Example: Disabled will work but disabled will fail. If you want to configure multiple attribute values, make sure to use a comma separator between each attribute value.', required=True)
+parser.add_argument('-an', help='Pass in the attribute name you want to change current value, Note: make sure to type the attribute name exactly due to case sensitive. Example: MemTest will work but memtest will fail. If you want to configure multiple attribute names, make sure to use a comma separator between each attribute name.', required=True)
+parser.add_argument('-av', help='Pass in the attribute value you want to change to. Note: make sure to type the attribute value exactly due to case sensitive. Example: Disabled will work but disabled will fail. If you want to configure multiple attribute values, make sure to use a comma separator between each attribute value.', required=True)
 
 args=vars(parser.parse_args())
 
@@ -81,7 +81,7 @@ def set_bios_attribute():
     if statusCode == 200:
         print("\n- PASS: PATCH command passed to set BIOS attribute pending values")
     else:
-        print("\n- FAIL, Command failed, errror code is %s" % statusCode)
+        print("\n- FAIL, Command failed, error code is %s" % statusCode)
         detail_message=str(response.__dict__)
         print(detail_message)
         sys.exit()

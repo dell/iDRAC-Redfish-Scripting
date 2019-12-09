@@ -1,7 +1,7 @@
 #
 # SetIdracDefaultSettingsREDFISH. Python script using Redfish API to reset iDRAC to default configuration settings.
 #
-# NOTE: Once the script is complete, iDRAC will reset to complete the reset to defaut process and you will lose network connection. iDRAC should be back up within one minute.
+# NOTE: Once the script is complete, iDRAC will reset to complete the reset to default process and you will lose network connection. iDRAC should be back up within one minute.
 #
 # _author_ = Texas Roemer <Texas_Roemer@Dell.com>
 # _version_ = 2.0

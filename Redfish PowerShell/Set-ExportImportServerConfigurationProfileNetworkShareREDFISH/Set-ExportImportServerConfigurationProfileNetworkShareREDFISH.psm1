@@ -32,7 +32,7 @@ http://www.gnu.org/licenses/old-licenses/gpl-2.0.txt
    - ExportUse (Supported values: Default, Clone and Replace) OPTIONAL for export only. If not passed in, value will be "Default" used.
    - ShutdownType (Supported values: Graceful, Forced and NoReboot) OPTIONAL, only valid for import, if you don't pass in this parameter, default value will be"Graceful"
   
-  NOTE: For parameter values with static strng values, make sure you pass in the exact text since these are case senstive values. Example: For ExportUse, pass in a value of "Clone.
+  NOTE: For parameter values with static string values, make sure you pass in the exact text since these are case sensitive values. Example: For ExportUse, pass in a value of "Clone.
   Passing in a value of "clone" will fail.
 
 .EXAMPLE

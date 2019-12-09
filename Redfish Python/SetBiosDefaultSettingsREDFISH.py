@@ -43,7 +43,7 @@ def set_bios_reset_to_default():
     if statusCode == 200:
         print("\n- PASS: status code %s returned, flag set for BIOS reset to defaults which will get applied on next server reboot\n" % statusCode)
     else:
-        print("\n- FAIL, Command failed, errror code is %s" % statusCode)
+        print("\n- FAIL, Command failed, error code is %s" % statusCode)
         detail_message=str(response.__dict__)
         print(detail_message)
         sys.exit()

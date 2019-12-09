@@ -33,7 +33,7 @@ http://www.gnu.org/licenses/old-licenses/gpl-2.0.txt
 
 .EXAMPLE
    Set-ImportServerConfigurationProfilePreviewREDFISH -idrac_ip 192.168.0.120 -idrac_username root -idrac_password calvin -IPAddress 192.168.0.130 -ShareType NFS -ShareName /nfs_tex -FileName export_ps.xml
-   # This example shows executing import preivew on a configuration file which has already been eported to NFS share.
+   # This example shows executing import preview on a configuration file which has already been eported to NFS share.
    #>
 
 function Get-ImportServerConfigurationProfilePreviewREDFISH {

@@ -264,7 +264,7 @@ return
 }
 else
 {
-[String]::Format("- WARNING, job not marked completed, current status is: {0} Precent complete is: {1}",$overall_job_output.Message,$overall_job_output.PercentComplete)
+[String]::Format("- WARNING, job not marked completed, current status is: {0} Percent complete is: {1}",$overall_job_output.Message,$overall_job_output.PercentComplete)
 Start-Sleep 3
 }
 }
@@ -404,7 +404,7 @@ return
 }
 else
 {
-[String]::Format("- WARNING, job not marked completed, current status is: {0} Precent complete is: {1}",$overall_job_output.Message,$overall_job_output.PercentComplete)
+[String]::Format("- WARNING, job not marked completed, current status is: {0} Percent complete is: {1}",$overall_job_output.Message,$overall_job_output.PercentComplete)
 Start-Sleep 10
 }
 }

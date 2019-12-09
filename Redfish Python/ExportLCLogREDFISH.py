@@ -99,7 +99,7 @@ def export_lc_log():
     except:
         print("- FAIL, unable to find job ID in headers POST response, headers output is:\n%s" % response.headers)
         sys.exit()
-    print("- PASS, job ID %s successfuly created for %s method\n" % (job_id, method))
+    print("- PASS, job ID %s successfully created for %s method\n" % (job_id, method))
     
 
 

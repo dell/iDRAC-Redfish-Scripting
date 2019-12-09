@@ -219,7 +219,7 @@ def get_job_status():
             print("\n- WARNING, staged config job marked as scheduled, rebooting the system\n")
             break
         else:
-            print("- WARNING, JobStatus not completed, current status is: \"%s\", precent completion is: \"%s\"" % (data[u'Message'],data[u'PercentComplete']))
+            print("- WARNING, JobStatus not completed, current status is: \"%s\", percent completion is: \"%s\"" % (data[u'Message'],data[u'PercentComplete']))
             time.sleep(5)
 
 

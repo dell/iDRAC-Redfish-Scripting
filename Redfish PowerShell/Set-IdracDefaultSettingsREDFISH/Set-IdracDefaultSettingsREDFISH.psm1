@@ -16,7 +16,7 @@ http://www.gnu.org/licenses/old-licenses/gpl-2.0.txt
 .Synopsis
    Cmdlet used to reset iDRAC to default settings using Redfish API
 .DESCRIPTION
-   Cmdlet used to reset iDRAC to default settins using Redfish API. Once the POST command has completed, iDRAC will reset to defaults and restart the iDRAC. iDRAC should be back up within 1 minute.
+   Cmdlet used to reset iDRAC to default settings using Redfish API. Once the POST command has completed, iDRAC will reset to defaults and restart the iDRAC. iDRAC should be back up within 1 minute.
 
    PARAMETERS 
    - idrac_ip "pass in iDRAC IP address"

@@ -192,7 +192,7 @@ def check_idrac_connection():
             statusCode = req.status_code
             data = req.json()
             if data[u"TaskState"] == "Completed":
-                print("\n- PASS, job ID %s successfuly marked completed, detailed final job status results:\n" % data[u"Id"])
+                print("\n- PASS, job ID %s successfully marked completed, detailed final job status results:\n" % data[u"Id"])
                 for i in data[u'Oem'][u'Dell'].items():
                     print("%s: %s" % (i[0],i[1]))
                 check_new_FW_version()
@@ -217,7 +217,7 @@ def check_job_status_host_reboot():
             statusCode = req.status_code
             data = req.json()
             if data[u"TaskState"] == "Completed":
-                print("\n- PASS, job ID %s successfuly marked completed, detailed final job status results:\n" % data[u"Id"])
+                print("\n- PASS, job ID %s successfully marked completed, detailed final job status results:\n" % data[u"Id"])
                 for i in data[u'Oem'][u'Dell'].items():
                     print("%s: %s" % (i[0],i[1]))
                 check_new_FW_version()

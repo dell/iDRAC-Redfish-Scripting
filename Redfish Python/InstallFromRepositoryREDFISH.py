@@ -25,7 +25,7 @@ parser=argparse.ArgumentParser(description="Python script using Redfish API with
 parser.add_argument('-ip',help='iDRAC IP address', required=True)
 parser.add_argument('-u', help='iDRAC username', required=True)
 parser.add_argument('-p', help='iDRAC password', required=True)
-parser.add_argument('script_examples',action="store_true",help='InstallFromRepositoryREDFISH.py -ip 192.168.0.120 -u root -p calvin -i y --ipaddress 192.168.0.130 --sharename cifs_share_vm\R740xd_repo --username administrator --password password --applyupdate False --sharetype CIFS, this example to going to download the catalog file from the CIFS share repostiory but not install any updates. It\'s recommmended now to execute the script with -r argument to verify the repo update list. InstallFromRepositoryREDFISH.py -ip 192.168.0.120 -u root -p calvin -i y --ipaddress 192.168.0.130 --sharename cifs_share_vm\R740xd_repo --username administrator --password password --applyupdate True --sharetype CIFS --rebootneeded True, this example is going to install updates from the CIFS share repository and apply them. If updates need a server reboot to apply, it will also reboot the server.')
+parser.add_argument('script_examples',action="store_true",help='InstallFromRepositoryREDFISH.py -ip 192.168.0.120 -u root -p calvin -i y --ipaddress 192.168.0.130 --sharename cifs_share_vm\R740xd_repo --username administrator --password password --applyupdate False --sharetype CIFS, this example to going to download the catalog file from the CIFS share repository but not install any updates. It\'s recommended now to execute the script with -r argument to verify the repo update list. InstallFromRepositoryREDFISH.py -ip 192.168.0.120 -u root -p calvin -i y --ipaddress 192.168.0.130 --sharename cifs_share_vm\R740xd_repo --username administrator --password password --applyupdate True --sharetype CIFS --rebootneeded True, this example is going to install updates from the CIFS share repository and apply them. If updates need a server reboot to apply, it will also reboot the server.')
 parser.add_argument('-g', help='Get current supported devices for firmware updates and their current firmware version, pass in \"y\"', required=False)
 parser.add_argument('-r', help='Get repository update list, pass in \"y\". Output will be returned in XML format. You must first execute install from repository but don\'t apply updates to get the repository update list', required=False)
 parser.add_argument('-i', help='Install from repository, pass in \"y\"', required=False)
@@ -58,7 +58,7 @@ def check_supported_idrac_version():
         pass
 
 def script_examples():
-    print("\n- InstallFromRepositoryREDFISH.py -ip 192.168.0.120 -u root -p calvin -i y --ipaddress 192.168.0.130 --sharename cifs_share_vm\R740xd_repo_old --username administrator --password password --applyupdate False --sharetype CIFS, this example to going to download the catalog file from the CIFS share repostiory but not install any updates. I would now execute the script with -r argument to verify the repo update list.\n\n- InstallFromRepositoryREDFISH.py -ip 192.168.0.120 -u root -p calvin -i y --ipaddress 192.168.0.130 --sharename cifs_share_vm\R740xd_repo_old --username administrator --password password --applyupdate True --sharetype CIFS --rebootneeded True, this example is going to install update from the CIFS share repository and apply them. If updates need a server reboot to apply, it will also reboot the server\n")  
+    print("\n- InstallFromRepositoryREDFISH.py -ip 192.168.0.120 -u root -p calvin -i y --ipaddress 192.168.0.130 --sharename cifs_share_vm\R740xd_repo_old --username administrator --password password --applyupdate False --sharetype CIFS, this example to going to download the catalog file from the CIFS share repository but not install any updates. I would now execute the script with -r argument to verify the repo update list.\n\n- InstallFromRepositoryREDFISH.py -ip 192.168.0.120 -u root -p calvin -i y --ipaddress 192.168.0.130 --sharename cifs_share_vm\R740xd_repo_old --username administrator --password password --applyupdate True --sharetype CIFS --rebootneeded True, this example is going to install update from the CIFS share repository and apply them. If updates need a server reboot to apply, it will also reboot the server\n")  
 
 
 def get_FW_inventory():
@@ -243,7 +243,7 @@ def loop_job_status(x):
             print("\n")
             if data['JobType'] == "RepositoryUpdate":
                 if args["applyupdate"] == "False":
-                    print("\n- WARNING, \"ApplyUpdate = False\" selected, execute script with -r agrument to view the repo update list which will report devices detected for firmware updates")
+                    print("\n- WARNING, \"ApplyUpdate = False\" selected, execute script with -r argument to view the repo update list which will report devices detected for firmware updates")
                     sys.exit()
                 else:
                     print("\n- WARNING, repository update job marked completed. Checking now to see if any update jobs were created due to different firmware versions detected")

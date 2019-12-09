@@ -327,7 +327,7 @@ return
 }
 else
 {
-[String]::Format("- WARNING, job not marked completed, current status is: {0} Precent complete is: {1}",$overall_job_output.Message,$overall_job_output.PercentComplete)
+[String]::Format("- WARNING, job not marked completed, current status is: {0} Percent complete is: {1}",$overall_job_output.Message,$overall_job_output.PercentComplete)
 Start-Sleep 3
 }
 }
@@ -380,7 +380,7 @@ return
 }
 else
 {
-Write-Host "`n- FAIL, slow init not in progess, current progress is: $operation_value"
+Write-Host "`n- FAIL, slow init not in progress, current progress is: $operation_value"
 return
 }
 }
@@ -489,7 +489,7 @@ return
 }
 else
 {
-[String]::Format("- WARNING, job not marked completed, current status is: {0} Precent complete is: {1}",$overall_job_output.Message,$overall_job_output.PercentComplete)
+[String]::Format("- WARNING, job not marked completed, current status is: {0} Percent complete is: {1}",$overall_job_output.Message,$overall_job_output.PercentComplete)
 Start-Sleep 10
 }
 }
@@ -527,7 +527,7 @@ return
 }
 else
 {
-Write-Host "`n- FAIL, slow init not in progess, current progress is: $operation_value"
+Write-Host "`n- FAIL, slow init not in progress, current progress is: $operation_value"
 return
 }
 }

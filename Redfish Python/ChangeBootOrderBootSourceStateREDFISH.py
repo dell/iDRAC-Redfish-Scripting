@@ -140,7 +140,7 @@ def set_bios_boot_source_state():
     if statusCode == 200:
         print("- PASS: PATCH command passed to set pending boot device changes.")
     else:
-        print("\n- FAIL, PATCH command failed, errror code is %s" % statusCode)
+        print("\n- FAIL, PATCH command failed, error code is %s" % statusCode)
         detail_message=str(response.__dict__)
         print(detail_message)
         sys.exit()

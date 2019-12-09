@@ -278,7 +278,7 @@ def get_ps_information():
                 sys.exit()
             else:
                 ps = i[u'@odata.id'].split("/")[-1]
-                message = "\n- Power Suppy details for %s -\n" % ps
+                message = "\n- Power Supply details for %s -\n" % ps
                 f.writelines(message)
                 f.writelines("\n")
                 print(message)
@@ -496,7 +496,7 @@ def get_network_information():
             if ii[0] == u'@odata.id' or ii[0] == u'@odata.context' or ii[0] == u'Metrics' or ii[0] == u'Links' or ii[0] == u'@odata.type' or ii[0] == u'NetworkDeviceFunctions' or ii[0] == u'NetworkPorts':
                 pass
             elif ii[0] == "Controllers":
-                mesage = ii[1][0][u'ControllerCapabilities']
+                message = ii[1][0][u'ControllerCapabilities']
                 f.writelines(message)
                 print(message)
                 message = "FirmwarePackageVersion: %s" % ii[1][0][u'FirmwarePackageVersion']

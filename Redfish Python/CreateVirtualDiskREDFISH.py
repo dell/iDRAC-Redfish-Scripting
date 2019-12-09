@@ -32,9 +32,9 @@ parser.add_argument('-d', help='Get server storage controller disk FQDDs only, p
 parser.add_argument('-dd', help='Get server storage controller disks detailed information, pass in storage controller FQDD, Example "\RAID.Integrated.1-1\"', required=False)
 parser.add_argument('-v', help='Get current server storage controller virtual disk(s) and virtual disk type, pass in storage controller FQDD, Example "\RAID.Integrated.1-1\"', required=False)
 parser.add_argument('-vv', help='Get current server storage controller virtual disk detailed information, pass in storage controller FQDD, Example "\RAID.Integrated.1-1\"', required=False)
-parser.add_argument('-s', help='Get current supported volume types (RAID levels) for your controller, pass in \"y\". You must use agrument -cc with your controller FQDD', required=False)
+parser.add_argument('-s', help='Get current supported volume types (RAID levels) for your controller, pass in \"y\". You must use argument -cc with your controller FQDD', required=False)
 parser.add_argument('-C', help='Pass in controller FQDD to create virtual disk, pass in storage controller FQDD, Example "\RAID.Integrated.1-1\"', required=False)
-parser.add_argument('-D', help='Pass in disk FQDD to create virtual disk, pass in storage disk FQDD, Example \"Disk.Bay.2:Enclosure.Internal.0-1:RAID.Mezzanine.1-1\". You can pass in multiple drives, just use a comma seperator between each disk FQDD string', required=False)
+parser.add_argument('-D', help='Pass in disk FQDD to create virtual disk, pass in storage disk FQDD, Example \"Disk.Bay.2:Enclosure.Internal.0-1:RAID.Mezzanine.1-1\". You can pass in multiple drives, just use a comma separator between each disk FQDD string', required=False)
 parser.add_argument('-R', help='Pass in the RAID level you want to create. Possible supported values are: 0, 1, 5, 10 and 50. You must also pass in arguments -V, -C and -D', required=False)
 parser.add_argument('-V', help='Create virtual disk, pass in \"y\". You must also pass in arguments -C and -D', required=False)
 parser.add_argument('--size', help='Pass in the size(CapacityBytes) in bytes for VD creation. This is OPTIONAL, if you don\'t pass in the size, VD creation will use full disk size to create the VD', required=False)
@@ -73,7 +73,7 @@ elif args["C"] and args["D"] and args["V"] and args["R"]:
     if args["name"]:
         vd_name=args["name"]
 else:
-        print("- FAIL, you must pass in at least one agrument with -ip, -u and -p")
+        print("- FAIL, you must pass in at least one argument with -ip, -u and -p")
         sys.exit()
     
 

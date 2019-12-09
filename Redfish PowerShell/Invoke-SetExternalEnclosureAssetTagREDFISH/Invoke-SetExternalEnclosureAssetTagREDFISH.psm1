@@ -24,8 +24,8 @@ http://www.gnu.org/licenses/old-licenses/gpl-2.0.txt
    - idrac_password: Pass in iDRAC username password
    - get_storage_controllers: Pass in "y" to get current storage controller FQDDs for the server. Pass in "yy" to get detailed information for each storage controller
    - get_external_enclosures: Pass in the controller FQDD to get external enclosures. Example, pass in "RAID.Integrated.1-1".
-   - get_enclosure_details: Pass in external enclsoure FQDD to get detailed information. Example, pass in "Enclosure.External.1-0:RAID.Slot.5-1"
-   - get_enclosure_asset_tag: Pass in external enclsoure FQDD to get current asset tag. Example, pass in "Enclosure.External.1-0:RAID.Slot.5-1"
+   - get_enclosure_details: Pass in external enclosure FQDD to get detailed information. Example, pass in "Enclosure.External.1-0:RAID.Slot.5-1"
+   - get_enclosure_asset_tag: Pass in external enclosure FQDD to get current asset tag. Example, pass in "Enclosure.External.1-0:RAID.Slot.5-1"
    - set_enclosure_asset_tag: Pass in external enclosure FQDD you want to set the asset tag for. Example, pass in "Enclosure.External.1-0:RAID.Slot.5-1. You must also pass in asset_tag and job_type parameters when setting asset tag"
    - asset_tag: Pass in new value to set asset tag.
    - job_type: Pass in "r" to perform a realtime config job, no host reboot needed to apply config changes. Pass in "s" to perform a staged config job which will reboot the server to apply changes.
@@ -350,7 +350,7 @@ return
 }
 else
 {
-[String]::Format("- WARNING, job not marked completed, current status is: {0} Precent complete is: {1}",$overall_job_output.Message,$overall_job_output.PercentComplete)
+[String]::Format("- WARNING, job not marked completed, current status is: {0} Percent complete is: {1}",$overall_job_output.Message,$overall_job_output.PercentComplete)
 Start-Sleep 3
 }
 }
@@ -542,7 +542,7 @@ return
 }
 else
 {
-[String]::Format("- WARNING, job not marked completed, current status is: {0} Precent complete is: {1}",$overall_job_output.Message,$overall_job_output.PercentComplete)
+[String]::Format("- WARNING, job not marked completed, current status is: {0} Percent complete is: {1}",$overall_job_output.Message,$overall_job_output.PercentComplete)
 Start-Sleep 10
 }
 }
