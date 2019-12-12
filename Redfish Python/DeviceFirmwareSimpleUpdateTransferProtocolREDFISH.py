@@ -2,7 +2,7 @@
 # DeviceFirmwareSimpleUpdateTransferProtocolREDFISH. Python script using Redfish API to update a device firmware with DMTF standard SimpleUpdate with TransferProtocol. Only supported file image type is Windows Dell Update Packages(DUPs).
 #
 # _author_ = Texas Roemer <Texas_Roemer@Dell.com>
-# _version_ = 4.0
+# _version_ = 6.0
 #
 # Copyright (c) 2019, Dell, Inc.
 #
@@ -26,12 +26,12 @@ parser=argparse.ArgumentParser(description="Python script using Redfish API to u
 parser.add_argument('-ip',help='iDRAC IP address', required=True)
 parser.add_argument('-u', help='iDRAC username', required=True)
 parser.add_argument('-p', help='iDRAC password', required=True)
-parser.add_argument('script_examples',action="store_true",help='DeviceFirmwareSimpleUpdateTransferProtocolREDFISH.py -ip 192.168.0.120 -u root -p calvin -g y, this example will return current firmware versions for all devices supported for updates. DeviceFirmwareSimpleUpdateTransferProtocolREDFISH.py -ip 192.168.0.120 -u root -p calvin -T HTTP --uri http://192.168.0.130/updates_http/CPLD_Firmware_WN64_1.0.2_A00.EXE -r y, this example will reboot the server now and update CPLD firmware using HTTP share') 
+parser.add_argument('script_examples',action="store_true",help='DeviceFirmwareSimpleUpdateTransferProtocolREDFISH.py -ip 192.168.0.120 -u root -p calvin -g y, this example will return current firmware versions for all devices supported for updates. DeviceFirmwareSimpleUpdateTransferProtocolREDFISH.py -ip 192.168.0.120 -u root -p calvin -T HTTP --uri http://192.168.0.130/updates_http/CPLD_Firmware_WN64_1.0.2_A00.EXE -r y, this example will reboot the server now and update CPLD firmware using HTTP share. DeviceFirmwareSimpleUpdateTransferProtocolREDFISH.py -ip 192.168.0.120 -u root -p calvin -T HTTP --uri http://192.168.0.130/updates_http/BIOS_WN64_2.4.11_A00.EXE, this example using iDRAC9 4.00 will reboot the server now and update BIOS firmware using HTTP share') 
 parser.add_argument('-g', help='Get current supported devices for firmware updates and their current firmware versions, pass in \"y\"', required=False)
 parser.add_argument('-s', help='Get current supported transfer protocols for SimpleUpdate action, pass in \"y\"', required=False)
 parser.add_argument('--uri', help='Pass in the complete URI path of the network share along with the firmware image name', required=False)
 parser.add_argument('-t', help='Pass in the transfer protocol type you are using for the URI path.', required=False)
-parser.add_argument('-r', help='Reboot type, pass in \"y\" if you want the server to reboot now to apply the update or \"n\" to not reboot the server now. If you select \"n\", job will still get scheduled but won\'t be applied until next manual server reboot. Note: This option is only required for devices that need a server reboot to apply the update. If updating iDRAC, DIAGS, ISM, USC or Driver Pack, this option is not needed.', required=False)
+parser.add_argument('-r', help='Reboot type, pass in \"y\" if you want the server to reboot now to apply the update or \"n\" to not reboot the server now. If you select \"n\", job will still get scheduled but won\'t be applied until next manual server reboot. NOTE: This option is only required for devices that need a server reboot to apply the update. If updating iDRAC, DIAGS, ISM, USC or Driver Pack, this option is not needed. NOTE: Starting with iDRAC9 4.00, this argument is no longer valid and required. Executing POST update using TransferProtocol will now automatically create a reboot job along with update job, reboot the server.', required=False)
 
 
 args=vars(parser.parse_args())
@@ -120,7 +120,7 @@ def check_job_status():
         statusCode = req.status_code
         data = req.json()
         if data[u"TaskState"] == "Completed":
-            print("\n- PASS, job ID %s successfully marked completed, detailed final job status results:\n" % data[u"Id"])
+            print("\n- PASS, job ID %s successfuly marked completed, detailed final job status results:\n" % data[u"Id"])
             for i in data[u'Oem'][u'Dell'].items():
                 print("%s: %s" % (i[0],i[1]))
             print("\n- JOB ID %s completed in %s" % (job_id, current_time))
@@ -270,15 +270,21 @@ if __name__ == "__main__":
     elif args["uri"] and args["t"]:
         install_image_payload()
         check_job_status()
-        if args["r"] == "y":
-            print("\n- PASS, job ID successfully marked as scheduled, powering on or rebooting the server to apply the update")
-            reboot_server()
+        print("\n- PASS, job ID successfully marked as scheduled, powering on or rebooting the server to apply the update")
+        req = requests.get('https://%s/redfish/v1/Managers/iDRAC.Embedded.1?$select=FirmwareVersion' % (idrac_ip), auth=(idrac_username, idrac_password), verify=False)
+        data = req.json()
+        idrac_release_version = int(data[u'FirmwareVersion'].split(".")[0])
+        if idrac_release_version >= 4:
             loop_check_final_job_status()
-        elif args["r"] == "n":
-            print("\n- WARNING, user selected to not reboot the server to apply the update. Update job is still scheduled and will be applied on next server reboot")
-            sys.exit()
         else:
-            print("\n- WARNING, argument -r is missing, update job is scehduled but server did not reboot. To apply the update, reboot the server")
+            if args["r"] == "y":
+                reboot_server()
+                loop_check_final_job_status()
+            elif args["r"] == "n":
+                print("\n- WARNING, user selected to not reboot the server to apply the update. Update job is still scheduled and will be applied on next server reboot")
+                sys.exit()
+            else:
+                print("\n- WARNING, argument -r is missing, update job is scehduled but server did not reboot. To apply the update, reboot the server")
     else:
         print("\n- FAIL, incorrect parameter(s) passed in or missing required parameters")
 
