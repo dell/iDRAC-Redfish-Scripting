@@ -1,6 +1,6 @@
 <#
 _author_ = Texas Roemer <Texas_Roemer@Dell.com>
-_version_ = 2.0
+_version_ = 3.0
 Copyright (c) 2019, Dell, Inc.
 
 This software is licensed to you under the GNU General Public License,
@@ -148,7 +148,7 @@ Write-Host
 function boot_to_network_iso
 
 {
-Write-Host "`n- WARNING, attaching and boot to network ISO for iDRAC $idrac_ip"
+Write-Host "`n- WARNING, attaching network ISO for iDRAC $idrac_ip"
 $u = "https://$idrac_ip/redfish/v1/Dell/Systems/System.Embedded.1/DellOSDeploymentService/Actions/DellOSDeploymentService.BootToNetworkISO"
 $JsonBody = @{'ImageName'=$imagename;'IPAddress'=$ipaddress;'ShareType'=$sharetype;'ShareName'=$sharename} | ConvertTo-Json -Compress
 if ($username -ne "" -and $password -ne "")
@@ -168,7 +168,7 @@ $JsonBody = @{'ImageName'=$imagename;'IPAddress'=$ipaddress;'ShareType'=$sharety
     }
         if ($result1.StatusCode -eq 202)
         {
-        Write-Host "- PASS, POST command passed to attach and boot to network ISO, cmdlet will now loop checking concrete job status"
+        Write-Host "- PASS, POST command passed to connect network ISO, cmdlet will now loop checking concrete job status"
         $concrete_job_uri = $result1.Headers.Location
         }
             while ($result2.TaskState -ne "Completed")
@@ -186,14 +186,15 @@ $JsonBody = @{'ImageName'=$imagename;'IPAddress'=$ipaddress;'ShareType'=$sharety
             $result2 = $result2.Content | ConvertFrom-Json
             if ($result2.TaskState -eq "Exception")
             {
-            [String]::Format("`n- FAIL, concrete job status failed to be marked completed, job status is '{0}', detailed error message is '{1}'", $result2.TaskState,$result2.Messages.Message)
-            #$result2.Messages.Message
+            [String]::Format("`n- FAIL, concrete job has hit an exception, current job message: '{0}'", $result2.Messages.Message)
+            Write-Host "`n- If needed, check iDRAC Lifecycle Logs or Job Queue for more details on the exception.`n-"
             return
             }
             else
             {
+            $job_status = $result2.TaskState
+            Write-Host "- WARNING, current concrete job status not marked completed, current status: $job_status"
             Start-Sleep 15
-            [String]::Format("- WARNING, current concrete job status not marked completed, current status is {0}", $result2.TaskState)
             }
             }
 Write-Host "- PASS, concrete job marked completed, verifying network ISO attach status"
@@ -219,10 +220,12 @@ $get_attach_status=$result1.Content |  ConvertFrom-Json
     }
     else
     {
-    [String]::Format("`n- FAIL, network ISO not attached, current status is {0}, $get_attach_status.ISOAttachStatus")
+    [String]::Format("`n- FAIL, network ISO not attached, current status is {0}", $get_attach_status.ISOAttachStatus)
     }
 Write-Host
 }
+
+
 
 
 # Function to detach network ISO
