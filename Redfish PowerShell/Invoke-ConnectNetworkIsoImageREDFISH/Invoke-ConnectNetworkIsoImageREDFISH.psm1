@@ -187,7 +187,7 @@ $JsonBody = @{'ImageName'=$imagename;'IPAddress'=$ipaddress;'ShareType'=$sharety
             if ($result2.TaskState -eq "Exception")
             {
             [String]::Format("`n- FAIL, concrete job has hit an exception, current job message: '{0}'", $result2.Messages.Message)
-            Write-Host "`n- If needed, check Lifecycle Logs or Job Queue for more details on the exception.`n-"
+            Write-Host "`n- If needed, check iDRAC Lifecycle Logs or Job Queue for more details on the exception.`n"
             return
             }
             else
