@@ -4,7 +4,7 @@
 # 
 #
 # _author_ = Texas Roemer <Texas_Roemer@Dell.com>
-# _version_ = 1.0
+# _version_ = 2.0
 #
 # Copyright (c) 2019, Dell, Inc.
 #
@@ -55,7 +55,7 @@ def reset_bios():
     else:
         print("\n- FAIL, Command failed, status code is %s" % statusCode)
         detail_message=str(response.__dict__)
-        print detail_message
+        print(detail_message)
         sys.exit()
 
 
