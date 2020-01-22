@@ -2,7 +2,7 @@
 # ExportTechSupportReportREDFISH. Python script using Redfish API with OEM extension to export tech support report (known as Support Assist now) to a network share
 #
 # _author_ = Texas Roemer <Texas_Roemer@Dell.com>
-# _version_ = 1.0
+# _version_ = 2.0
 #
 # Copyright (c) 2019, Dell, Inc.
 #
@@ -27,13 +27,12 @@ parser.add_argument('-u', help='iDRAC username', required=True)
 parser.add_argument('-p', help='iDRAC password', required=True)
 parser.add_argument('script_examples',action="store_true",help='ExportTechSupportReportREDFISH.py -ip 192.168.0.120 -u root -p calvin --ipaddress 192.168.0.130 --sharetype CIFS --sharename cifs_share_vm --dataselectorarrayin 3 --scheduledstarttime TIME_NOW --username administrator --password password, this example will only export TTY logs to CIFS share')
 parser.add_argument('--ipaddress', help='Pass in the IP address of the network share', required=False)
-parser.add_argument('--sharetype', help='Pass in the share type of the network share. Supported values are NFS, CIFS, HTTP, HTTPS.', required=False)
+parser.add_argument('--sharetype', help='Pass in the share type of the network share. Supported values are NFS and CIFS', required=False)
 parser.add_argument('--sharename', help='Pass in the network share share name', required=False)
 parser.add_argument('--username', help='Pass in the CIFS username', required=False)
 parser.add_argument('--password', help='Pass in the CIFS username pasword', required=False)
 parser.add_argument('--workgroup', help='Pass in the workgroup of your CIFS network share. This argument is optional', required=False)
 parser.add_argument('--scheduledstarttime', help='Start time for the job execution in format: yyyymmddhhmmss. Pass in value of "TIME_NOW" to start the job immediately', required=False)
-parser.add_argument('--ignorecertwarning', help='Supported values are Off and On. This argument is only required if using HTTPS for share type', required=False)
 parser.add_argument('--dataselectorarrayin', help='Pass in a value for the type of data you want to collect. Supported values are: pass in 0 for \"HWData\", pass in 1 for "OSAppDataWithoutPII\", pass in 2 for \"OSAppData\", pass in 3 for \"TTYLogs\". Note: If you do not pass in this argument, default settings will collect HWData. Note: You can pass in one value or multiple values to collect. If you pass in multiple values, use comma separator for the values (Example: 0,3)', required=False)
 
 
@@ -77,8 +76,6 @@ def export_tech_support_report():
         payload["Password"] = args["password"]
     if args["workgroup"]:
         payload["Workgroup"] = args["workgroup"]
-    if args["ignorecertwarning"]:
-        payload["IgnoreCertWarning"] = args["ignorecertwarning"]
     if args["dataselectorarrayin"]:
         data_selector_values=[]
         if "," in args["dataselectorarrayin"]:
@@ -123,7 +120,7 @@ def export_tech_support_report():
     except:
         print("- FAIL, unable to find job ID in headers POST response, headers output is:\n%s" % response.headers)
         sys.exit()
-    print("- PASS, job ID %s successfully created for %s method\n" % (job_id, method))
+    print("- PASS, job ID %s successfuly created for %s method\n" % (job_id, method))
     
 
 
