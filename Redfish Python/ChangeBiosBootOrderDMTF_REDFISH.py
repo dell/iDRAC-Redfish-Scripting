@@ -3,7 +3,7 @@
 #
 #
 # _author_ = Texas Roemer <Texas_Roemer@Dell.com>
-# _version_ = 2.0
+# _version_ = 3.0
 #
 # Copyright (c) 2019, Dell, Inc.
 #
@@ -118,6 +118,7 @@ def get_job_status_scheduled():
             print("- WARNING: JobStatus not scheduled, current status is: %s" % data[u'Message'])                                                                      
 
 def reboot_server():
+    count = 1
     response = requests.get('https://%s/redfish/v1/Systems/System.Embedded.1/' % idrac_ip,verify=False,auth=(idrac_username, idrac_password))
     data = response.json()
     print("\n- WARNING, Current server power state is: %s" % data[u'PowerState'])
@@ -128,19 +129,37 @@ def reboot_server():
         response = requests.post(url, data=json.dumps(payload), headers=headers, verify=False, auth=(idrac_username,idrac_password))
         statusCode = response.status_code
         if statusCode == 204:
-            print("- PASS, Command passed to gracefully power OFF server, code return is %s" % statusCode)
+            print("- PASS, Command passed to attempt gracefully power OFF server, status code %s returned" % statusCode)
             time.sleep(10)
         else:
             print("\n- FAIL, Command failed to gracefully power OFF server, status code is: %s\n" % statusCode)
             print("Extended Info Message: {0}".format(response.json()))
             sys.exit()
         while True:
+            if count == 5:
+                print("- WARNING, server still in ON state after 5 minutes, will force OFF server")
+                url = 'https://%s/redfish/v1/Systems/System.Embedded.1/Actions/ComputerSystem.Reset' % idrac_ip
+                payload = {'ResetType': 'ForceOff'}
+                headers = {'content-type': 'application/json'}
+                response = requests.post(url, data=json.dumps(payload), headers=headers, verify=False, auth=(idrac_username,idrac_password))
+                statusCode = response.status_code
+                if statusCode == 204:
+                    print("- PASS, Command passed to force power OFF server, status code %s returned" % statusCode)
+                    return
+                else:
+                    print("\n- FAIL, Command failed to force power OFF server, status code is: %s\n" % statusCode)
+                    print("Extended Info Message: {0}".format(response.json()))
+                    sys.exit()
+                
             response = requests.get('https://%s/redfish/v1/Systems/System.Embedded.1/' % idrac_ip,verify=False,auth=(idrac_username, idrac_password))
             data = response.json()
             if data[u'PowerState'] == "Off":
                 print("- PASS, GET command passed to verify server is in OFF state")
                 break
             else:
+                print("- WARNING, server power state still ON, will wait for 5 minutes before forcing server power off")
+                count+=1
+                time.sleep(60)
                 continue
             
         payload = {'ResetType': 'On'}
@@ -148,7 +167,7 @@ def reboot_server():
         response = requests.post(url, data=json.dumps(payload), headers=headers, verify=False, auth=(idrac_username,idrac_password))
         statusCode = response.status_code
         if statusCode == 204:
-            print("- PASS, Command passed to power ON server, code return is %s" % statusCode)
+            print("- PASS, Command passed to power ON server, status code %s returned" % statusCode)
         else:
             print("\n- FAIL, Command failed to power ON server, status code is: %s\n" % statusCode)
             print("Extended Info Message: {0}".format(response.json()))

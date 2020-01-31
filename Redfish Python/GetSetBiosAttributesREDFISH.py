@@ -2,7 +2,7 @@
 # GetSetBiosAttributesREDFISH. Python script using Redfish API DMTF to either get or set BIOS attributes using Redfish SettingApplyTime.
 #
 # _author_ = Texas Roemer <Texas_Roemer@Dell.com>
-# _version_ = 4.0
+# _version_ = 6.0
 #
 # Copyright (c) 2019, Dell, Inc.
 #
@@ -27,11 +27,11 @@ parser.add_argument('-u', help='iDRAC username', required=True)
 parser.add_argument('-p', help='iDRAC password', required=True)
 parser.add_argument('script_examples',action="store_true",help='GetSetBiosAttributesREDFISH.py -ip 192.168.0.120 -u root -p calvin -a y, this example will get all BIOS attributes. GetSetBiosAttributesREDFISH.py -ip 192.168.0.120 -u root -p calvin -an MemTest -av Disabled -r s -st "2018-10-30T20:10:10-05:00" -dt 600, this example shows setting BIOS attribute using scheduled start time with maintenance window. GetSetBiosAttributesREDFISH.py -ip 192.168.0.120 -u root -p calvin -an EmbSata,NvmeMode -av RaidMode,Raid -r n, this example shows setting multiple BIOS attributes with reboot now to apply')
 parser.add_argument('-a', help='Get all BIOS attributes, pass in a value of \"y\"', required=False)
-parser.add_argument('-A', help='If you want to get only a specific BIOS attribute, pass in the attribute name you want to get the current value, Note: make sure to type the attribute name exactly due to case sensitive. Example: MemTest will work but memtest will fail', required=False)
+parser.add_argument('-A', help='If you want to get only a specific BIOS attribute, pass in the attribute name you want to get the current value, Note: make sure to type the attribute name exactly due to case senstive. Example: MemTest will work but memtest will fail', required=False)
 parser.add_argument('-ar', help='Get BIOS attribute registry, pass in a value of \"y\"', required=False)
 parser.add_argument('-s', help='Get registry information for a specific attribute, pass in the attribute name', required=False)
-parser.add_argument('-an', help='Pass in the attribute name you want to change current value, Note: make sure to type the attribute name exactly due to case sensitive. Example: MemTest will work but memtest will fail. If you want to configure multiple attribute names, make sure to use a comma separator between each attribute name. Note: -r (reboot type) is required when setting attributes', required=False)
-parser.add_argument('-av', help='Pass in the attribute value you want to change to. Note: make sure to type the attribute value exactly due to case sensitive. Example: Disabled will work but disabled will fail. If you want to configure multiple attribute values, make sure to use a comma separator between each attribute value.', required=False)
+parser.add_argument('-an', help='Pass in the attribute name you want to change current value, Note: make sure to type the attribute name exactly due to case senstive. Example: MemTest will work but memtest will fail. If you want to configure multiple attribute names, make sure to use a comma separator between each attribute name. Note: -r (reboot type) is required when setting attributes', required=False)
+parser.add_argument('-av', help='Pass in the attribute value you want to change to. Note: make sure to type the attribute value exactly due to case senstive. Example: Disabled will work but disabled will fail. If you want to configure multiple attribute values, make sure to use a comma separator between each attribute value.', required=False)
 parser.add_argument('-r', help='Pass in value for reboot type. Pass in \"n\" for server to reboot now and apply changes immediately. Pass in \"l\" which will schedule the job but system will not reboot. Next manual server reboot, job will be applied. Pass in \"s\" to create a maintenance window config job. Job will go to schedule state once maintenance window has started', required=False)
 parser.add_argument('-mt', help='Pass in the type of maintenance window job type you want to create. Pass in \"n\" if you want the server to automatically reboot and apply the changes once the maintenance windows has been hit. Pass in \"l\" if you don\'t want the server to automatically reboot once the maintenance window time has hit. If you select this option, user will have to reboot the server to apply the configuration job.', required=False)
 parser.add_argument('-st', help='Maintenance window start date/time, pass it in this format \"YYYY-MM-DDTHH:MM:SS(+/-)HH:MM\"', required=False)
@@ -165,7 +165,7 @@ def create_next_boot_config_job():
     headers = {'content-type': 'application/json'}
     response = requests.patch(url, data=json.dumps(payload), headers=headers, verify=False,auth=(idrac_username,idrac_password))
     statusCode = response.status_code
-    if response.status_code == 202:
+    if response.status_code == 202 or response.status_code == 200:
         print("\n- PASS: PATCH command passed to set BIOS attribute pending values and create next reboot config job, status code %s returned" % response.status_code)
     else:
         print("\n- FAIL, PATCH command failed to set BIOS attribute pending values and create next reboot config job, status code is %s" % response.status_code)
@@ -194,7 +194,7 @@ def create_schedule_config_job():
     headers = {'content-type': 'application/json'}
     response = requests.patch(url, data=json.dumps(payload), headers=headers, verify=False,auth=(idrac_username, idrac_password))
     statusCode = response.status_code
-    if response.status_code == 202:
+    if response.status_code == 202 or response.status_code == 200:
         print("\n- PASS: PATCH command passed to set BIOS attribute pending values and create maintenance window config job, status code %s returned" % response.status_code)
     else:
         print("\n- FAIL, PATCH command failed to set BIOS attribute pending values and create maintenance window config job, status code is %s" % response.status_code)
@@ -218,7 +218,7 @@ def create_schedule_config_job():
         else:
             print("%s: %s" % (i[0],i[1]))
     if args["mt"] == "l":                
-        print("\n- PASS, %s maintenance window config jid successfully created.\n\nJob will go to scheduled state once start time has elapsed. You will need to schedule a separate server reboot during the maintenance windows for the config job to execute.\n" % (job_id))
+        print("\n- PASS, %s maintenance window config jid successfully created.\n\nJob will go to scheduled state once start time has elapsed. You will need to schedule a seperate server reboot during the maintenance windows for the config job to execute.\n" % (job_id))
     elif args["mt"] == "n":
         print("\n- PASS %s maintenance window config jid successfully created.\n\nJob will go to scheduled state once start time has elapsed and automatically reboot the server to apply the configuration job" % job_id) 
 start_time=datetime.now()
@@ -367,7 +367,7 @@ def get_new_attribute_values():
     for i in new_attributes_dict.items():
         for ii in bios_attribute_payload["Attributes"].items():
             if i[0] == ii[0]:
-                if i[0] == "OneTimeBootMode":
+                if i[0] == "OneTimeBootMode" or "SetBootOrder" in i[0]:
                     print("- PASS, Attribute %s successfully set" % (i[0]))
                 else:
                     try:
