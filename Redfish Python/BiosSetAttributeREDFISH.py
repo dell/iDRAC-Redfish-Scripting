@@ -1,14 +1,14 @@
-#
+#!/usr/bin/python
 # BiosSetAttributeREDFISH. Python script using Redfish API to set one or multiple BIOS attributes.
 #
-# NOTE: For all attributes, supported values, refer to the Dell attribute registry.
+# NOTE: For all attributes, supported values, refer to the Dell atttribute registry.
 #
 # NOTE: Recommended to execute BiosGetAttributesREDFISH script first. This will get all attributes and current values for the server.
 #
 # NOTE: When passing in attribute name / value, make sure you pass in the exact string. Attribute name / value are case sensitive.
 #
 # _author_ = Texas Roemer <Texas_Roemer@Dell.com>
-# _version_ = 6.0
+# _version_ = 7.0
 #
 # Copyright (c) 2017, Dell, Inc.
 #
@@ -31,8 +31,8 @@ parser.add_argument('-ip',help='iDRAC IP address', required=True)
 parser.add_argument('-u', help='iDRAC username', required=True)
 parser.add_argument('-p', help='iDRAC password', required=True)
 parser.add_argument('script_examples',action="store_true",help='BiosSetAttributeREDFISH.py -ip 192.168.0.120 -u root -p calvin -a MemTest -v Disabled, this example will set one BIOS attribute. BiosSetAttributeREDFISH.py -ip 192.168.0.120 -u root -p calvin -an LogicalProc,EmbSata -av Disabled,AhciMode, this example is setting multiple BIOS attributes')
-parser.add_argument('-an', help='Pass in the attribute name you want to change current value, Note: make sure to type the attribute name exactly due to case sensitive. Example: MemTest will work but memtest will fail. If you want to configure multiple attribute names, make sure to use a comma separator between each attribute name.', required=True)
-parser.add_argument('-av', help='Pass in the attribute value you want to change to. Note: make sure to type the attribute value exactly due to case sensitive. Example: Disabled will work but disabled will fail. If you want to configure multiple attribute values, make sure to use a comma separator between each attribute value.', required=True)
+parser.add_argument('-an', help='Pass in the attribute name you want to change current value, Note: make sure to type the attribute name exactly due to case senstive. Example: MemTest will work but memtest will fail. If you want to configure multiple attribute names, make sure to use a comma separator between each attribute name.', required=True)
+parser.add_argument('-av', help='Pass in the attribute value you want to change to. Note: make sure to type the attribute value exactly due to case senstive. Example: Disabled will work but disabled will fail. If you want to configure multiple attribute values, make sure to use a comma separator between each attribute value.', required=True)
 
 args=vars(parser.parse_args())
 
@@ -67,9 +67,9 @@ def set_bios_attribute():
     response = requests.get('https://%s/redfish/v1/Systems/System.Embedded.1/Bios/BiosRegistry' % idrac_ip,verify=False,auth=(idrac_username,idrac_password))
     data = response.json()
     for i in payload["Attributes"].items():
-        for ii in data[u'RegistryEntries']['Attributes']:
+        for ii in data['RegistryEntries']['Attributes']:
             if i[0] in ii.values():
-                if ii[u'Type'] == "Integer":
+                if ii['Type'] == "Integer":
                     payload['Attributes'][i[0]] = int(i[1])
     print("\n- WARNING, script will be setting BIOS attributes -\n")
     for i in payload["Attributes"].items():
@@ -81,7 +81,7 @@ def set_bios_attribute():
     if statusCode == 200:
         print("\n- PASS: PATCH command passed to set BIOS attribute pending values")
     else:
-        print("\n- FAIL, Command failed, error code is %s" % statusCode)
+        print("\n- FAIL, Command failed, errror code is %s" % statusCode)
         detail_message=str(response.__dict__)
         print(detail_message)
         sys.exit()
@@ -125,19 +125,19 @@ def get_job_status():
             print("Extended Info Message: {0}".format(req.json()))
             sys.exit()
         data = req.json()
-        if data[u'Message'] == "Task successfully scheduled.":
+        if data['Message'] == "Task successfully scheduled.":
             print("- PASS, %s job id successfully scheduled, rebooting the server to apply config changes" % job_id)
             break
         else:
-            print("- WARNING: JobStatus not scheduled, current status is: %s" % data[u'Message'])
+            print("- WARNING: JobStatus not scheduled, current status is: %s" % data['Message'])
 
 ### Function to reboot the server                                                                        
 
 def reboot_server():
     response = requests.get('https://%s/redfish/v1/Systems/System.Embedded.1/' % idrac_ip,verify=False,auth=(idrac_username, idrac_password))
     data = response.json()
-    print("\n- WARNING, Current server power state is: %s" % data[u'PowerState'])
-    if data[u'PowerState'] == "On":
+    print("\n- WARNING, Current server power state is: %s" % data['PowerState'])
+    if data['PowerState'] == "On":
         url = 'https://%s/redfish/v1/Systems/System.Embedded.1/Actions/ComputerSystem.Reset' % idrac_ip
         payload = {'ResetType': 'GracefulShutdown'}
         headers = {'content-type': 'application/json'}
@@ -153,7 +153,7 @@ def reboot_server():
         while True:
             response = requests.get('https://%s/redfish/v1/Systems/System.Embedded.1/' % idrac_ip,verify=False,auth=(idrac_username, idrac_password))
             data = response.json()
-            if data[u'PowerState'] == "Off":
+            if data['PowerState'] == "Off":
                 print("- PASS, GET command passed to verify server is in OFF state")
                 break
             else:
@@ -169,7 +169,7 @@ def reboot_server():
             print("\n- FAIL, Command failed to power ON server, status code is: %s\n" % statusCode)
             print("Extended Info Message: {0}".format(response.json()))
             sys.exit()
-    elif data[u'PowerState'] == "Off":
+    elif data['PowerState'] == "Off":
         url = 'https://%s/redfish/v1/Systems/System.Embedded.1/Actions/ComputerSystem.Reset' % idrac_ip
         payload = {'ResetType': 'On'}
         headers = {'content-type': 'application/json'}
@@ -204,23 +204,23 @@ def loop_job_status():
         if str(current_time)[0:7] >= "0:30:00":
             print("\n- FAIL: Timeout of 30 minutes has been hit, script stopped\n")
             sys.exit()
-        elif "Fail" in data[u'Message'] or "fail" in data[u'Message'] or "error" in data[u'Message'] or "Error" in data[u'Message']:
+        elif "Fail" in data['Message'] or "fail" in data['Message'] or "error" in data['Message'] or "Error" in data['Message']:
             print("- FAIL: %s failed" % job_id)
             print("\n- Final detailed job results -")
-            print("\n JobID = "+data[u'Id'])
-            print(" Name = "+data[u'Name'])
-            print(" Message = "+data[u'Message'])
-            print(" PercentComplete = "+str(data[u'PercentComplete'])+"\n")
+            print("\n JobID = "+data['Id'])
+            print(" Name = "+data['Name'])
+            print(" Message = "+data['Message'])
+            print(" PercentComplete = "+str(data['PercentComplete'])+"\n")
             sys.exit()
-        elif data[u'Message'] == "Job completed successfully.":
+        elif data['Message'] == "Job completed successfully.":
             print("\n- Final detailed job results -")
-            print("\n JobID = "+data[u'Id'])
-            print(" Name = "+data[u'Name'])
-            print(" Message = "+data[u'Message'])
-            print(" PercentComplete = "+str(data[u'PercentComplete'])+"\n")
+            print("\n JobID = "+data['Id'])
+            print(" Name = "+data['Name'])
+            print(" Message = "+data['Message'])
+            print(" PercentComplete = "+str(data['PercentComplete'])+"\n")
             break
         else:
-            print("- WARNING, JobStatus not completed, current status is: \"%s\"" % data[u'Message'])
+            print("- WARNING, JobStatus not completed, current status is: \"%s\"" % data['Message'])
             time.sleep(30)
 
 
@@ -228,7 +228,7 @@ def get_new_attribute_values():
     print("- WARNING, checking new attribute values - \n")
     response = requests.get('https://%s/redfish/v1/Systems/System.Embedded.1/Bios' % idrac_ip,verify=False,auth=(idrac_username,idrac_password))
     data = response.json()
-    new_attributes_dict=data[u'Attributes']
+    new_attributes_dict=data['Attributes']
     new_attribute_values = {"Attributes":{}}
     for i in new_attributes_dict.items():
         for ii in payload["Attributes"].items():
