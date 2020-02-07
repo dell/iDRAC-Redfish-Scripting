@@ -6,7 +6,7 @@
 # NOTE: Possible supported values for attribute_group parameter are: idrac, lc and system.
 #
 # _author_ = Texas Roemer <Texas_Roemer@Dell.com>
-# _version_ = 5.0
+# _version_ = 6.0
 #
 # Copyright (c) 2017, Dell, Inc.
 #
@@ -177,9 +177,11 @@ if __name__ == "__main__":
     elif args["ars"]:
         attribute_registry_get_specific_attribute()
     elif args["s"] and args["an"] and args["av"]:
-        #test()
         set_attributes()
-        get_new_attribute_values()
+        if "Pass" in args["an"]:
+            print("- PASS, attribute \"%s\" successfully changed" % args["an"])
+        else:
+            get_new_attribute_values()
     else:
         print("- FAIL, either missing parameter(s) or invalid paramter value(s) passed in. Refer to help text if needed for supported parameters and values along with script examples")
     
