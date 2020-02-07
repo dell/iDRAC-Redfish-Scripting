@@ -2,7 +2,7 @@
 # GetSetBiosAttributesREDFISH. Python script using Redfish API DMTF to either get or set BIOS attributes using Redfish SettingApplyTime.
 #
 # _author_ = Texas Roemer <Texas_Roemer@Dell.com>
-# _version_ = 6.0
+# _version_ = 7.0
 #
 # Copyright (c) 2019, Dell, Inc.
 #
@@ -155,7 +155,7 @@ def create_bios_attribute_dict():
     print("\n- WARNING, script will be setting BIOS attributes -\n")
     for i in bios_attribute_payload["Attributes"].items():
         print("Attribute Name: %s, setting new value to: %s" % (i[0], i[1]))
-
+    
     
 def create_next_boot_config_job():
     global job_id
@@ -350,7 +350,13 @@ def check_job_status_final():
             print("\n- FAIL: Timeout of 30 minutes has been hit, script stopped\n")
             sys.exit()
         elif "Complete" in data[u'Messages'][0][u'Message'] or "complete" in data[u'Messages'][0][u'Message']:
-            print("- PASS, %s job id successfully completed" % job_id)
+            print("- PASS, %s job id successfully completed\n" % job_id)
+            response = requests.get('https://%s/redfish/v1/Systems/System.Embedded.1/Bios' % idrac_ip,verify=False,auth=(idrac_username,idrac_password))
+            data = response.json()
+            for i in bios_attribute_payload["Attributes"]:
+                for ii in data[u'Attributes'].items():
+                    if ii[0] == i:
+                        print("- Current value for attribute \"%s\" is \"%s\"" % (i, ii[1]))
             break
         elif "fail" in data[u'Messages'][0][u'Message'] or "Fail" in data[u'Messages'][0][u'Message']:
             print("- FAIL, %s job id marked as failed" % job_id)
@@ -403,7 +409,7 @@ if __name__ == "__main__":
             check_job_status_schedule()
             reboot_server()
             check_job_status_final()
-            get_new_attribute_values()
+            #get_new_attribute_values()
         elif job_type == "l":
             create_next_boot_config_job()
             check_job_status_schedule()
