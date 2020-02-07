@@ -8,7 +8,7 @@
 # NOTE: When passing in attribute name / value, make sure you pass in the exact string. Attribute name / value are case sensitive.
 #
 # _author_ = Texas Roemer <Texas_Roemer@Dell.com>
-# _version_ = 7.0
+# _version_ = 8.0
 #
 # Copyright (c) 2017, Dell, Inc.
 #
@@ -213,11 +213,17 @@ def loop_job_status():
             print(" PercentComplete = "+str(data['PercentComplete'])+"\n")
             sys.exit()
         elif data['Message'] == "Job completed successfully.":
-            print("\n- Final detailed job results -")
+            print("\n- PASS, final detailed job results -")
             print("\n JobID = "+data['Id'])
             print(" Name = "+data['Name'])
             print(" Message = "+data['Message'])
             print(" PercentComplete = "+str(data['PercentComplete'])+"\n")
+            response = requests.get('https://%s/redfish/v1/Systems/System.Embedded.1/Bios' % idrac_ip,verify=False,auth=(idrac_username,idrac_password))
+            data = response.json()
+            for i in payload["Attributes"]:
+                for ii in data['Attributes'].items():
+                    if ii[0] == i:
+                        print("- Current value for attribute \"%s\" is \"%s\"" % (i, ii[1]))
             break
         else:
             print("- WARNING, JobStatus not completed, current status is: \"%s\"" % data['Message'])
@@ -259,6 +265,6 @@ if __name__ == "__main__":
     get_job_status()
     reboot_server()
     loop_job_status()
-    get_new_attribute_values()
+    #get_new_attribute_values()
 
 
