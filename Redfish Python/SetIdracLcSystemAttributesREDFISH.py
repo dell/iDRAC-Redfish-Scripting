@@ -6,7 +6,7 @@
 # NOTE: Possible supported values for attribute_group parameter are: idrac, lc and system.
 #
 # _author_ = Texas Roemer <Texas_Roemer@Dell.com>
-# _version_ = 6.0
+# _version_ = 7.0
 #
 # Copyright (c) 2017, Dell, Inc.
 #
@@ -91,15 +91,6 @@ def attribute_registry_get_specific_attribute():
     if found != "yes":
         print("\n- FAIL, unable to locate attribute \"%s\" in the registry. Make sure you typed the attribute name correct since its case sensitive" % args["ars"])
 
-def test():
-    url = "https://%s/redfish/v1/TelemetryService/LogServices/TelemetryLog/NVMeLog/Entries" % idrac_ip
-    payload = {}
-    headers = {'content-type': 'application/json'}
-    response = requests.get(url,verify=False,auth=(idrac_username, idrac_password))
-    #response = requests.patch(url, data=json.dumps(payload), headers=headers, verify=False,auth=(idrac_username, idrac_password))
-    data = response.json()
-    print data
-    sys.exit()
 
 def set_attributes():
     global url
@@ -122,10 +113,6 @@ def set_attributes():
     for i,ii in zip(attribute_names, attribute_values):
         payload["Attributes"][i] = ii
     print("\n- WARNING, changing \"%s\" attributes -\n" % args["s"].upper())
-    #
-    #payload = {"Attributes": {"TelemetryNIC.1.NICStatistics":'{"EnableTelemetry":"Enabled","DevicePollFrequency":"60","ReportInterval":"1000000000","ReportIntervalRange":"60 - 86400","RsyslogTarget":"False","ReportTriggers":[]}'}}
-    #payload = {"Attributes": {"TelemetryNVMeLog.1.NVMeLog":'{"EnableTelemetry":"Enabled","DevicePollFrequency":"0","ReportInterval":"0","ReportIntervalRange":"0","RsyslogTarget":"False","ReportTriggers":[]}'}}
-    #payload = {"Attributes": {"TelemetryStorage.1.DiskSMARTData":'{"EnableTelemetry":"Enabled","DevicePollFrequency":"60","ReportInterval":"300s","ReportIntervalRange":"60 - 3600","RsyslogTarget":"True","ReportTriggers":["OnChangeTrigger","OnStartTrigger"]}'}}
     for i in payload["Attributes"].items():
         response = requests.get('https://%s/redfish/v1/Registries/ManagerAttributeRegistry/ManagerAttributeRegistry.v1_0_0.json' % idrac_ip,verify=False,auth=(idrac_username,idrac_password))
         data = response.json()
@@ -142,9 +129,6 @@ def set_attributes():
     response = requests.patch(url, data=json.dumps(payload), headers=headers, verify=False,auth=(idrac_username, idrac_password))
     statusCode = response.status_code
     data = response.json()
-    #print(response.status_code)
-    #print(data)
-    #sys.exit()
     if statusCode == 200:
         print("\n- PASS, Command passed to successfully set \"%s\" attribute(s), status code %s returned\n" % (args["s"].upper(),statusCode))
     else:
