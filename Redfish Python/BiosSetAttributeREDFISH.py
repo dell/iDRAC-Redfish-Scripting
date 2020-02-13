@@ -8,7 +8,7 @@
 # NOTE: When passing in attribute name / value, make sure you pass in the exact string. Attribute name / value are case sensitive.
 #
 # _author_ = Texas Roemer <Texas_Roemer@Dell.com>
-# _version_ = 10.0
+# _version_ = 11.0
 #
 # Copyright (c) 2017, Dell, Inc.
 #
@@ -56,27 +56,27 @@ def check_supported_idrac_version():
 ### Function to set BIOS attribute pending value
 
 def set_bios_attribute():
-    global payload
+    global payload_patch
     url = 'https://%s/redfish/v1/Systems/System.Embedded.1/Bios/Settings' % idrac_ip
-    payload = {"Attributes":{}}
+    payload_patch = {"Attributes":{}}
     attribute_names = args["an"].split(",")
     attribute_values = args["av"].split(",")
     for i,ii in zip(attribute_names, attribute_values):
-        payload["Attributes"][i] = ii
+        payload_patch["Attributes"][i] = ii
 
     response = requests.get('https://%s/redfish/v1/Systems/System.Embedded.1/Bios/BiosRegistry' % idrac_ip,verify=False,auth=(idrac_username,idrac_password))
     data = response.json()
-    for i in payload["Attributes"].items():
+    for i in payload_patch["Attributes"].items():
         for ii in data['RegistryEntries']['Attributes']:
             if i[0] in ii.values():
                 if ii['Type'] == "Integer":
-                    payload['Attributes'][i[0]] = int(i[1])
+                    payload_patch['Attributes'][i[0]] = int(i[1])
     print("\n- WARNING, script will be setting BIOS attributes -\n")
-    for i in payload["Attributes"].items():
+    for i in payload_patch["Attributes"].items():
         print("Attribute Name: %s, setting new value to: %s" % (i[0], i[1]))
     
     headers = {'content-type': 'application/json'}
-    response = requests.patch(url, data=json.dumps(payload), headers=headers, verify=False,auth=(idrac_username, idrac_password))
+    response = requests.patch(url, data=json.dumps(payload_patch), headers=headers, verify=False,auth=(idrac_username, idrac_password))
     statusCode = response.status_code
     if statusCode == 200:
         print("\n- PASS: PATCH command passed to set BIOS attribute pending values")
@@ -218,13 +218,23 @@ def loop_job_status():
             print(" Name = "+data['Name'])
             print(" Message = "+data['Message'])
             print(" PercentComplete = "+str(data['PercentComplete'])+"\n")
-            response = requests.get('https://%s/redfish/v1/Systems/System.Embedded.1/Bios' % idrac_ip,verify=False,auth=(idrac_username,idrac_password))
-            data = response.json()
-            for i in payload["Attributes"]:
-                for ii in data['Attributes'].items():
-                    if ii[0] == i:
-                        print("- Current value for attribute \"%s\" is \"%s\"" % (i, ii[1]))
-            break
+            count = 0
+            while True:
+                response = requests.get('https://%s/redfish/v1/Systems/System.Embedded.1/Bios' % idrac_ip,verify=False,auth=(idrac_username,idrac_password))
+                if response.status_code == 200 or response.status_code == 202:
+                    data = response.json()
+                    for i in payload_patch["Attributes"]:
+                        for ii in data['Attributes'].items():
+                            if ii[0] == i:
+                                print("- Current value for attribute \"%s\" is \"%s\"" % (i, ii[1]))
+                    return
+                elif count == 5:
+                    print("- WARNING, GET command failed 5 times to get BIOS attributes, script will exit")
+                    sys.exit()
+                else:
+                    print("- WARNING, GET command failed to get BIOS attributes, status code %s detected, retry" % response.status_code)
+                    sleep(10)
+                    count+=1
         else:
             print("- WARNING, JobStatus not completed, current status is: \"%s\"" % data['Message'])
             time.sleep(30)

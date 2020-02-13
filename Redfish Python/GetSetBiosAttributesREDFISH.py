@@ -2,7 +2,7 @@
 # GetSetBiosAttributesREDFISH. Python script using Redfish API DMTF to either get or set BIOS attributes using Redfish SettingApplyTime.
 #
 # _author_ = Texas Roemer <Texas_Roemer@Dell.com>
-# _version_ = 8.0
+# _version_ = 9.0
 #
 # Copyright (c) 2019, Dell, Inc.
 #
@@ -159,11 +159,12 @@ def create_bios_attribute_dict():
     
 def create_next_boot_config_job():
     global job_id
+    global payload_patch
     url = 'https://%s/redfish/v1/Systems/System.Embedded.1/Bios/Settings' % (idrac_ip)
-    payload = {"@Redfish.SettingsApplyTime":{"ApplyTime":"OnReset"}}
-    payload.update(bios_attribute_payload)
+    payload_patch = {"@Redfish.SettingsApplyTime":{"ApplyTime":"OnReset"}}
+    payload_patch.update(bios_attribute_payload)
     headers = {'content-type': 'application/json'}
-    response = requests.patch(url, data=json.dumps(payload), headers=headers, verify=False,auth=(idrac_username,idrac_password))
+    response = requests.patch(url, data=json.dumps(payload_patch), headers=headers, verify=False,auth=(idrac_username,idrac_password))
     statusCode = response.status_code
     if response.status_code == 202 or response.status_code == 200:
         print("\n- PASS: PATCH command passed to set BIOS attribute pending values and create next reboot config job, status code %s returned" % response.status_code)
@@ -182,17 +183,18 @@ def create_next_boot_config_job():
 
 def create_schedule_config_job():
     global job_id
+    global payload_patch
     url = 'https://%s/redfish/v1/Systems/System.Embedded.1/Bios/Settings' % (idrac_ip)
     if args["mt"] == "l":
-        payload = {"@Redfish.SettingsApplyTime":{"ApplyTime": "InMaintenanceWindowOnReset","MaintenanceWindowStartTime":str(start_time_input),"MaintenanceWindowDurationInSeconds": int(duration_time)}}
+        payload_patch = {"@Redfish.SettingsApplyTime":{"ApplyTime": "InMaintenanceWindowOnReset","MaintenanceWindowStartTime":str(start_time_input),"MaintenanceWindowDurationInSeconds": int(duration_time)}}
     elif args["mt"] == "n":
-        payload = {"@Redfish.SettingsApplyTime":{"ApplyTime": "AtMaintenanceWindowStart","MaintenanceWindowStartTime":str(start_time_input),"MaintenanceWindowDurationInSeconds": int(duration_time)}}        
+        payload_patch = {"@Redfish.SettingsApplyTime":{"ApplyTime": "AtMaintenanceWindowStart","MaintenanceWindowStartTime":str(start_time_input),"MaintenanceWindowDurationInSeconds": int(duration_time)}}        
     else:
         print("- FAIL, invalid value passed in for maintenance window job type")
         sys.exit()
-    payload.update(bios_attribute_payload)
+    payload_patch.update(bios_attribute_payload)
     headers = {'content-type': 'application/json'}
-    response = requests.patch(url, data=json.dumps(payload), headers=headers, verify=False,auth=(idrac_username, idrac_password))
+    response = requests.patch(url, data=json.dumps(payload_patch), headers=headers, verify=False,auth=(idrac_username, idrac_password))
     statusCode = response.status_code
     if response.status_code == 202 or response.status_code == 200:
         print("\n- PASS: PATCH command passed to set BIOS attribute pending values and create maintenance window config job, status code %s returned" % response.status_code)
@@ -351,15 +353,25 @@ def check_job_status_final():
             sys.exit()
         elif "Complete" in data[u'Messages'][0][u'Message'] or "complete" in data[u'Messages'][0][u'Message']:
             print("- PASS, %s job id successfully completed\n" % job_id)
-            response = requests.get('https://%s/redfish/v1/Systems/System.Embedded.1/Bios' % idrac_ip,verify=False,auth=(idrac_username,idrac_password))
-            data = response.json()
-            for i in bios_attribute_payload["Attributes"]:
-                for ii in data[u'Attributes'].items():
-                    if ii[0] == i:
-                        print("- Current value for attribute \"%s\" is \"%s\"" % (i, ii[1]))
-            break
+            count = 0
+            while True:
+                response = requests.get('https://%s/redfish/v1/Systems/System.Embedded.1/Bios' % idrac_ip,verify=False,auth=(idrac_username,idrac_password))
+                if response.status_code == 200 or response.status_code == 202:
+                    data = response.json()
+                    for i in payload_patch["Attributes"]:
+                        for ii in data['Attributes'].items():
+                            if ii[0] == i:
+                                print("- Current value for attribute \"%s\" is \"%s\"" % (i, ii[1]))
+                    return
+                elif count == 5:
+                    print("- WARNING, GET command failed 5 times to get BIOS attributes, script will exit")
+                    sys.exit()
+                else:
+                    print("- WARNING, GET command failed to get BIOS attributes, status code %s detected, retry" % response.status_code)
+                    sleep(10)
+                    count+=1
         elif "fail" in data[u'Messages'][0][u'Message'] or "Fail" in data[u'Messages'][0][u'Message']:
-            print("- FAIL, %s job id marked as failed" % job_id)
+            print("- FAIL, %s job id marked as failed. Check iDRAC Lifecycle Logs for more details on the failure" % job_id)
             sys.exit()
         else:
             print("- WARNING: JobStatus not marked completed, current status is: %s" % data[u'Messages'][0][u'Message'])
