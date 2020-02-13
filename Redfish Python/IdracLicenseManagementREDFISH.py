@@ -4,7 +4,7 @@
 # 
 #
 # _author_ = Texas Roemer <Texas_Roemer@Dell.com>
-# _version_ = 2.0
+# _version_ = 3.0
 #
 # Copyright (c) 2019, Dell, Inc.
 #
@@ -28,9 +28,10 @@ parser.add_argument('-u', help='iDRAC username', required=True)
 parser.add_argument('-p', help='iDRAC password', required=True)
 parser.add_argument('script_examples',action="store_true",help='IdracLicenseManagementREDFISH.py -ip 192.168.0.120 -u root -p calvin -g y, this example will return current licenses detected. IdracLicenseManagementREDFISH.py -ip 192.168.0.120 -u root -p calvin -el 7386PA_iDRAC_Enterprise_license, this example will export iDRAC Enterprise license locally. IdracLicenseManagementREDFISH.py -ip 192.168.0.120 -u root -p calvin -in y --ipaddress 192.168.0.130 --sharetype NFS --sharename /nfs --licensename iDRAC_enterprise_license.xml, this example will import iDRAC enterprise license from NFS share') 
 parser.add_argument('-g', help='Get current iDRAC license(s), pass in \"y\"', required=False)
-parser.add_argument('-el', help='Export iDRAC license locally, pass in the license ID you want to export', required=False)
+parser.add_argument('-el', help='Export iDRAC license locally, pass in the license ID you want to export. Note: This will export the license in base 64 string format', required=False)
 parser.add_argument('-en', help='Export iDRAC license to network share, pass in the license ID you want to export', required=False)
 parser.add_argument('-in', help='Import iDRAC license from network share, pass in \"y\"', required=False)
+parser.add_argument('-il', help='Import iDRAC license locally, pass in the license file name which contains the license in base 64 string format.', required=False)
 parser.add_argument('-d', help='Delete iDRAC license, pass in the license ID you want to delete', required=False)
 parser.add_argument('--ipaddress', help='Pass in the IP address of the network share to export / import iDRAC license', required=False)
 parser.add_argument('--sharetype', help='Pass in the share type of the network share to export / import iDRAC license. If needed, use argument -st to get supported values for your iDRAC firmware version', required=False)
@@ -162,7 +163,7 @@ def export_import_idrac_license_network_share():
     except:
         print("- FAIL, unable to find job ID in headers POST response, headers output is:\n%s" % response.headers)
         sys.exit()
-    print("- PASS, job ID %s successfully created for %s method\n" % (job_id, method))
+    print("- PASS, job ID %s successfuly created for %s method\n" % (job_id, method))
 
 
 def delete_idrac_license():
@@ -179,6 +180,26 @@ def delete_idrac_license():
         data = response.json()
         print("\n- POST command failure results:\n %s" % data)
         sys.exit()
+
+def import_idrac_license_local():
+    try:
+        filename_open = open(args["il"], "r")
+    except:
+        print("\n- FAIL, unable to locate filename \"%s\"" % args["il"])
+        sys.exit()
+    read_file = filename_open.read()
+    filename_open.close()
+    headers = {'content-type': 'application/json'}
+    url = 'https://%s/redfish/v1/Dell/Managers/iDRAC.Embedded.1/DellLicenseManagementService/Actions/DellLicenseManagementService.ImportLicense' % (idrac_ip)
+    payload = {"FQDD":"iDRAC.Embedded.1","ImportOptions":"Force","LicenseFile":read_file}
+    response = requests.post(url, data=json.dumps(payload), headers=headers, verify=False,auth=(idrac_username,idrac_password))
+    if response.status_code == 200 or response.status_code == 202:
+        print("\n- PASS, license filename \"%s\" successfully imported" % args["il"])
+    else:
+        data = response.json()
+        print("\n- FAIL, unable to import license filename \"%s\", status code %s, error results: \n%s" % (args["il"], response.status_code, data))
+        sys.exit()
+              
     
 
 def loop_job_status():
@@ -224,6 +245,8 @@ if __name__ == "__main__":
         export_idrac_license_locally()
     elif args["st"]:
         get_network_share_types()
+    elif args["il"]:
+        import_idrac_license_local()
     elif args["en"] or args["in"]:
         export_import_idrac_license_network_share()
         loop_job_status()
