@@ -8,7 +8,7 @@
 # NOTE: When passing in attribute name / value, make sure you pass in the exact string. Attribute name / value are case sensitive.
 #
 # _author_ = Texas Roemer <Texas_Roemer@Dell.com>
-# _version_ = 8.0
+# _version_ = 10.0
 #
 # Copyright (c) 2017, Dell, Inc.
 #
@@ -26,7 +26,7 @@ from datetime import datetime
 
 warnings.filterwarnings("ignore")
 
-parser=argparse.ArgumentParser(description="Python script using Redfish API to change one or multiple BIOS attributes")
+parser=argparse.ArgumentParser(description="Python script using Redfish API with OEM extension to change one or multiple BIOS attributes")
 parser.add_argument('-ip',help='iDRAC IP address', required=True)
 parser.add_argument('-u', help='iDRAC username', required=True)
 parser.add_argument('-p', help='iDRAC password', required=True)
@@ -230,32 +230,7 @@ def loop_job_status():
             time.sleep(30)
 
 
-def get_new_attribute_values():
-    print("- WARNING, checking new attribute values - \n")
-    response = requests.get('https://%s/redfish/v1/Systems/System.Embedded.1/Bios' % idrac_ip,verify=False,auth=(idrac_username,idrac_password))
-    data = response.json()
-    new_attributes_dict=data['Attributes']
-    new_attribute_values = {"Attributes":{}}
-    for i in new_attributes_dict.items():
-        for ii in payload["Attributes"].items():
-            if i[0] == ii[0]:
-                if i[0] == "OneTimeBootMode":
-                    print("- PASS, Attribute %s successfully set" % (i[0]))
-                else:
-                    try:
-                        if i[1].lower() == ii[1].lower():
-                            print("- PASS, Attribute %s successfully set to \"%s\"" % (i[0],i[1]))
-                        else:
-                            print("- FAIL, Attribute %s not successfully set. Current value is \"%s\"" % (i[0],i[1]))
-                    except:
-                        pass
-                    try:
-                        if int(i[1]) == int(ii[1]):
-                            print("- PASS, Attribute %s successfully set to \"%s\"" % (i[0],i[1]))
-                        else:
-                            print("- FAIL, Attribute %s not successfully set. Current value is \"%s\"" % (i[0],i[1]))
-                    except:
-                        pass
+
 
 
 if __name__ == "__main__":
@@ -265,6 +240,5 @@ if __name__ == "__main__":
     get_job_status()
     reboot_server()
     loop_job_status()
-    #get_new_attribute_values()
 
 

@@ -2,7 +2,7 @@
 # GetSetBiosAttributesREDFISH. Python script using Redfish API DMTF to either get or set BIOS attributes using Redfish SettingApplyTime.
 #
 # _author_ = Texas Roemer <Texas_Roemer@Dell.com>
-# _version_ = 7.0
+# _version_ = 8.0
 #
 # Copyright (c) 2019, Dell, Inc.
 #
@@ -365,31 +365,6 @@ def check_job_status_final():
             print("- WARNING: JobStatus not marked completed, current status is: %s" % data[u'Messages'][0][u'Message'])
             time.sleep(20)
 
-def get_new_attribute_values():
-    print("- WARNING, checking new attribute values - \n")
-    response = requests.get('https://%s/redfish/v1/Systems/System.Embedded.1/Bios' % idrac_ip,verify=False,auth=(idrac_username,idrac_password))
-    data = response.json()
-    new_attributes_dict=data[u'Attributes']
-    for i in new_attributes_dict.items():
-        for ii in bios_attribute_payload["Attributes"].items():
-            if i[0] == ii[0]:
-                if i[0] == "OneTimeBootMode" or "SetBootOrder" in i[0]:
-                    print("- PASS, Attribute %s successfully set" % (i[0]))
-                else:
-                    try:
-                        if i[1].lower() == ii[1].lower():
-                            print("- PASS, Attribute %s successfully set to \"%s\"" % (i[0],i[1]))
-                        else:
-                            print("- FAIL, Attribute %s not successfully set. Current value is \"%s\"" % (i[0],i[1]))
-                    except:
-                        pass
-                    try:
-                        if int(i[1]) == int(ii[1]):
-                            print("- PASS, Attribute %s successfully set to \"%s\"" % (i[0],i[1]))
-                        else:
-                            print("- FAIL, Attribute %s not successfully set. Current value is \"%s\"" % (i[0],i[1]))
-                    except:
-                        pass
 
 
 if __name__ == "__main__":
@@ -409,7 +384,6 @@ if __name__ == "__main__":
             check_job_status_schedule()
             reboot_server()
             check_job_status_final()
-            #get_new_attribute_values()
         elif job_type == "l":
             create_next_boot_config_job()
             check_job_status_schedule()
