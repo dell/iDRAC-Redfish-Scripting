@@ -1,6 +1,6 @@
 <#
 _author_ = Texas Roemer <Texas_Roemer@Dell.com>
-_version_ = 1.0
+_version_ = 2.0
 
 Copyright (c) 2020, Dell, Inc.
 
@@ -114,12 +114,12 @@ catch
 {
 Write-Host
 $RespErr
-return
+break
 }
 $get_fw_inventory = $get_result.Content | ConvertFrom-Json
 $get_fw_inventory.Members
 
-return
+break
 }
 
 
@@ -137,7 +137,7 @@ catch
 {
 Write-Host
 $RespErr
-return
+break
 }
 $get_output=$get_result.RawContent
 try
@@ -148,11 +148,11 @@ $get_supported_protocols=$get_supported_protocols.Replace(",","")
 catch
 {
 Write-Host "- FAIL, unable to get supported transfer protocols"
-return
+break
 }
 Write-Host "`n- Supported Transfer Protocol(s) for SimpleUpdate Action -`n"
 $get_supported_protocols
-return
+break
 }
 
 
@@ -173,7 +173,7 @@ catch
 {
 Write-Host
 $RespErr
-return
+break
 }
  
 if ($result2.StatusCode -eq 202)
@@ -187,7 +187,7 @@ if ($result2.StatusCode -eq 202)
 else
 {
     [String]::Format("- FAIL, statuscode {0} returned. Detail error message: {1}",$result2.StatusCode,$result2)
-    return
+    break
 }
 
 # Loop job status until marked completed or scheduled 
@@ -210,7 +210,7 @@ catch
 {
 Write-Host
 $RespErr
-return
+break
 }
 
 $overall_job_output=$result.Content | ConvertFrom-Json
@@ -218,12 +218,12 @@ if ($overall_job_output.Messages.Message.Contains("Fail") -or $overall_job_outpu
 {
 Write-Host
 [String]::Format("- FAIL, job id $job_id marked as failed, error message: {0}",$overall_job_output.Messages.Message)
-return
+break
 }
 elseif ($loop_time -gt $end_time)
 {
 Write-Host "- FAIL, timeout of 30 minutes has been reached before marking the job completed"
-return
+break
 }
 
 elseif ($overall_job_output.Messages.Message -eq "Task successfully scheduled.")
@@ -240,7 +240,7 @@ $final_completion_time=$final_time | select Minutes,Seconds
 Write-Host "`n- PASS, job ID '$job_id' successfully marked as completed"
 Write-Host "`nFirmware update job execution time:"
 $final_completion_time
-return
+break
 }
 else
 {
@@ -261,12 +261,12 @@ catch
 {
 Write-Host
 $RespErr
-return
+break
 }
 $get_output = $get_result.Content | ConvertFrom-Json
 $get_iDRAC_fw_version = [int]$get_output.FirmwareVersion.Split(".")[0]
 
-# Reboot server if iDRAC version is at a version older than 4.00
+# Reboot server if iDRAC version is at an version older than 4.00
 
 if ($get_iDRAC_fw_version -lt 4)
 {
@@ -279,7 +279,7 @@ catch
 {
 Write-Host
 $RespErr
-return
+break
 }
 
 if ($result.StatusCode -eq 200)
@@ -290,7 +290,7 @@ if ($result.StatusCode -eq 200)
 else
 {
     [String]::Format("- FAIL, statuscode {0} returned",$result.StatusCode)
-    return
+    break
 }
 
 $result_output = $result.Content | ConvertFrom-Json
@@ -316,7 +316,7 @@ catch
 {
 Write-Host
 $RespErr
-return
+break
 }
 
 if ($result1.StatusCode -eq 204)
@@ -342,7 +342,7 @@ catch
 {
 Write-Host
 $RespErr
-return
+break
 }
 
 $result_output = $result.Content | ConvertFrom-Json
@@ -371,7 +371,7 @@ catch
 {
 Write-Host
 $RespErr
-return
+break
 }
 
 if ($result1.StatusCode -eq 204)
@@ -382,7 +382,7 @@ if ($result1.StatusCode -eq 204)
 else
 {
     [String]::Format("- FAIL, statuscode {0} returned",$result1.StatusCode)
-    return
+    break
 }
 
 }
@@ -405,7 +405,7 @@ catch
 {
 Write-Host
 $RespErr
-return
+break
 }
 
 if ($result1.StatusCode -eq 204)
@@ -416,7 +416,7 @@ if ($result1.StatusCode -eq 204)
 else
 {
     [String]::Format("- FAIL, statuscode {0} returned",$result1.StatusCode)
-    return
+    break
 }
 }
 
@@ -439,7 +439,7 @@ catch
 {
 Write-Host
 $RespErr
-return
+break
 }
 
 if ($result1.StatusCode -eq 204)
@@ -449,7 +449,7 @@ if ($result1.StatusCode -eq 204)
 else
 {
     [String]::Format("- FAIL, statuscode {0} returned",$result1.StatusCode)
-    return
+    break
 }
 
 }
@@ -475,7 +475,7 @@ catch
 {
 Write-Host
 $RespErr
-return
+break
 }
 
 $overall_job_output=$result.Content | ConvertFrom-Json
@@ -483,12 +483,12 @@ if ($overall_job_output.Messages.Message.Contains("Fail") -or $overall_job_outpu
 {
 Write-Host
 [String]::Format("- FAIL, job id $job_id marked as failed, error message: {0}",$overall_job_output.Messages.Message)
-return
+break
 }
 elseif ($loop_time -gt $end_time)
 {
 Write-Host "- FAIL, timeout of 50 minutes has been reached before marking the job completed"
-return
+break
 }
 elseif ($overall_job_output.Messages.Message -eq "The specified job has completed successfully." -or $overall_job_output.Messages.Message -eq  "Job completed successfully." -or $overall_job_output.Messages.Message.Contains("complete"))
 {
@@ -498,7 +498,7 @@ $final_completion_time=$final_time | select Minutes,Seconds
 Write-Host "`n- PASS, job ID '$job_id' successfully marked as completed"
 Write-Host "`nFirmware update job execution time:"
 $final_completion_time
-return
+break
 }
 else
 {
