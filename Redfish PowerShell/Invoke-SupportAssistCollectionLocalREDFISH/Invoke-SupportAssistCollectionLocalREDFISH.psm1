@@ -1,6 +1,6 @@
 <#
 _author_ = Texas Roemer <Texas_Roemer@Dell.com>
-_version_ = 1.0
+_version_ = 2.0
 
 Copyright (c) 2020, Dell, Inc.
 
@@ -148,7 +148,7 @@ catch
 {
 Write-Host
 $RespErr
-return
+break
 }
 
 if ($post_result.StatusCode -eq 200)
@@ -157,7 +157,7 @@ if ($post_result.StatusCode -eq 200)
 else
 {
 [String]::Format("- FAIL, POST command failed to GET SA license info, statuscode {0} returned. Detail error message: {1}",$post_result.StatusCode, $post_result)
-return
+break
 }
 
 
@@ -196,7 +196,7 @@ catch
 {
 Write-Host
 $RespErr
-return
+break
 }
 
 
@@ -207,7 +207,7 @@ Write-Host "`n- PASS, POST command passed to accept Support Assist license agree
 else
 {
 [String]::Format("- FAIL, POST command failed to accept SA license, statuscode {0} returned. Detail error message: {1}",$post_result.StatusCode, $post_result)
-return
+break
 }
 
 }
@@ -228,7 +228,7 @@ catch
 {
 Write-Host
 $RespErr
-return
+break
 }
 
 $get_all_attributes=$result.Content | ConvertFrom-Json | Select Attributes
@@ -238,7 +238,7 @@ $attribute_name = "ServiceModule.1.ServiceModuleState"
 if ($get_iSM_running_status.$attribute_name -eq "Not Running")
 {
 Write-Host "`n- WARNING, iDRAC Service Module(iSM) is either not installed or service is not running in the Operating System"
-return
+break
 }
 
 # iDRAC attribute OS-BMC admin state must be enabled to register iSM
@@ -257,7 +257,7 @@ catch
 {
 Write-Host
 $RespErr
-return
+break
 }
 }
 
@@ -321,19 +321,19 @@ catch
 {
 Write-Host "`n- FAIL, POST command failed to register Support Assist, detailed error results:`n"
 $RespErr
-return
+break
 }
 
 
 if ($post_result.StatusCode -eq 200 -or $post_result.StatusCode -eq 202)
 {
 Write-Host "`n- PASS, POST command passed to register Support Assist"
-return
+break
 }
 else
 {
 [String]::Format("- FAIL, POST command failed to register Support Assist, statuscode {0} returned. Detail error message: {1}",$post_result.StatusCode, $post_result)
-return
+break
 }
 
 }
@@ -342,6 +342,7 @@ return
 # Function to execute Support Assist collection
 
 $Global:job_id = $null
+
 function execute_support_assist_collection
 {
 
@@ -410,13 +411,13 @@ try
 {
 $post_result = Invoke-WebRequest -Uri $uri -Credential $credential -Method Post -Body $JsonBody -ContentType 'application/json' -Headers @{"Accept"="application/json"} -ErrorVariable RespErr
 }
+
 catch
 {
 Write-Host "`n- FAIL, POST command failed to execute Support Assist collection, detailed error results:`n"
 $RespErr
-return
+break
 }
-
 
 if ($post_result.StatusCode -eq 202 -or $post_result.StatusCode -eq 200)
 {
@@ -429,7 +430,7 @@ if ($post_result.StatusCode -eq 202 -or $post_result.StatusCode -eq 200)
 else
 {
     [String]::Format("- FAIL, statuscode {0} returned. Detail error message: {1}",$post_result.StatusCode,$post_result)
-    return
+    break
 }
 
 }
@@ -458,7 +459,7 @@ $uri ="https://$idrac_ip/redfish/v1/Managers/iDRAC.Embedded.1/Jobs/$Global:job_i
     {
     Write-Host
     $RespErr
-    return
+    break
     }
     try
     {
@@ -473,7 +474,7 @@ if ($overall_job_output.Message.Contains("Fail") -or $overall_job_output.Message
 {
 Write-Host
 [String]::Format("- FAIL, job id $Global:job_id marked as failed, error message: {0}",$overall_job_output.Message)
-return
+break
 }
 elseif ($overall_job_output.Message.Contains("partially") -or $overall_job_output.Message.Contains("part"))
 {
@@ -491,22 +492,22 @@ $user_answer = Read-Host -Prompt "`n- Would you like to use default browser to d
     {
     start https://$idrac_ip/redfish/v1/Dell/sacollect.zip
     Write-Host "`n- User selected to download the SA collection file now, check your default browser session"
-    return
+    break
     }
     elseif ($user_answer.ToLower() -eq "n")
     {
     Write-Host "`n- User selected to not download the SA collection file. SA collection file can still be accessed by executing a GET on URI 'https://<idrac_ip>/redfish/v1/Dell/sacollect.zip'"
-    return
+    break
     }
     else
     {
-    return
+    break
     }
 }
 elseif ($loop_time -gt $end_time)
 {
 Write-Host "- FAIL, timeout of 50 minutes has been reached before marking the job completed"
-return
+break
 }
 elseif ($overall_job_output.Message -eq "The SupportAssist Collection Operation is completed successfully." -or $overall_job_output.Message -eq  "Job completed successfully." -or $overall_job_output.Message.Contains("complete"))
 {
@@ -523,16 +524,16 @@ $user_answer = Read-Host -Prompt "`n- Would you like to use default browser to d
     {
     start https://$idrac_ip/redfish/v1/Dell/sacollect.zip
     Write-Host "`n- User selected to download the SA collection file now, check your default browser session"
-    return
+    break
     }
     elseif ($user_answer.ToLower() -eq "n")
     {
     Write-Host "`n- User selected to not download the SA collection file. SA collection file can still be accessed by executing a GET on URI 'https://<idrac_ip>/redfish/v1/Dell/sacollect.zip'"
-    return
+    break
     }
     else
     {
-    return
+    break
     }
 }
 else
