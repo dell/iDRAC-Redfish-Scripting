@@ -1,6 +1,6 @@
 <#
 _author_ = Texas Roemer <Texas_Roemer@Dell.com>
-_version_ = 1.0
+_version_ = 2.0
 
 Copyright (c) 2020, Dell, Inc.
 
@@ -121,12 +121,12 @@ catch
 {
 Write-Host
 $RespErr
-return
+break
 }
 $get_fw_inventory = $get_result.Content | ConvertFrom-Json
 $get_fw_inventory.Members
 
-return
+break
 }
 
 # Function download image payload
@@ -143,7 +143,7 @@ catch
 {
 Write-Host
 $RespErr
-return
+break
 }
 
 $ETag=$result.Headers.ETag
@@ -184,7 +184,7 @@ catch
 {
 Write-Host
 $RespErr
-return
+break
 } 
 
 $get_content=$result1.Content
@@ -203,12 +203,13 @@ $compare_version=$get_version.Replace("Available","Installed")
 
 if ($result1.StatusCode -eq 201)
 {
-    [String]::Format("- PASS, statuscode {0} returned successfully for POST command to download payload image to iDRAC",$result1.StatusCode)
+    [String]::Format("- PASS, statuscode {0} returned. POST command passed to download payload image to iDRAC",$result1.StatusCode)
+    return
 }
 else
 {
     [String]::Format("- FAIL, statuscode {0} returned. Detail error message: {1}",$result1.StatusCode,$result1)
-    return
+    break
 }
 
 }
@@ -231,7 +232,7 @@ catch
 {
 Write-Host
 $RespErr
-return
+break
 }
  
 
@@ -246,7 +247,7 @@ if ($result2.StatusCode -eq 202)
 else
 {
     [String]::Format("- FAIL, statuscode {0} returned. Detail error message: {1}",$result2.StatusCode,$result2)
-    return
+    break
 }
 
 # Loop job status until marked completed or scheduled 
@@ -269,7 +270,7 @@ catch
 {
 Write-Host
 $RespErr
-return
+break
 }
 
 $overall_job_output=$result.Content | ConvertFrom-Json
@@ -278,12 +279,12 @@ if ($overall_job_output.Messages.Message.Contains("Fail") -or $overall_job_outpu
 {
 Write-Host
 [String]::Format("- FAIL, job id $job_id marked as failed, error message: {0}",$overall_job_output.Messages.Message)
-return
+break
 }
 elseif ($loop_time -gt $end_time)
 {
 Write-Host "- FAIL, timeout of 30 minutes has been reached before marking the job completed"
-return
+break
 }
 
 elseif ($overall_job_output.Messages.Message -eq "Task successfully scheduled.")
@@ -315,13 +316,13 @@ Start-Sleep 5
 if ($reboot_server -eq "n" -or $reboot_server -eq "N" -and $job_completed -eq "no")
 {
 Write-Host "- WARNING, user selected to not automatically reboot the server. Update job is scheduled and will be applied on next server manual reboot"
-return
+break
 }
 
-if ($reboot_server -eq "y" -or $reboot_server -eq "Y" -and $job_completed -eq "yes")
+elseif ($reboot_server -eq "y" -or $reboot_server -eq "Y" -and $job_completed -eq "yes")
 {
 Write-Host "- WARNING, no server reboot is needed since job ID is already marked completed, immediate update was performed"
-return
+break
 }
 
 $uri = "https://$idrac_ip/redfish/v1/Systems/System.Embedded.1/"
@@ -333,7 +334,7 @@ catch
 {
 Write-Host
 $RespErr
-return
+break
 }
 
 if ($result.StatusCode -eq 200)
@@ -344,7 +345,7 @@ if ($result.StatusCode -eq 200)
 else
 {
     [String]::Format("- FAIL, statuscode {0} returned",$result.StatusCode)
-    return
+    break
 }
 
 $result_output = $result.Content | ConvertFrom-Json
@@ -370,7 +371,7 @@ catch
 {
 Write-Host
 $RespErr
-return
+break
 }
 
 if ($result1.StatusCode -eq 204)
@@ -381,7 +382,7 @@ if ($result1.StatusCode -eq 204)
 else
 {
     [String]::Format("- FAIL, statuscode {0} returned",$result1.StatusCode)
-    return
+    break
 }
 
 $count = 1
@@ -396,7 +397,7 @@ catch
 {
 Write-Host
 $RespErr
-return
+break
 }
 
 $result_output = $result.Content | ConvertFrom-Json
@@ -425,7 +426,7 @@ catch
 {
 Write-Host
 $RespErr
-return
+break
 }
 
 if ($result1.StatusCode -eq 204)
@@ -436,7 +437,7 @@ if ($result1.StatusCode -eq 204)
 else
 {
     [String]::Format("- FAIL, statuscode {0} returned",$result1.StatusCode)
-    return
+    break
 }
 
 }
@@ -459,7 +460,7 @@ catch
 {
 Write-Host
 $RespErr
-return
+break
 }
 
 if ($result1.StatusCode -eq 204)
@@ -470,7 +471,7 @@ if ($result1.StatusCode -eq 204)
 else
 {
     [String]::Format("- FAIL, statuscode {0} returned",$result1.StatusCode)
-    return
+    break
 }
 }
 
@@ -493,7 +494,7 @@ catch
 {
 Write-Host
 $RespErr
-return
+break
 }
 
 if ($result1.StatusCode -eq 204)
@@ -503,7 +504,7 @@ if ($result1.StatusCode -eq 204)
 else
 {
     [String]::Format("- FAIL, statuscode {0} returned",$result1.StatusCode)
-    return
+    break
 }
 
 }
@@ -528,7 +529,7 @@ catch
 {
 Write-Host
 $RespErr
-return
+break
 }
 
 $overall_job_output=$result.Content | ConvertFrom-Json
@@ -537,12 +538,12 @@ if ($overall_job_output.Messages.Message.Contains("Fail") -or $overall_job_outpu
 {
 Write-Host
 [String]::Format("- FAIL, job id $job_id marked as failed, error message: {0}",$overall_job_output.Messages.Message)
-return
+break
 }
 elseif ($loop_time -gt $end_time)
 {
 Write-Host "- FAIL, timeout of 50 minutes has been reached before marking the job completed"
-return
+break
 }
 elseif ($overall_job_output.Messages.Message -eq "The specified job has completed successfully." -or $overall_job_output.Messages.Message -eq  "Job completed successfully." -or $overall_job_output.Messages.Message.Contains("complete"))
 {
@@ -552,7 +553,7 @@ $final_completion_time=$final_time | select Minutes,Seconds
 Write-Host "`n- PASS, job ID '$job_id' successfully marked as completed"
 Write-Host "`nFirmware update job execution time:"
 $final_completion_time
-return
+break
 }
 else
 {
@@ -594,12 +595,12 @@ return
 }
 
 
-if ($view_fw_inventory_only -eq "y" -or $view_fw_inventory_only -eq "Y")
+if ($view_fw_inventory_only.ToLower() -eq "y")
 {
 get_firmware_versions
 }
 
-elseif ($image_directory_path -ne "" -and $image_filename -ne "")
+elseif ($image_directory_path -and $image_filename)
 {
 download_image_payload
 install_image_payload_query_job_status_reboot_server
