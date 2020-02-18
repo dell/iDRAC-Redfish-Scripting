@@ -16,7 +16,7 @@ http://www.gnu.org/licenses/old-licenses/gpl-2.0.txt
 .Synopsis
    Cmdlet using Redfish DMTF action SimpleUpdate to update one device firmware using a firmware image stored on a supported network share.
 .DESCRIPTION
-   Cmdlet used to update fimrware on one device iDRAC supports or upload a PM file. Supported file types are .exe, .pm (personal module) and .d9 (iDRAC only image). For updating iDRAC devices, you will be using Dell Windows Update Packages (DUP) with .exe extension. 
+   Cmdlet used to update fimrware for one device iDRAC supports using a supported network share which contains the firmware image. Supported image types are Dell Windows Update Packages (DUP) with .EXE extension. 
 
    Supported parameters to pass in for cmdlet:
    
