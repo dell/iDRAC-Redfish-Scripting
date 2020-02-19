@@ -130,9 +130,15 @@ def export_hw_inventory():
         response = requests.get('https://%s%s' % (idrac_ip, response.headers['Location']),verify=False,auth=(idrac_username, idrac_password))
         get_datetime_info = datetime.now()
         export_filename = "%s-%s-%s_%s%s%s_export_HW_inventory_%s.xml"% (get_datetime_info.year, get_datetime_info.month, get_datetime_info.day, get_datetime_info.hour, get_datetime_info.minute, get_datetime_info.second, chassis_service_tag)
-        HW_inventory_string = str(response.__dict__['_content'])
         filename_open = open(export_filename,"a")
-        filename_open.writelines(HW_inventory_string)
+        dict_response = response.__dict__['_content']
+        string_convert=str(dict_response)
+        string_convert=string_convert.lstrip("'b")
+        string_convert=string_convert.rstrip("'")
+        string_convert=string_convert.split("\\n")
+        for i in string_convert:
+            filename_open.writelines(i)
+            filename_open.writelines("\n")
         filename_open.close()
         print("- Exported HW inventory captured to file \"%s\"" % export_filename)
         sys.exit()
