@@ -1,8 +1,8 @@
 #
-# ExportHWInventoryREDFISH. Python script using Redfish API with OEM extension to export server hardware(HW) inventory to a network share
+# ExportHWInventoryREDFISH. Python script using Redfish API with OEM extension to export server hardware(HW) inventory to either local directory or network share
 #
 # _author_ = Texas Roemer <Texas_Roemer@Dell.com>
-# _version_ = 3.0
+# _version_ = 4.0
 #
 # Copyright (c) 2019, Dell, Inc.
 #
@@ -21,7 +21,7 @@ from datetime import datetime
 
 warnings.filterwarnings("ignore")
 
-parser=argparse.ArgumentParser(description="Python script using Redfish API with OEM extension to export server hardware(HW) inventory to a supported network share")
+parser=argparse.ArgumentParser(description="Python script using Redfish API with OEM extension to export server hardware(HW) inventory to either local directory or supported network share")
 parser.add_argument('-ip',help='iDRAC IP address', required=True)
 parser.add_argument('-u', help='iDRAC username', required=True)
 parser.add_argument('-p', help='iDRAC password', required=True)
@@ -126,7 +126,7 @@ def export_hw_inventory():
         get_service_tag = requests.get('https://%s/redfish/v1/Systems/System.Embedded.1' % (idrac_ip),verify=False,auth=(idrac_username, idrac_password))
         data_get_service_tag = get_service_tag.json()
         chassis_service_tag = data_get_service_tag['Oem']['Dell']['DellSystem']['NodeID']
-        print("- WARNING, exported HW inventory file location: \"%s\"\n" % response.headers['Location'])
+        print("- WARNING, Redfish export HW inventory URI: \"%s\"\n" % response.headers['Location'])
         response = requests.get('https://%s%s' % (idrac_ip, response.headers['Location']),verify=False,auth=(idrac_username, idrac_password))
         get_datetime_info = datetime.now()
         export_filename = "%s-%s-%s_%s%s%s_export_HW_inventory_%s.xml"% (get_datetime_info.year, get_datetime_info.month, get_datetime_info.day, get_datetime_info.hour, get_datetime_info.minute, get_datetime_info.second, chassis_service_tag)
@@ -140,7 +140,7 @@ def export_hw_inventory():
             filename_open.writelines(i)
             filename_open.writelines("\n")
         filename_open.close()
-        print("- Exported HW inventory captured to file \"%s\"" % export_filename)
+        print("- Exported HW inventory captured to file \"%s\%s\"" % (os.getcwd(), export_filename))
         sys.exit()
     else:
         try:
