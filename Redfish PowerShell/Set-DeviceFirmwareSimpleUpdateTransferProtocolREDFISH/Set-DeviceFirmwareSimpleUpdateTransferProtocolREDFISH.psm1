@@ -1,6 +1,6 @@
 <#
 _author_ = Texas Roemer <Texas_Roemer@Dell.com>
-_version_ = 2.0
+_version_ = 5.0
 
 Copyright (c) 2020, Dell, Inc.
 
@@ -321,13 +321,13 @@ break
 
 if ($result1.StatusCode -eq 204)
 {
-    [String]::Format("- PASS, statuscode {0} returned to gracefully power OFF the server",$result1.StatusCode)
+    [String]::Format("- PASS, statuscode {0} returned to attempt graceful server shutdown",$result1.StatusCode)
     Start-Sleep 15
 }
 else
 {
     [String]::Format("- FAIL, statuscode {0} returned",$result1.StatusCode)
-    return
+    break
 }
 
 $count = 1
@@ -350,7 +350,7 @@ $power_state = $result_output.PowerState
 
 if ($power_state -eq "Off")
 {
-Write-Host "- PASS, validated server graceful shutdown completed, server in OFF state"
+Write-Host "- PASS, validated server in OFF state"
 break
 }
 elseif ($count -eq 5)
@@ -389,7 +389,10 @@ else
 else
 {
 Write-Host "- WARNING, server still in ON state waiting for graceful shutdown to complete, will check server status again in 1 minute"
+$count++
 Start-Sleep 60
+continue
+}
 }
 
 $JsonBody = @{ "ResetType" = "On"
@@ -411,7 +414,7 @@ break
 if ($result1.StatusCode -eq 204)
 {
     [String]::Format("- PASS, statuscode {0} returned successfully to power ON the server",$result1.StatusCode)
-    break
+    $power_state = "On"
 }
 else
 {
@@ -419,7 +422,7 @@ else
     break
 }
 }
-}
+
 
 if ($power_state -eq "Off")
 {
@@ -451,7 +454,6 @@ else
     [String]::Format("- FAIL, statuscode {0} returned",$result1.StatusCode)
     break
 }
-
 }
 }
 
