@@ -1,6 +1,6 @@
 <#
 _author_ = Texas Roemer <Texas_Roemer@Dell.com>
-_version_ = 2.0
+_version_ = 4.0
 
 Copyright (c) 2020, Dell, Inc.
 
@@ -354,7 +354,7 @@ $power_state = $result_output.PowerState
 if ($power_state -eq "On")
 {
 Write-Host "- WARNING, Server current power state is ON, performing graceful shutdown"
-}
+
 
 
 $JsonBody = @{ "ResetType" = "GracefulShutdown"
@@ -474,7 +474,7 @@ else
     break
 }
 }
-
+}
 
 if ($power_state -eq "Off")
 {
@@ -533,6 +533,7 @@ break
 }
 
 $overall_job_output=$result.Content | ConvertFrom-Json
+$current_job_message = "$overall_job_output.Messages.Message"
 
 if ($overall_job_output.Messages.Message.Contains("Fail") -or $overall_job_output.Messages.Message.Contains("Failed") -or $overall_job_output.Messages.Message.Contains("fail") -or $overall_job_output.Messages.Message.Contains("failed"))
 {
