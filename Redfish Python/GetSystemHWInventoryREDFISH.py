@@ -2,7 +2,7 @@
 # GetSystemHWInventoryREDFISH. Python script using Redfish API to get system hardware inventory
 #
 # _author_ = Texas Roemer <Texas_Roemer@Dell.com>
-# _version_ = 3.0
+# _version_ = 4.0
 #
 # Copyright (c) 2018, Dell, Inc.
 #
@@ -25,7 +25,7 @@ parser=argparse.ArgumentParser(description="Python script using Redfish API to g
 parser.add_argument('-ip',help='iDRAC IP address', required=True)
 parser.add_argument('-u', help='iDRAC username', required=True)
 parser.add_argument('-p', help='iDRAC password', required=True)
-parser.add_argument('-x', help='Get script examples, pass in \"y\"', required=False)
+parser.add_argument('script_examples',action="store_true",help='GetSystemHWInventoryREDFISH.py -ip 192.168.0.120 -u root -p calvin -m y, this example will get only memory information. GetSystemHWInventoryREDFISH.py -ip 192.168.0.120 -u root -p calvin -c y -m y, this example will get only processor and memory information. GetSystemHWInventoryREDFISH.py -ip 192.168.0.120 -u root -p calvin -a y, this example will get all system information: general system information, processor, memory, fans, power supplies, hard drives, storage controllers, network devices')
 parser.add_argument('-s', help='Get system information only, pass in \"y\"', required=False)
 parser.add_argument('-m', help='Get memory information only, pass in \"y\"', required=False)
 parser.add_argument('-c', help='Get processor information only, pass in \"y\"', required=False)
@@ -55,12 +55,6 @@ d=datetime.now()
 current_date_time="- Data collection timestamp: %s-%s-%s  %s:%s:%s\n" % (d.month,d.day,d.year, d.hour,d.minute,d.second)
 f.writelines(current_date_time)
 f.close()
-
-def script_examples():
-    print("\n- Script Examples -\n")
-    print("\n- GetSystemHWInventoryREDFISH.py -ip 192.168.0.120 -u root -p calvin -m y, this example will get only memory information\n- GetSystemHWInventoryREDFISH.py -ip 192.168.0.120 -u root -p calvin -c y -m y, this example will get only processor and memory information\n- GetSystemHWInventoryREDFISH.py -ip 192.168.0.120 -u root -p calvin -a y, this example will get all system information(general system information, processor, memory, fans, power supplies, hard drives, storage controllers, network devices)")
-    
-    
     
 
 def check_supported_idrac_version():
@@ -86,11 +80,11 @@ def get_system_information():
         f.writelines("\n")
         print(message)
     for i in data.items():
-        if i[0] == u'@odata.id' or i[0] == u'@odata.context' or i[0] == u'Links' or i[0] == u'Actions' or i[0] == u'@odata.type' or i[0] == u'Description' or i[0] == u'EthernetInterfaces' or i[0] == u'Storage' or i[0] == u'Processors' or i[0] == u'Memory' or i[0] == u'SecureBoot' or i[0] == u'NetworkInterfaces' or i[0] == u'Bios' or i[0] == u'SimpleStorage' or i[0] == u'PCIeDevices' or i[0] == u'PCIeFunctions':
+        if i[0] == '@odata.id' or i[0] == '@odata.context' or i[0] == 'Links' or i[0] == 'Actions' or i[0] == '@odata.type' or i[0] == 'Description' or i[0] == 'EthernetInterfaces' or i[0] == 'Storage' or i[0] == 'Processors' or i[0] == 'Memory' or i[0] == 'SecureBoot' or i[0] == 'NetworkInterfaces' or i[0] == 'Bios' or i[0] == 'SimpleStorage' or i[0] == 'PCIeDevices' or i[0] == 'PCIeFunctions':
             pass
-        elif i[0] == u'Oem':
-            for ii in i[1][u'Dell'][u'DellSystem'].items():
-                if ii[0] == u'@odata.context' or ii[0] == u'@odata.type':
+        elif i[0] == 'Oem':
+            for ii in i[1]['Dell']['DellSystem'].items():
+                if ii[0] == '@odata.context' or ii[0] == '@odata.type':
                     pass
                 else:
                     message = "%s: %s" % (ii[0], ii[1])
@@ -99,9 +93,9 @@ def get_system_information():
                     print(message)
                 
                 
-        elif i[0] == u'Boot':
+        elif i[0] == 'Boot':
             try:
-                message = "BiosBootMode: %s" % i[1][u'BootSourceOverrideMode']
+                message = "BiosBootMode: %s" % i[1]['BootSourceOverrideMode']
                 f.writelines(message)
                 f.writelines("\n")
                 print(message)
@@ -127,14 +121,14 @@ def get_memory_information():
         f.writelines(message)
         f.writelines("\n")
         print(message)
-    for i in data[u'Members']:
-        dimm = i[u'@odata.id'].split("/")[-1]
+    for i in data['Members']:
+        dimm = i['@odata.id'].split("/")[-1]
         try:
             dimm_slot = re.search("DIMM.+",dimm).group()
         except:
             print("\n- FAIL, unable to get dimm slot info")
             sys.exit()
-        response = requests.get('https://%s%s' % (idrac_ip, i[u'@odata.id']),verify=False,auth=(idrac_username, idrac_password))
+        response = requests.get('https://%s%s' % (idrac_ip, i['@odata.id']),verify=False,auth=(idrac_username, idrac_password))
         sub_data = response.json()
         if response.status_code != 200:
             print("\n- FAIL, get command failed, error is: %s" % sub_data)
@@ -145,11 +139,11 @@ def get_memory_information():
             f.writelines("\n")
             print(message)
             for ii in sub_data.items():
-                if ii[0] == u'@odata.id' or ii[0] == u'@odata.context' or ii[0] == u'Metrics' or ii[0] == u'Links':
+                if ii[0] == '@odata.id' or ii[0] == '@odata.context' or ii[0] == 'Metrics' or ii[0] == 'Links':
                     pass
-                elif ii[0] == u'Oem':
-                    for iii in ii[1][u'Dell'][u'DellMemory'].items():
-                        if iii[0] == u'@odata.context' or iii[0] == u'@odata.type':
+                elif ii[0] == 'Oem':
+                    for iii in ii[1]['Dell']['DellMemory'].items():
+                        if iii[0] == '@odata.context' or iii[0] == '@odata.type':
                             pass
                         else:
                             message = "%s: %s" % (iii[0], iii[1])
@@ -176,9 +170,9 @@ def get_cpu_information():
         f.writelines(message)
         f.writelines("\n")
         print(message)
-    for i in data[u'Members']:
-        cpu = i[u'@odata.id'].split("/")[-1]
-        response = requests.get('https://%s%s' % (idrac_ip, i[u'@odata.id']),verify=False,auth=(idrac_username, idrac_password))
+    for i in data['Members']:
+        cpu = i['@odata.id'].split("/")[-1]
+        response = requests.get('https://%s%s' % (idrac_ip, i['@odata.id']),verify=False,auth=(idrac_username, idrac_password))
         sub_data = response.json()
         if response.status_code != 200:
             print("\n- FAIL, get command failed, error is: %s" % sub_data)
@@ -189,11 +183,11 @@ def get_cpu_information():
             f.writelines("\n")
             print(message)
             for ii in sub_data.items():
-                if ii[0] == u'@odata.id' or ii[0] == u'@odata.context' or ii[0] == u'Metrics' or ii[0] == u'Links' or ii[0] == u'Description' or ii[0] == u'@odata.type':
+                if ii[0] == '@odata.id' or ii[0] == '@odata.context' or ii[0] == 'Metrics' or ii[0] == 'Links' or ii[0] == 'Description' or ii[0] == '@odata.type':
                     pass
-                elif ii[0] == u'Oem':
-                    for iii in ii[1][u'Dell'][u'DellProcessor'].items():
-                        if iii[0] == u'@odata.context' or iii[0] == u'@odata.type':
+                elif ii[0] == 'Oem':
+                    for iii in ii[1]['Dell']['DellProcessor'].items():
+                        if iii[0] == '@odata.context' or iii[0] == '@odata.type':
                             pass
                         else:
                             message = "%s: %s" % (iii[0], iii[1])
@@ -216,43 +210,39 @@ def get_fan_information():
         print("\n- FAIL, get command failed, error is: %s" % data)
         sys.exit()
     else:
-        message = "\n---- Fan Information ----"
+        message = "\n---- Fan Information ----\n"
         f.writelines(message)
         f.writelines("\n")
         print(message)
-    if data[u'Links'][u'CooledBy'] == []:
-        print("- WARNING, no fans detected for system")
-        
+    fan_list = []
+    if data['Links']['CooledBy'] == []:
+        print("\n- WARNING, no fans detected for system")
     else:
-        for i in data[u'Links'][u'CooledBy']:
-            response = requests.get('https://%s%s' % (idrac_ip, i[u'@odata.id']),verify=False,auth=(idrac_username, idrac_password))
-            data = response.json()
+        for i in data['Links']['CooledBy']:
+            for ii in i.items():
+                fan_list.append(ii[1])
+        fan_list_final = []
+        for i in fan_list:
+            if i not in fan_list_final:
+                fan_list_final.append(i)
+        for ii in fan_list_final:
+            response = requests.get('https://%s%s' % (idrac_ip, ii),verify=False,auth=(idrac_username, idrac_password))
             if response.status_code != 200:
                 print("\n- FAIL, get command failed, error is: %s" % data)
-                sys.exit()
             else:
-                fan = i[u'@odata.id'].split("/")[-1]
-                try:
-                    fan_slot = re.search("\|\|.+",fan).group().strip("|")
-                except:
-                    pass
-                try:
-                    fan_slot = re.search("7CF.+",fan).group().strip("7C")
-                except:
-                    pass
-                message = "\n- Fan details for %s -\n" % fan_slot
-                f.writelines(message)
-                f.writelines("\n")
-                print(message)
-                for ii in data.items():
-                    if ii[0] == u'@odata.id' or ii[0] == u'@odata.context' or ii[0] == u'Metrics' or ii[0] == u'Links' or ii[0] == u'Description' or ii[0] == u'@odata.type':
-                        pass
-                    else:
-                        message = "%s: %s" % (ii[0], ii[1])
+                data_get = response.json()
+                for i in data_get['Fans']: 
+                    for ii in i.items():
+                        message = "%s: %s" %  (ii[0], ii[1])
                         f.writelines(message)
-                        f.writelines("\n")
                         print(message)
-    f.close()
+                        message = "\n"
+                        f.writelines(message)
+                    message = "\n"
+                    print(message)
+                    f.writelines(message)
+                break               
+    f.close()               
 
 def get_ps_information():
     f=open("hw_inventory.txt","a")
@@ -262,150 +252,170 @@ def get_ps_information():
         print("\n- FAIL, get command failed, error is: %s" % data)
         sys.exit()
     else:
-        message = "\n---- Power Supply Information ----"
+        message = "\n---- Power Supply Information ----\n"
         f.writelines(message)
         f.writelines("\n")
         print(message)
-    if data[u'Links'][u'PoweredBy'] == []:
+    if data['Links']['PoweredBy'] == []:
         print("- WARNING, no power supplies detected for system")
         
     else:
-        for i in data[u'Links'][u'PoweredBy']:
-            response = requests.get('https://%s%s' % (idrac_ip, i[u'@odata.id']),verify=False,auth=(idrac_username, idrac_password))
-            data = response.json()
-            if response.status_code != 200:
-                print("\n- FAIL, get command failed, error is: %s" % data)
-                sys.exit()
-            else:
-                ps = i[u'@odata.id'].split("/")[-1]
-                message = "\n- Power Supply details for %s -\n" % ps
-                f.writelines(message)
-                f.writelines("\n")
-                print(message)
-                for ii in data.items():
-                    if ii[0] == u'@odata.id' or ii[0] == u'@odata.context' or ii[0] == u'Metrics' or ii[0] == u'Links' or ii[0] == u'Description' or ii[0] == u'@odata.type' or ii[0] == u'RelatedItem':
-                        pass
-                    elif ii[0] == u'Oem':
-                        for iii in ii[1][u'Dell'][u'DellPowerSupply'].items():
-                            if iii[0] == u'@odata.context' or iii[0] == u'@odata.type':
+        count = 0
+        for i in data['Links']['PoweredBy']:
+            for ii in i.items():
+                response = requests.get('https://%s%s' % (idrac_ip, ii[1]),verify=False,auth=(idrac_username, idrac_password))
+                if response.status_code != 200:
+                    print("\n- FAIL, get command failed, error is: %s" % data)
+                    sys.exit()
+                data_get = response.json()
+                for iii in data_get['PowerSupplies']:
+                    count+=1
+                    psu_name = iii["Name"]
+                    for iiii in iii.items():
+                        if count == len(data['Links']['PoweredBy'])+1:
+                            break
+                        elif iiii[0] == "Redundancy":
+                            message = "\n- %s -\n" % psu_name
+                            f.writelines(message)
+                            f.writelines("\n")
+                            print(message)
+                            try:
+                                for i in iiii[1][0].items():
+                                    message = "%s: %s" %  (i[0], i[1])
+                                    f.writelines(message)
+                                    f.writelines("\n")
+                                    print(message)
+                            except:
                                 pass
-                            else:
-                                message = "%s: %s" % (iii[0], iii[1])
+                        elif iiii[0] == "Oem":
+                            for i in iiii[1]["Dell"]["DellPowerSupply"].items():
+                                message = "%s: %s" %  (i[0], i[1])
                                 f.writelines(message)
                                 f.writelines("\n")
                                 print(message)
-                        for iii in ii[1][u'Dell'][u'DellPowerSupplyView'].items():
-                            if iii[0] == u'@odata.context' or iii[0] == u'@odata.type':
-                                pass
-                            else:
-                                message = "%s: %s" % (iii[0], iii[1])
+                            for i in iiii[1]["Dell"]["DellPowerSupplyView"].items():
+                                message = "%s: %s" %  (i[0], i[1])
                                 f.writelines(message)
                                 f.writelines("\n")
                                 print(message)
-                    else:
-                        message = "%s: %s" % (ii[0], ii[1])
-                        f.writelines(message)
-                        f.writelines("\n")
-                        print(message)
+                        else:
+                            message = "%s: %s" %  (iiii[0], iiii[1])
+                            f.writelines(message)
+                            f.writelines("\n")
+                            print(message)
+            break
     f.close()
 
 def get_storage_controller_information():
     f=open("hw_inventory.txt","a")
-    global controller_list
-    response = requests.get('https://%s/redfish/v1/Systems/System.Embedded.1/Storage' % idrac_ip,verify=False,auth=(idrac_username, idrac_password))
-    data = response.json()
-    if response.status_code != 200:
-        print("\n- FAIL, get command failed, error is: %s" % data)
-        sys.exit()
-    message = "\n---- Storage Controller Information ----"
+    message = "\n---- Controller Information ----"
     f.writelines(message)
     f.writelines("\n")
     print(message)
+    global controller_list
     controller_list=[]
-    for i in data[u'Members']:
-        controller_list.append(i[u'@odata.id'][46:])
+    response = requests.get('https://%s/redfish/v1/Systems/System.Embedded.1/Storage' % idrac_ip,verify=False,auth=(idrac_username, idrac_password))
+    data = response.json()
+    for i in data["Members"]:
+        for ii in i.items():
+            controller_list.append(ii[1])
     for i in controller_list:
-        response = requests.get('https://%s/redfish/v1/Systems/System.Embedded.1/Storage/%s' % (idrac_ip, i),verify=False,auth=(idrac_username, idrac_password))
+        response = requests.get('https://%s%s' % (idrac_ip, i),verify=False,auth=(idrac_username, idrac_password))
         data = response.json()
-        if response.status_code != 200:
-            print("\n- FAIL, get command failed, error is: %s" % data)
-            sys.exit()
-        message = "\n- Controller details for %s -\n" % i
+        message = "\n - Detailed controller information for %s -\n" % i.split("/")[-1]
         f.writelines(message)
         f.writelines("\n")
         print(message)
-        if u'StorageControllers' not in data:
-            message = "- WARNING, no information for controller"
-            f.writelines(message)
-            f.writelines("\n")
-            print(message)
-            return
-        for ii in data.items():
-            if ii[0] == u'StorageControllers':
-                for iii in ii[1][0].items():
-                    if iii[0] == u'@odata.id' or iii[0] == u'Links':
-                        pass
-                    else:
-                        message = "%s: %s" % (iii[0], iii[1])
+        for i in data.items():
+            if i[0] == 'Status':
+                pass
+            elif "@" in i[0] or "odata" in i[0]:
+                pass
+            elif i[0] == 'StorageControllers':
+                for ii in i[1]:
+                    for iii in ii.items():
+                        if iii[0] == 'Status':
+                            for iiii in iii[1].items():
+                                message = "%s: %s" % (iiii[0],iiii[1])
+                                f.writelines(message)
+                                f.writelines("\n")
+                                print(message)
+                        else:
+                            message = "%s: %s" % (iii[0],iii[1])
+                            f.writelines(message)
+                            f.writelines("\n")
+                            print(message)
+            elif i[0] == 'Oem':
+                try:
+                    for ii in i[1]['Dell']['DellController'].items():
+                        message = "%s: %s" % (ii[0],ii[1])
                         f.writelines(message)
                         f.writelines("\n")
                         print(message)
+                except:
+                    for ii in i[1]['Dell'].items():
+                        message = "%s: %s" % (ii[0],ii[1])
+                        f.writelines(message)
+                        f.writelines("\n")
+                        print(message)
+                
+            else:
+                message = "%s: %s" % (i[0], i[1])
+                f.writelines(message)
+                f.writelines("\n")
+                print(message)
+    else:
+        pass
     f.close()
 
      
 
 def get_storage_disks_information():
     f=open("hw_inventory.txt","a")
+    message = "\n---- Disk Information ----"
+    f.writelines(message)
+    f.writelines("\n")
+    print(message)
     for i in controller_list:
-        response = requests.get('https://%s/redfish/v1/Systems/System.Embedded.1/Storage/%s' % (idrac_ip, i),verify=False,auth=(idrac_username, idrac_password))
+        response = requests.get('https://%s/redfish/v1/Systems/System.Embedded.1/Storage/%s' % (idrac_ip, i.split("/")[-1] ),verify=False,auth=(idrac_username, idrac_password))
         data = response.json()
-        if response.status_code != 200:
-            print("\n- FAIL, get command failed, error is: %s" % data)
+        if response.status_code == 200 or response.status_code == 202:
+            pass
+        else:
+            print("- FAIL, GET command failed, detailed error information: %s" % data)
             sys.exit()
-        message = "\n---- Drive Information For Controller %s ----" % i
-        f.writelines(message)
-        f.writelines("\n")
-        print(message)
-        drive_list=[]
-        if data[u'Drives'] == []:
-            message = "\n- WARNING, no drives detected for %s" % i
+        if data['Drives'] == []:
+            message = "\n- WARNING, no drives detected for %s" % i.split("/")[-1]
             f.writelines(message)
             f.writelines("\n")
             print(message)
         else:
-            pass
-            for ii in data[u'Drives']:
-                drive_list.append(ii[u'@odata.id'][53:])        
-        for iii in drive_list:
-            response = requests.get('https://%s/redfish/v1/Systems/System.Embedded.1/Storage/Drives/%s' % (idrac_ip, iii),verify=False,auth=(idrac_username, idrac_password))
-            data = response.json()
-            if response.status_code != 200:
-                print("\n- FAIL, get command failed, error is: %s" % data)
-                sys.exit()  
-            message = "\n- Detailed drive information for %s -\n" % iii
-            f.writelines(message)
-            f.writelines("\n")
-            print(message)
-            for iii in data.items():
-                if iii[0] == u'@odata.id' or iii[0] == u'@odata.context' or iii[0] == u'Metrics' or iii[0] == u'Links' or iii[0] == u'Description' or iii[0] == u'@odata.type' or iii[0] == u'RelatedItem' or iii[0] == u'Actions':
-                    pass
-                elif iii[0] == u'Oem':
-                        try:
-                            for iiii in iii[1][u'Dell'][u'DellPhysicalDisk'].items():
-                                if iiii[0] == u'@odata.context' or iiii[0] == u'@odata.type':
-                                    pass
-                                else:
-                                    message = "%s: %s" % (iiii[0], iiii[1])
-                                    f.writelines(message)
-                                    f.writelines("\n")
-                                    print(message)
-                        except:
-                            pass
-                else:
-                    message = "%s: %s" % (iii[0], iii[1])
+            for i in data['Drives']:
+                for ii in i.items():
+                    response = requests.get('https://%s%s' % (idrac_ip, ii[1]),verify=False,auth=(idrac_username, idrac_password))
+                    data = response.json()
+                    message = "\n - Detailed drive information for %s -\n" % ii[1].split("/")[-1]
                     f.writelines(message)
                     f.writelines("\n")
                     print(message)
+                    for ii in data.items():
+                        if ii[0] == 'Oem':
+                            for iii in ii[1]['Dell']['DellPhysicalDisk'].items():
+                                message = "%s: %s" % (iii[0],iii[1])
+                                f.writelines(message)
+                                f.writelines("\n")
+                                print(message)
+                        elif ii[0] == 'Status':
+                            for iii in ii[1].items():
+                                message = "%s: %s" % (iii[0],iii[1])
+                                f.writelines(message)
+                                f.writelines("\n")
+                                print(message)
+                        else:
+                            message = "%s: %s" % (ii[0],ii[1])
+                            f.writelines(message)
+                            f.writelines("\n")
+                            print(message)
     f.close()
     
                 
@@ -421,8 +431,8 @@ def get_backplane_information():
     f.writelines("\n")
     print(message)
     backplane_URI_list = []
-    for i in data[u'Members']:
-        backplane = i[u'@odata.id']
+    for i in data['Members']:
+        backplane = i['@odata.id']
         if "Enclosure" in backplane:
             backplane_URI_list.append(backplane)
     if backplane_URI_list == []:
@@ -439,7 +449,7 @@ def get_backplane_information():
         f.writelines("\n")
         print(message)
         for iii in data.items():
-            if iii[0] == u'@odata.id' or iii[0] == u'@odata.context' or iii[0] == u'Metrics' or iii[0] == u'Links' or iii[0] == u'@Redfish.Settings' or iii[0] == u'@odata.type' or iii[0] == u'RelatedItem' or iii[0] == u'Actions' or iii[0] == u'PCIeDevices':
+            if iii[0] == '@odata.id' or iii[0] == '@odata.context' or iii[0] == 'Metrics' or iii[0] == 'Links' or iii[0] == '@Redfish.Settings' or iii[0] == '@odata.type' or iii[0] == 'RelatedItem' or iii[0] == 'Actions' or iii[0] == 'PCIeDevices':
                 pass
             else:
                 message = "%s: %s" % (iii[0], iii[1])
@@ -461,8 +471,8 @@ def get_network_information():
     f.writelines("\n")
     print(message)
     network_URI_list = []
-    for i in data[u'Members']:
-        network = i[u'@odata.id']
+    for i in data['Members']:
+        network = i['@odata.id']
         network_URI_list.append(network)
     if network_URI_list == []:
         message = "\n- WARNING, no network information detected for system\n"
@@ -481,9 +491,9 @@ def get_network_information():
             print("\n- FAIL, get command failed, error is: %s" % data)
             sys.exit()
         for ii in data.items():
-            if ii[0] == u'NetworkPorts':
+            if ii[0] == 'NetworkPorts':
                 network_port_urls = []
-                url_port = ii[1][u'@odata.id']
+                url_port = ii[1]['@odata.id']
                 response = requests.get('https://%s%s' % (idrac_ip, url_port),verify=False,auth=(idrac_username, idrac_password))
                 data = response.json()
                 if response.status_code != 200:
@@ -491,15 +501,15 @@ def get_network_information():
                     sys.exit()
                 else:
                     port_uri_list = []
-                    for i in data[u'Members']:
-                        port_uri_list.append(i[u'@odata.id'])
-            if ii[0] == u'@odata.id' or ii[0] == u'@odata.context' or ii[0] == u'Metrics' or ii[0] == u'Links' or ii[0] == u'@odata.type' or ii[0] == u'NetworkDeviceFunctions' or ii[0] == u'NetworkPorts':
+                    for i in data['Members']:
+                        port_uri_list.append(i['@odata.id'])
+            if ii[0] == '@odata.id' or ii[0] == '@odata.context' or ii[0] == 'Metrics' or ii[0] == 'Links' or ii[0] == '@odata.type' or ii[0] == 'NetworkDeviceFunctions' or ii[0] == 'NetworkPorts':
                 pass
             elif ii[0] == "Controllers":
-                message = ii[1][0][u'ControllerCapabilities']
+                mesage = ii[1][0]['ControllerCapabilities']
                 f.writelines(message)
                 print(message)
-                message = "FirmwarePackageVersion: %s" % ii[1][0][u'FirmwarePackageVersion']
+                message = "FirmwarePackageVersion: %s" % ii[1][0]['FirmwarePackageVersion']
                 f.writelines(message)
                 f.writelines("\n")
                 print(message)
@@ -520,12 +530,12 @@ def get_network_information():
                 f.writelines("\n")
                 print(message)
                 for ii in data.items():
-                    if ii[0] == u'@odata.id' or ii[0] == u'@odata.context' or ii[0] == u'Metrics' or ii[0] == u'Links' or ii[0] == u'@odata.type':
+                    if ii[0] == '@odata.id' or ii[0] == '@odata.context' or ii[0] == 'Metrics' or ii[0] == 'Links' or ii[0] == '@odata.type':
                         pass
-                    elif ii[0] == u'Oem':
+                    elif ii[0] == 'Oem':
                         try:
-                            for iii in ii[1][u'Dell'][u'DellSwitchConnection'].items():
-                                if iii[0] == u'@odata.context' or iii[0] == u'@odata.type':
+                            for iii in ii[1]['Dell']['DellSwitchConnection'].items():
+                                if iii[0] == '@odata.context' or iii[0] == '@odata.type':
                                     pass
                                 else:
                                     message = "%s: %s" % (iii[0], iii[1])
@@ -548,8 +558,6 @@ def get_network_information():
 
 if __name__ == "__main__":
     check_supported_idrac_version()
-    if args["x"]:
-          script_examples()
     if args["s"]:
         get_system_information()
     if args["m"]:
