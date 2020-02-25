@@ -2,7 +2,7 @@
 # GetSystemHWInventoryREDFISH. Python script using Redfish API to get system hardware inventory
 #
 # _author_ = Texas Roemer <Texas_Roemer@Dell.com>
-# _version_ = 6.0
+# _version_ = 7.0
 #
 # Copyright (c) 2018, Dell, Inc.
 #
@@ -387,7 +387,7 @@ def get_ps_information():
                                                 f.writelines(message)
                                                 f.writelines("\n")
                                                 print(message)
-                                        print "\n"
+                                        print("\n")
                                         count+=1
     f.close()
 
