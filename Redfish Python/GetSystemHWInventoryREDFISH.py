@@ -2,7 +2,7 @@
 # GetSystemHWInventoryREDFISH. Python script using Redfish API to get system hardware inventory
 #
 # _author_ = Texas Roemer <Texas_Roemer@Dell.com>
-# _version_ = 4.0
+# _version_ = 6.0
 #
 # Copyright (c) 2018, Dell, Inc.
 #
@@ -223,26 +223,49 @@ def get_fan_information():
                 fan_list.append(ii[1])
         fan_list_final = []
         for i in fan_list:
-            if i not in fan_list_final:
-                fan_list_final.append(i)
-        for ii in fan_list_final:
-            response = requests.get('https://%s%s' % (idrac_ip, ii),verify=False,auth=(idrac_username, idrac_password))
+            response = requests.get('https://%s%s' % (idrac_ip, i),verify=False,auth=(idrac_username, idrac_password))
             if response.status_code != 200:
                 print("\n- FAIL, get command failed, error is: %s" % data)
             else:
                 data_get = response.json()
-                for i in data_get['Fans']: 
-                    for ii in i.items():
+                try:
+                    message = "\n- Details for %s -\n" % data_get["FanName"]
+                    f.writelines(message)
+                    print(message)
+                    message = "\n"
+                    f.writelines(message)
+                except:
+                    pass
+                if "Fans" not in data_get.keys():
+                    for ii in data_get.items():
                         message = "%s: %s" %  (ii[0], ii[1])
                         f.writelines(message)
                         print(message)
                         message = "\n"
                         f.writelines(message)
                     message = "\n"
-                    print(message)
                     f.writelines(message)
-                break               
-    f.close()               
+                    print(message)
+                else:
+                    count = 0
+                    while True:
+                        if count == len(fan_list):
+                            return
+                        for i in data_get["Fans"]:
+                            message = "\n- Details for %s -\n" % i["FanName"]
+                            count+=1
+                            f.writelines(message)
+                            print(message)
+                            message = "\n"
+                            f.writelines(message)
+                            for ii in i.items():
+                                message = "%s: %s" %  (ii[0], ii[1])
+                                f.writelines(message)
+                                print(message)
+                                message = "\n"
+                                f.writelines(message)
+    f.close() 
+                           
 
 def get_ps_information():
     f=open("hw_inventory.txt","a")
@@ -260,50 +283,112 @@ def get_ps_information():
         print("- WARNING, no power supplies detected for system")
         
     else:
-        count = 0
         for i in data['Links']['PoweredBy']:
             for ii in i.items():
                 response = requests.get('https://%s%s' % (idrac_ip, ii[1]),verify=False,auth=(idrac_username, idrac_password))
                 if response.status_code != 200:
                     print("\n- FAIL, get command failed, error is: %s" % data)
                     sys.exit()
-                data_get = response.json()
-                for iii in data_get['PowerSupplies']:
-                    count+=1
-                    psu_name = iii["Name"]
-                    for iiii in iii.items():
-                        if count == len(data['Links']['PoweredBy'])+1:
-                            break
-                        elif iiii[0] == "Redundancy":
-                            message = "\n- %s -\n" % psu_name
+                else:
+                    data_get = response.json()
+                    if "PowerSupplies" not in data_get.keys():
+                        message = "\n- Details for %s -\n" % data_get["Name"]
+                        f.writelines(message)
+                        f.writelines("\n")
+                        print(message)
+                        for i in data_get.items():
+                            if i[0] == "Oem":
+                                try:
+                                    for ii in i[1]["Dell"]["DellPowerSupply"].items():
+                                        message = "%s: %s" % (ii[0],ii[1])
+                                        f.writelines(message)
+                                        f.writelines("\n")
+                                        print(message)
+                                except:
+                                    print("- FAIL, unable to find Dell PowerSupply OEM information")
+                                    sys.exit()
+                            else:
+                                message = "%s: %s" % (i[0],i[1])
+                                f.writelines(message)
+                                f.writelines("\n")
+                                print(message)
+                    
+                    else:
+                        if len(data['Links']['PoweredBy']) == 1:
+                            message = "\n- Details for %s -\n" % data_get["PowerSupplies"][0]["Name"]
                             f.writelines(message)
                             f.writelines("\n")
                             print(message)
-                            try:
-                                for i in iiii[1][0].items():
-                                    message = "%s: %s" %  (i[0], i[1])
+                            for i in data_get.items():
+                                if i[0] == "PowerSupplies":
+                                    for ii in i[1]:
+                                        for iii in ii.items():
+                                            if iii[0] == "Oem":
+                                                try:
+                                                    for iiii in iii[1]["Dell"]["DellPowerSupply"].items():
+                                                        message = "%s: %s" % (iiii[0],iiii[1])
+                                                        f.writelines(message)
+                                                        f.writelines("\n")
+                                                        print(message)
+                                                except:
+                                                    print("- FAIL, unable to find Dell PowerSupply OEM information")
+                                                    sys.exit()
+                                                
+                                            else:
+                                                message = "%s: %s" % (iii[0],iii[1])
+                                                f.writelines(message)
+                                                f.writelines("\n")
+                                                print(message)
+                                    
+                                elif i[0] == "Voltages":
+                                    pass
+                                elif i[0] == "PowerControl":
+                                    for ii in i[1]:
+                                        for iii in ii.items():
+                                            message = "%s: %s" % (iii[0],iii[1])
+                                            f.writelines(message)
+                                            f.writelines("\n")
+                                            print(message)
+                            
+                                else:
+                                    message = "%s: %s" % (i[0],i[1])
                                     f.writelines(message)
                                     f.writelines("\n")
                                     print(message)
-                            except:
-                                pass
-                        elif iiii[0] == "Oem":
-                            for i in iiii[1]["Dell"]["DellPowerSupply"].items():
-                                message = "%s: %s" %  (i[0], i[1])
-                                f.writelines(message)
-                                f.writelines("\n")
-                                print(message)
-                            for i in iiii[1]["Dell"]["DellPowerSupplyView"].items():
-                                message = "%s: %s" %  (i[0], i[1])
-                                f.writelines(message)
-                                f.writelines("\n")
-                                print(message)
-                        else:
-                            message = "%s: %s" %  (iiii[0], iiii[1])
-                            f.writelines(message)
+                            print("\n")
                             f.writelines("\n")
-                            print(message)
-            break
+                        else:
+                            for i in data_get.items():
+                                if i[0] == "PowerSupplies":
+                                    psu_ids = i[1]
+                            count = 0
+                            while True:
+                                if len(psu_ids) == count:
+                                    return
+                                else:
+                                    for i in psu_ids:
+                                        message = "\n- Details for %s -\n" % i["Name"]
+                                        f.writelines(message)
+                                        f.writelines("\n")
+                                        print(message)
+                                        for ii in i.items():
+                                            if ii[0] == "Oem":
+                                                try:
+                                                    for iii in ii[1]["Dell"]["DellPowerSupply"].items():
+                                                        message = "%s: %s" % (iii[0],iii[1])
+                                                        f.writelines(message)
+                                                        f.writelines("\n")
+                                                        print(message)
+                                                except:
+                                                    print("- FAIL, unable to find Dell PowerSupply OEM information")
+                                                    sys.exit()
+                                            else:
+                                                message = "%s: %s" % (ii[0],ii[1])
+                                                f.writelines(message)
+                                                f.writelines("\n")
+                                                print(message)
+                                        print "\n"
+                                        count+=1
     f.close()
 
 def get_storage_controller_information():
