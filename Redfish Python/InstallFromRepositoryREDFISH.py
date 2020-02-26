@@ -2,7 +2,7 @@
 # InstallFromRepositoryREDFISH. Python script using Redfish API with OEM extension to either get firmware version for all devices, get repository update list or install firmware from a repository on a network share.
 #
 # _author_ = Texas Roemer <Texas_Roemer@Dell.com>
-# _version_ = 2.0
+# _version_ = 5.0
 #
 # Copyright (c) 2019, Dell, Inc.
 #
@@ -25,7 +25,7 @@ parser=argparse.ArgumentParser(description="Python script using Redfish API with
 parser.add_argument('-ip',help='iDRAC IP address', required=True)
 parser.add_argument('-u', help='iDRAC username', required=True)
 parser.add_argument('-p', help='iDRAC password', required=True)
-parser.add_argument('script_examples',action="store_true",help='InstallFromRepositoryREDFISH.py -ip 192.168.0.120 -u root -p calvin -i y --ipaddress 192.168.0.130 --sharename cifs_share_vm\R740xd_repo --username administrator --password password --applyupdate False --sharetype CIFS, this example to going to download the catalog file from the CIFS share repository but not install any updates. It\'s recommended now to execute the script with -r argument to verify the repo update list. InstallFromRepositoryREDFISH.py -ip 192.168.0.120 -u root -p calvin -i y --ipaddress 192.168.0.130 --sharename cifs_share_vm\R740xd_repo --username administrator --password password --applyupdate True --sharetype CIFS --rebootneeded True, this example is going to install updates from the CIFS share repository and apply them. If updates need a server reboot to apply, it will also reboot the server.')
+parser.add_argument('script_examples',action="store_true",help='InstallFromRepositoryREDFISH.py -ip 192.168.0.120 -u root -p calvin -i y --ipaddress 192.168.0.130 --sharename cifs_share_vm\R740xd_repo --username administrator --password password --applyupdate False --sharetype CIFS, this example to going to download the catalog file from the CIFS share repostiory but not install any updates. It\'s recommmended now to execute the script with -r argument to verify the repo update list. InstallFromRepositoryREDFISH.py -ip 192.168.0.120 -u root -p calvin -i y --ipaddress 192.168.0.130 --sharename cifs_share_vm\R740xd_repo --username administrator --password password --applyupdate True --sharetype CIFS --rebootneeded True, this example is going to install updates from the CIFS share repository and apply them. If updates need a server reboot to apply, it will also reboot the server.')
 parser.add_argument('-g', help='Get current supported devices for firmware updates and their current firmware version, pass in \"y\"', required=False)
 parser.add_argument('-r', help='Get repository update list, pass in \"y\". Output will be returned in XML format. You must first execute install from repository but don\'t apply updates to get the repository update list', required=False)
 parser.add_argument('-i', help='Install from repository, pass in \"y\"', required=False)
@@ -58,7 +58,7 @@ def check_supported_idrac_version():
         pass
 
 def script_examples():
-    print("\n- InstallFromRepositoryREDFISH.py -ip 192.168.0.120 -u root -p calvin -i y --ipaddress 192.168.0.130 --sharename cifs_share_vm\R740xd_repo_old --username administrator --password password --applyupdate False --sharetype CIFS, this example to going to download the catalog file from the CIFS share repository but not install any updates. I would now execute the script with -r argument to verify the repo update list.\n\n- InstallFromRepositoryREDFISH.py -ip 192.168.0.120 -u root -p calvin -i y --ipaddress 192.168.0.130 --sharename cifs_share_vm\R740xd_repo_old --username administrator --password password --applyupdate True --sharetype CIFS --rebootneeded True, this example is going to install update from the CIFS share repository and apply them. If updates need a server reboot to apply, it will also reboot the server\n")  
+    print("\n- InstallFromRepositoryREDFISH.py -ip 192.168.0.120 -u root -p calvin -i y --ipaddress 192.168.0.130 --sharename cifs_share_vm\R740xd_repo_old --username administrator --password password --applyupdate False --sharetype CIFS, this example to going to download the catalog file from the CIFS share repostiory but not install any updates. I would now execute the script with -r argument to verify the repo update list.\n\n- InstallFromRepositoryREDFISH.py -ip 192.168.0.120 -u root -p calvin -i y --ipaddress 192.168.0.130 --sharename cifs_share_vm\R740xd_repo_old --username administrator --password password --applyupdate True --sharetype CIFS --rebootneeded True, this example is going to install update from the CIFS share repository and apply them. If updates need a server reboot to apply, it will also reboot the server\n")  
 
 
 def get_FW_inventory():
@@ -67,7 +67,7 @@ def get_FW_inventory():
     statusCode = req.status_code
     data = req.json()
     installed_devices=[]
-    for i in data[u'Members']:
+    for i in data['Members']:
         for ii in i.items():
             if "Installed" in ii[1]:
                 installed_devices.append(ii[1])
@@ -75,9 +75,9 @@ def get_FW_inventory():
         req = requests.get('https://%s%s' % (idrac_ip, i), auth=(idrac_username, idrac_password), verify=False)
         statusCode = req.status_code
         data = req.json()
-        updateable_status = data[u'Updateable']
-        version = data[u'Version']
-        device_name = data[u'Name']
+        updateable_status = data['Updateable']
+        version = data['Version']
+        device_name = data['Name']
         print("Device Name: %s, Firmware Version: %s, Updatable: %s" % (device_name, version, updateable_status))
     sys.exit()
 
@@ -104,8 +104,8 @@ def get_repo_based_update_list():
         print("\n-POST command failure results:\n %s" % data)
         sys.exit()
     print("\n- Repo Based Update List in XML format\n")
-    print(data[u'PackageList'])
-    f.writelines(data[u'PackageList'])
+    print(data['PackageList'])
+    f.writelines(data['PackageList'])
     f.close()
     print("\n- WARNING, get repo based update list data is also copied to file \"repo_based_update_list.xml\"")
     sys.exit()
@@ -169,7 +169,7 @@ def install_from_repository():
         print("\n-POST command failure results:\n %s" % data)
         sys.exit()
     repo_job_id = response.headers['Location'].split("/")[-1]
-    print("- PASS, job ID %s successfully created" % repo_job_id)
+    print("- PASS, repository job ID %s successfully created" % repo_job_id)
 
 
 def get_update_job_ids():
@@ -183,8 +183,8 @@ def get_update_job_ids():
     if response.status_code == 200:
         pass
     else:
-        if data[u'error'][u'@Message.ExtendedInfo'][0][u'Message'] == u'Firmware versions on server match catalog, applicable updates are not present in the repository.':
-            print("\n- WARNING, %s" % data[u'error'][u'@Message.ExtendedInfo'][0][u'Message'])
+        if data['error']['@Message.ExtendedInfo'][0]['Message'] == 'Firmware versions on server match catalog, applicable updates are not present in the repository.':
+            print("\n- WARNING, %s" % data['error']['@Message.ExtendedInfo'][0]['Message'])
             sys.exit()
         else:
             print("\n-FAIL, POST command failed to get repo update list, status code is %s" % (response.status_code))
@@ -214,9 +214,25 @@ def get_update_job_ids():
         
 
 def loop_job_status(x):
+    print_message_count = 1
     start_time=datetime.now()
     while True:
-        req = requests.get('https://%s/redfish/v1/Managers/iDRAC.Embedded.1/Jobs/%s' % (idrac_ip, x), auth=(idrac_username, idrac_password), verify=False)
+        count = 0
+        while count != 5:
+            try:
+                req = requests.get('https://%s/redfish/v1/Managers/iDRAC.Embedded.1/Jobs/%s' % (idrac_ip, x), auth=(idrac_username, idrac_password), verify=False)
+                break
+            except RuntimeError as error_message:
+                print("- FAIL, requests command failed to GET job status, detailed error information: \n%s" % error_message)
+                count+=1
+                print("- WARNING, Script will wait 10 seconds and try to check job status again")
+                time.sleep(10)
+                continue
+        if count == 5:
+            print("- FAIL, unable to get job status after 5 attempts, script will exit")
+            sys.exit()
+        else:
+            pass
         current_time=str((datetime.now()-start_time))[0:7]
         statusCode = req.status_code
         if statusCode == 200:
@@ -229,13 +245,18 @@ def loop_job_status(x):
         if str(current_time)[0:7] >= "2:00:00":
             print("\n- FAIL: Timeout of 2 hours has been reached, script stopped\n")
             sys.exit()
-        elif "Fail" in data[u'Message'] or "fail" in data[u'Message'] or "invalid" in data[u'Message'] or "unable" in data[u'Message'] or "Unable" in data[u'Message'] or "not" in data[u'Message'] or "cancel" in data[u'Message'] or "Cancel" in data[u'Message']:
-            print("- FAIL: Job ID %s failed, detailed error message is: %s" % (x, data[u'Message']))
+        elif "Fail" in data['Message'] or "fail" in data['Message'] or "invalid" in data['Message'] or "unable" in data['Message'] or "Unable" in data['Message'] or "not" in data['Message'] or "cancel" in data['Message'] or "Cancel" in data['Message']:
+            print("- FAIL: Job ID %s failed, detailed error message is: %s" % (x, data['Message']))
             sys.exit()
-        elif data[u'Message'] == "Job for this device is already present.":
+        elif data['Message'] == "Job for this device is already present.":
             break
-        
-        elif "completed successfully" in data[u'Message']:
+
+        elif "Package successfully downloaded" in data['Message'] and print_message_count == 1:
+            print("\n- WARNING, repository package successfully downloaded. If version changed detected for any device, update job ID will get created and execute for that device\n")
+            time.sleep(5)
+            print_message_count = 2    
+            
+        elif "completed successfully" in data['Message']:
             print("\n- PASS, job ID %s successfully marked completed" % x)
             print("\n- Final detailed job results -\n")
             for i in data.items():
@@ -243,16 +264,19 @@ def loop_job_status(x):
             print("\n")
             if data['JobType'] == "RepositoryUpdate":
                 if args["applyupdate"] == "False":
-                    print("\n- WARNING, \"ApplyUpdate = False\" selected, execute script with -r argument to view the repo update list which will report devices detected for firmware updates")
+                    print("\n- WARNING, \"ApplyUpdate = False\" selected, execute script with -r agrument to view the repo update list which will report devices detected for firmware updates")
                     sys.exit()
                 else:
-                    print("\n- WARNING, repository update job marked completed. Checking now to see if any update jobs were created due to different firmware versions detected")
+                    print("\n- WARNING, repository update job marked completed. Script will now check to see if any update job(s) were created due to different firmware version change detected")
                     break
             else:
                 break
         else:
-            print("- WARNING, Job ID %s not marked completed, current status: \"%s\", job polling time: \"%s\"" % (x, data[u'Message'], current_time))
-            time.sleep(5)
+            print("- WARNING, job ID %s not marked completed, current job information:\n" % (x))
+            print("* Name: %s" % data['Name'])
+            print("* Job Status: %s" % data['Message'])
+            print("* Current job execution time: %s\n" % str(current_time)[0:7])
+            time.sleep(15)
 
 def check_schedule_update_job():
     count = 0
@@ -266,7 +290,7 @@ def check_schedule_update_job():
             print("Extended Info Message: {0}".format(req.json()))
             sys.exit()
         data = req.json()
-        if data[u'Message'] == "Task successfully scheduled.":
+        if data['Message'] == "Task successfully scheduled.":
             count+=1
     if count >= 1 and args["rebootneeded"].title() == "True":
         print("\n- WARNING, scheduled update job ID detected, server rebooting to apply the update(s)")
@@ -277,7 +301,7 @@ def check_schedule_update_job():
         for x in new_job_ids:
             req = requests.get('https://%s/redfish/v1/Managers/iDRAC.Embedded.1/Jobs/%s' % (idrac_ip, x), auth=(idrac_username, idrac_password), verify=False)
             data = req.json()
-            print("Job ID: %s, Job Name: %s, Job Message: %s" % (x,data[u'Name'],data[u'Message']))
+            print("Job ID: %s, Job Name: %s, Job Message: %s" % (x,data['Name'],data['Message']))
         sys.exit()
     else:
         pass
