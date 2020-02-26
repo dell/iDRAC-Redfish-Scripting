@@ -3,7 +3,7 @@
 #
 #
 # _author_ = Texas Roemer <Texas_Roemer@Dell.com>
-# _version_ = 3.0
+# _version_ = 5.0
 #
 # Copyright (c) 2019, Dell, Inc.
 #
@@ -25,7 +25,7 @@ parser=argparse.ArgumentParser(description="Python script using Redfish API DMTF
 parser.add_argument('-ip',help='iDRAC IP address', required=True)
 parser.add_argument('-u', help='iDRAC username', required=True)
 parser.add_argument('-p', help='iDRAC password', required=True)
-#parser.add_argument('script_examples',action="store_true",help='BiosSetAttributeREDFISH.py -ip 192.168.0.120 -u root -p calvin -a MemTest -v Disabled, this example will set one BIOS attribute. BiosSetAttributeREDFISH.py -ip 192.168.0.120 -u root -p calvin -an LogicalProc,EmbSata -av Disabled,AhciMode, this example is setting multiple BIOS attributes')
+parser.add_argument('script_examples',action="store_true",help='ChangeBiosBootOrderDMTF_REDFISH.py -ip 192.168.0.120 -u root -p calvin -g y, this example will get the current boot order. ChangeBiosBootOrderDMTF_REDFISH.py -ip 192.168.0.120 -u root -p calvin -c Boot000A, Boot0002, this example will change the boot order and set Boot000A as first device, Boot0002 as second device in the boot order.')
 parser.add_argument('-g', help='Get current boot order, pass in \"y\"', required=False)
 parser.add_argument('-c', help='Change boot order, pass in the Id of the boot device(s). You can pass in one, multiple or all. If you only pass in one device Id, the rest of the boot order will get moved down. Note: If you pass in multiple, use a comma separator. Example: Boot0004,Boot0005,Boot0006', required=False)
 
@@ -48,14 +48,14 @@ def check_supported_idrac_version():
 def get_current_boot_order():
     response = requests.get('https://%s/redfish/v1/Systems/System.Embedded.1/Bios' % idrac_ip,verify=False,auth=(idrac_username,idrac_password))
     data = response.json()
-    current_boot_mode=data[u'Attributes']['BootMode']
+    current_boot_mode=data['Attributes']['BootMode']
     response = requests.get('https://%s/redfish/v1/Systems/System.Embedded.1/BootOptions' % idrac_ip,verify=False,auth=(idrac_username,idrac_password))
     data = response.json()
     boot_device_display_name = ""
     boot_device_id = ""
     count = 0
     print("\n- Current boot order detected for BIOS boot mode \"%s\" -\n" % current_boot_mode) 
-    for i in data[u'Members']:
+    for i in data['Members']:
         for ii in i.items():
             response = requests.get('https://%s%s' % (idrac_ip, ii[1]),verify=False,auth=(idrac_username,idrac_password))
             data = response.json()
@@ -74,7 +74,7 @@ def change_boot_order():
     global job_id
     response = requests.get('https://%s/redfish/v1/Systems/System.Embedded.1/Bios' % idrac_ip,verify=False,auth=(idrac_username,idrac_password))
     data = response.json()
-    current_boot_mode=data[u'Attributes']['BootMode']
+    current_boot_mode=data['Attributes']['BootMode']
     url = 'https://%s/redfish/v1/Systems/System.Embedded.1' % idrac_ip
     if "," in args["c"]:
         boot_order_ids = args["c"].split(",")
@@ -111,18 +111,18 @@ def get_job_status_scheduled():
             print("Extended Info Message: {0}".format(req.json()))
             sys.exit()
         data = req.json()
-        if data[u'Message'] == "Task successfully scheduled.":
+        if data['Message'] == "Task successfully scheduled.":
             print("- PASS, %s job id successfully scheduled, rebooting the server to apply config changes" % job_id)
             break
         else:
-            print("- WARNING: JobStatus not scheduled, current status is: %s" % data[u'Message'])                                                                      
+            print("- WARNING: JobStatus not scheduled, current status is: %s" % data['Message'])                                                                      
 
 def reboot_server():
     count = 1
     response = requests.get('https://%s/redfish/v1/Systems/System.Embedded.1/' % idrac_ip,verify=False,auth=(idrac_username, idrac_password))
     data = response.json()
-    print("\n- WARNING, Current server power state is: %s" % data[u'PowerState'])
-    if data[u'PowerState'] == "On":
+    print("\n- WARNING, Current server power state is: %s" % data['PowerState'])
+    if data['PowerState'] == "On":
         url = 'https://%s/redfish/v1/Systems/System.Embedded.1/Actions/ComputerSystem.Reset' % idrac_ip
         payload = {'ResetType': 'GracefulShutdown'}
         headers = {'content-type': 'application/json'}
@@ -153,7 +153,7 @@ def reboot_server():
                 
             response = requests.get('https://%s/redfish/v1/Systems/System.Embedded.1/' % idrac_ip,verify=False,auth=(idrac_username, idrac_password))
             data = response.json()
-            if data[u'PowerState'] == "Off":
+            if data['PowerState'] == "Off":
                 print("- PASS, GET command passed to verify server is in OFF state")
                 break
             else:
@@ -172,7 +172,7 @@ def reboot_server():
             print("\n- FAIL, Command failed to power ON server, status code is: %s\n" % statusCode)
             print("Extended Info Message: {0}".format(response.json()))
             sys.exit()
-    elif data[u'PowerState'] == "Off":
+    elif data['PowerState'] == "Off":
         url = 'https://%s/redfish/v1/Systems/System.Embedded.1/Actions/ComputerSystem.Reset' % idrac_ip
         payload = {'ResetType': 'On'}
         headers = {'content-type': 'application/json'}
@@ -194,7 +194,16 @@ def reboot_server():
 def loop_job_status_final():
     start_time=datetime.now()
     while True:
-        req = requests.get('https://%s/redfish/v1/Managers/iDRAC.Embedded.1/Jobs/%s' % (idrac_ip, job_id), auth=(idrac_username, idrac_password), verify=False)
+        try:
+            req = requests.get('https://%s/redfish/v1/Managers/iDRAC.Embedded.1/Jobs/%s' % (idrac_ip, job_id), auth=(idrac_username, idrac_password), verify=False)
+        except requests.ConnectionError as error_message:
+            if "Max retries exceeded with url" in str(error_message):
+                print("- WARNING, max retries exceeded with URL error, retry GET command")
+                time.sleep(10)
+                continue
+            else:
+                print("- WARNING, GET command failed to get job status. Detail error results: %s" % error_message)
+                sys.exit()   
         current_time=(datetime.now()-start_time)
         statusCode = req.status_code
         if statusCode == 200:
@@ -207,18 +216,18 @@ def loop_job_status_final():
         if str(current_time)[0:7] >= "0:30:00":
             print("\n- FAIL: Timeout of 30 minutes has been hit, script stopped\n")
             sys.exit()
-        elif "Fail" in data[u'Message'] or "fail" in data[u'Message']:
+        elif "Fail" in data['Message'] or "fail" in data['Message']:
             print("- FAIL: %s failed" % job_id)
             sys.exit()
-        elif data[u'Message'] == "Job completed successfully.":
+        elif data['Message'] == "Job completed successfully.":
             print("\n- Final detailed job results -")
-            print("\n JobID = "+data[u'Id'])
-            print(" Name = "+data[u'Name'])
-            print(" Message = "+data[u'Message'])
-            print(" PercentComplete = "+str(data[u'PercentComplete'])+"\n")
+            print("\n JobID = "+data['Id'])
+            print(" Name = "+data['Name'])
+            print(" Message = "+data['Message'])
+            print(" PercentComplete = "+str(data['PercentComplete'])+"\n")
             break
         else:
-            print("- WARNING, JobStatus not completed, current status is: \"%s\"" % data[u'Message'])
+            print("- WARNING, JobStatus not completed, current status is: \"%s\"" % data['Message'])
             time.sleep(30)
 
 
