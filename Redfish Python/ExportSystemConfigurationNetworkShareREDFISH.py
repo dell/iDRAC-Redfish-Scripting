@@ -1,10 +1,10 @@
-#
+#!/usr/bin/python
 # ExportServerConfigurationNetworkShareREDFISH. Python script using Redfish API to export server configuration profile to a supported network share.
 #
 # 
 #
 # _author_ = Texas Roemer <Texas_Roemer@Dell.com>
-# _version_ = 6.0
+# _version_ = 7.0
 #
 # Copyright (c) 2017, Dell, Inc.
 #
@@ -53,10 +53,10 @@ def get_sharetypes():
     req = requests.get('https://%s/redfish/v1/Managers/iDRAC.Embedded.1' % (idrac_ip), auth=(idrac_username, idrac_password), verify=False)
     data = req.json()
     print("\n- ExportSystemConfiguration supported share types for iDRAC %s\n" % idrac_ip)
-    if u'OemManager.v1_0_0#OemManager.ExportSystemConfiguration' in data[u'Actions'][u'Oem']:
-        share_types = data[u'Actions'][u'Oem'][u'OemManager.v1_0_0#OemManager.ExportSystemConfiguration'][u'ShareParameters'][u'ShareType@Redfish.AllowableValues']
+    if 'OemManager.v1_0_0#OemManager.ExportSystemConfiguration' in data['Actions']['Oem']:
+        share_types = data['Actions']['Oem']['OemManager.v1_0_0#OemManager.ExportSystemConfiguration']['ShareParameters']['ShareType@Redfish.AllowableValues']
     else:
-        share_types = data[u'Actions'][u'Oem'][u'OemManager.v1_1_0#OemManager.ExportSystemConfiguration'][u'ShareParameters'][u'ShareType@Redfish.AllowableValues']
+        share_types = data['Actions']['Oem']['OemManager.v1_1_0#OemManager.ExportSystemConfiguration']['ShareParameters']['ShareType@Redfish.AllowableValues']
     for i in share_types:
         if i == "LOCAL":
             pass
@@ -105,19 +105,12 @@ def export_server_configuration_profile():
                     print("%s: %s" % (ii[0],ii[1]))
         else:
             print("%s: %s" % (i[0],i[1]))
-            
     headers = {'content-type': 'application/json'}
     response = requests.post(url, data=json.dumps(payload), headers=headers, verify=False, auth=(idrac_username,idrac_password))
-    d=str(response.__dict__)
-    if "UserName" in response.__dict__['_content']:
-        payload["ShareParameters"]["UserName"] = args["username"]
-        response = requests.post(url, data=json.dumps(payload), headers=headers, verify=False, auth=(idrac_username,idrac_password))
-        d=str(response.__dict__)
-    else:
-        pass
-
+    response_output_convert_to_string = str(response.__dict__)
+    
     try:
-        z=re.search("JID_.+?,",d).group()
+        z=re.search("JID_.+?,",response_output_convert_to_string).group()
     except:    
         print("\n- FAIL: detailed error message: {0}".format(response.__dict__['_content']))
         sys.exit()
@@ -150,11 +143,11 @@ def loop_job_status():
         if str(current_time)[0:7] >= "0:05:00":
             print("\n- FAIL: Timeout of 5 minutes has been hit, script stopped\n")
             sys.exit()
-        elif "Fail" in data[u'Message'] or "fail" in data[u'Message']:
-            print("- FAIL: job ID %s failed, failed message is: %s" % (job_id, data[u'Message']))
+        elif "Fail" in data['Message'] or "fail" in data['Message']:
+            print("- FAIL: job ID %s failed, failed message is: %s" % (job_id, data['Message']))
             sys.exit()
-        elif data[u'JobState'] == "Completed":
-            if data[u'Message'] == "Successfully exported Server Configuration Profile":
+        elif data['JobState'] == "Completed":
+            if data['Message'] == "Successfully exported Server Configuration Profile":
                 print("\n--- PASS, Final Detailed Job Status Results ---\n")
             else:
                 print("\n--- FAIL, Final Detailed Job Status Results ---\n")
@@ -165,7 +158,7 @@ def loop_job_status():
                     print("%s: %s" % (i[0],i[1]))
             break
         else:
-            print("- WARNING, JobStatus not completed, current status: \"%s\", percent complete: \"%s\"" % (data[u'Message'],data[u'PercentComplete']))
+            print("- WARNING, JobStatus not completed, current status: \"%s\", percent complete: \"%s\"" % (data['Message'],data['PercentComplete']))
             time.sleep(1)
 
 

@@ -1,10 +1,10 @@
-#
+#!/usr/bin/python
 # ImportSystemConfigurationNetworkShareREDFISH. Python script using Redfish API to import server configuration profile from a network share. 
 #
 # 
 #
 # _author_ = Texas Roemer <Texas_Roemer@Dell.com>
-# _version_ = 8.0
+# _version_ = 9.0
 #
 # Copyright (c) 2017, Dell, Inc.
 #
@@ -51,10 +51,10 @@ def get_sharetypes():
     req = requests.get('https://%s/redfish/v1/Managers/iDRAC.Embedded.1' % (idrac_ip), auth=(idrac_username, idrac_password), verify=False)
     data = req.json()
     print("\n- ImportSystemConfiguration supported share types for iDRAC %s\n" % idrac_ip)
-    if u'OemManager.v1_0_0#OemManager.ImportSystemConfiguration' in data[u'Actions'][u'Oem']:
-        share_types = data[u'Actions'][u'Oem'][u'OemManager.v1_0_0#OemManager.ImportSystemConfiguration'][u'ShareParameters'][u'ShareType@Redfish.AllowableValues']
+    if 'OemManager.v1_0_0#OemManager.ImportSystemConfiguration' in data['Actions']['Oem']:
+        share_types = data['Actions']['Oem']['OemManager.v1_0_0#OemManager.ImportSystemConfiguration']['ShareParameters']['ShareType@Redfish.AllowableValues']
     else:
-        share_types = data[u'Actions'][u'Oem'][u'OemManager.v1_1_0#OemManager.ImportSystemConfiguration'][u'ShareParameters'][u'ShareType@Redfish.AllowableValues']
+        share_types = data['Actions']['Oem']['OemManager.v1_1_0#OemManager.ImportSystemConfiguration']['ShareParameters']['ShareType@Redfish.AllowableValues']
     for i in share_types:
         if i == "LOCAL":
             pass
@@ -99,16 +99,11 @@ def import_server_configuration_profile():
     
     headers = {'content-type': 'application/json'}
     response = requests.post(url, data=json.dumps(payload), headers=headers, verify=False, auth=(idrac_username,idrac_password))
-    d=str(response.__dict__)
-    if "UserName" in response.__dict__['_content']:
-        payload["ShareParameters"]["UserName"] = args["username"]
-        response = requests.post(url, data=json.dumps(payload), headers=headers, verify=False, auth=(idrac_username,idrac_password))
-        d=str(response.__dict__)
-    else:
-        pass
+    post_output_convert_to_string = str(response.__dict__)
+    
 
     try:
-        z=re.search("JID_.+?,",d).group()
+        z=re.search("JID_.+?,",post_output_convert_to_string).group()
     except:
         print("\n- FAIL: detailed error message: {0}".format(response.__dict__['_content']))
         sys.exit()
@@ -143,8 +138,8 @@ def loop_job_status():
         else:
             print("Query job ID command failed, error code is: %s" % statusCode)
             sys.exit()
-        if "failed" in data[u'Oem'][u'Dell'][u'Message'] or "completed with errors" in data[u'Oem'][u'Dell'][u'Message'] or "Not one" in data[u'Oem'][u'Dell'][u'Message'] or "not compliant" in data[u'Oem'][u'Dell'][u'Message'] or "Unable" in data[u'Oem'][u'Dell'][u'Message'] or "The system could not be shut down" in data[u'Oem'][u'Dell'][u'Message'] or "timed out" in data[u'Oem'][u'Dell'][u'Message']:
-            print("- FAIL, Job ID %s marked as %s but detected issue(s). See detailed job results below for more information on failure\n" % (job_id, data[u'Oem'][u'Dell'][u'JobState']))
+        if "failed" in data['Oem']['Dell']['Message'] or "completed with errors" in data['Oem']['Dell']['Message'] or "Not one" in data['Oem']['Dell']['Message'] or "not compliant" in data['Oem']['Dell']['Message'] or "Unable" in data['Oem']['Dell']['Message'] or "The system could not be shut down" in data['Oem']['Dell']['Message'] or "timed out" in data['Oem']['Dell']['Message']:
+            print("- FAIL, Job ID %s marked as %s but detected issue(s). See detailed job results below for more information on failure\n" % (job_id, data['Oem']['Dell']['JobState']))
             print("- Detailed job results for job ID %s\n" % job_id)
             for i in data['Oem']['Dell'].items():
                 print("%s: %s" % (i[0], i[1]))
@@ -156,20 +151,20 @@ def loop_job_status():
                     for i in data['Messages']:
                         for ii in i.items():
                             if ii[0] == "Oem":
-                                print "-" * 80
+                                print("-" * 80)
                                 for iii in ii[1]['Dell'].items():
                                     print("%s: %s" % (iii[0], iii[1]))
                             else:
                                 pass
 
                     sys.exit()
-        elif "No reboot Server" in data[u'Oem'][u'Dell'][u'Message']:
+        elif "No reboot Server" in data['Oem']['Dell']['Message']:
             print("- PASS, job ID %s successfully marked completed. NoReboot value detected and config changes will not be applied until next manual server reboot\n" % job_id)
             print("\n- Detailed job results for job ID %s\n" % job_id)
             for i in data['Oem']['Dell'].items():
                 print("%s: %s" % (i[0], i[1]))
             sys.exit()
-        elif "Successfully imported" in data[u'Oem'][u'Dell'][u'Message'] or "completed with errors" in data[u'Oem'][u'Dell'][u'Message'] or "Successfully imported" in data[u'Oem'][u'Dell'][u'Message']:
+        elif "Successfully imported" in data['Oem']['Dell']['Message'] or "completed with errors" in data['Oem']['Dell']['Message'] or "Successfully imported" in data['Oem']['Dell']['Message']:
             print("- PASS, job ID %s successfully marked completed\n" % job_id)
             print("- Detailed job results for job ID %s\n" % job_id)
             for i in data['Oem']['Dell'].items():
@@ -190,14 +185,14 @@ def loop_job_status():
                                 pass
 
                     sys.exit()
-        elif "No changes" in data[u'Oem'][u'Dell'][u'Message'] or "No configuration changes" in data[u'Oem'][u'Dell'][u'Message']:
+        elif "No changes" in data['Oem']['Dell']['Message'] or "No configuration changes" in data['Oem']['Dell']['Message']:
             print("\n- PASS, job ID %s marked completed\n" % job_id)
             print("- Detailed job results for job ID %s\n" % job_id)
             for i in data['Oem']['Dell'].items():
                 print("%s: %s" % (i[0], i[1]))
             sys.exit()
         else:
-            print("- WARNING, JobStatus not completed, current status: \"%s\", percent complete: \"%s\"" % (data[u'Oem'][u'Dell'][u'Message'],data[u'Oem'][u'Dell'][u'PercentComplete']))
+            print("- WARNING, JobStatus not completed, current status: \"%s\", percent complete: \"%s\"" % (data['Oem']['Dell']['Message'],data['Oem']['Dell']['PercentComplete']))
             time.sleep(3)
             continue
 
