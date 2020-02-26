@@ -4,7 +4,7 @@
 # 
 #
 # _author_ = Texas Roemer <Texas_Roemer@Dell.com>
-# _version_ = 9.0
+# _version_ = 10.0
 #
 # Copyright (c) 2017, Dell, Inc.
 #
@@ -140,24 +140,24 @@ def loop_job_status():
             sys.exit()
         if "failed" in data['Oem']['Dell']['Message'] or "completed with errors" in data['Oem']['Dell']['Message'] or "Not one" in data['Oem']['Dell']['Message'] or "not compliant" in data['Oem']['Dell']['Message'] or "Unable" in data['Oem']['Dell']['Message'] or "The system could not be shut down" in data['Oem']['Dell']['Message'] or "timed out" in data['Oem']['Dell']['Message']:
             print("- FAIL, Job ID %s marked as %s but detected issue(s). See detailed job results below for more information on failure\n" % (job_id, data['Oem']['Dell']['JobState']))
-            print("- Detailed job results for job ID %s\n" % job_id)
-            for i in data['Oem']['Dell'].items():
-                print("%s: %s" % (i[0], i[1]))
-            for i in data['Messages']:
-                if "Oem" not in i.keys()[1]:
-                    sys.exit()
-                else:
-                    print("\n- Config results for job ID %s -\n" % job_id)
-                    for i in data['Messages']:
-                        for ii in i.items():
-                            if ii[0] == "Oem":
-                                print("-" * 80)
-                                for iii in ii[1]['Dell'].items():
-                                    print("%s: %s" % (iii[0], iii[1]))
-                            else:
-                                pass
-
-                    sys.exit()
+            print("- Detailed configuration changes and job results for \"%s\"\n" % job_id)
+            try:
+                for i in data["Messages"]:
+                    for ii in i.items():
+                        if ii[0] == "Oem":
+                            for iii in ii[1]["Dell"].items():
+                                print("%s: %s" % (iii[0], iii[1])) 
+                        else:
+                            print("%s: %s" % (ii[0], ii[1]))
+                    print("\n")
+            except:
+                print("- FAIL, unable to get configuration results for job ID, returning only final job results\n")
+                for i in data['Oem']['Dell'].items():
+                    print("%s: %s" % (i[0], i[1]))
+                
+            print("- %s completed in: %s" % (job_id, str(current_time)[0:7]))
+            sys.exit()
+            
         elif "No reboot Server" in data['Oem']['Dell']['Message']:
             print("- PASS, job ID %s successfully marked completed. NoReboot value detected and config changes will not be applied until next manual server reboot\n" % job_id)
             print("\n- Detailed job results for job ID %s\n" % job_id)
@@ -166,25 +166,24 @@ def loop_job_status():
             sys.exit()
         elif "Successfully imported" in data['Oem']['Dell']['Message'] or "completed with errors" in data['Oem']['Dell']['Message'] or "Successfully imported" in data['Oem']['Dell']['Message']:
             print("- PASS, job ID %s successfully marked completed\n" % job_id)
-            print("- Detailed job results for job ID %s\n" % job_id)
-            for i in data['Oem']['Dell'].items():
-                print("%s: %s" % (i[0], i[1]))
-            print("\n- %s completed in: %s" % (job_id, str(current_time)[0:7]))
-            for i in data['Messages']:
-                if "Oem" not in i.keys()[1]:
-                    sys.exit()
-                else:
-                    print("\n- Config results for job ID %s -\n" % job_id)
-                    for i in data['Messages']:
-                        for ii in i.items():
-                            if ii[0] == "Oem":
-                                print "-" * 80
-                                for iii in ii[1]['Dell'].items():
-                                    print("%s: %s" % (iii[0], iii[1]))
-                            else:
-                                pass
-
-                    sys.exit()
+            print("- Detailed configuration changes and job results for job ID %s\n" % job_id)
+            try:
+                for i in data["Messages"]:
+                    for ii in i.items():
+                        if ii[0] == "Oem":
+                            for iii in ii[1]["Dell"].items():
+                                print("%s: %s" % (iii[0], iii[1])) 
+                        else:
+                            print("%s: %s" % (ii[0], ii[1]))
+                    print("\n")
+            except:
+                print("- FAIL, unable to get configuration results for job ID, returning only final job results\n")
+                for i in data['Oem']['Dell'].items():
+                    print("%s: %s" % (i[0], i[1]))
+                
+            print("- %s completed in: %s" % (job_id, str(current_time)[0:7]))
+            sys.exit()
+            
         elif "No changes" in data['Oem']['Dell']['Message'] or "No configuration changes" in data['Oem']['Dell']['Message']:
             print("\n- PASS, job ID %s marked completed\n" % job_id)
             print("- Detailed job results for job ID %s\n" % job_id)
