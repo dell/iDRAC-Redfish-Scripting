@@ -82,7 +82,7 @@ def get_bios_attributes():
     a="\n--- BIOS Attributes ---\n"
     print(a)
     f.writelines(a)
-    for i in data[u'Attributes'].items():
+    for i in data['Attributes'].items():
         attribute_name = "Attribute Name: %s\t" % (i[0])
         f.writelines(attribute_name)
         attribute_value = "Attribute Value: %s\n" % (i[1])
@@ -95,7 +95,7 @@ def get_bios_attributes():
 def get_specific_bios_attribute():
     response = requests.get('https://%s/redfish/v1/Systems/System.Embedded.1/Bios' % idrac_ip,verify=False,auth=(idrac_username,idrac_password))
     data = response.json()
-    for i in data[u'Attributes'].items():
+    for i in data['Attributes'].items():
         if i[0] == args["A"]:
             print("\n- Current value for attribute \"%s\" is \"%s\"\n" % (args["A"], i[1]))
             sys.exit()
@@ -110,7 +110,7 @@ def bios_registry():
     f=open("bios_attribute_registry.txt","a")
     response = requests.get('https://%s/redfish/v1/Systems/System.Embedded.1/Bios/BiosRegistry' % idrac_ip,verify=False,auth=(idrac_username,idrac_password))
     data = response.json()
-    for i in data[u'RegistryEntries']['Attributes']:
+    for i in data['RegistryEntries']['Attributes']:
         for ii in i.items():
             message = "%s: %s" % (ii[0], ii[1])
             f.writelines(message)
@@ -128,7 +128,7 @@ def bios_registry_get_specific_attribute():
     response = requests.get('https://%s/redfish/v1/Systems/System.Embedded.1/Bios/BiosRegistry' % idrac_ip,verify=False,auth=(idrac_username,idrac_password))
     data = response.json()
     found = ""
-    for i in data[u'RegistryEntries']['Attributes']:
+    for i in data['RegistryEntries']['Attributes']:
         if args["s"] in i.values():
             print("\n- Attribute Registry information for attribute \"%s\" -\n" % args["s"])
             found = "yes"
@@ -148,9 +148,9 @@ def create_bios_attribute_dict():
     response = requests.get('https://%s/redfish/v1/Systems/System.Embedded.1/Bios/BiosRegistry' % idrac_ip,verify=False,auth=(idrac_username,idrac_password))
     data = response.json()
     for i in bios_attribute_payload["Attributes"].items():
-        for ii in data[u'RegistryEntries']['Attributes']:
+        for ii in data['RegistryEntries']['Attributes']:
             if i[0] in ii.values():
-                if ii[u'Type'] == "Integer":
+                if ii['Type'] == "Integer":
                     bios_attribute_payload['Attributes'][i[0]] = int(i[1])
     print("\n- WARNING, script will be setting BIOS attributes -\n")
     for i in bios_attribute_payload["Attributes"].items():
@@ -233,14 +233,13 @@ def check_job_status_schedule():
         statusCode = req.status_code
         if statusCode == 202 or statusCode == 200:
             pass
-            #print("- PASS, Command passed to check job status, code 200 returned")
             time.sleep(10)
         else:
             print("\n- FAIL, Command failed to check job status, return code is %s" % statusCode)
             print("Extended Info Message: {0}".format(req.json()))
             sys.exit()
         data = req.json()
-        if data[u'Messages'][0][u'Message'] == "Task successfully scheduled.":
+        if data['Messages'][0]['Message'] == "Task successfully scheduled.":
             if args["r"] == "l":
                 print("- PASS, %s job id successfully scheduled, next server manual reboot the job will execute" % job_id)
                 break
@@ -248,13 +247,13 @@ def check_job_status_schedule():
                 print("- PASS, %s job id successfully scheduled, rebooting the server to apply boot option changes" % job_id)
                 break
         else:
-            print("- WARNING: JobStatus not scheduled, current status is: %s" % data[u'Messages'][0][u'Message'])
+            print("- WARNING: JobStatus not scheduled, current status is: %s" % data['Messages'][0]['Message'])
 
 def reboot_server():
     response = requests.get('https://%s/redfish/v1/Systems/System.Embedded.1/' % idrac_ip,verify=False,auth=(idrac_username, idrac_password))
     data = response.json()
-    print("\n- WARNING, Current server power state is: %s" % data[u'PowerState'])
-    if data[u'PowerState'] == "On":
+    print("\n- WARNING, Current server power state is: %s" % data['PowerState'])
+    if data['PowerState'] == "On":
         url = 'https://%s/redfish/v1/Systems/System.Embedded.1/Actions/ComputerSystem.Reset' % idrac_ip
         payload = {'ResetType': 'GracefulShutdown'}
         headers = {'content-type': 'application/json'}
@@ -273,7 +272,7 @@ def reboot_server():
             response = requests.get('https://%s/redfish/v1/Systems/System.Embedded.1/' % idrac_ip,verify=False,auth=(idrac_username, idrac_password))
             data = response.json()
             current_time = str(datetime.now() - start_time)[0:7]
-            if data[u'PowerState'] == "Off":
+            if data['PowerState'] == "Off":
                 print("- PASS, GET command passed to verify graceful shutdown was successful and server is in OFF state")
                 break
             elif current_time == "0:05:00":
@@ -287,11 +286,11 @@ def reboot_server():
                     time.sleep(15)
                     response = requests.get('https://%s/redfish/v1/Systems/System.Embedded.1/' % idrac_ip,verify=False,auth=(idrac_username, idrac_password))
                     data = response.json()
-                    if data[u'PowerState'] == "Off":
+                    if data['PowerState'] == "Off":
                         print("- PASS, GET command passed to verify forced shutdown was successful and server is in OFF state")
                         break
                     else:
-                        print("- FAIL, server not in OFF state, current power status is %s" % data[u'PowerState'])
+                        print("- FAIL, server not in OFF state, current power status is %s" % data['PowerState'])
                         sys.exit()    
             else:
                 continue
@@ -306,7 +305,7 @@ def reboot_server():
             print("\n- FAIL, Command failed to power ON server, status code is: %s\n" % statusCode)
             print("Extended Info Message: {0}".format(response.json()))
             sys.exit()
-    elif data[u'PowerState'] == "Off":
+    elif data['PowerState'] == "Off":
         url = 'https://%s/redfish/v1/Systems/System.Embedded.1/Actions/ComputerSystem.Reset' % idrac_ip
         payload = {'ResetType': 'On'}
         headers = {'content-type': 'application/json'}
@@ -351,7 +350,7 @@ def check_job_status_final():
         if str(current_time)[0:7] >= "0:30:00":
             print("\n- FAIL: Timeout of 30 minutes has been hit, script stopped\n")
             sys.exit()
-        elif "Complete" in data[u'Messages'][0][u'Message'] or "complete" in data[u'Messages'][0][u'Message']:
+        elif "Complete" in data['Messages'][0]['Message'] or "complete" in data['Messages'][0]['Message']:
             print("- PASS, %s job id successfully completed\n" % job_id)
             count = 0
             while True:
@@ -368,13 +367,13 @@ def check_job_status_final():
                     sys.exit()
                 else:
                     print("- WARNING, GET command failed to get BIOS attributes, status code %s detected, retry" % response.status_code)
-                    sleep(10)
+                    time.sleep(10)
                     count+=1
-        elif "fail" in data[u'Messages'][0][u'Message'] or "Fail" in data[u'Messages'][0][u'Message']:
+        elif "fail" in data['Messages'][0]['Message'] or "Fail" in data['Messages'][0]['Message']:
             print("- FAIL, %s job id marked as failed. Check iDRAC Lifecycle Logs for more details on the failure" % job_id)
             sys.exit()
         else:
-            print("- WARNING: JobStatus not marked completed, current status is: %s" % data[u'Messages'][0][u'Message'])
+            print("- WARNING: JobStatus not marked completed, current status is: %s" % data['Messages'][0]['Message'])
             time.sleep(20)
 
 
