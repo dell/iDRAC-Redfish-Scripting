@@ -1,12 +1,12 @@
 #
 # ImportSystemConfigurationLocalREDFISH. Python script using Redfish API to import system configuration attributes locally from the python script. Using ImportBuffer parameter, pass in the correct open, closed tags along with FQDDs, attributes in XML format. Use payload dictionary example below for the correct format.
 #
-# NOTE: Local import is recommended to use if setting one or few attributes. If you're setting a large amount of attributes, use import file from a network share or import file locally script.
+# NOTE: Local import is recommended to use if setting one or few attributes. If yo're setting a large amount of attributes, use import file from a network share or import file locally script.
 #
 # NOTE: Before executing the script, modify the payload dictionary with supported parameters. For payload dictionary supported parameters, refer to schema "https://'iDRAC IP'/redfish/v1/Managers/iDRAC.Embedded.1/"
 #
 # _author_ = Texas Roemer <Texas_Roemer@Dell.com>
-# _version_ = 5.0
+# _version_ = 7.0
 #
 # Copyright (c) 2017, Dell, Inc.
 #
@@ -38,7 +38,11 @@ url = 'https://%s/redfish/v1/Managers/iDRAC.Embedded.1/Actions/Oem/EID_674_Manag
 
 # Make sure to modify this payload dictionary first before you execute the script. Payload listed below is an example of showing the correct format. 
  
-payload = {"ImportBuffer":"<SystemConfiguration><Component FQDD=\"iDRAC.Embedded.1\"><Attribute Name=\"Telnet.1#Enable\">Enabled</Attribute></Component></SystemConfiguration>","ShareParameters":{"Target":"ALL"}}
+
+
+payload = {"ShareParameters":{"Target":"ALL"},"ImportBuffer":"<SystemConfiguration><Component FQDD=\"BIOS.Setup.1-1\"><Attribute Name=\"BiosBootSeq\">HardDisk.List.1-1</Attribute></Component></SystemConfiguration>"}
+
+
 
 headers = {'content-type': 'application/json'}
 response = requests.post(url, data=json.dumps(payload), headers=headers, verify=False, auth=(idrac_username,idrac_password))
@@ -66,7 +70,25 @@ job_id=re.search("JID_.+",job_id).group()
 
 start_time=datetime.now()
 while True:
-    req = requests.get('https://%s/redfish/v1/TaskService/Tasks/%s' % (idrac_ip, job_id), auth=(idrac_username, idrac_password), verify=False)
+    #req = requests.get('https://%s/redfish/v1/TaskService/Tasks/%s' % (idrac_ip, job_id), auth=(idrac_username, idrac_password), verify=False)
+    count = 1
+    while True:
+        if count == 5:
+            print("- FAIL, 5 attempts at getting job status failed, script will exit")
+            sys.exit()
+        try:
+            req = requests.get('https://%s/redfish/v1/TaskService/Tasks/%s' % (idrac_ip, job_id), auth=(idrac_username, idrac_password), verify=False)
+            break
+        except RuntimeError as error_message:
+            print("- FAIL, requests command failed to GET job status, detailed error information: \n%s" % error_message)
+            error_message = str(error_message)
+            if "Failed to establish a new connection" in error_message:
+                print("- WARNING, failed to establish connection, executing command again")
+                time.sleep(10)
+                count+=1
+                continue
+            else:
+                sys.exit()
     statusCode = req.status_code
     data = req.json()
     current_time=(datetime.now()-start_time)
@@ -76,53 +98,66 @@ while True:
     else:
         print("Query job ID command failed, error code is: %s" % statusCode)
         sys.exit()
-    if "failed" in data[u'Oem'][u'Dell'][u'Message'] or "completed with errors" in data[u'Oem'][u'Dell'][u'Message'] or "Not one" in data[u'Oem'][u'Dell'][u'Message'] or "not compliant" in data[u'Oem'][u'Dell'][u'Message'] or "Unable" in data[u'Oem'][u'Dell'][u'Message'] or "The system could not be shut down" in data[u'Oem'][u'Dell'][u'Message'] or "timed out" in data[u'Oem'][u'Dell'][u'Message']:
-        print("- FAIL, Job ID %s marked as %s but detected issue(s). See detailed job results below for more information on failure\n" % (job_id, data[u'Oem'][u'Dell'][u'JobState']))
+    if "failed" in data['Oem']['Dell']['Message'] or "completed with errors" in data['Oem']['Dell']['Message'] or "Not one" in data['Oem']['Dell']['Message'] or "not compliant" in data['Oem']['Dell']['Message'] or "Unable" in data['Oem']['Dell']['Message'] or "The system could not be shut down" in data['Oem']['Dell']['Message'] or "No device configuration" in data['Oem']['Dell']['Message'] or "timed out" in data['Oem']['Dell']['Message']:
+        print("- FAIL, Job ID %s marked as %s but detected issue(s). See detailed job results below for more information on failure\n" % (job_id, data['Oem']['Dell']['JobState']))
         print("- Detailed job results for job ID %s\n" % job_id)
         for i in data['Oem']['Dell'].items():
             print("%s: %s" % (i[0], i[1]))
-        print("\n- Config results for job ID %s\n" % job_id)
         for i in data['Messages']:
-                for ii in i.items():
-                    if ii[0] == "Oem":
-                        print("-" * 80)
-                        for iii in ii[1]['Dell'].items():
-                            print("%s: %s" % (iii[0], iii[1]))
-                    else:
-                        pass
-        sys.exit()
-    elif "No reboot Server" in data[u'Oem'][u'Dell'][u'Message']:
+                if "Oem" not in i.keys()[1]:
+                    sys.exit()
+                else:
+                    print("\n- Config results for job ID %s -\n" % job_id)
+                    for i in data['Messages']:
+                        for ii in i.items():
+                            if ii[0] == "Oem":
+                                for iii in ii[1]['Dell'].items():
+                                    if iii[0] == '@odata.type':
+                                        print("\n%s: %s" % (iii[0],iii[1]))
+                                    else:
+                                        print("%s: %s" % (iii[0],iii[1]))
+                    
+
+
+                    sys.exit()
+    elif "No reboot Server" in data['Oem']['Dell']['Message']:
         print("- PASS, job ID %s successfully marked completed. NoReboot value detected and config changes will not be applied until next manual server reboot\n" % job_id)
         print("\n- Detailed job results for job ID %s\n" % job_id)
         for i in data['Oem']['Dell'].items():
             print("%s: %s" % (i[0], i[1]))
         sys.exit()
-    elif "Successfully imported" in data[u'Oem'][u'Dell'][u'Message'] or "completed with errors" in data[u'Oem'][u'Dell'][u'Message'] or "Successfully imported" in data[u'Oem'][u'Dell'][u'Message']:
+    elif "Successfully imported" in data['Oem']['Dell']['Message'] or "completed with errors" in data['Oem']['Dell']['Message'] or "Successfully imported" in data['Oem']['Dell']['Message']:
         print("- PASS, job ID %s successfully marked completed\n" % job_id)
         print("- Detailed job results for job ID %s\n" % job_id)
+        #print data
+        #sys.exit()
         for i in data['Oem']['Dell'].items():
             print("%s: %s" % (i[0], i[1]))
         print("\n- %s completed in: %s" % (job_id, str(current_time)[0:7]))
-        print("\n- Config results for job ID %s\n" % job_id)
         for i in data['Messages']:
-                for ii in i.items():
-                    if ii[0] == "Oem":
-                        print("-" * 80)
-                        for iii in ii[1]['Dell'].items():
-                            print("%s: %s" % (iii[0], iii[1]))
-                    else:
-                        pass
+            if "Oem" not in i.keys()[1]:
+                sys.exit()
+            else:
+                print("\n- Config results for job ID %s -\n" % job_id)
+                for i in data['Messages']:
+                        for ii in i.items():
+                            if ii[0] == "Oem":
+                                for iii in ii[1]['Dell'].items():
+                                    if iii[0] == '@odata.type':
+                                        print("\n%s: %s" % (iii[0],iii[1]))
+                                    else:
+                                        print("%s: %s" % (iii[0],iii[1]))
 
-        sys.exit()
-    elif "No changes" in data[u'Oem'][u'Dell'][u'Message'] or "No configuration changes" in data[u'Oem'][u'Dell'][u'Message']:
+
+                sys.exit()
+    elif "No changes" in data['Oem']['Dell']['Message'] or "No configuration changes" in data['Oem']['Dell']['Message']:
         print("\n- PASS, job ID %s marked completed\n" % job_id)
         print("- Detailed job results for job ID %s\n" % job_id)
         for i in data['Oem']['Dell'].items():
             print("%s: %s" % (i[0], i[1]))
         sys.exit()
     else:
-        print("- WARNING, JobStatus not completed, current status: \"%s\", percent complete: \"%s\"" % (data[u'Oem'][u'Dell'][u'Message'],data[u'Oem'][u'Dell'][u'PercentComplete']))
+        print("- WARNING, JobStatus not completed, current status: \"%s\", percent complete: \"%s\"" % (data['Oem']['Dell']['Message'],data['Oem']['Dell']['PercentComplete']))
         time.sleep(1)
         continue
-
-
+    
