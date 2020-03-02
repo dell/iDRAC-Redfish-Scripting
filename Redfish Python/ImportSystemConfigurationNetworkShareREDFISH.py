@@ -4,7 +4,7 @@
 # 
 #
 # _author_ = Texas Roemer <Texas_Roemer@Dell.com>
-# _version_ = 10.0
+# _version_ = 11.0
 #
 # Copyright (c) 2017, Dell, Inc.
 #
@@ -123,6 +123,7 @@ def import_server_configuration_profile():
     
 def loop_job_status():
     start_time=datetime.now()
+    count = 0
     while True:
         try:
             req = requests.get('https://%s/redfish/v1/TaskService/Tasks/%s' % (idrac_ip, job_id), auth=(idrac_username, idrac_password), verify=False)
@@ -135,9 +136,14 @@ def loop_job_status():
         if statusCode == 202 or statusCode == 200:
             pass
             time.sleep(3)
-        else:
-            print("Query job ID command failed, error code is: %s" % statusCode)
+        elif count == 10:
+            print("- FAIL, retry count for querying job status has been reached, script will exit")
             sys.exit()
+        else:
+            print("WARNING, query job ID command failed, error code is: %s. Script will retry checking job status" % statusCode)
+            time.sleep(10)
+            count+=1
+            continue
         if "failed" in data['Oem']['Dell']['Message'] or "completed with errors" in data['Oem']['Dell']['Message'] or "Not one" in data['Oem']['Dell']['Message'] or "not compliant" in data['Oem']['Dell']['Message'] or "Unable" in data['Oem']['Dell']['Message'] or "The system could not be shut down" in data['Oem']['Dell']['Message'] or "timed out" in data['Oem']['Dell']['Message']:
             print("- FAIL, Job ID %s marked as %s but detected issue(s). See detailed job results below for more information on failure\n" % (job_id, data['Oem']['Dell']['JobState']))
             print("- Detailed configuration changes and job results for \"%s\"\n" % job_id)
