@@ -2,7 +2,7 @@
 # SetNetworkDevicePropertiesREDFISH. Python script using Redfish API to either get network devices/ports or set network properties.
 #
 # _author_ = Texas Roemer <Texas_Roemer@Dell.com>
-# _version_ = 3.0
+# _version_ = 4.0
 #
 # Copyright (c) 2018, Dell, Inc.
 #
@@ -28,10 +28,10 @@ parser.add_argument('-p', help='iDRAC password', required=True)
 parser.add_argument('-E', help='Pass in a value of \"y\" to see examples of executing the script', required=False)
 parser.add_argument('-g', help='Pass in\"y\", this will generate ini file with payload dictionary to set properties. If setting properties, make sure to generate this ini file first. This file is needed to pass in the properties you want to configure', required=False)
 parser.add_argument('-n', help='Get server network FQDD devices, pass in \"y\"', required=False)
-parser.add_argument('-d', help='Get network device details, pass in network device ID, Example "\NIC.Integrated.1\"', required=False)
-parser.add_argument('-P', help='Get network device port details, pass in network port ID, Example "\NIC.Integrated.1-1-1\" ', required=False)
-parser.add_argument('-a', help='Get properties for network device, pass in network port ID . Example "\NIC.Integrated.1-1-1\"', required=False)
-parser.add_argument('-s', help='To set network properties, pass in network port ID, Example "\NIC.Integrated.1-1-1\" ', required=False)
+parser.add_argument('-d', help='Get network device details, pass in network device ID, Example \"NIC.Integrated.1\"', required=False)
+parser.add_argument('-P', help='Get network device port details, pass in network port ID, Example \"NIC.Integrated.1-1-1\" ', required=False)
+parser.add_argument('-a', help='Get properties for network device, pass in network port ID . Example \"NIC.Integrated.1-1-1\"', required=False)
+parser.add_argument('-s', help='To set network properties, pass in network port ID, Example \"NIC.Integrated.1-1-1\" ', required=False)
 parser.add_argument('-r', help='Pass in value for reboot type. Pass in \"n\" for server to reboot now and apply changes immediately. Pass in \"l\" which will schedule the job but system will not reboot. Next manual server reboot, job will be applied. Pass in \"s\" to create a maintenance window config job. Job will go to schedule state once maintenance window has started', required=False)
 parser.add_argument('-st', help='Maintenance window start date/time, pass it in this format \"YYYY-MM-DDTHH:MM:SS(+/-)HH:MM\"', required=False)
 parser.add_argument('-dt', help='Maintenance window duration time, pass in a value in seconds', required=False)
@@ -90,22 +90,20 @@ def get_network_devices():
     data = response.json()
     print("\n- Network device ID(s) detected -\n")
     network_device_list=[]
-    for i in data[u'Members']:
+    for i in data['Members']:
         for ii in i.items():
             network_device = ii[1].split("/")[-1]
             network_device_list.append(network_device)
             print(network_device)
     for i in network_device_list:
         port_list = []
-        response = requests.get('https://%s/redfish/v1/Systems/System.Embedded.1/NetworkAdapters/%s' % (idrac_ip, i),verify=False,auth=(idrac_username, idrac_password))
+        response = requests.get('https://%s/redfish/v1/Systems/System.Embedded.1/NetworkAdapters/%s/NetworkDeviceFunctions' % (idrac_ip, i),verify=False,auth=(idrac_username, idrac_password))
         data = response.json()
-        for ii in data[u'Controllers']:
-            for iii in ii[u'Links'][u'NetworkDeviceFunctions']:
-                for iiii in iii.items():
-                    port_list.append(iiii[1].split("/")[-1])
         print("\n- Network port ID(s) detected for %s -\n" % i)
-        for i in port_list:
-            print(i)
+        for i in data['Members']:
+            for ii in i.items():
+                print(ii[1].split("/")[-1])
+
 
 def get_detail_network_device_info():   
     print("\n - Detailed network device information for %s -\n" % network_device)
@@ -115,10 +113,10 @@ def get_detail_network_device_info():
         if i[0] == "Controllers":
             for ii in i[1]:
                 for iii in ii.items():
-                    if iii[0] == u'ControllerCapabilities':
+                    if iii[0] == 'ControllerCapabilities':
                         for _ in iii[1].items():
                             print("%s: %s" % (_[0],_[1]))
-                    elif iii[0] == u'Links':
+                    elif iii[0] == 'Links':
                         for _ in iii[1].items():
                             print("%s: %s" % (_[0],_[1]))
                     else:
@@ -150,20 +148,20 @@ def get_network_device_properties():
     response = requests.get('https://%s/redfish/v1/Systems/System.Embedded.1/NetworkAdapters/%s/NetworkDeviceFunctions/%s' % (idrac_ip, id_device, network_device_port),verify=False,auth=(idrac_username, idrac_password))
     data = response.json()
     for i in data.items():
-        if i[0] == u'iSCSIBoot':
+        if i[0] == 'iSCSIBoot':
             if i[1] == None:
                 pass
             else:
                 print("\n - iSCSIBoot Attributes -\n")
-                for i in data[u'iSCSIBoot'].items():
+                for i in data['iSCSIBoot'].items():
                     print("%s: %s" % (i[0],i[1]))
     for i in data.items():
-        if i[0] == u'FibreChannel':
+        if i[0] == 'FibreChannel':
             if i[1] == None:
                 pass
             else:
                 print("\n - FibreChannel Attributes -\n")
-                for i in data[u'FibreChannel'].items():
+                for i in data['FibreChannel'].items():
                     print("%s: %s" % (i[0],i[1]))
             
 
@@ -178,12 +176,12 @@ def set_network_properties():
     except:
         print("\n- FAIL, \"set_network_properties.ini\" file does not exist. Execute the script with -g to generate the ini file which is needed to set attributes")
         sys.exit()
-    if u'iSCSIBoot' in payload:
-        if payload[u'iSCSIBoot'] == {}:
-            del payload[u'iSCSIBoot']
-    if u'FibreChannel' in payload:
-        if payload[u'FibreChannel'] == {}:
-            del payload[u'FibreChannel']
+    if 'iSCSIBoot' in payload:
+        if payload['iSCSIBoot'] == {}:
+            del payload['iSCSIBoot']
+    if 'FibreChannel' in payload:
+        if payload['FibreChannel'] == {}:
+            del payload['FibreChannel']
     
     if "FC" in network_device_port:
         port_device=network_device_port
@@ -282,7 +280,7 @@ def create_schedule_config_job():
         else:
             print("%s: %s" % (i[0],i[1]))
                     
-    print("\n\n- PASS, %s maintenance window config jid successfully created.\n\nJob will go to scheduled state once job start time has elapsed. You will need to schedule a separate server reboot during the maintenance windows for the config job to execute.\n" % (job_id))
+    print("\n\n- PASS, %s maintenance window config jid successfully created.\n\nJob will go to scheduled state once job start time has elapsed. You will need to schedule a seperate server reboot during the maintenance windows for the config job to execute.\n" % (job_id))
     
 start_time=datetime.now()
 
@@ -302,10 +300,10 @@ def loop_job_status():
         if str(current_time)[0:7] >= "0:30:00":
             print("\n- FAIL: Timeout of 30 minutes has been hit, script stopped\n")
             sys.exit()
-        elif "Fail" in data[u'Message'] or "fail" in data[u'Message']:
+        elif "Fail" in data['Message'] or "fail" in data['Message']:
             print("- FAIL: %s failed" % job_id)
             sys.exit()
-        elif data[u'Message'] == "Job completed successfully.":
+        elif data['Message'] == "Job completed successfully.":
             print("\n--- PASS, Final Detailed Job Status Results ---\n")
             for i in data.items():
                 if "odata" in i[0] or "MessageArgs" in i[0] or "TargetSettingsURI" in i[0]:
@@ -315,7 +313,7 @@ def loop_job_status():
             print("\n- %s job execution time: %s" % (job_id,str(current_time)[0:7]))
             break
         else:
-            print("- WARNING, JobStatus not completed, current status is: \"%s\", percent completion is: \"%s\"" % (data[u'Message'],data[u'PercentComplete']))
+            print("- WARNING, JobStatus not completed, current status is: \"%s\", percent completion is: \"%s\"" % (data['Message'],data['PercentComplete']))
             time.sleep(10)
 
 def get_job_status():
@@ -330,7 +328,7 @@ def get_job_status():
             print("Extended Info Message: {0}".format(req.json()))
             sys.exit()
         data = req.json()
-        if data[u'Message'] == "Task successfully scheduled.":
+        if data['Message'] == "Task successfully scheduled.":
             if args["r"] == "n":
                 print("\n- WARNING, config job marked as scheduled, system will now reboot to apply configuration changes")
             elif args["r"] == "l":
@@ -339,7 +337,7 @@ def get_job_status():
                 pass
             break
         else:
-            print("- WARNING: JobStatus not scheduled, current status is: %s" % data[u'Message'])
+            print("- WARNING: JobStatus not scheduled, current status is: %s" % data['Message'])
 
 def reboot_server():
     url = 'https://%s/redfish/v1/Systems/System.Embedded.1/Actions/ComputerSystem.Reset' % idrac_ip
