@@ -1,8 +1,8 @@
-#
+#!/usr/bin/python
 # InstallFromRepositoryREDFISH. Python script using Redfish API with OEM extension to either get firmware version for all devices, get repository update list or install firmware from a repository on a network share.
 #
 # _author_ = Texas Roemer <Texas_Roemer@Dell.com>
-# _version_ = 5.0
+# _version_ = 6.0
 #
 # Copyright (c) 2019, Dell, Inc.
 #
@@ -25,12 +25,12 @@ parser=argparse.ArgumentParser(description="Python script using Redfish API with
 parser.add_argument('-ip',help='iDRAC IP address', required=True)
 parser.add_argument('-u', help='iDRAC username', required=True)
 parser.add_argument('-p', help='iDRAC password', required=True)
-parser.add_argument('script_examples',action="store_true",help='InstallFromRepositoryREDFISH.py -ip 192.168.0.120 -u root -p calvin -i y --ipaddress 192.168.0.130 --sharename cifs_share_vm\R740xd_repo --username administrator --password password --applyupdate False --sharetype CIFS, this example to going to download the catalog file from the CIFS share repostiory but not install any updates. It\'s recommmended now to execute the script with -r argument to verify the repo update list. InstallFromRepositoryREDFISH.py -ip 192.168.0.120 -u root -p calvin -i y --ipaddress 192.168.0.130 --sharename cifs_share_vm\R740xd_repo --username administrator --password password --applyupdate True --sharetype CIFS --rebootneeded True, this example is going to install updates from the CIFS share repository and apply them. If updates need a server reboot to apply, it will also reboot the server.')
+parser.add_argument('script_examples',action="store_true",help='InstallFromRepositoryREDFISH.py -ip 192.168.0.120 -u root -p calvin -i y --ipaddress 192.168.0.130 --sharename cifs_share_vm\R740xd_repo --username administrator --password password --applyupdate False --sharetype CIFS, this example to going to download the catalog file from the CIFS share repostiory but not install any updates. It\'s recommmended now to execute the script with -r argument to verify the repo update list. InstallFromRepositoryREDFISH.py -ip 192.168.0.120 -u root -p calvin -i y --ipaddress 192.168.0.130 --sharename cifs_share_vm\R740xd_repo --username administrator --password password --applyupdate True --sharetype CIFS --rebootneeded True, this example is going to install updates from the CIFS share repository and apply them. If updates need a server reboot to apply, it will also reboot the server. InstallFromRepositoryREDFISH.py -ip 192.168.0.120 -u root -p calvin -i y --ipaddress 143.166.147.76 --sharetype HTTP --applyupdate True --rebootneeded True, this example shows using Dell HTTP downloads repository which is recommended to use. This repository is updated with the latest firmware versions for all devices iDRAC supports for updates.')
 parser.add_argument('-g', help='Get current supported devices for firmware updates and their current firmware version, pass in \"y\"', required=False)
 parser.add_argument('-r', help='Get repository update list, pass in \"y\". Output will be returned in XML format. You must first execute install from repository but don\'t apply updates to get the repository update list', required=False)
 parser.add_argument('-i', help='Install from repository, pass in \"y\"', required=False)
 parser.add_argument('--ipaddress', help='Pass in the IP address of the network share', required=False)
-parser.add_argument('--sharetype', help='Pass in the share type of the network share. Supported values are NFS, CIFS, HTTP, HTTPS.', required=False)
+parser.add_argument('--sharetype', help='Pass in the share type of the network share. Supported values are NFS, CIFS, HTTP, HTTPS. NOTE: For HTTP/HTTPS, recommended to use either IIS or Apache.', required=False)
 parser.add_argument('--sharename', help='Pass in the network share share name', required=False)
 parser.add_argument('--username', help='Pass in the CIFS username', required=False)
 parser.add_argument('--password', help='Pass in the CIFS username pasword', required=False)
@@ -222,7 +222,7 @@ def loop_job_status(x):
             try:
                 req = requests.get('https://%s/redfish/v1/Managers/iDRAC.Embedded.1/Jobs/%s' % (idrac_ip, x), auth=(idrac_username, idrac_password), verify=False)
                 break
-            except RuntimeError as error_message:
+            except requests.ConnectionError as error_message:
                 print("- FAIL, requests command failed to GET job status, detailed error information: \n%s" % error_message)
                 count+=1
                 print("- WARNING, Script will wait 10 seconds and try to check job status again")
