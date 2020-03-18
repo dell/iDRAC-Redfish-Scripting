@@ -2,7 +2,7 @@
 # InstallFromRepositoryREDFISH. Python script using Redfish API with OEM extension to either get firmware version for all devices, get repository update list or install firmware from a repository on a network share.
 #
 # _author_ = Texas Roemer <Texas_Roemer@Dell.com>
-# _version_ = 6.0
+# _version_ = 7.0
 #
 # Copyright (c) 2019, Dell, Inc.
 #
@@ -247,7 +247,7 @@ def loop_job_status(x):
             sys.exit()
         elif "Fail" in data['Message'] or "fail" in data['Message'] or "invalid" in data['Message'] or "unable" in data['Message'] or "Unable" in data['Message'] or "not" in data['Message'] or "cancel" in data['Message'] or "Cancel" in data['Message']:
             print("- FAIL: Job ID %s failed, detailed error message is: %s" % (x, data['Message']))
-            sys.exit()
+            break
         elif data['Message'] == "Job for this device is already present.":
             break
 
