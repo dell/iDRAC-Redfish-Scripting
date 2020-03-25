@@ -3,7 +3,7 @@
 #
 #
 # _author_ = Texas Roemer <Texas_Roemer@Dell.com>
-# _version_ = 5.0
+# _version_ = 6.0
 #
 # Copyright (c) 2019, Dell, Inc.
 #
@@ -46,8 +46,21 @@ def check_supported_idrac_version():
         pass
 
 def get_current_boot_order():
-    response = requests.get('https://%s/redfish/v1/Systems/System.Embedded.1/Bios' % idrac_ip,verify=False,auth=(idrac_username,idrac_password))
-    data = response.json()
+    while True:
+        response = requests.get('https://%s/redfish/v1/Systems/System.Embedded.1/Bios' % idrac_ip,verify=False,auth=(idrac_username,idrac_password))
+        data = response.json()
+        if response.status_code == 200 or response.status_code == 202:
+            data = response.json()
+            if "Attributes" in data.keys():
+                break
+            elif count == 5:
+                print("- WARNING, GET command failed to locate \"Attributes\" key in output, script will exit")
+                sys.exit()
+            else:
+                print("- WARNING, \"Attribute\" key is not found in GET output, retry")
+                time.sleep(10)
+                count+=1
+                continue
     current_boot_mode=data['Attributes']['BootMode']
     response = requests.get('https://%s/redfish/v1/Systems/System.Embedded.1/BootOptions' % idrac_ip,verify=False,auth=(idrac_username,idrac_password))
     data = response.json()
