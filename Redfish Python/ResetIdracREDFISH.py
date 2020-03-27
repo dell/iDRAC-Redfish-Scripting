@@ -5,7 +5,7 @@
 # 
 #
 # _author_ = Texas Roemer <Texas_Roemer@Dell.com>
-# _version_ = 2.0
+# _version_ = 3.0
 #
 # Copyright (c) 2017, Dell, Inc.
 #
@@ -27,6 +27,7 @@ parser = argparse.ArgumentParser(description='Python script using Redfish API to
 parser.add_argument('-ip', help='iDRAC IP Address', required=True)
 parser.add_argument('-u', help='iDRAC username', required=True)
 parser.add_argument('-p', help='iDRAC password', required=True)
+parser.add_argument('script_examples',action="store_true",help='ResetIdracREDFISH.py -ip 192.168.0.120 -u root -p calvin, this example will reset the iDRAC and be back online after a few minutes, same behavior as \"racadm racreset\" command')
 
 args = vars(parser.parse_args())
 
@@ -42,12 +43,11 @@ def reset_idrac():
     payload={"ResetType":"GracefulRestart"}
     headers = {'content-type': 'application/json'}
     response = requests.post(url, data=json.dumps(payload), headers=headers,verify=False, auth=(idrac_username, idrac_password))
-    statusCode = response.status_code
-    if statusCode == 204:
-        print("\n- PASS, status code %s returned for POST command to reset iDRAC\n") % statusCode
+    if response.status_code == 204:
+        print("\n- PASS, status code %s returned for POST command to reset iDRAC\n" % response.status_code)
     else:
         data=response.json()
-        print("\n- FAIL, status code %s returned, error is: \n%s") % (statusCode, data)
+        print("\n- FAIL, status code %s returned, detailed error is: \n%s" % (response.status_code, data))
         sys.exit()
     time.sleep(15)
     print("- WARNING, iDRAC will now reset and be back online within a few minutes.")
