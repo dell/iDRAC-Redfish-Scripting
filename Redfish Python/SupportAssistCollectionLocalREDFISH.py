@@ -2,7 +2,7 @@
 # SupportAssistCollectionLocalREDFISH. Python script using Redfish API with OEM extension to perform Support Assist operations.
 #
 # _author_ = Texas Roemer <Texas_Roemer@Dell.com>
-# _version_ = 1.0
+# _version_ = 2.0
 #
 # Copyright (c) 2020, Dell, Inc.
 #
@@ -213,12 +213,12 @@ def loop_job_status():
             if req.headers['Location'] == "/redfish/v1/Dell/sacollect.zip":
                 print("- PASS, job ID successfully marked completed. Support Assist logs filename: \"%s\"" % req.headers['Location'].split("/")[-1])
                 while True:
-                    request = raw_input("\n* Would you like to open browser session to download Support Assist file? Type \"y\" to download or \"n\" to not download: ")
-                    if request == "y":
+                    request = input("\n* Would you like to open browser session to download Support Assist file? Type \"y\" to download or \"n\" to not download: ")
+                    if str(request) == "y":
                         webbrowser.open('https://%s/redfish/v1/Dell/sacollect.zip' % (idrac_ip))
                         print("\n- WARNING, check you default browser session for downloaded Support Assist logs")
                         return
-                    elif request == "n":
+                    elif str(request) == "n":
                         sys.exit()
                     else:
                         print("- FAIL, incorrect value passed in for request, try again")
@@ -241,7 +241,6 @@ def loop_job_status():
                     pass
                 else:
                     print("%s: %s" % (i[0],i[1]))
-            print(req.headers)
             break
         else:
             print("- WARNING, JobStatus not marked completed, polling job status again, job execution time: %s" % str(current_time)[0:7])
