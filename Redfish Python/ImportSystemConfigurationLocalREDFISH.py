@@ -6,7 +6,7 @@
 # NOTE: Before executing the script, modify the payload dictionary with supported parameters. For payload dictionary supported parameters, refer to schema "https://'iDRAC IP'/redfish/v1/Managers/iDRAC.Embedded.1/"
 #
 # _author_ = Texas Roemer <Texas_Roemer@Dell.com>
-# _version_ = 8.0
+# _version_ = 9.0
 #
 # Copyright (c) 2017, Dell, Inc.
 #
@@ -40,23 +40,23 @@ url = 'https://%s/redfish/v1/Managers/iDRAC.Embedded.1/Actions/Oem/EID_674_Manag
  
 
 
-payload = {"ShareParameters":{"Target":"ALL"},"ImportBuffer":"<SystemConfiguration><Component FQDD=\"System.Embedded.1\"><Attribute Name=\"ServerTopology.1#DataCenterName\">TWC</Attribute><Attribute Name=\"ServerTopology.1#AisleName\">R740xd-iDRAC-EE </Attribute></Component></SystemConfiguration>"}
+payload = {"ShareParameters":{"Target":"ALL"},"ImportBuffer":"<SystemConfiguration><Component FQDD=\"System.Embedded.1\"><Attribute Name=\"ServerTopology.1#DataCenterName\">Dell</Attribute><Attribute Name=\"ServerTopology.1#AisleName\">12</Attribute></Component></SystemConfiguration>"}
 
 
 
 headers = {'content-type': 'application/json'}
 response = requests.post(url, data=json.dumps(payload), headers=headers, verify=False, auth=(idrac_username,idrac_password))
 
-d=str(response.__dict__)
+create_dict=str(response.__dict__)
 
 try:
-    z=re.search("JID_.+?,",d).group()
+    job_id_search=re.search("JID_.+?,",create_dict).group()
 except:
     print("\n- FAIL: status code %s returned" % response.status_code)
-    print("- Detailed error information: %s" % d)
+    print("- Detailed error information: %s" % create_dict)
     sys.exit()
 
-job_id=re.sub("[,']","",z)
+job_id=re.sub("[,']","",job_id_search)
 if response.status_code != 202:
     print("\n- FAIL, status code not 202\n, code is: %s" % response.status_code)  
     sys.exit()
@@ -70,7 +70,6 @@ job_id=re.search("JID_.+",job_id).group()
 
 start_time=datetime.now()
 while True:
-    #req = requests.get('https://%s/redfish/v1/TaskService/Tasks/%s' % (idrac_ip, job_id), auth=(idrac_username, idrac_password), verify=False)
     count = 1
     while True:
         if count == 5:
