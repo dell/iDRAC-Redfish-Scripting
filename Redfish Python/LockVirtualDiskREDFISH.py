@@ -2,7 +2,7 @@
 # LockVirtualDiskREDFISH. Python script using Redfish API with OEM extension to lock a virtual disk.
 #
 # _author_ = Texas Roemer <Texas_Roemer@Dell.com>
-# _version_ = 3.0
+# _version_ = 4.0
 #
 # Copyright (c) 2018, Dell, Inc.
 #
@@ -63,7 +63,7 @@ def get_storage_controllers():
     data = response.json()
     print("\n- Server controller(s) detected -\n")
     controller_list=[]
-    for i in data[u'Members']:
+    for i in data['Members']:
         for ii in i.items():
             controller = ii[1].split("/")[-1]
             controller_list.append(controller)
@@ -78,12 +78,12 @@ def get_pdisks():
     data = response.json()
     drive_list=[]
     try:
-        if data[u'Drives'] == []:
+        if data['Drives'] == []:
             print("\n- WARNING, no drives detected for %s" % controller)
             sys.exit()
         else:
             print("\n- Drive(s) detected for %s -\n" % controller)
-            for i in data[u'Drives']:
+            for i in data['Drives']:
                 for ii in i.items():
                     disk = ii[1].split("/")[-1]
                     drive_list.append(disk)
@@ -111,11 +111,11 @@ def check_drive_capabiity():
     response = requests.get('https://%s/redfish/v1/Systems/System.Embedded.1/Storage/%s' % (idrac_ip, args["e"]),verify=False,auth=(idrac_username, idrac_password))
     data = response.json()
     drive_list=[]
-    if data[u'Drives'] == []:
+    if data['Drives'] == []:
         print("\n- WARNING, no drives detected for %s" % args["e"])
         sys.exit()
     else:
-        for i in data[u'Drives']:
+        for i in data['Drives']:
             for ii in i.items():
                 disk = ii[1].split("/")[-1]
                 drive_list.append(disk)
@@ -133,11 +133,11 @@ def get_virtual_disks():
     response = requests.get('https://%s/redfish/v1/Systems/System.Embedded.1/Storage/%s/Volumes' % (idrac_ip, args["v"]),verify=False,auth=(idrac_username, idrac_password))
     data = response.json()
     vd_list=[]
-    if data[u'Members'] == []:
+    if data['Members'] == []:
         print("\n- WARNING, no volume(s) detected for %s" % args["v"])
         sys.exit()
     else:
-        for i in data[u'Members']:
+        for i in data['Members']:
             for ii in i.items():
                 vd = ii[1].split("/")[-1]
                 vd_list.append(vd)
@@ -155,12 +155,12 @@ def get_virtual_disk_details():
     response = requests.get('https://%s/redfish/v1/Systems/System.Embedded.1/Storage/%s/Volumes' % (idrac_ip, args["vv"]),verify=False,auth=(idrac_username, idrac_password))
     data = response.json()
     vd_list=[]
-    if data[u'Members'] == []:
+    if data['Members'] == []:
         print("\n- WARNING, no volume(s) detected for %s" % args["vv"])
         sys.exit()
     else:
         print("\n- Volume(s) detected for %s controller -\n" % args["vv"])
-        for i in data[u'Members']:
+        for i in data['Members']:
             for ii in i.items():
                 vd = ii[1].split("/")[-1]
                 vd_list.append(vd)
@@ -179,11 +179,11 @@ def check_lock_VDs():
     response = requests.get('https://%s/redfish/v1/Systems/System.Embedded.1/Storage/%s/Volumes' % (idrac_ip, args["cl"]),verify=False,auth=(idrac_username, idrac_password))
     data = response.json()
     vd_list=[]
-    if data[u'Members'] == []:
+    if data['Members'] == []:
         print("\n- WARNING, no volume(s) detected for %s" % args["cl"])
         sys.exit()
     else:
-        for i in data[u'Members']:
+        for i in data['Members']:
             for ii in i.items():
                 vd = ii[1].split("/")[-1]
                 vd_list.append(vd)
@@ -245,10 +245,10 @@ def loop_job_status():
         if str(current_time)[0:7] >= "2:00:00":
             print("\n- FAIL: Timeout of 2 hours has been hit, script stopped\n")
             sys.exit()
-        elif "Fail" in data[u'Message'] or "fail" in data[u'Message'] or data[u'JobState'] == "Failed":
-            print("- FAIL: job ID %s failed, failed message is: %s" % (job_id, data[u'Message']))
+        elif "Fail" in data['Message'] or "fail" in data['Message'] or data['JobState'] == "Failed":
+            print("- FAIL: job ID %s failed, failed message is: %s" % (job_id, data['Message']))
             sys.exit()
-        elif data[u'JobState'] == "Completed":
+        elif data['JobState'] == "Completed":
             print("\n--- PASS, Final Detailed Job Status Results ---\n")
             for i in data.items():
                 if "odata" in i[0] or "MessageArgs" in i[0] or "TargetSettingsURI" in i[0]:
@@ -257,7 +257,7 @@ def loop_job_status():
                     print("%s: %s" % (i[0],i[1]))
             break
         else:
-            print("- WARNING, JobStatus not completed, current status: \"%s\", percent complete: \"%s\"" % (data[u'Message'],data[u'PercentComplete']))
+            print("- WARNING, JobStatus not completed, current status: \"%s\", percent complete: \"%s\"" % (data['Message'],data['PercentComplete']))
             time.sleep(3)
 
 def test_valid_controller_FQDD_string(x):
