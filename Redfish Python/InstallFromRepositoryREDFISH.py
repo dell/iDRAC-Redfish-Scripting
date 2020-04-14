@@ -2,7 +2,7 @@
 # InstallFromRepositoryREDFISH. Python script using Redfish API with OEM extension to either get firmware version for all devices, get repository update list or install firmware from a repository on a network share.
 #
 # _author_ = Texas Roemer <Texas_Roemer@Dell.com>
-# _version_ = 7.0
+# _version_ = 8.0
 #
 # Copyright (c) 2019, Dell, Inc.
 #
@@ -29,6 +29,7 @@ parser.add_argument('script_examples',action="store_true",help='InstallFromRepos
 parser.add_argument('-g', help='Get current supported devices for firmware updates and their current firmware version, pass in \"y\"', required=False)
 parser.add_argument('-r', help='Get repository update list, pass in \"y\". Output will be returned in XML format. You must first execute install from repository but don\'t apply updates to get the repository update list', required=False)
 parser.add_argument('-i', help='Install from repository, pass in \"y\"', required=False)
+parser.add_argument('-q', help='Get current job ids in the job queue, pass in a value of \"y\"', required=False)
 parser.add_argument('--ipaddress', help='Pass in the IP address of the network share', required=False)
 parser.add_argument('--sharetype', help='Pass in the share type of the network share. Supported values are NFS, CIFS, HTTP, HTTPS. NOTE: For HTTP/HTTPS, recommended to use either IIS or Apache.', required=False)
 parser.add_argument('--sharename', help='Pass in the network share share name', required=False)
@@ -57,9 +58,25 @@ def check_supported_idrac_version():
     else:
         pass
 
-def script_examples():
-    print("\n- InstallFromRepositoryREDFISH.py -ip 192.168.0.120 -u root -p calvin -i y --ipaddress 192.168.0.130 --sharename cifs_share_vm\R740xd_repo_old --username administrator --password password --applyupdate False --sharetype CIFS, this example to going to download the catalog file from the CIFS share repostiory but not install any updates. I would now execute the script with -r argument to verify the repo update list.\n\n- InstallFromRepositoryREDFISH.py -ip 192.168.0.120 -u root -p calvin -i y --ipaddress 192.168.0.130 --sharename cifs_share_vm\R740xd_repo_old --username administrator --password password --applyupdate True --sharetype CIFS --rebootneeded True, this example is going to install update from the CIFS share repository and apply them. If updates need a server reboot to apply, it will also reboot the server\n")  
-
+def get_job_queue_job_ids():
+    req = requests.get('https://%s/redfish/v1/Managers/iDRAC.Embedded.1/Jobs' % (idrac_ip), auth=(idrac_username, idrac_password), verify=False)
+    statusCode = req.status_code
+    data = req.json()
+    data = str(data)
+    jobid_search=re.findall("JID_.+?'",data)
+    if jobid_search == []:
+        print("\n- WARNING, job queue empty, no current job IDs detected for iDRAC %s" % idrac_ip)
+        sys.exit()
+    jobstore=[]
+    for i in jobid_search:
+        i=i.strip("'")
+        jobstore.append(i)
+    print("\n- Current job IDs in the job queue for iDRAC %s:\n" % idrac_ip)
+    for i in jobstore:
+        req = requests.get('https://%s/redfish/v1/Managers/iDRAC.Embedded.1/Jobs/%s' % (idrac_ip,i), auth=(idrac_username, idrac_password), verify=False)
+        data = req.json()
+        print("-" * 80)
+        print("Job ID: %s\nJob Type: %s\nJob Message: %s\n" % (i,data['Name'], data['Message']))
 
 def get_FW_inventory():
     print("\n- WARNING, current devices detected with firmware version and updateable status -\n")
@@ -216,6 +233,7 @@ def get_update_job_ids():
 def loop_job_status(x):
     print_message_count = 1
     start_time=datetime.now()
+    time.sleep(1)
     while True:
         count = 0
         while count != 5:
@@ -250,11 +268,14 @@ def loop_job_status(x):
             break
         elif data['Message'] == "Job for this device is already present.":
             break
+        elif "Package successfully downloaded" in data['Message'] and args["rebootneeded"] == "False":
+            print("\n- WARNING, repository package successfully downloaded, \"RebootNeeded = False\" detected. Check the overall Job Queue for Scheduled Update Jobs using -q argument. Next server manual reboot, these scheduled update jobs will execute and also mark the Repository Update Job as Completed.\n")
+            sys.exit()
 
         elif "Package successfully downloaded" in data['Message'] and print_message_count == 1:
             print("\n- WARNING, repository package successfully downloaded. If version changed detected for any device, update job ID will get created and execute for that device\n")
             time.sleep(5)
-            print_message_count = 2    
+            print_message_count = 2
             
         elif "completed successfully" in data['Message']:
             print("\n- PASS, job ID %s successfully marked completed" % x)
@@ -314,6 +335,8 @@ if __name__ == "__main__":
     check_supported_idrac_version()
     if args["g"]:
         get_FW_inventory()
+    elif args["q"]:
+        get_job_queue_job_ids()
     elif args["r"]:
         get_repo_based_update_list()
     elif args["i"]:
