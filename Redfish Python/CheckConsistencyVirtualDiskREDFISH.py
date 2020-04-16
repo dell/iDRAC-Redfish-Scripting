@@ -2,7 +2,7 @@
 # CheckConsistencyVirtualDiskREDFISH. Python script using Redfish API to either get controllers / current virtual disks or check consistency virtual disk.
 #
 # _author_ = Texas Roemer <Texas_Roemer@Dell.com>
-# _version_ = 3.0
+# _version_ = 4.0
 #
 # Copyright (c) 2018, Dell, Inc.
 #
@@ -24,6 +24,7 @@ parser=argparse.ArgumentParser(description="Python script using Redfish API to e
 parser.add_argument('-ip',help='iDRAC IP address', required=True)
 parser.add_argument('-u', help='iDRAC username', required=True)
 parser.add_argument('-p', help='iDRAC password', required=True)
+parser.add_argument('script_examples',action="store_true",help='CheckConsistencyVirtualDiskREDFISH -ip 192.168.0.120 -u root -p calvin -c y, this example will return storage controller FQDDs detected. CheckConsistencyVirtualDiskREDFISH.py -ip 192.168.0.120 -u root -p calvin -vv RAID.Mezzanine.1-1, this example will get detailed information for virtual disks behind controller RAID.Mezzanine.1-1. CheckConsistencyVirtualDiskREDFISH.py -ip 192.168.0.120 -u root -p calvin -cc Disk.Virtual.0:RAID.Mezzanine.1-1, this example will execute check consistency on virtual disk.')
 parser.add_argument('-c', help='Get server storage controllers, pass in \"y\". For detailed controller information, pass in \"yy\"', required=False)
 parser.add_argument('-v', help='Get current server storage controller virtual disks, pass in storage controller FQDD, Example \"RAID.Integrated.1-1\"', required=False)
 parser.add_argument('-vv', help='Get current server storage controller virtual disks detailed information, pass in storage controller FQDD, Example \"RAID.Integrated.1-1\"', required=False)
@@ -57,7 +58,16 @@ def get_storage_controllers():
             data = response.json()
             print("\n - Detailed controller information for %s -\n" % i)
             for i in data.items():
+                if i[0] == "Oem":
+                    for ii in i[1]["Dell"]["DellController"].items():
+                        print("%s: %s" % (ii[0], ii[1]))
+                elif i[0] == "Status":
+                    for ii in i[1].items():
+                        print("%s: %s" % (ii[0], ii[1]))
+                else:
                     print("%s: %s" % (i[0], i[1]))
+                    
+            print("\n")
     
 
 def get_virtual_disks():
@@ -102,9 +112,20 @@ def get_virtual_disks_details():
         data = response.json()
         print("\n- Detailed Volume information for %s -\n" % ii)
         for i in data.items():
-            print("%s: %s" % (i[0],i[1]))
-                
-    sys.exit()
+            if "@" in str(i[0]):
+                pass
+            elif i[0] == "Oem":
+                for ii in i[1]["Dell"]["DellVirtualDisk"].items():
+                    print("%s: %s" % (ii[0], ii[1]))
+            elif i[0] == "Actions":
+                pass
+            elif i[0] == "Status":
+                for ii in i[1].items():
+                    print("%s: %s" % (ii[0], ii[1]))
+            else:
+                print("%s: %s" % (i[0], i[1]))
+                    
+        print("\n")
 
 
 
@@ -113,6 +134,7 @@ def check_consistency_vd():
     global job_type
     response = requests.get('https://%s/redfish/v1/Systems/System.Embedded.1/Storage/Volumes/%s' % (idrac_ip, virtual_disk),verify=False,auth=(idrac_username, idrac_password))
     data = response.json()
+    payload = {}
     for i in data.items():
         if i[0] == "Operations":
             if i[1] != []:
@@ -121,7 +143,7 @@ def check_consistency_vd():
                     sys.exit()
     url = 'https://%s/redfish/v1/Systems/System.Embedded.1/Storage/Volumes/%s/Actions/Volume.CheckConsistency' % (idrac_ip, virtual_disk)
     headers = {'content-type': 'application/json'}
-    response = requests.post(url, headers=headers, verify=False,auth=(idrac_username,idrac_password))
+    response = requests.post(url, data=json.dumps(payload), headers=headers, verify=False,auth=(idrac_username,idrac_password))
     if response.status_code == 202:
         print("\n- PASS: POST command passed to check consistency \"%s\" virtual disk, status code 202 returned" % (virtual_disk))
     else:
@@ -148,6 +170,19 @@ def check_consistency_vd():
 start_time=datetime.now()
 
 def loop_job_status():
+    count_number = 0
+    start_time=datetime.now()
+    try:
+        req = requests.get('https://%s/redfish/v1/Managers/iDRAC.Embedded.1/Jobs/%s' % (idrac_ip, job_id), auth=(idrac_username, idrac_password), verify=False)
+    except requests.ConnectionError as error_message:
+        print(error_message)
+        sys.exit()
+    data = req.json()
+    if data[u'JobType'] == "RAIDConfiguration":
+        print("- PASS, staged job \"%s\" successfully created. Server will now reboot to apply the configuration changes" % job_id)
+    elif data[u'JobType'] == "RealTimeNoRebootConfiguration":
+        print("- PASS, realtime job \"%s\" successfully created. Server will apply the configuration changes in real time, no server reboot needed" % job_id)
+    print("\n- WARNING, script will now loop polling the job status until marked completed\n")
     while True:
         req = requests.get('https://%s/redfish/v1/Managers/iDRAC.Embedded.1/Jobs/%s' % (idrac_ip, job_id), auth=(idrac_username, idrac_password), verify=False)
         current_time=(datetime.now()-start_time)
@@ -159,13 +194,13 @@ def loop_job_status():
             print("Extended Info Message: {0}".format(req.json()))
             sys.exit()
         data = req.json()
-        if str(current_time)[0:7] >= "0:30:00":
-            print("\n- FAIL: Timeout of 30 minutes has been hit, script stopped\n")
+        if str(current_time)[0:7] >= "2:00:00":
+            print("\n- FAIL: Timeout of 2 hours has been hit, script stopped\n")
             sys.exit()
-        elif "Fail" in data['Message'] or "fail" in data['Message']:
-            print("- FAIL: %s failed" % job_id)
+        elif "Fail" in data[u'Message'] or "fail" in data[u'Message'] or data[u'JobState'] == "Failed":
+            print("\n- FAIL: job ID %s failed, detail error results: %s" % (job_id, data))
             sys.exit()
-        elif data['Message'] == "Job completed successfully.":
+        elif data[u'JobState'] == "Completed":
             print("\n--- PASS, Final Detailed Job Status Results ---\n")
             for i in data.items():
                 if "odata" in i[0] or "MessageArgs" in i[0] or "TargetSettingsURI" in i[0]:
@@ -174,12 +209,28 @@ def loop_job_status():
                     print("%s: %s" % (i[0],i[1]))
             break
         else:
-            print("- WARNING, JobStatus not completed, current status is: \"%s\", percent completion is: \"%s\"" % (data['Message'],data['PercentComplete']))
-            time.sleep(1)
+            count_number_now = data[u'PercentComplete']
+            if count_number_now > count_number:
+                print("- WARNING, JobStatus not completed, current status: \"%s\", percent complete: \"%s\"" % (data[u'Message'],data[u'PercentComplete']))
+                count_number = count_number_now
+                time.sleep(3)
+            else:
+                time.sleep(3)
 
 def get_job_status():
+    count = 0
     while True:
-        req = requests.get('https://%s/redfish/v1/Managers/iDRAC.Embedded.1/Jobs/%s' % (idrac_ip, job_id), auth=(idrac_username, idrac_password), verify=False)
+        if count == 5:
+            print("- FAIL, GET job status retry count of 5 has been reached, script will exit")
+            sys.exit()
+        try:
+            req = requests.get('https://%s/redfish/v1/Managers/iDRAC.Embedded.1/Jobs/%s' % (idrac_ip, job_id), auth=(idrac_username, idrac_password), verify=False)
+        except requests.ConnectionError as error_message:
+            print(error_message)
+            print("\n- WARNING, GET request will try again to poll job status")
+            time.sleep(5)
+            count+=1
+            continue
         statusCode = req.status_code
         if statusCode == 200:
             time.sleep(5)
@@ -190,10 +241,10 @@ def get_job_status():
             sys.exit()
         data = req.json()
         if data['Message'] == "Task successfully scheduled.":
-            print("\n- WARNING, staged config job marked as scheduled, rebooting the system\n")
+            print("- WARNING, staged config job marked as scheduled, rebooting the system")
             break
         else:
-            print("\n- WARNING: JobStatus not scheduled, current status is: %s\n" % data['Message'])
+            print("- WARNING: JobStatus not scheduled, current status is: %s\n" % data['Message'])
 
                                                                           
 def reboot_server():
@@ -266,6 +317,7 @@ def reboot_server():
     else:
         print("- FAIL, unable to get current server power state to perform either reboot or power on")
         sys.exit()
+    time.sleep(20)
 
 if __name__ == "__main__":
     if args["c"] == "y" or args["c"] =="yy":
@@ -282,5 +334,7 @@ if __name__ == "__main__":
             get_job_status()
             reboot_server()
             loop_job_status()
+    else:
+        print("\n- FAIL, missing argument(s) or incorrect argument(s) passed in")
         
 
