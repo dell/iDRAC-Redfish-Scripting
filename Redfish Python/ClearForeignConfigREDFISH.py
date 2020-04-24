@@ -2,7 +2,7 @@
 # ClearForeignConfigREDFISH. Python script using Redfish API with OEM extension to clear a storage controller foreign configuration
 #
 # _author_ = Texas Roemer <Texas_Roemer@Dell.com>
-# _version_ = 4.0
+# _version_ = 5.0
 #
 # Copyright (c) 2019, Dell, Inc.
 #
@@ -54,9 +54,9 @@ def get_storage_controllers():
     data = response.json()
     print("\n- Server controller(s) detected -\n")
     controller_list=[]
-    for i in data[u'Members']:
-        controller_list.append(i[u'@odata.id'].split("/")[-1])
-        print(i[u'@odata.id'].split("/")[-1])
+    for i in data['Members']:
+        controller_list.append(i['@odata.id'].split("/")[-1])
+        print(i['@odata.id'].split("/")[-1])
     
 
 
@@ -67,20 +67,20 @@ def get_pdisks_check_raidstatus():
     response = requests.get('https://%s/redfish/v1/Systems/System.Embedded.1/Storage/%s' % (idrac_ip, args["d"]),verify=False,auth=(idrac_username, idrac_password))
     data = response.json()
     drive_list=[]
-    if data[u'Drives'] == []:
+    if data['Drives'] == []:
         print("\n- WARNING, no drives detected for %s" % args["d"])
         sys.exit()
     else:
-        for i in data[u'Drives']:
-            drive_list.append(i[u'@odata.id'].split("/")[-1])
+        for i in data['Drives']:
+            drive_list.append(i['@odata.id'].split("/")[-1])
     print("\n- Drives detected for controller \"%s\" and RaidStatus\n" % args["d"])
     foreign_disks_detected=[]
     for i in drive_list:
       response = requests.get('https://%s/redfish/v1/Systems/System.Embedded.1/Storage/Drives/%s' % (idrac_ip, i),verify=False,auth=(idrac_username, idrac_password))
       data = response.json()
       
-      print(" - Disk %s, Raidstatus %s" % (i, data[u'Oem'][u'Dell'][u'DellPhysicalDisk'][u'RaidStatus']))
-      if data[u'Oem'][u'Dell'][u'DellPhysicalDisk'][u'RaidStatus'] == "Foreign":
+      print(" - Disk %s, Raidstatus %s" % (i, data['Oem']['Dell']['DellPhysicalDisk']['RaidStatus']))
+      if data['Oem']['Dell']['DellPhysicalDisk']['RaidStatus'] == "Foreign":
           foreign_disks_detected.append(i)
     if foreign_disks_detected != []:
         print("\n- WARNING, foreign configurations detected for controller %s" % args["d"])
@@ -96,12 +96,12 @@ def get_virtual_disks():
     response = requests.get('https://%s/redfish/v1/Systems/System.Embedded.1/Storage/%s/Volumes' % (idrac_ip, args["v"]),verify=False,auth=(idrac_username, idrac_password))
     data = response.json()
     vd_list=[]
-    if data[u'Members'] == []:
+    if data['Members'] == []:
         print("\n- WARNING, no volume(s) detected for %s" % args["v"])
         sys.exit()
     else:
-        for i in data[u'Members']:
-            vd_list.append(i[u'@odata.id'].split("/")[-1])
+        for i in data['Members']:
+            vd_list.append(i['@odata.id'].split("/")[-1])
     print("\n- Volume(s) detected for %s controller -\n" % args["v"])
     for ii in vd_list:
         response = requests.get('https://%s/redfish/v1/Systems/System.Embedded.1/Storage/Volumes/%s' % (idrac_ip, ii),verify=False,auth=(idrac_username, idrac_password))
@@ -132,13 +132,20 @@ def clear_foreign_config():
             sys.exit()
         print("- Job ID %s successfully created for RAID method \"%s\"" % (job_id, method))
     else:
-        print("\n-FAIL, POST command failed to reset storage controller %s, status code is %s" % (args["f"], response.status_code))
+        print("\n-FAIL, POST command failed for controller %s, status code is %s" % (args["f"], response.status_code))
         data = response.json()
         print("\n-POST command failure results:\n %s" % data)
         sys.exit()
     
 def loop_job_status():
+    count_number = 0
     start_time=datetime.now()
+    req = requests.get('https://%s/redfish/v1/Managers/iDRAC.Embedded.1/Jobs/%s' % (idrac_ip, job_id), auth=(idrac_username, idrac_password), verify=False)
+    data = req.json()
+    if data[u'JobType'] == "RAIDConfiguration":
+        print("- PASS, staged jid \"%s\" successfully created. Server will now reboot to apply the configuration changes" % job_id)
+    elif data[u'JobType'] == "RealTimeNoRebootConfiguration":
+        print("- PASS, realtime jid \"%s\" successfully created. Server will apply the configuration changes in real time, no server reboot needed" % job_id)
     while True:
         req = requests.get('https://%s/redfish/v1/Managers/iDRAC.Embedded.1/Jobs/%s' % (idrac_ip, job_id), auth=(idrac_username, idrac_password), verify=False)
         current_time=(datetime.now()-start_time)
@@ -165,8 +172,13 @@ def loop_job_status():
                     print("%s: %s" % (i[0],i[1]))
             break
         else:
-            print("- WARNING, JobStatus not completed, current status: \"%s\", percent complete: \"%s\"" % (data[u'Message'],data[u'PercentComplete']))
-            time.sleep(3)
+            count_number_now = data[u'PercentComplete']
+            if count_number_now > count_number:
+                print("- WARNING, JobStatus not completed, current status: \"%s\", percent complete: \"%s\"" % (data[u'Message'],data[u'PercentComplete']))
+                count_number = count_number_now
+                time.sleep(3)
+            else:
+                time.sleep(3)
 
 def test_valid_controller_FQDD_string(x):
     response = requests.get('https://%s/redfish/v1/Systems/System.Embedded.1/Storage/%s' % (idrac_ip, x),verify=False,auth=(idrac_username, idrac_password))
@@ -185,17 +197,17 @@ def check_foreign_cleared():
     else:
         pass
     drive_list=[]
-    if data[u'Drives'] == []:
+    if data['Drives'] == []:
         print("\n- WARNING, no drives detected for %s" % args["d"])
         sys.exit()
     else:
-        for i in data[u'Drives']:
-            drive_list.append(i[u'@odata.id'][53:])
+        for i in data['Drives']:
+            drive_list.append(i['@odata.id'][53:])
     foreign_disks_detected=[]
     for i in drive_list:
       response = requests.get('https://%s/redfish/v1/Systems/System.Embedded.1/Storage/Drives/%s' % (idrac_ip, i),verify=False,auth=(idrac_username, idrac_password))
       data = response.json()
-      if data[u'Oem'][u'Dell'][u'DellPhysicalDisk'][u'RaidStatus'] == "Foreign":
+      if data['Oem']['Dell']['DellPhysicalDisk']['RaidStatus'] == "Foreign":
           foreign_disks_detected.append(i)
     if foreign_disks_detected != []:
         print("\n- FAIL, foreign configurations still detected for controller %s" % args["f"])
