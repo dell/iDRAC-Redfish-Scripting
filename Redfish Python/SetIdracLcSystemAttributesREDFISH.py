@@ -6,7 +6,7 @@
 # NOTE: Possible supported values for attribute_group parameter are: idrac, lc and system.
 #
 # _author_ = Texas Roemer <Texas_Roemer@Dell.com>
-# _version_ = 7.0
+# _version_ = 8.0
 #
 # Copyright (c) 2017, Dell, Inc.
 #
@@ -122,7 +122,6 @@ def set_attributes():
                     if iii[0] == "Type":
                         if iii[1] == "Integer":
                             payload["Attributes"][i[0]] = int(i[1])
-    
     for i in payload["Attributes"].items():
         print(" Attribute Name: %s, setting new value to: %s" % (i[0], i[1]))
     headers = {'content-type': 'application/json'}
@@ -139,6 +138,7 @@ def set_attributes():
     
 def get_new_attribute_values():
     print("- WARNING, getting new attribute values - \n")
+    time.sleep(30)
     response = requests.get('%s' % (url),verify=False,auth=(idrac_username, idrac_password))
     data = response.json()
     attributes_dict=data[u'Attributes']
