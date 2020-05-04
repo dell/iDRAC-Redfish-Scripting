@@ -1,6 +1,6 @@
 <#
 _author_ = Texas Roemer <Texas_Roemer@Dell.com>
-_version_ = 8.0
+_version_ = 9.0
 
 Copyright (c) 2017, Dell, Inc.
 
@@ -66,6 +66,19 @@ param(
     )
 
 
+# Function get Powershell version 
+
+$global:get_powershell_version = $null
+
+function get_powershell_version 
+{
+$get_host_info = Get-Host
+$major_number = $get_host_info.Version.Major
+$global:get_powershell_version = $major_number
+}
+
+
+
 # Function to ignore SSL certs
 
 function Ignore-SSLCertificates
@@ -96,9 +109,7 @@ function Ignore-SSLCertificates
     [System.Net.ServicePointManager]::CertificatePolicy = $TrustAll
 }
 
-
-
-Ignore-SSLCertificates
+get_powershell_version
 
 # Setting up iDRAC login information
 
@@ -107,18 +118,31 @@ $user = $idrac_username
 $pass= $idrac_password
 $secpasswd = ConvertTo-SecureString $pass -AsPlainText -Force
 $credential = New-Object System.Management.Automation.PSCredential($user, $secpasswd)
-$ErrorActionPreference = "Stop"
+$ErrorActionPreference = "RespErr"
+
 
 # Code to check if system iDRAC version supports update feature
 
-$u = "https://$idrac_ip/redfish/v1/UpdateService/FirmwareInventory"
+$uri = "https://$idrac_ip/redfish/v1/UpdateService/FirmwareInventory"
     try
     {
-    $result = Invoke-WebRequest -Uri $u -Credential $credential -Method Get -UseBasicParsing -ErrorAction Stop -Headers @{"Accept"="application/json"}
+    if ($global:get_powershell_version -gt 5)
+    {
+    $result = Invoke-WebRequest -SkipCertificateCheck -SkipHeaderValidation -Uri $uri -Credential $credential -Method Get -UseBasicParsing -ErrorAction RespErr -Headers @{"Accept"="application/json"}
+    }
+    else
+    {
+    Ignore-SSLCertificates
+    $result = Invoke-WebRequest -Uri $uri -Credential $credential -Method Get -UseBasicParsing -ErrorAction RespErr -Headers @{"Accept"="application/json"}
+    }
     }
     catch
     {
+    Write-Host
+    $RespErr
+    break
     }
+    
 	    if ($result.StatusCode -ne 200)
 	    {
         Write-Host "`n- WARNING, iDRAC version detected does not support update feature using Redfish API`n"
@@ -140,19 +164,26 @@ Write-Host
 $expand_query ='?$expand=*($levels=1)'
 $uri = "https://$idrac_ip/redfish/v1/UpdateService/FirmwareInventory$expand_query"
 try
-{
-$get_result = Invoke-WebRequest -Uri $uri -Credential $credential -Method Get -UseBasicParsing -Headers @{"Accept"="application/json"} -ErrorVariable RespErr
-}
-catch
-{
-Write-Host
-$RespErr
-return
-}
-$get_fw_inventory = $get_result.Content | ConvertFrom-Json
-$get_fw_inventory.Members
-
-return
+    {
+    if ($global:get_powershell_version -gt 5)
+    {
+    $result = Invoke-WebRequest -SkipCertificateCheck -SkipHeaderValidation -Uri $uri -Credential $credential -Method Get -UseBasicParsing -ErrorAction RespErr -Headers @{"Accept"="application/json"}
+    }
+    else
+    {
+    Ignore-SSLCertificates
+    $result = Invoke-WebRequest -Uri $uri -Credential $credential -Method Get -UseBasicParsing -ErrorAction RespErr -Headers @{"Accept"="application/json"}
+    }
+    }
+    catch
+    {
+    Write-Host
+    $RespErr
+    break
+    }
+    $get_fw_inventory = $result.Content | ConvertFrom-Json
+    $get_fw_inventory.Members
+    return
 }
 
 if ($view_fw_inventory_only -eq "n")
@@ -160,16 +191,33 @@ if ($view_fw_inventory_only -eq "n")
 return
 }
 
-# Get current ETag
-
-$u = "https://$idrac_ip/redfish/v1/UpdateService/FirmwareInventory"
-$result = Invoke-WebRequest -Uri $u -Credential $credential -Method Get -UseBasicParsing -Headers @{"Accept"="application/json"} 
-$ETag=$result.Headers.ETag
+$uri = "https://$idrac_ip/redfish/v1/UpdateService/FirmwareInventory"
+try
+{
+if ($global:get_powershell_version -gt 5)
+    {
+    $result = Invoke-WebRequest -SkipCertificateCheck -Uri $uri -Credential $credential -Method Get -UseBasicParsing -Headers @{"Accept"="application/json"} -SkipHeaderValidation
+    $ETag=[string]$result.Headers.ETag
+    }
+    else
+    {
+    Ignore-SSLCertificates
+    $result = Invoke-WebRequest -Uri $uri -Credential $credential -Method Get -UseBasicParsing -ErrorAction RespErr -Headers @{"Accept"="application/json"}
+    $ETag=$result.Headers.ETag
+    }
+}
+catch
+{
+Write-Host
+$RespErr
+break
+}
 
 Write-Host "`n- WARNING, validating firmware image, this may take a few minutes depending of the size of the image.`n"
 
 $complete_path=$image_directory_path + "\" + $image_filename
-$headers = @{"if-match" = $ETag; "Accept"="application/json"}
+$headers = @{"If-Match" = $ETag; "Accept"="application/json"}
+
 
 # Code to read the image file for download to the iDRAC
 
@@ -178,8 +226,9 @@ $fileBin = [System.IO.File]::ReadAllBytes($complete_path)
 $enc = [System.Text.Encoding]::GetEncoding($CODEPAGE)
 $fileEnc = $enc.GetString($fileBin)
 $boundary = [System.Guid]::NewGuid().ToString()
+
 $LF = "`r`n"
-$bodyLines = (
+$body = (
         "--$boundary",
         "Content-Disposition: form-data; name=`"file`"; filename=`"$image_filename`"",
 		"Content-Type: application/octet-stream$LF",
@@ -187,23 +236,41 @@ $bodyLines = (
         "--$boundary",
         "Content-Disposition: form-data; name=`"importConfig`"; filename=`"$image_filename`"",
 		"Content-Type: application/octet-stream$LF",
-        #$importConfigFileEnc,
-        #$fileBin,
         "--$boundary--$LF"
 ) -join $LF
+
 
 # POST command to download the image payload to the iDRAC
 
 try
 {
-$result1 = Invoke-WebRequest -Uri $u -Credential $credential -Method Post -ContentType "multipart/form-data; boundary=`"$boundary`"" -Headers $headers -Body $bodyLines -ErrorVariable RespErr
+    if ($global:get_powershell_version -gt 5)
+    { 
+    $result1 = Invoke-WebRequest -SkipCertificateCheck -Uri $uri -Credential $credential -Method Post -ContentType "multipart/form-data; boundary=`"$boundary`"" -Headers $headers -SkipHeaderValidation -SkipHttpErrorCheck -Body $body -ErrorVariable RespErr
+    }
+    else
+    {
+   
+    Ignore-SSLCertificates
+    $result1 = Invoke-WebRequest -Uri $uri -Credential $credential -Method Post -ContentType "multipart/form-data; boundary=`"$boundary`"" -Headers $headers -Body $body -ErrorVariable RespErr
+    }
 }
 catch
 {
 Write-Host
 $RespErr
-return
+break
 } 
+
+if ($result1.StatusCode -eq 201)
+{
+    [String]::Format("- PASS, statuscode {0} returned successfully for POST command to download payload image to iDRAC",$result1.StatusCode)
+}
+else
+{
+    [String]::Format("- FAIL, statuscode {0} returned. Detail error message: {1}",$result1.StatusCode,$result1)
+    return
+}
 
 $get_content=$result1.Content
 $Location = $result1.Headers['Location']
@@ -217,24 +284,37 @@ Write-Host "- Warning, image version to install is:"$get_fw_version[-1]
 $compare_version=$get_version.Replace("Available","Installed")
 
 
-if ($result1.StatusCode -eq 201)
-{
-    [String]::Format("- PASS, statuscode {0} returned successfully for POST command to download payload image to iDRAC",$result1.StatusCode)
-}
-else
-{
-    [String]::Format("- FAIL, statuscode {0} returned. Detail error message: {1}",$result1.StatusCode,$result1)
-    return
-}
+
+
+
 
 $InstallOption=$install_option
-$u2 = "https://$idrac_ip/redfish/v1/UpdateService/Actions/Oem/DellUpdateService.Install"
-$JsonBody="{""SoftwareIdentityURIs"":[""$Location""],""InstallUpon"":""$InstallOption""}"
+$uri = "https://$idrac_ip/redfish/v1/UpdateService/Actions/Oem/DellUpdateService.Install"
+$JsonBody="{""SoftwareIdentityURIs"":[""$Location""],""InstallUpon"":""$InstallOption""}" 
 
 # POST command to create update job ID
 
-$result2 = Invoke-WebRequest -Uri $u2 -Credential $credential -Method Post -Body $JsonBody -ContentType 'application/json' -Headers @{"Accept"="application/json"} 
- 
+
+try
+{
+    if ($global:get_powershell_version -gt 5)
+    {
+    
+    $result2 = Invoke-WebRequest -SkipHeaderValidation -SkipCertificateCheck -Uri $uri -Credential $credential -Method Post -ContentType 'application/json' -Headers @{"Accept"="application/json"} -Body $JsonBody -ErrorVariable RespErr
+    }
+    else
+    {
+    Ignore-SSLCertificates
+    $result2 = Invoke-WebRequest -Uri $uri -Credential $credential -Method Post -ContentType 'application/json' -Headers @{"Accept"="application/json"} -Body $JsonBody -ErrorVariable RespErr
+    }
+}
+catch
+{
+Write-Host
+$RespErr
+break
+} 
+
 
 $job_id_search=$result2.Headers['Location']
 $job_id=$job_id_search.Split("/")[-1]
@@ -253,22 +333,48 @@ else
 
 $get_time_old=Get-Date -DisplayHint Time
 $start_time = Get-Date
+$print_message = "yes"
 
 # Check what type of install option was passed in
 
-if ($InstallOption -eq "Now" -or $InstallOption -eq "NowAndReboot")
+if ($InstallOption -eq "Now" -or $InstallOption -eq "NowAndReboot" -or $InstallOption -eq "now" -or $InstallOption -eq "nowandreboot")
 {
-$end_time = $start_time.AddMinutes(30)
+$end_time = $start_time.AddMinutes(50)
 $force_count=0
 Write-Host "- WARNING, script will now loop polling the job status until marked completed`n"
+
+
 while ($overall_job_output.JobState -ne "Completed")
 {
 $loop_time = Get-Date
-$u5 ="https://$idrac_ip/redfish/v1/Managers/iDRAC.Embedded.1/Jobs/$job_id"
+$uri ="https://$idrac_ip/redfish/v1/Managers/iDRAC.Embedded.1/Jobs/$job_id"
 
 # GET command to loop query the job until marked completed or failed
 
-$result = Invoke-WebRequest -Uri $u5 -Credential $credential -Method Get -UseBasicParsing -ContentType 'application/json' -Headers @{"Accept"="application/json"}
+
+
+try
+{
+if ($global:get_powershell_version -gt 5)
+    {
+    
+    $result = Invoke-WebRequest -SkipCertificateCheck -SkipHeaderValidation -Uri $uri -Credential $credential -Method Get -UseBasicParsing -Headers @{"Accept"="application/json"} 
+    }
+    else
+    {
+
+    Ignore-SSLCertificates
+    $result = Invoke-WebRequest -Uri $uri -Credential $credential -Method Get -UseBasicParsing -ErrorAction RespErr -Headers @{"Accept"="application/json"}
+    }
+}
+catch
+{
+Write-Host
+$RespErr
+break
+}
+
+
 $overall_job_output=$result.Content | ConvertFrom-Json
 if ($overall_job_output.JobState -eq "Failed")
 {
@@ -276,73 +382,29 @@ Write-Host
 [String]::Format("- FAIL, job marked as failed, detailed error info: {0}",$overall_job_output)
 return
 }
+elseif ($overall_job_output.Message -eq "Task successfully scheduled." -and $print_message -eq "yes")
+{
+$print_message = "no"
+Write-Host ("- WARNING, update job ID scheduled status detected, user selected reboot now option. Server will now reboot to apply the update")
+}
+
 elseif ($loop_time -gt $end_time)
 {
-Write-Host "- FAIL, timeout of 30 minutes has been reached before marking the job completed"
+Write-Host "- FAIL, timeout of 50 minutes has been reached before marking the job completed"
 return
 }
 
-# elseif statement for if the server cannot gracefully reboot, code will perform a forced reboot
 
-elseif ($force_count -eq 8 -and $overall_job_output.Message -eq "Task successfully scheduled." )
-{
-Write-Host
-Write-Host "- WARNING, graceful shutdown of the server failed after retries for 5 minutes, forcing server reboot"
-Write-Host
-$force_count++
-$JsonBody = @{ "ResetType" = "ForceOff"
-    } | ConvertTo-Json -Compress 
-
-
-$u4 = "https://$idrac_ip/redfish/v1/Systems/System.Embedded.1/Actions/ComputerSystem.Reset"
-
-# POST command to power OFF the server
-
-$result1 = Invoke-WebRequest -Uri $u4 -Credential $credential -Method Post -Body $JsonBody -ContentType 'application/json' -Headers @{"Accept"="application/json"}
-
-if ($result1.StatusCode -eq 204)
-{
-    [String]::Format("- PASS, statuscode {0} returned successfully to power OFF the server",$result1.StatusCode)
-    Start-Sleep 10
-}
-else
-{
-    [String]::Format("- FAIL, statuscode {0} returned",$result1.StatusCode)
-    return
-}
-
-$JsonBody = @{ "ResetType" = "On"
-    } | ConvertTo-Json -Compress
-
-
-$u4 = "https://$idrac_ip/redfish/v1/Systems/System.Embedded.1/Actions/ComputerSystem.Reset"
-
-# POST command to power ON the server
-
-$result1 = Invoke-WebRequest -Uri $u4 -Credential $credential -Method Post -Body $JsonBody -ContentType 'application/json' -Headers @{"Accept"="application/json"}
-
-
-if ($result1.StatusCode -eq 204)
-{
-    [String]::Format("- PASS, statuscode {0} returned successfully to power ON the server",$result1.StatusCode)
-    Write-Host
-}
-else
-{
-    [String]::Format("- FAIL, statuscode {0} returned",$result1.StatusCode)
-    return
-}
-}
 else
 {
 [String]::Format("- WARNING, current job status is: {0}",$overall_job_output.Message)
 Start-Sleep 1
-if ($InstallOption -eq "NowAndReboot")
+if ($InstallOption -eq "NowAndReboot" -or $InstallOption -eq "nowAndreboot")
 {
 Start-Sleep 15
-$force_count++
 }
 }
+
 }
 
 $get_current_time=Get-Date -DisplayHint Time
@@ -364,17 +426,38 @@ Start-Sleep 10
 
 # NextReboot install option, this will check for job status of scheduled
 
-if ($InstallOption -eq "NextReboot")
+if ($InstallOption -eq "NextReboot" -or $InstallOption -eq "nextreboot")
 {
 $end_time = $start_time.AddMinutes(5)
 while ($overall_job_output.Message -ne "Task successfully scheduled.")
 {
 $loop_time = Get-Date
-$u5 ="https://$idrac_ip/redfish/v1/Managers/iDRAC.Embedded.1/Jobs/$job_id"
+$uri ="https://$idrac_ip/redfish/v1/Managers/iDRAC.Embedded.1/Jobs/$job_id"
 
 # GET command to loop query the job until marked completed or failed
 
-$result = Invoke-WebRequest -Uri $u5 -Credential $credential -Method Get -UseBasicParsing -ContentType 'application/json' -Headers @{"Accept"="application/json"}
+try
+{
+if ($global:get_powershell_version -gt 5)
+    {
+   
+    $result = Invoke-WebRequest -SkipCertificateCheck -SkipHeaderValidation -Uri $uri -Credential $credential -Method Get -UseBasicParsing -Headers @{"Accept"="application/json"} 
+    }
+    else
+    {
+ 
+    Ignore-SSLCertificates
+    $result = Invoke-WebRequest -Uri $uri -Credential $credential -Method Get -UseBasicParsing -ErrorAction RespErr -Headers @{"Accept"="application/json"}
+    }
+}
+catch
+{
+Write-Host
+$RespErr
+break
+}
+
+
 $overall_job_output=$result.Content | ConvertFrom-Json
 if ($overall_job_output.JobState -eq "Failed")
 {
@@ -382,9 +465,20 @@ Write-Host
 [String]::Format("- FAIL, job marked as failed, detailed error info: {0}",$overall_job_output)
 return
 }
+elseif ($overall_job_output.Message -eq "Job for this device is already present.")
+{
+Write-Host "- FAIL, job for this device is already present, check overall iDRAC Job Queue."
+return
+}
+
 elseif ($loop_time -gt $end_time)
 {
 Write-Host "- FAIL, timeout of 5 minutes has been reached before marking the job completed"
+return
+}
+elseif ($overall_job_output.Message -eq "Job completed successfully.")
+{
+Write-Host ("`n- PASS, update job marked completed. NextReboot option not valid for immediate update jobs")
 return
 }
 else
@@ -414,17 +508,28 @@ return
 else
 {
 
-$u = "https://$idrac_ip/redfish/v1/UpdateService/FirmwareInventory/$compare_version"
+$uri = "https://$idrac_ip/redfish/v1/UpdateService/FirmwareInventory/$compare_version"
+
 try
+{
+    if ($global:get_powershell_version -gt 5)
     {
-    $result = Invoke-WebRequest -Uri $u -Credential $credential -Method Get -UseBasicParsing -ErrorVariable RespErr -Headers @{"Accept"="application/json"}
+   
+    $result = Invoke-WebRequest -SkipCertificateCheck -SkipHeaderValidation -Uri $uri -Credential $credential -Method Get -UseBasicParsing -ErrorVariable RespErr -Headers @{"Accept"="application/json"}
     }
-    catch
+    else
     {
-    Write-Host
-    $RespErr
-    return
+    
+    Ignore-SSLCertificates
+    $result = Invoke-WebRequest -Uri $uri -Credential $credential -Method Get -UseBasicParsing -ErrorVariable RespErr -Headers @{"Accept"="application/json"}
     }
+}
+catch
+{
+Write-Host
+$RespErr
+break
+}
 	    if ($result.StatusCode -eq 200)
 	    {
         $new_version = $compare_version.Split("-")[-1]
@@ -437,6 +542,8 @@ try
 	    }
 return
 }
+
+
 }
 
 

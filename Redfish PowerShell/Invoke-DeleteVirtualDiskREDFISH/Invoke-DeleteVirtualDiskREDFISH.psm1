@@ -1,6 +1,6 @@
 <#
 _author_ = Texas Roemer <Texas_Roemer@Dell.com>
-_version_ = 2.0
+_version_ = 4.0
 Copyright (c) 2018, Dell, Inc.
 
 This software is licensed to you under the GNU General Public License,
@@ -83,15 +83,39 @@ function Ignore-SSLCertificates
     [System.Net.ServicePointManager]::CertificatePolicy = $TrustAll
 }
 
+# Function get Powershell version 
+
+$global:get_powershell_version = $null
+
+function get_powershell_version 
+{
+$get_host_info = Get-Host
+$major_number = $get_host_info.Version.Major
+$global:get_powershell_version = $major_number
+}
+
+
 function check_supported_idrac_version
 {
-$u = "https://$idrac_ip/redfish/v1/Systems/System.Embedded.1/Storage"
+
+$uri = "https://$idrac_ip/redfish/v1/Systems/System.Embedded.1/Storage"
     try
     {
-    $result = Invoke-WebRequest -Uri $u -Credential $credential -Method Get -UseBasicParsing -ErrorVariable RespErr -Headers @{"Accept"="application/json"}
+    if ($global:get_powershell_version -gt 5)
+    {
+    $result = Invoke-WebRequest -SkipCertificateCheck -SkipHeaderValidation -Uri $uri -Credential $credential -Method Get -UseBasicParsing -ErrorAction RespErr -Headers @{"Accept"="application/json"}
+    }
+    else
+    {
+    Ignore-SSLCertificates
+    $result = Invoke-WebRequest -Uri $uri -Credential $credential -Method Get -UseBasicParsing -ErrorAction RespErr -Headers @{"Accept"="application/json"}
+    }
     }
     catch
     {
+    Write-Host
+    $RespErr
+    break
     }
 	    if ($result.StatusCode -ne 200)
 	    {
@@ -101,10 +125,7 @@ $u = "https://$idrac_ip/redfish/v1/Systems/System.Embedded.1/Storage"
 	    else
 	    {
 	    }
-return
 }
-
-Ignore-SSLCertificates
 
 
 [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::TLS12
@@ -113,21 +134,32 @@ $pass= $idrac_password
 $secpasswd = ConvertTo-SecureString $pass -AsPlainText -Force
 $credential = New-Object System.Management.Automation.PSCredential($user, $secpasswd)
 
+
+get_powershell_version
 check_supported_idrac_version
 
-if ($get_virtual_disks -ne "")
+
+if ($get_virtual_disks)
 {
-$u = "https://$idrac_ip/redfish/v1/Systems/System.Embedded.1/Storage/$get_virtual_disks/Volumes"
+$uri = "https://$idrac_ip/redfish/v1/Systems/System.Embedded.1/Storage/$get_virtual_disks/Volumes"
 try
-{
-$result = Invoke-WebRequest -Uri $u -Credential $credential -Method Get -UseBasicParsing -ErrorVariable RespErr -Headers @{"Accept"="application/json"}
-}
-catch
-{
-Write-Host
-$RespErr
-return
-}
+    {
+    if ($global:get_powershell_version -gt 5)
+    {
+    $result = Invoke-WebRequest -SkipCertificateCheck -SkipHeaderValidation -Uri $uri -Credential $credential -Method Get -UseBasicParsing -ErrorAction RespErr -Headers @{"Accept"="application/json"}
+    }
+    else
+    {
+    Ignore-SSLCertificates
+    $result = Invoke-WebRequest -Uri $uri -Credential $credential -Method Get -UseBasicParsing -ErrorAction RespErr -Headers @{"Accept"="application/json"}
+    }
+    }
+    catch
+    {
+    Write-Host
+    $RespErr
+    break
+    }
 
 if ($result.StatusCode -eq 200)
 {
@@ -149,8 +181,26 @@ $virtual_disks=$z.Replace('"',"")
 [String]::Format("- WARNING, virtual disks detected for controller {0}:`n",$get_virtual_disks)
 foreach ($i in $virtual_disks)
 {
-$u = "https://$idrac_ip/redfish/v1/Systems/System.Embedded.1/Storage/Volumes/$i"
-$result = Invoke-WebRequest -Uri $u -Credential $credential -Method Get -UseBasicParsing -Headers @{"Accept"="application/json"}
+$uri = "https://$idrac_ip/redfish/v1/Systems/System.Embedded.1/Storage/Volumes/$i"
+try
+    {
+    if ($global:get_powershell_version -gt 5)
+    {
+    $result = Invoke-WebRequest -SkipCertificateCheck -SkipHeaderValidation -Uri $uri -Credential $credential -Method Get -UseBasicParsing -ErrorAction RespErr -Headers @{"Accept"="application/json"}
+    }
+    else
+    {
+    Ignore-SSLCertificates
+    $result = Invoke-WebRequest -Uri $uri -Credential $credential -Method Get -UseBasicParsing -ErrorAction RespErr -Headers @{"Accept"="application/json"}
+    }
+    }
+    catch
+    {
+    Write-Host
+    $RespErr
+    break
+    }
+
 $z=$result.Content | ConvertFrom-Json
 if ($z.VolumeType -ne "RawDevice")
 {
@@ -167,19 +217,27 @@ return
 
 }
 
-if ($get_virtual_disk_details -ne "")
+if ($get_virtual_disk_details)
 {
-$u = "https://$idrac_ip/redfish/v1/Systems/System.Embedded.1/Storage/Volumes/$get_virtual_disk_details"
+$uri = "https://$idrac_ip/redfish/v1/Systems/System.Embedded.1/Storage/Volumes/$get_virtual_disk_details"
 try
-{
-$result = Invoke-WebRequest -Uri $u -Credential $credential -Method Get -UseBasicParsing -ErrorVariable RespErr -Headers @{"Accept"="application/json"}
-}
-catch
-{
-Write-Host
-$RespErr
-return
-}
+    {
+    if ($global:get_powershell_version -gt 5)
+    {
+    $result = Invoke-WebRequest -SkipCertificateCheck -SkipHeaderValidation -Uri $uri -Credential $credential -Method Get -UseBasicParsing -ErrorAction RespErr -Headers @{"Accept"="application/json"}
+    }
+    else
+    {
+    Ignore-SSLCertificates
+    $result = Invoke-WebRequest -Uri $uri -Credential $credential -Method Get -UseBasicParsing -ErrorAction RespErr -Headers @{"Accept"="application/json"}
+    }
+    }
+    catch
+    {
+    Write-Host
+    $RespErr
+    break
+    }
 
 if ($result.StatusCode -eq 200)
 {
@@ -199,17 +257,25 @@ return
 
 if ($get_storage_controllers -eq "yy")
 {
-$u = "https://$idrac_ip/redfish/v1/Systems/System.Embedded.1/Storage"
+$uri = "https://$idrac_ip/redfish/v1/Systems/System.Embedded.1/Storage"
 try
-{
-$result = Invoke-WebRequest -Uri $u -Credential $credential -Method Get -UseBasicParsing -ErrorVariable RespErr -Headers @{"Accept"="application/json"}
-}
-catch
-{
-Write-Host
-$RespErr
-return
-}
+    {
+    if ($global:get_powershell_version -gt 5)
+    {
+    $result = Invoke-WebRequest -SkipCertificateCheck -SkipHeaderValidation -Uri $uri -Credential $credential -Method Get -UseBasicParsing -ErrorAction RespErr -Headers @{"Accept"="application/json"}
+    }
+    else
+    {
+    Ignore-SSLCertificates
+    $result = Invoke-WebRequest -Uri $uri -Credential $credential -Method Get -UseBasicParsing -ErrorAction RespErr -Headers @{"Accept"="application/json"}
+    }
+    }
+    catch
+    {
+    Write-Host
+    $RespErr
+    break
+    }
 if ($result.StatusCode -eq 200)
 {
     [String]::Format("`n- PASS, statuscode {0} returned successfully to get storage controller(s)",$result.StatusCode)
@@ -219,38 +285,64 @@ else
     [String]::Format("`n- FAIL, statuscode {0} returned",$result.StatusCode)
     return
 }
-$z=$result.Content | ConvertFrom-Json
-$number_of_controller_entries=$z.Members.Count
-$count=0
+$get_content = $result.Content | ConvertFrom-Json
+$number_of_controller_entries = $get_content.Members.Count
+$count = 0
 Write-Host
 while ($count -ne $number_of_controller_entries)
 {
-$u = "https://$idrac_ip/redfish/v1/Systems/System.Embedded.1/Storage"
+$uri = "https://$idrac_ip/redfish/v1/Systems/System.Embedded.1/Storage"
 try
-{
-$result = Invoke-WebRequest -Uri $u -Credential $credential -Method Get -UseBasicParsing -ErrorVariable RespErr -Headers @{"Accept"="application/json"}
-}
-catch
-{
-Write-Host
-$RespErr
-return
-}
+    {
+    if ($global:get_powershell_version -gt 5)
+    {
+    $result = Invoke-WebRequest -SkipCertificateCheck -SkipHeaderValidation -Uri $uri -Credential $credential -Method Get -UseBasicParsing -ErrorAction RespErr -Headers @{"Accept"="application/json"}
+    }
+    else
+    {
+    Ignore-SSLCertificates
+    $result = Invoke-WebRequest -Uri $uri -Credential $credential -Method Get -UseBasicParsing -ErrorAction RespErr -Headers @{"Accept"="application/json"}
+    }
+    }
+    catch
+    {
+    Write-Host
+    $RespErr
+    break
+    }
 if ($result.StatusCode -ne 200)
 {
     [String]::Format("`n- FAIL, statuscode {0} returned",$result.StatusCode)
     return
 }
-$z=$result.Content | ConvertFrom-Json
-$z=$z.Members[$count]
-$z=[string]$z
-$z=$z.Replace("@{@odata.id=","")
-$z=$z.Replace('}',"")
-$u="https://$idrac_ip"+$z
-$r = Invoke-WebRequest -Uri $u -Credential $credential -Method Get -UseBasicParsing -Headers @{"Accept"="application/json"}
-$z=$r.Content | ConvertFrom-Json
-[String]::Format("- Detailed information for controller {0} -`n", $z.Id)
-$r.Content | ConvertFrom-Json
+$get_content = $result.Content | ConvertFrom-Json
+$get_content = $get_content.Members[$count]
+$get_content = [string]$get_content
+$get_content = $get_content.Replace("@{@odata.id=","")
+$get_content = $get_content.Replace('}',"")
+$uri = "https://$idrac_ip"+$get_content
+try
+    {
+    if ($global:get_powershell_version -gt 5)
+    {
+    $result = Invoke-WebRequest -SkipCertificateCheck -SkipHeaderValidation -Uri $uri -Credential $credential -Method Get -UseBasicParsing -ErrorAction RespErr -Headers @{"Accept"="application/json"}
+    }
+    else
+    {
+    Ignore-SSLCertificates
+    $result = Invoke-WebRequest -Uri $uri -Credential $credential -Method Get -UseBasicParsing -ErrorAction RespErr -Headers @{"Accept"="application/json"}
+    }
+    }
+    catch
+    {
+    Write-Host
+    $RespErr
+    break
+    }
+
+$get_content = $result.Content | ConvertFrom-Json
+[String]::Format("- Detailed information for controller {0} -`n", $get_content.Id)
+$result.Content | ConvertFrom-Json
 Write-Host
 $count+=1
 
@@ -262,53 +354,71 @@ return
 
 if ($get_storage_controllers -eq "y")
 {
-$u = "https://$idrac_ip/redfish/v1/Systems/System.Embedded.1/Storage"
+$uri = "https://$idrac_ip/redfish/v1/Systems/System.Embedded.1/Storage"
 try
+    {
+    if ($global:get_powershell_version -gt 5)
+    {
+    $result = Invoke-WebRequest -SkipCertificateCheck -SkipHeaderValidation -Uri $uri -Credential $credential -Method Get -UseBasicParsing -ErrorAction RespErr -Headers @{"Accept"="application/json"}
+    }
+    else
+    {
+    Ignore-SSLCertificates
+    $result = Invoke-WebRequest -Uri $uri -Credential $credential -Method Get -UseBasicParsing -ErrorAction RespErr -Headers @{"Accept"="application/json"}
+    }
+    }
+    catch
+    {
+    Write-Host
+    $RespErr
+    break
+    }
+
+if ($result.StatusCode -eq 200)
 {
-$r = Invoke-WebRequest -Uri $u -Credential $credential -Method Get -UseBasicParsing -ErrorVariable RespErr -Headers @{"Accept"="application/json"}
-}
-catch
-{
-Write-Host
-$RespErr
-return
-}
-if ($r.StatusCode -eq 200)
-{
-    [String]::Format("`n- PASS, statuscode {0} returned successfully to get storage controller(s)",$r.StatusCode)
+    [String]::Format("`n- PASS, statuscode {0} returned successfully to get storage controller(s)",$result.StatusCode)
 }
 else
 {
     [String]::Format("`n- FAIL, statuscode {0} returned",$result.StatusCode)
-    Exit
+    return
 }
 
-$a=$r.Content
+$get_content = $result.Content
 
 Write-Host
 $regex = [regex] '/Storage/.+?"'
-$allmatches = $regex.Matches($a)
-$z=$allmatches.Value.Replace('/Storage/',"")
-$controllers=$z.Replace('"',"")
+$allmatches = $regex.Matches($get_content)
+$get_all_matches = $allmatches.Value.Replace('/Storage/',"")
+$controllers = $get_all_matches.Replace('"',"")
 Write-Host "- Server controllers detected -`n"
 $controllers
 Write-Host
 return
 }
 
-if ($delete_virtual_disk -ne "")
+if ($delete_virtual_disk)
 {
-$u1 = "https://$idrac_ip/redfish/v1/Systems/System.Embedded.1/Storage/Volumes/$delete_virtual_disk"
-    try
+$uri = "https://$idrac_ip/redfish/v1/Systems/System.Embedded.1/Storage/Volumes/$delete_virtual_disk"
+try
     {
-    $result1 = Invoke-WebRequest -Uri $u1 -Credential $credential -Method Delete -Body $JsonBody -ContentType 'application/json' -ErrorVariable RespErr -Headers @{"Accept"="application/json"}
+    if ($global:get_powershell_version -gt 5)
+    {
+    $result1 = Invoke-WebRequest -SkipCertificateCheck -SkipHeaderValidation -Uri $uri -Credential $credential -Method Delete -Body $JsonBody -ContentType 'application/json' -ErrorVariable RespErr -Headers @{"Accept"="application/json"}
+    }
+    else
+    {
+    Ignore-SSLCertificates
+    $result1 = Invoke-WebRequest -Uri $uri -Credential $credential -Method Delete -Body $JsonBody -ContentType 'application/json' -ErrorVariable RespErr -Headers @{"Accept"="application/json"}
+    }
     }
     catch
     {
     Write-Host
     $RespErr
-    return
+    break
     }
+   
 
     if ($result1.StatusCode -eq 202)
     {
@@ -324,8 +434,25 @@ $u1 = "https://$idrac_ip/redfish/v1/Systems/System.Embedded.1/Storage/Volumes/$d
     }
 
 
-    $u3 ="https://$idrac_ip/redfish/v1/Managers/iDRAC.Embedded.1/Jobs/$job_id"
-    $result = Invoke-WebRequest -Uri $u3 -Credential $credential -Method Get -UseBasicParsing -ContentType 'application/json' -Headers @{"Accept"="application/json"}
+    $uri ="https://$idrac_ip/redfish/v1/Managers/iDRAC.Embedded.1/Jobs/$job_id"
+    try
+    {
+    if ($global:get_powershell_version -gt 5)
+    {
+    $result = Invoke-WebRequest -SkipCertificateCheck -SkipHeaderValidation -Uri $uri -Credential $credential -Method Get -UseBasicParsing -ErrorAction RespErr -Headers @{"Accept"="application/json"}
+    }
+    else
+    {
+    Ignore-SSLCertificates
+    $result = Invoke-WebRequest -Uri $uri -Credential $credential -Method Get -UseBasicParsing -ErrorAction RespErr -Headers @{"Accept"="application/json"}
+    }
+    }
+    catch
+    {
+    Write-Host
+    $RespErr
+    break
+    }
     if ($result.StatusCode -eq 200)
     {
     [String]::Format("`n- PASS, statuscode {0} returned to successfully query job ID {1}",$result.StatusCode,$job_id)
@@ -339,25 +466,41 @@ $u1 = "https://$idrac_ip/redfish/v1/Systems/System.Embedded.1/Storage/Volumes/$d
 }
     $overall_job_output=$result.Content | ConvertFrom-Json
 
-    if ($overall_job_output.JobType -eq "RealTimeNoRebootConfiguration")
-    {
-    $job_type = "realtime_config"
-    Write-Host "- WARNING, delete virtual disk job will run in real time operation, no server reboot needed to apply the changes"
-    }
-    if ($overall_job_output.JobType -eq "RAIDConfiguration")
-    {
-    Write-Host "- WARNING, delete virtual disk job will run in staged operation, server reboot needed to apply the changes"
-    {
-    $job_type = "staged_config"
-    }
+   if ($overall_job_output.JobType -eq "RealTimeNoRebootConfiguration")
+{
+$job_type = "realtime_config"
+Write-Host "- WARNING, real time configuration job detected, no server reboot needed to apply the changes"
 }
+if ($overall_job_output.JobType -eq "RAIDConfiguration")
+{
+$job_type = "staged_config"
+Write-Host "- WARNING, staged configuration job detected. Server reboot needed to apply the changes"
+}
+
 
 if ($job_type -eq "realtime_config")
 {
     while ($overall_job_output.JobState -ne "Completed")
     {
-    $u5 ="https://$idrac_ip/redfish/v1/Managers/iDRAC.Embedded.1/Jobs/$job_id"
-    $result = Invoke-WebRequest -Uri $u5 -Credential $credential -Method Get -UseBasicParsing -ContentType 'application/json' -Headers @{"Accept"="application/json"}
+    $uri ="https://$idrac_ip/redfish/v1/Managers/iDRAC.Embedded.1/Jobs/$job_id"
+    try
+    {
+    if ($global:get_powershell_version -gt 5)
+    {
+    $result = Invoke-WebRequest -SkipCertificateCheck -SkipHeaderValidation -Uri $uri -Credential $credential -Method Get -UseBasicParsing -ErrorAction RespErr -Headers @{"Accept"="application/json"}
+    }
+    else
+    {
+    Ignore-SSLCertificates
+    $result = Invoke-WebRequest -Uri $uri -Credential $credential -Method Get -UseBasicParsing -ErrorAction RespErr -Headers @{"Accept"="application/json"}
+    }
+    }
+    catch
+    {
+    Write-Host
+    $RespErr
+    break
+    }
 
     $overall_job_output=$result.Content | ConvertFrom-Json
         if ($overall_job_output.Message -eq "Job failed." -or $overall_job_output.Message -eq "Failed")
@@ -368,113 +511,233 @@ if ($job_type -eq "realtime_config")
         }
         else
         {
-        [String]::Format("- WARNING, job not marked completed, current status is: {0} Percent complete is: {1}",$overall_job_output.Message,$overall_job_output.PercentComplete)
-        Start-Sleep 1
+        [String]::Format("- WARNING, job not marked completed, current status: {0} Precent complete: {1}",$overall_job_output.Message,$overall_job_output.PercentComplete)
+        Start-Sleep 5
         }
     }
 Write-Host
 Start-Sleep 10
 [String]::Format("- PASS, {0} job ID marked as completed!",$job_id)
 Write-Host "`n- Detailed final job status results:"
-$u5 ="https://$idrac_ip/redfish/v1/Managers/iDRAC.Embedded.1/Jobs/$job_id"
-$result = Invoke-WebRequest -Uri $u5 -Credential $credential -Method Get -UseBasicParsing -ContentType 'application/json' -Headers @{"Accept"="application/json"}
+$uri ="https://$idrac_ip/redfish/v1/Managers/iDRAC.Embedded.1/Jobs/$job_id"
+try
+    {
+    if ($global:get_powershell_version -gt 5)
+    {
+    $result = Invoke-WebRequest -SkipCertificateCheck -SkipHeaderValidation -Uri $uri -Credential $credential -Method Get -UseBasicParsing -ErrorAction RespErr -Headers @{"Accept"="application/json"}
+    }
+    else
+    {
+    Ignore-SSLCertificates
+    $result = Invoke-WebRequest -Uri $uri -Credential $credential -Method Get -UseBasicParsing -ErrorAction RespErr -Headers @{"Accept"="application/json"}
+    }
+    }
+    catch
+    {
+    Write-Host
+    $RespErr
+    break
+    }
 $overall_job_output=$result.Content | ConvertFrom-Json
 $overall_job_output
 
 $controller_id=$delete_virtual_disk.Split(":")[1]
-$u="https://$idrac_ip/redfish/v1/Systems/System.Embedded.1/Storage/Volumes/$delete_virtual_disk"
-    try
+$uri="https://$idrac_ip/redfish/v1/Systems/System.Embedded.1/Storage/Volumes/$delete_virtual_disk"
+try
     {
-    $result = Invoke-WebRequest -Uri $u -Credential $credential -Method Get -UseBasicParsing -Headers @{"Accept"="application/json"}
+    if ($global:get_powershell_version -gt 5)
+    {
+    $result = Invoke-WebRequest -SkipCertificateCheck -SkipHeaderValidation -Uri $uri -Credential $credential -Method Get -UseBasicParsing -ErrorAction RespErr -Headers @{"Accept"="application/json"}
     Write-Host "- FAIL, $delete_virtual_disk still reported for controller $controller_id"
-    return
+    }
+    else
+    {
+    Ignore-SSLCertificates
+    $result = Invoke-WebRequest -Uri $uri -Credential $credential -Method Get -UseBasicParsing -ErrorAction RespErr -Headers @{"Accept"="application/json"}
+    Write-Host "- FAIL, $delete_virtual_disk still reported for controller $controller_id"
+    }
     }
     catch
     {
     Write-Host "- PASS, $delete_virtual_disk no longer exists for controller $controller_id"
-    return
+    break
     }
+
+    
 }
 
 if ($job_type -eq "staged_config")
 {
-    while ($overall_job_output.Message -ne "Task successfully scheduled.")
-    {
-    $u5 ="https://$idrac_ip/redfish/v1/Managers/iDRAC.Embedded.1/Jobs/$job_id"
-    $result = Invoke-WebRequest -Uri $u5 -Credential $credential -Method Get -UseBasicParsing -ContentType 'application/json' -Headers @{"Accept"="application/json"}
+while ($overall_job_output.Message -ne "Task successfully scheduled.")
 
-    $overall_job_output=$result.Content | ConvertFrom-Json
-        if ($overall_job_output.Message -eq "Job failed." -or $overall_job_output.Message -eq "Failed")
-        {
-        Write-Host
-        [String]::Format("- FAIL, job not marked as scheduled, detailed error info: {0}",$overall_job_output)
-        return
-        }
-        else
-        {
-        [String]::Format("- WARNING, job not marked scheduled, current message is: {0}",$overall_job_output.Message)
-        Start-Sleep 1
-        }
+{
+    $uri ="https://$idrac_ip/redfish/v1/Managers/iDRAC.Embedded.1/Jobs/$job_id"
+try
+    {
+    if ($global:get_powershell_version -gt 5)
+    {
+    $result = Invoke-WebRequest -SkipCertificateCheck -SkipHeaderValidation -Uri $uri -Credential $credential -Method Get -UseBasicParsing -ErrorAction RespErr -Headers @{"Accept"="application/json"}
     }
+    else
+    {
+    Ignore-SSLCertificates
+    $result = Invoke-WebRequest -Uri $uri -Credential $credential -Method Get -UseBasicParsing -ErrorAction RespErr -Headers @{"Accept"="application/json"}
+    }
+    }
+    catch
+    {
+    Write-Host
+    $RespErr
+    break
+    }
+$overall_job_output=$result.Content | ConvertFrom-Json
+if ($overall_job_output.JobState -eq "Failed")
+{
+Write-Host
+[String]::Format("- FAIL, job not marked as scheduled, detailed error info: {0}",$overall_job_output)
+return
 }
+else
+{
+[String]::Format("- WARNING, job not marked scheduled, current message is: {0}",$overall_job_output.Message)
+Start-Sleep 1
+}
+}
+
 Write-Host "`n- PASS, $job_id successfully scheduled, rebooting server"
 
-$u = "https://$idrac_ip/redfish/v1/Systems/System.Embedded.1"
-$result = Invoke-WebRequest -Uri $u -Credential $credential -Method Get -UseBasicParsing -Headers @{"Accept"="application/json"}
-$z=$result.Content | ConvertFrom-Json
-$host_power_state = $z.PowerState
 
+
+$uri = "https://$idrac_ip/redfish/v1/Systems/System.Embedded.1"
+try
+    {
+    if ($global:get_powershell_version -gt 5)
+    {
+    $result = Invoke-WebRequest -SkipCertificateCheck -SkipHeaderValidation -Uri $uri -Credential $credential -Method Get -UseBasicParsing -ErrorAction RespErr -Headers @{"Accept"="application/json"}
+    }
+    else
+    {
+    Ignore-SSLCertificates
+    $result = Invoke-WebRequest -Uri $uri -Credential $credential -Method Get -UseBasicParsing -ErrorAction RespErr -Headers @{"Accept"="application/json"}
+    }
+    }
+    catch
+    {
+    Write-Host
+    $RespErr
+    break
+    }
+$get_content = $result.Content | ConvertFrom-Json
+$host_power_state = $get_content.PowerState
 
 if ($host_power_state -eq "On")
 {
-Write-Host "- WARNING, server power state ON, rebooting the server to execute staged configuration job"
-$JsonBody = @{ "ResetType" = "ForceOff"
-    } | ConvertTo-Json -Compress
+Write-Host "- WARNING, server power state ON, performing graceful shutdown"
+$JsonBody = @{ "ResetType" = "GracefulShutdown" } | ConvertTo-Json -Compress
 
 
-$u4 = "https://$idrac_ip/redfish/v1/Systems/System.Embedded.1/Actions/ComputerSystem.Reset"
-$result1 = Invoke-WebRequest -Uri $u4 -Credential $credential -Method Post -Body $JsonBody -ContentType 'application/json' -Headers @{"Accept"="application/json"}
-
-
-    if ($result1.StatusCode -eq 204)
+$uri = "https://$idrac_ip/redfish/v1/Systems/System.Embedded.1/Actions/ComputerSystem.Reset"
+    try
     {
-    [String]::Format("- PASS, statuscode {0} returned successfully to power OFF the server",$result1.StatusCode)
-    Start-Sleep 15
+    if ($global:get_powershell_version -gt 5)
+    {
+    
+    $result1 = Invoke-WebRequest -SkipHeaderValidation -SkipCertificateCheck -Uri $uri -Credential $credential -Method Post -ContentType 'application/json' -Headers @{"Accept"="application/json"} -Body $JsonBody -ErrorVariable RespErr
     }
     else
     {
-    [String]::Format("- FAIL, statuscode {0} returned",$result1.StatusCode)
-    return
+    Ignore-SSLCertificates
+    $result1 = Invoke-WebRequest -Uri $uri -Credential $credential -Method Post -ContentType 'application/json' -Headers @{"Accept"="application/json"} -Body $JsonBody -ErrorVariable RespErr
     }
-
-$JsonBody = @{ "ResetType" = "On"
-    } | ConvertTo-Json -Compress
-
-
-$u4 = "https://$idrac_ip/redfish/v1/Systems/System.Embedded.1/Actions/ComputerSystem.Reset"
-$result1 = Invoke-WebRequest -Uri $u4 -Credential $credential -Method Post -Body $JsonBody -ContentType 'application/json' -Headers @{"Accept"="application/json"}
-
-
-    if ($result1.StatusCode -eq 204)
+    }
+    catch
     {
-    [String]::Format("- PASS, statuscode {0} returned successfully to power ON the server",$result1.StatusCode)
     Write-Host
+    $RespErr
+    break
+    } 
+
+if ($result1.StatusCode -eq 204)
+{
+    [String]::Format("- PASS, statuscode {0} returned to request server graceful shutdown",$result1.StatusCode)
+    Start-Sleep 10
+}
+else
+{
+    [String]::Format("- FAIL, statuscode {0} returned",$result1.StatusCode)
+    return
+}
+
+Start-Sleep 10
+$count = 1
+while ($true)
+{
+If ($count -eq 5)
+{
+Write-Host "- FAIL, retry count to validate graceful shutdown has been hit. Manually check server status and reboot to execute the configuration job"
+return 
+}
+
+$uri = "https://$idrac_ip/redfish/v1/Systems/System.Embedded.1"
+try
+    {
+    if ($global:get_powershell_version -gt 5)
+    {
+    $result = Invoke-WebRequest -SkipCertificateCheck -SkipHeaderValidation -Uri $uri -Credential $credential -Method Get -UseBasicParsing -ErrorAction RespErr -Headers @{"Accept"="application/json"}
     }
     else
     {
-    [String]::Format("- FAIL, statuscode {0} returned",$result1.StatusCode)
-    return
+    Ignore-SSLCertificates
+    $result = Invoke-WebRequest -Uri $uri -Credential $credential -Method Get -UseBasicParsing -ErrorAction RespErr -Headers @{"Accept"="application/json"}
     }
-}
+    }
+    catch
+    {
+    Write-Host
+    $RespErr
+    break
+    }
+$get_content = $result.Content | ConvertFrom-Json
+$host_power_state = $get_content.PowerState
+
 if ($host_power_state -eq "Off")
 {
-Write-Host "- WARNING, server power state OFF, powering ON server to execute staged configuration job"
-$JsonBody = @{ "ResetType" = "On"
-    } | ConvertTo-Json -Compress
+Write-Host "- PASS, verified server is in OFF state"
+$host_power_state = ""
+break
+}
+else
+{
+Write-Host "- WARNING, server still in ON state waiting for graceful shutdown to complete, polling power status again"
+Start-Sleep 15
+$count++
+}
+
+}
+
+$JsonBody = @{ "ResetType" = "On" } | ConvertTo-Json -Compress
 
 
-$u4 = "https://$idrac_ip/redfish/v1/Systems/System.Embedded.1/Actions/ComputerSystem.Reset"
-$result1 = Invoke-WebRequest -Uri $u4 -Credential $credential -Method Post -Body $JsonBody -ContentType 'application/json' -Headers @{"Accept"="application/json"}
+$uri = "https://$idrac_ip/redfish/v1/Systems/System.Embedded.1/Actions/ComputerSystem.Reset"
+try
+{
+    if ($global:get_powershell_version -gt 5)
+    {
+    
+    $result1 = Invoke-WebRequest -SkipHeaderValidation -SkipCertificateCheck -Uri $uri -Credential $credential -Method Post -ContentType 'application/json' -Headers @{"Accept"="application/json"} -Body $JsonBody -ErrorVariable RespErr
+    }
+    else
+    {
+    Ignore-SSLCertificates
+    $result1 = Invoke-WebRequest -Uri $uri -Credential $credential -Method Post -ContentType 'application/json' -Headers @{"Accept"="application/json"} -Body $JsonBody -ErrorVariable RespErr
+    }
+}
+catch
+{
+Write-Host
+$RespErr
+break
+} 
 
 if ($result1.StatusCode -eq 204)
 {
@@ -488,58 +751,163 @@ else
 }
 }
 
-
-while ($overall_job_output.JobState -ne "Completed")
+if ($host_power_state -eq "Off")
 {
-$u5 ="https://$idrac_ip/redfish/v1/Managers/iDRAC.Embedded.1/Jobs/$job_id"
-try
+Write-Host "- WARNING, server power state OFF, performing power ON operation"
+$JsonBody = @{ "ResetType" = "On" } | ConvertTo-Json -Compress
+
+
+$uri = "https://$idrac_ip/redfish/v1/Systems/System.Embedded.1/Actions/ComputerSystem.Reset"
+    try
     {
-    $result = Invoke-WebRequest -Uri $u5 -Credential $credential -Method Get -UseBasicParsing -ContentType 'application/json' -ErrorVariable RespErr -Headers @{"Accept"="application/json"}
+    if ($global:get_powershell_version -gt 5)
+    {
+    
+    $result1 = Invoke-WebRequest -SkipHeaderValidation -SkipCertificateCheck -Uri $uri -Credential $credential -Method Post -ContentType 'application/json' -Headers @{"Accept"="application/json"} -Body $JsonBody -ErrorVariable RespErr
+    }
+    else
+    {
+    Ignore-SSLCertificates
+    $result1 = Invoke-WebRequest -Uri $uri -Credential $credential -Method Post -ContentType 'application/json' -Headers @{"Accept"="application/json"} -Body $JsonBody -ErrorVariable RespErr
+    }
     }
     catch
     {
     Write-Host
     $RespErr
+    break
+    } 
+
+if ($result1.StatusCode -eq 204)
+{
+    [String]::Format("- PASS, statuscode {0} returned successfully to power ON the server",$result1.StatusCode)
+    Start-Sleep 10
+}
+else
+{
+    [String]::Format("- FAIL, statuscode {0} returned",$result1.StatusCode)
     return
-    }
-$overall_job_output=$result.Content | ConvertFrom-Json
-if ($overall_job_output.Message -eq "Job failed." -or $overall_job_output.Message -eq "Failed")
+}
+
+Start-Sleep 10
+}
+
+
+
+
+while ($overall_job_output.JobState -ne "Completed")
+{
+$uri ="https://$idrac_ip/redfish/v1/Managers/iDRAC.Embedded.1/Jobs/$job_id"
+try
     {
-    Write-Host
-    [String]::Format("- FAIL, job not marked as completed, detailed error info: {0}",$overall_job_output)
-    return
+    if ($global:get_powershell_version -gt 5)
+    {
+    $result = Invoke-WebRequest -SkipCertificateCheck -SkipHeaderValidation -Uri $uri -Credential $credential -Method Get -UseBasicParsing -ErrorAction RespErr -Headers @{"Accept"="application/json"}
     }
     else
     {
-    [String]::Format("- WARNING, job not marked completed, current status is: {0} Percent complete is: {1}",$overall_job_output.Message,$overall_job_output.PercentComplete)
-    Start-Sleep 10
+    Ignore-SSLCertificates
+    $result = Invoke-WebRequest -Uri $uri -Credential $credential -Method Get -UseBasicParsing -ErrorAction RespErr -Headers @{"Accept"="application/json"}
     }
+    }
+    catch
+    {
+    Write-Host
+    $RespErr
+    break
+    }
+
+
+$overall_job_output=$result.Content | ConvertFrom-Json
+if ($overall_job_output.Message -eq "Job failed." -or $overall_job_output.Message -eq "Failed")
+{
+Write-Host
+[String]::Format("- FAIL, job not marked as completed, detailed error info: {0}",$overall_job_output)
+return
+}
+else
+{
+[String]::Format("- WARNING, job not marked completed, current status: {0} Precent complete: {1}",$overall_job_output.Message,$overall_job_output.PercentComplete)
+Start-Sleep 10
+}
 }
 Start-Sleep 10
 Write-Host
 [String]::Format("- PASS, {0} job ID marked as completed!",$job_id)
 Write-Host "`n- Detailed final job status results:"
-$u5 ="https://$idrac_ip/redfish/v1/Managers/iDRAC.Embedded.1/Jobs/$job_id"
-$result = Invoke-WebRequest -Uri $u5 -Credential $credential -Method Get -UseBasicParsing -ContentType 'application/json' -Headers @{"Accept"="application/json"}
+$uri ="https://$idrac_ip/redfish/v1/Managers/iDRAC.Embedded.1/Jobs/$job_id"
+try
+    {
+    if ($global:get_powershell_version -gt 5)
+    {
+    $result = Invoke-WebRequest -SkipCertificateCheck -SkipHeaderValidation -Uri $uri -Credential $credential -Method Get -UseBasicParsing -ErrorAction RespErr -Headers @{"Accept"="application/json"}
+    }
+    else
+    {
+    Ignore-SSLCertificates
+    $result = Invoke-WebRequest -Uri $uri -Credential $credential -Method Get -UseBasicParsing -ErrorAction RespErr -Headers @{"Accept"="application/json"}
+    }
+    }
+    catch
+    {
+    Write-Host
+    $RespErr
+    break
+    }
+
+Start-Sleep 10
+Write-Host
+[String]::Format("- PASS, {0} job ID marked as completed!",$job_id)
+Write-Host "`n- Detailed final job status results:"
+$uri = "https://$idrac_ip/redfish/v1/Managers/iDRAC.Embedded.1/Jobs/$job_id"
+try
+    {
+    if ($global:get_powershell_version -gt 5)
+    {
+    $result = Invoke-WebRequest -SkipCertificateCheck -SkipHeaderValidation -Uri $uri -Credential $credential -Method Get -UseBasicParsing -ErrorAction RespErr -Headers @{"Accept"="application/json"}
+    }
+    else
+    {
+    Ignore-SSLCertificates
+    $result = Invoke-WebRequest -Uri $uri -Credential $credential -Method Get -UseBasicParsing -ErrorAction RespErr -Headers @{"Accept"="application/json"}
+    }
+    }
+    catch
+    {
+    Write-Host
+    $RespErr
+    break
+    }
 $overall_job_output=$result.Content | ConvertFrom-Json
 $overall_job_output
 
 
-$controller_id=$delete_virtual_disk.Split(":")[1]
+$controller_id = $delete_virtual_disk.Split(":")[1]
 
-$u="https://$idrac_ip/redfish/v1/Systems/System.Embedded.1/Storage/Volumes/$delete_virtual_disk"
+$uri ="https://$idrac_ip/redfish/v1/Systems/System.Embedded.1/Storage/Volumes/$delete_virtual_disk"
+
 try
-{
-$result = Invoke-WebRequest -Uri $u -Credential $credential -Method Get -UseBasicParsing -Headers @{"Accept"="application/json"}
-Write-Host "- FAIL, $delete_virtual_disk still reported for controller $controller_id"
-return
-}
-catch
-{
-Write-Host "- PASS, $delete_virtual_disk no longer exists for controller $controller_id"
-return
-}
+    {
+    if ($global:get_powershell_version -gt 5)
+    {
+    $result = Invoke-WebRequest -SkipCertificateCheck -SkipHeaderValidation -Uri $uri -Credential $credential -Method Get -UseBasicParsing -Headers @{"Accept"="application/json"}
+    Write-Host "- FAIL, $delete_virtual_disk still reported for controller $controller_id"
+    }
+    else
+    {
+    Ignore-SSLCertificates
+    $result = Invoke-WebRequest -Uri $uri -Credential $credential -Method Get -UseBasicParsing -ErrorAction RespErr -Headers @{"Accept"="application/json"}
+    Write-Host "- FAIL, $delete_virtual_disk still reported for controller $controller_id"
+    }
+    }
+    catch
+    {
+    Write-Host "- PASS, $delete_virtual_disk no longer exists for controller $controller_id"
+    break
+    }
+
 
 return
+}
 }
 

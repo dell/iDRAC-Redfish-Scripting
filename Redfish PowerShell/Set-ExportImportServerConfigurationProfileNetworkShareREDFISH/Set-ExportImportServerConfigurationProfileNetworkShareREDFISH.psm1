@@ -1,6 +1,6 @@
 ﻿<#
 _author_ = Texas Roemer <Texas_Roemer@Dell.com>
-_version_ = 3.0
+_version_ = 4.0
 
 Copyright (c) 2017, Dell, Inc.
 
@@ -32,7 +32,7 @@ http://www.gnu.org/licenses/old-licenses/gpl-2.0.txt
    - ExportUse (Supported values: Default, Clone and Replace) OPTIONAL for export only. If not passed in, value will be "Default" used.
    - ShutdownType (Supported values: Graceful, Forced and NoReboot) OPTIONAL, only valid for import, if you don't pass in this parameter, default value will be"Graceful"
   
-  NOTE: For parameter values with static string values, make sure you pass in the exact text since these are case sensitive values. Example: For ExportUse, pass in a value of "Clone.
+  NOTE: For parameter values with static strng values, make sure you pass in the exact text since these are case senstive values. Example: For ExportUse, pass in a value of "Clone.
   Passing in a value of "clone" will fail.
 
 .EXAMPLE
@@ -73,6 +73,11 @@ param(
     [Parameter(Mandatory=$False)]
     [string]$ShutdownType
     )
+
+
+
+
+
 
 # Building the hash table for export or import operation
 
@@ -158,7 +163,16 @@ function Ignore-SSLCertificates
     [System.Net.ServicePointManager]::CertificatePolicy = $TrustAll
 }
 
-Ignore-SSLCertificates
+$global:get_powershell_version = $null
+
+function get_powershell_version 
+{
+$get_host_info = Get-Host
+$major_number = $get_host_info.Version.Major
+$global:get_powershell_version = $major_number
+}
+
+get_powershell_version 
 
 [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::TLS12
 $user = $idrac_username
@@ -166,22 +180,30 @@ $pass= $idrac_password
 $secpasswd = ConvertTo-SecureString $pass -AsPlainText -Force
 $credential = New-Object System.Management.Automation.PSCredential($user, $secpasswd)
 
-
 $full_method_name="EID_674_Manager."+$Method +"SystemConfiguration"
 
-$u = "https://$idrac_ip/redfish/v1/Managers/iDRAC.Embedded.1/Actions/Oem/$full_method_name"
+$uri = "https://$idrac_ip/redfish/v1/Managers/iDRAC.Embedded.1/Actions/Oem/$full_method_name"
 
 # POST command to import or export server configuration profile file
 try
-{
-$result1 = Invoke-WebRequest -Uri $u -Credential $credential -Method Post -Body $JsonBody -ContentType 'application/json' -ErrorVariable RespErr -Headers @{"Accept"="application/json"}
-}
-catch
-{
-Write-Host
-$RespErr
-Exit
-}
+    {
+    if ($global:get_powershell_version -gt 5)
+    {
+    
+    $result1 = Invoke-WebRequest -SkipHeaderValidation -SkipCertificateCheck -Uri $uri -Credential $credential -Body $JsonBody -Method Post -ContentType 'application/json' -Headers @{"Accept"="application/json"} -ErrorVariable RespErr
+    }
+    else
+    {
+    Ignore-SSLCertificates
+    $result1 = Invoke-WebRequest -Uri $uri -Credential $credential -Method Post -ContentType 'application/json' -Headers @{"Accept"="application/json"} -Body $JsonBody -ErrorVariable RespErr
+    }
+    }
+    catch
+    {
+    Write-Host
+    $RespErr
+    break
+    } 
 $raw_content_output=$result1.RawContent | ConvertTo-Json -Compress
 $job_id_search=[regex]::Match($raw_content_output, "JID_.+?r").captures.groups[0].value
 $job_id=$job_id_search.Replace("\r","")
@@ -209,8 +231,25 @@ if ( $ShutdownType -eq "NoReboot")
 {
 while ($overall_job_output.Message -ne "No reboot Server Configuration Profile Import job scheduled, Waiting for System Reboot to complete the operation.")
 {
-$u5 ="https://$idrac_ip/redfish/v1/Managers/iDRAC.Embedded.1/Jobs/$job_id"
-$result = Invoke-WebRequest -Uri $u5 -Credential $credential -Method Get -UseBasicParsing -ContentType 'application/json' -Headers @{"Accept"="application/json"}
+$uri ="https://$idrac_ip/redfish/v1/Managers/iDRAC.Embedded.1/Jobs/$job_id"
+try
+    {
+    if ($global:get_powershell_version -gt 5)
+    {
+    $result = Invoke-WebRequest -SkipCertificateCheck -SkipHeaderValidation -Uri $uri -Credential $credential -Method Get -UseBasicParsing -ErrorAction RespErr -Headers @{"Accept"="application/json"}
+    }
+    else
+    {
+    Ignore-SSLCertificates
+    $result = Invoke-WebRequest -Uri $uri -Credential $credential -Method Get -UseBasicParsing -ErrorAction RespErr -Headers @{"Accept"="application/json"}
+    }
+    }
+    catch
+    {
+    Write-Host
+    $RespErr
+    break
+    }
 $overall_job_output=$result.Content | ConvertFrom-Json
 if ($overall_job_output.JobState -eq "Failed") {
 Write-Host
@@ -232,8 +271,25 @@ return
 while ($overall_job_output.JobState -ne "Completed")
 {
 $loop_time = Get-Date
-$u5 ="https://$idrac_ip/redfish/v1/Managers/iDRAC.Embedded.1/Jobs/$job_id"
-$result = Invoke-WebRequest -Uri $u5 -Credential $credential -Method Get -UseBasicParsing -ContentType 'application/json' -Headers @{"Accept"="application/json"}
+$uri ="https://$idrac_ip/redfish/v1/Managers/iDRAC.Embedded.1/Jobs/$job_id"
+try
+    {
+    if ($global:get_powershell_version -gt 5)
+    {
+    $result = Invoke-WebRequest -SkipCertificateCheck -SkipHeaderValidation -Uri $uri -Credential $credential -Method Get -UseBasicParsing -ErrorAction RespErr -Headers @{"Accept"="application/json"}
+    }
+    else
+    {
+    Ignore-SSLCertificates
+    $result = Invoke-WebRequest -Uri $uri -Credential $credential -Method Get -UseBasicParsing -ErrorAction RespErr -Headers @{"Accept"="application/json"}
+    }
+    }
+    catch
+    {
+    Write-Host
+    $RespErr
+    break
+    }
 $overall_job_output=$result.Content | ConvertFrom-Json
 if ($overall_job_output.JobState -eq "Failed") {
 Write-Host
@@ -257,24 +313,77 @@ return
 }
 elseif ($overall_job_output.Message -eq "Import of Server Configuration Profile operation completed with errors.") {
 Write-Host
-[String]::Format("- WARNING, final job status is: {0} Check configuration results for more information",$overall_job_output.Message)
+[String]::Format("- WARNING, final job status is: {0}",$overall_job_output.Message)
+$uri ="https://$idrac_ip/redfish/v1/TaskService/Tasks/$job_id"
+try
+    {
+    if ($global:get_powershell_version -gt 5)
+    {
+    $result = Invoke-WebRequest -SkipCertificateCheck -SkipHeaderValidation -Uri $uri -Credential $credential -Method Get -UseBasicParsing -ErrorAction RespErr -Headers @{"Accept"="application/json"}
+    }
+    else
+    {
+    Ignore-SSLCertificates
+    $result = Invoke-WebRequest -Uri $uri -Credential $credential -Method Get -UseBasicParsing -ErrorAction RespErr -Headers @{"Accept"="application/json"}
+    }
+    }
+    catch
+    {
+    Write-Host
+    $RespErr
+    break
+    }
+Write-Host "`n- Detailed final job status and configuration results for import job ID '$job_id' -`n"
+
+$get_final_results = [string]$result.Content 
+$get_final_results.Split(",")
 return
 }
 elseif ($overall_job_output.JobState -eq "Completed") {
 break
 }
 else {
-[String]::Format("- WARNING, current job status is: {0}",$overall_job_output.Message)
-Start-Sleep 5
+[String]::Format("- WARNING, import job ID not marked completed, current job status: {0}",$overall_job_output.Message)
+Start-Sleep 10
 }
 }
 Write-Host
 [String]::Format("- PASS, {0} job ID marked as completed!",$job_id)
-[String]::Format("- Final job status is: {0}",$overall_job_output.Message)
+$final_message = $overall_job_output.Message
+if ($final_message.Contains("No changes were applied"))
+{
+[String]::Format("`n- Final job status is: {0}",$overall_job_output.Message)
+return
+}
+
 $get_current_time=Get-Date -DisplayHint Time
 $final_time=$get_current_time-$get_time_old
 $final_completion_time=$final_time | select Minutes,Seconds 
 Write-Host "  Job completed in $final_completion_time"
-return
+
+$uri ="https://$idrac_ip/redfish/v1/TaskService/Tasks/$job_id"
+try
+    {
+    if ($global:get_powershell_version -gt 5)
+    {
+    $result = Invoke-WebRequest -SkipCertificateCheck -SkipHeaderValidation -Uri $uri -Credential $credential -Method Get -UseBasicParsing -ErrorAction RespErr -Headers @{"Accept"="application/json"}
+    }
+    else
+    {
+    Ignore-SSLCertificates
+    $result = Invoke-WebRequest -Uri $uri -Credential $credential -Method Get -UseBasicParsing -ErrorAction RespErr -Headers @{"Accept"="application/json"}
+    }
+    }
+    catch
+    {
+    Write-Host
+    $RespErr
+    break
+    }
+Write-Host "`n- Detailed final job status and configuration results for import job ID '$job_id' -`n"
+
+$get_final_results = [string]$result.Content 
+$get_final_results.Split(",")
+break
 
 }

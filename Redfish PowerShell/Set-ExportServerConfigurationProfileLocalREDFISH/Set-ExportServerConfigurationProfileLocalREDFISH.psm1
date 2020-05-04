@@ -1,6 +1,6 @@
 ﻿<#
 _author_ = Texas Roemer <Texas_Roemer@Dell.com>
-_version_ = 3.0
+_version_ = 4.0
 
 Copyright (c) 2018, Dell, Inc.
 
@@ -91,7 +91,16 @@ function Ignore-SSLCertificates
     [System.Net.ServicePointManager]::CertificatePolicy = $TrustAll
 }
 
-Ignore-SSLCertificates
+$global:get_powershell_version = $null
+
+function get_powershell_version 
+{
+$get_host_info = Get-Host
+$major_number = $get_host_info.Version.Major
+$global:get_powershell_version = $major_number
+}
+
+get_powershell_version 
 
 [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::TLS12
 $user = $idrac_username
@@ -101,21 +110,30 @@ $credential = New-Object System.Management.Automation.PSCredential($user, $secpa
 
 
 $full_method_name="EID_674_Manager.ExportSystemConfiguration"
-$u = "https://$idrac_ip/redfish/v1/Managers/iDRAC.Embedded.1/Actions/Oem/$full_method_name"
+$uri = "https://$idrac_ip/redfish/v1/Managers/iDRAC.Embedded.1/Actions/Oem/$full_method_name"
 
 try
-{
-$result1 = Invoke-WebRequest -Uri $u -Credential $credential -Method Post -Body $JsonBody -ContentType 'application/json' -ErrorVariable RespErr -Headers @{"Accept"="application/json"}
-}
-catch
-{
-Write-Host
-$RespErr
-return
-}
-$q=$result1.RawContent | ConvertTo-Json
-$j=[regex]::Match($q, "JID_.+?r").captures.groups[0].value
-$job_id=$j.Replace("\r","")
+    {
+    if ($global:get_powershell_version -gt 5)
+    {
+    
+    $result1 = Invoke-WebRequest -SkipHeaderValidation -SkipCertificateCheck -Uri $uri -Credential $credential -Body $JsonBody -Method Post -ContentType 'application/json' -Headers @{"Accept"="application/json"} -ErrorVariable RespErr
+    }
+    else
+    {
+    Ignore-SSLCertificates
+    $result1 = Invoke-WebRequest -Uri $uri -Credential $credential -Method Post -ContentType 'application/json' -Headers @{"Accept"="application/json"} -Body $JsonBody -ErrorVariable RespErr
+    }
+    }
+    catch
+    {
+    Write-Host
+    $RespErr
+    break
+    } 
+$get_result = $result1.RawContent | ConvertTo-Json
+$job_id_search = [regex]::Match($get_result, "JID_.+?r").captures.groups[0].value
+$job_id = $job_id_search.Replace("\r","")
 
 if ($result1.StatusCode -eq 202)
 {
@@ -138,8 +156,26 @@ while ($overall_job_output.JobState -ne "Complete")
 {
 $loop_time = Get-Date
 
-$u5 ="https://$idrac_ip/redfish/v1/TaskService/Tasks/$job_id"
-$result = Invoke-WebRequest -Uri $u5 -Credential $credential -Method Get -UseBasicParsing -ContentType 'application/json' -Headers @{"Accept"="application/json"}
+$uri ="https://$idrac_ip/redfish/v1/TaskService/Tasks/$job_id"
+Start-Sleep 1
+try
+    {
+    if ($global:get_powershell_version -gt 5)
+    {
+    $result = Invoke-WebRequest -SkipCertificateCheck -SkipHeaderValidation -Uri $uri -Credential $credential -Method Get -UseBasicParsing -ErrorAction RespErr -Headers @{"Accept"="application/json"}
+    }
+    else
+    {
+    Ignore-SSLCertificates
+    $result = Invoke-WebRequest -Uri $uri -Credential $credential -Method Get -UseBasicParsing -ErrorAction RespErr -Headers @{"Accept"="application/json"}
+    }
+    }
+    catch
+    {
+    Write-Host
+    $RespErr
+    break
+    }
 
 try
 {
@@ -149,9 +185,26 @@ catch
 {
 }
 $overall_job_output=$result.Content
-$u6 ="https://$idrac_ip/redfish/v1/Managers/iDRAC.Embedded.1/Jobs/$job_id"
-$result6 = Invoke-WebRequest -Uri $u6 -Credential $credential -Method Get -UseBasicParsing -ContentType 'application/json' -Headers @{"Accept"="application/json"}
-$result6.Content | ConvertFrom-Json         
+$uri ="https://$idrac_ip/redfish/v1/Managers/iDRAC.Embedded.1/Jobs/$job_id"
+try
+    {
+    if ($global:get_powershell_version -gt 5)
+    {
+    $get_result = Invoke-WebRequest -SkipCertificateCheck -SkipHeaderValidation -Uri $uri -Credential $credential -Method Get -UseBasicParsing -ErrorAction RespErr -Headers @{"Accept"="application/json"}
+    }
+    else
+    {
+    Ignore-SSLCertificates
+    $get_result = Invoke-WebRequest -Uri $uri -Credential $credential -Method Get -UseBasicParsing -ErrorAction RespErr -Headers @{"Accept"="application/json"}
+    }
+    }
+    catch
+    {
+    Write-Host
+    $RespErr
+    break
+    }
+$get_result.Content | ConvertFrom-Json         
 if ($overall_job_status.TaskState -eq "Failed") {
 Write-Host
 [String]::Format("- FAIL, final job status is: {0}",$overall_job_status.TaskState)
@@ -165,19 +218,36 @@ Return
 elseif ($overall_job_output.Contains("SystemConfiguration")) {
 Write-Host "`n- Exported server attributes for target '$Target' -`n"
 $overall_job_output
-$s=Get-Date
-$s=[string]$s
-$s=$s.Replace("/","")
-$s=$s.Replace(":","")
-$s=$s.Replace(" ","-")
-$filename = $s+"_scp_file."+$ExportFormat.ToLower()
+$get_date_string = Get-Date
+$get_date_string = [string]$get_date_string
+$get_date_string = $get_date_string.Replace("/","")
+$get_date_string = $get_date_string.Replace(":","")
+$get_date_string = $get_date_string.Replace(" ","-")
+$filename = $get_date_string+"_scp_file."+$ExportFormat.ToLower()
 
 Add-Content $filename $overall_job_output
 Write-Host "`n- WARNING, SCP exported attributes also copied to '$filename' file" -ForegroundColor Yellow
 Write-Host "`n- Detailed Final Job Status Results -`n"
-$u6 ="https://$idrac_ip/redfish/v1/Managers/iDRAC.Embedded.1/Jobs/$job_id"
-$result6 = Invoke-WebRequest -Uri $u6 -Credential $credential -Method Get -UseBasicParsing -ContentType 'application/json' -Headers @{"Accept"="application/json"}
-$result6.Content | ConvertFrom-Json
+$uri ="https://$idrac_ip/redfish/v1/Managers/iDRAC.Embedded.1/Jobs/$job_id"
+try
+    {
+    if ($global:get_powershell_version -gt 5)
+    {
+    $get_result = Invoke-WebRequest -SkipCertificateCheck -SkipHeaderValidation -Uri $uri -Credential $credential -Method Get -UseBasicParsing -ErrorAction RespErr -Headers @{"Accept"="application/json"}
+    }
+    else
+    {
+    Ignore-SSLCertificates
+    $get_result = Invoke-WebRequest -Uri $uri -Credential $credential -Method Get -UseBasicParsing -ErrorAction RespErr -Headers @{"Accept"="application/json"}
+    }
+    }
+    catch
+    {
+    Write-Host
+    $RespErr
+    break
+    }
+$get_result.Content | ConvertFrom-Json
 break
 }
 else 

@@ -1,6 +1,6 @@
 <#
 _author_ = Texas Roemer <Texas_Roemer@Dell.com>
-_version_ = 5.0
+_version_ = 6.0
 
 Copyright (c) 2020, Dell, Inc.
 
@@ -104,29 +104,49 @@ $secpasswd = ConvertTo-SecureString $pass -AsPlainText -Force
 $global:credential = New-Object System.Management.Automation.PSCredential($user, $secpasswd)
 }
 
+$global:get_powershell_version = $null
+
+function get_powershell_version 
+{
+$get_host_info = Get-Host
+$major_number = $get_host_info.Version.Major
+$global:get_powershell_version = $major_number
+}
+
+get_powershell_version
+
 
 # Function get current firmware versions
 
 function get_firmware_versions
 {
-Write-Host "`n--- Getting Firmware Inventory For iDRAC $idrac_ip ---`n"
+Write-Host
+Write-Host "--- Getting Firmware Inventory For iDRAC $idrac_ip ---"
+Write-Host
 
 $expand_query ='?$expand=*($levels=1)'
 $uri = "https://$idrac_ip/redfish/v1/UpdateService/FirmwareInventory$expand_query"
 try
-{
-$get_result = Invoke-WebRequest -Uri $uri -Credential $credential -Method Get -UseBasicParsing -Headers @{"Accept"="application/json"} -ErrorVariable RespErr
-}
-catch
-{
-Write-Host
-$RespErr
-break
-}
-$get_fw_inventory = $get_result.Content | ConvertFrom-Json
-$get_fw_inventory.Members
-
-break
+    {
+    if ($global:get_powershell_version -gt 5)
+    {
+    $result = Invoke-WebRequest -SkipCertificateCheck -SkipHeaderValidation -Uri $uri -Credential $credential -Method Get -UseBasicParsing -ErrorAction RespErr -Headers @{"Accept"="application/json"}
+    }
+    else
+    {
+    Ignore-SSLCertificates
+    $result = Invoke-WebRequest -Uri $uri -Credential $credential -Method Get -UseBasicParsing -ErrorAction RespErr -Headers @{"Accept"="application/json"}
+    }
+    }
+    catch
+    {
+    Write-Host
+    $RespErr
+    break
+    }
+    $get_fw_inventory = $result.Content | ConvertFrom-Json
+    $get_fw_inventory.Members
+    return
 }
 
 # Function download image payload
@@ -137,31 +157,41 @@ function download_image_payload
 $uri = "https://$idrac_ip/redfish/v1/UpdateService/FirmwareInventory"
 try
 {
-$result = Invoke-WebRequest -Uri $uri -Credential $credential -Method Get -UseBasicParsing -Headers @{"Accept"="application/json"} -ErrorVariable RespErr
+if ($global:get_powershell_version -gt 5)
+    {
+    $result = Invoke-WebRequest -SkipCertificateCheck -Uri $uri -Credential $credential -Method Get -UseBasicParsing -Headers @{"Accept"="application/json"} -SkipHeaderValidation
+    $ETag=[string]$result.Headers.ETag
+    }
+    else
+    {
+    Ignore-SSLCertificates
+    $result = Invoke-WebRequest -Uri $uri -Credential $credential -Method Get -UseBasicParsing -ErrorAction RespErr -Headers @{"Accept"="application/json"}
+    $ETag=$result.Headers.ETag
+    }
 }
 catch
 {
 Write-Host
 $RespErr
-break
+return
 }
 
-$ETag=$result.Headers.ETag
-
-Write-Host "`n- WARNING, validating firmware image, this may take a few minutes depending of the size of the image"
+Write-Host "`n- WARNING, validating firmware image, this may take a few minutes depending of the size of the image.`n"
 
 $complete_path=$image_directory_path + "\" + $image_filename
-$headers = @{"if-match" = $ETag; "Accept"="application/json"}
+$headers = @{"If-Match" = $ETag; "Accept"="application/json"}
 
-# Code to read the image file, download to the iDRAC
+
+# Code to read the image file for download to the iDRAC
 
 $CODEPAGE = "iso-8859-1"
 $fileBin = [System.IO.File]::ReadAllBytes($complete_path)
 $enc = [System.Text.Encoding]::GetEncoding($CODEPAGE)
 $fileEnc = $enc.GetString($fileBin)
 $boundary = [System.Guid]::NewGuid().ToString()
+
 $LF = "`r`n"
-$bodyLines = (
+$body = (
         "--$boundary",
         "Content-Disposition: form-data; name=`"file`"; filename=`"$image_filename`"",
 		"Content-Type: application/octet-stream$LF",
@@ -169,16 +199,24 @@ $bodyLines = (
         "--$boundary",
         "Content-Disposition: form-data; name=`"importConfig`"; filename=`"$image_filename`"",
 		"Content-Type: application/octet-stream$LF",
-        #$importConfigFileEnc,
-        #$fileBin,
         "--$boundary--$LF"
 ) -join $LF
+
 
 # POST command to download the image payload to the iDRAC
 
 try
 {
-$result1 = Invoke-WebRequest -Uri $uri -Credential $credential -Method Post -ContentType "multipart/form-data; boundary=`"$boundary`"" -Headers $headers -Body $bodyLines -ErrorVariable RespErr
+    if ($global:get_powershell_version -gt 5)
+    { 
+    $result1 = Invoke-WebRequest -SkipCertificateCheck -Uri $uri -Credential $credential -Method Post -ContentType "multipart/form-data; boundary=`"$boundary`"" -Headers $headers -SkipHeaderValidation -SkipHttpErrorCheck -Body $body -ErrorVariable RespErr
+    }
+    else
+    {
+   
+    Ignore-SSLCertificates
+    $result1 = Invoke-WebRequest -Uri $uri -Credential $credential -Method Post -ContentType "multipart/form-data; boundary=`"$boundary`"" -Headers $headers -Body $body -ErrorVariable RespErr
+    }
 }
 catch
 {
@@ -187,18 +225,27 @@ $RespErr
 break
 } 
 
-$get_content=$result1.Content
-$Location = $result1.Headers['Location']
-$get_version=[regex]::Match($get_content, 'Available.+?,').captures.groups[0].value
+if ($result1.StatusCode -eq 201)
+{
+    [String]::Format("- PASS, statuscode {0} returned successfully for POST command to download payload image to iDRAC",$result1.StatusCode)
+}
+else
+{
+    [String]::Format("- FAIL, statuscode {0} returned. Detail error message: {1}",$result1.StatusCode,$result1)
+    return
+}
 
+$get_content=$result1.Content
+$global:available_entry = $result1.Headers['Location']
+$get_version=[regex]::Match($get_content, 'Available.+?,').captures.groups[0].value
 $get_version=$get_version.Replace(",","")
 $get_version=$get_version.Replace('"',"")
-$available_entry = $get_version
-$global:available_entry = $available_entry
 $get_fw_version=$get_version.Split("-")
 
-Write-Host "- Warning, firmware image version to install is:"$get_fw_version[-1]
+Write-Host
+Write-Host "- Warning, image version to install is:"$get_fw_version[-1]
 $compare_version=$get_version.Replace("Available","Installed")
+
 
 
 if ($result1.StatusCode -eq 201)
@@ -221,26 +268,34 @@ function install_image_payload_query_job_status_reboot_server
 {
 
 $uri = "https://$idrac_ip/redfish/v1/UpdateService/Actions/UpdateService.SimpleUpdate"
-$image_uri = "/redfish/v1/UpdateService/FirmwareInventory/$available_entry"
+$image_uri = [string]$global:available_entry
 $JsonBody = @{'ImageURI'= $image_uri} | ConvertTo-Json -Compress
 
 try
-{
-$result2 = Invoke-WebRequest -Uri $uri -Credential $credential -Method Post -Body $JsonBody -ContentType 'application/json' -Headers @{"Accept"="application/json"} -ErrorVariable RespErr
-}
-catch
-{
-Write-Host
-$RespErr
-break
-}
+    {
+    if ($global:get_powershell_version -gt 5)
+    {
+    
+    $result2 = Invoke-WebRequest -SkipHeaderValidation -SkipCertificateCheck -Uri $uri -Credential $credential -Body $JsonBody -Method Post -ContentType 'application/json' -Headers @{"Accept"="application/json"} -ErrorVariable RespErr
+    }
+    else
+    {
+    Ignore-SSLCertificates
+    $result2 = Invoke-WebRequest -Uri $uri -Credential $credential -Method Post -ContentType 'application/json' -Headers @{"Accept"="application/json"} -Body $JsonBody -ErrorVariable RespErr
+    }
+    }
+    catch
+    {
+    Write-Host
+    $RespErr
+    break
+    } 
  
 
 if ($result2.StatusCode -eq 202)
 {
     $job_id_search=$result2.Headers['Location']
     $job_id=$job_id_search.Split("/")[-1]
-    #$global:job_id
     [String]::Format("- PASS, statuscode {0} returned successfully for POST command to create update job ID {1}",$result2.StatusCode, $job_id)
     Write-Host
 }
@@ -263,15 +318,23 @@ $loop_time = Get-Date
 $uri ="https://$idrac_ip/redfish/v1/TaskService/Tasks/$job_id"
 
 try
-{
-$result = Invoke-WebRequest -Uri $uri -Credential $credential -Method Get -UseBasicParsing -ContentType 'application/json' -Headers @{"Accept"="application/json"} -ErrorVariable RespErr
-}
-catch
-{
-Write-Host
-$RespErr
-break
-}
+    {
+    if ($global:get_powershell_version -gt 5)
+    {
+    $result = Invoke-WebRequest -SkipCertificateCheck -SkipHeaderValidation -Uri $uri -Credential $credential -Method Get -UseBasicParsing -ErrorAction RespErr -Headers @{"Accept"="application/json"}
+    }
+    else
+    {
+    Ignore-SSLCertificates
+    $result = Invoke-WebRequest -Uri $uri -Credential $credential -Method Get -UseBasicParsing -ErrorAction RespErr -Headers @{"Accept"="application/json"}
+    }
+    }
+    catch
+    {
+    Write-Host
+    $RespErr
+    break
+    }
 
 $overall_job_output=$result.Content | ConvertFrom-Json
 
@@ -327,15 +390,23 @@ break
 
 $uri = "https://$idrac_ip/redfish/v1/Systems/System.Embedded.1/"
 try
-{
-$result = Invoke-WebRequest -Uri $uri -Credential $credential -Method Get -UseBasicParsing -Headers @{"Accept"="application/json"} -ErrorVariable RespErr
-}
-catch
-{
-Write-Host
-$RespErr
-break
-}
+    {
+    if ($global:get_powershell_version -gt 5)
+    {
+    $result = Invoke-WebRequest -SkipCertificateCheck -SkipHeaderValidation -Uri $uri -Credential $credential -Method Get -UseBasicParsing -ErrorAction RespErr -Headers @{"Accept"="application/json"}
+    }
+    else
+    {
+    Ignore-SSLCertificates
+    $result = Invoke-WebRequest -Uri $uri -Credential $credential -Method Get -UseBasicParsing -ErrorAction RespErr -Headers @{"Accept"="application/json"}
+    }
+    }
+    catch
+    {
+    Write-Host
+    $RespErr
+    break
+    }
 
 if ($result.StatusCode -eq 200)
 {
@@ -364,15 +435,24 @@ $JsonBody = @{ "ResetType" = "GracefulShutdown"
 $uri = "https://$idrac_ip/redfish/v1/Systems/System.Embedded.1/Actions/ComputerSystem.Reset"
 
 try
-{
-$result1 = Invoke-WebRequest -Uri $uri -Credential $credential -Method Post -Body $JsonBody -ContentType 'application/json' -Headers @{"Accept"="application/json"} -ErrorVariable RespErr
-}
-catch
-{
-Write-Host
-$RespErr
-break
-}
+    {
+    if ($global:get_powershell_version -gt 5)
+    {
+    
+    $result1 = Invoke-WebRequest -SkipHeaderValidation -SkipCertificateCheck -Uri $uri -Credential $credential -Body $JsonBody -Method Post -ContentType 'application/json' -Headers @{"Accept"="application/json"} -ErrorVariable RespErr
+    }
+    else
+    {
+    Ignore-SSLCertificates
+    $result1 = Invoke-WebRequest -Uri $uri -Credential $credential -Method Post -ContentType 'application/json' -Headers @{"Accept"="application/json"} -Body $JsonBody -ErrorVariable RespErr
+    }
+    }
+    catch
+    {
+    Write-Host
+    $RespErr
+    break
+    } 
 
 if ($result1.StatusCode -eq 204)
 {
@@ -390,15 +470,23 @@ while($true)
 {
 $uri = "https://$idrac_ip/redfish/v1/Systems/System.Embedded.1/"
 try
-{
-$result = Invoke-WebRequest -Uri $uri -Credential $credential -Method Get -UseBasicParsing -Headers @{"Accept"="application/json"} -ErrorVariable RespErr
-}
-catch
-{
-Write-Host
-$RespErr
-break
-}
+    {
+    if ($global:get_powershell_version -gt 5)
+    {
+    $result = Invoke-WebRequest -SkipCertificateCheck -SkipHeaderValidation -Uri $uri -Credential $credential -Method Get -UseBasicParsing -ErrorAction RespErr -Headers @{"Accept"="application/json"}
+    }
+    else
+    {
+    Ignore-SSLCertificates
+    $result = Invoke-WebRequest -Uri $uri -Credential $credential -Method Get -UseBasicParsing -ErrorAction RespErr -Headers @{"Accept"="application/json"}
+    }
+    }
+    catch
+    {
+    Write-Host
+    $RespErr
+    break
+    }
 
 $result_output = $result.Content | ConvertFrom-Json
 $power_state = $result_output.PowerState
@@ -419,15 +507,24 @@ $JsonBody = @{ "ResetType" = "ForceOff"
 $uri = "https://$idrac_ip/redfish/v1/Systems/System.Embedded.1/Actions/ComputerSystem.Reset"
 
 try
-{
-$result1 = Invoke-WebRequest -Uri $uri -Credential $credential -Method Post -Body $JsonBody -ContentType 'application/json' -Headers @{"Accept"="application/json"} -ErrorVariable RespErr
-}
-catch
-{
-Write-Host
-$RespErr
-break
-}
+    {
+    if ($global:get_powershell_version -gt 5)
+    {
+    
+    $result1 = Invoke-WebRequest -SkipHeaderValidation -SkipCertificateCheck -Uri $uri -Credential $credential -Body $JsonBody -Method Post -ContentType 'application/json' -Headers @{"Accept"="application/json"} -ErrorVariable RespErr
+    }
+    else
+    {
+    Ignore-SSLCertificates
+    $result1 = Invoke-WebRequest -Uri $uri -Credential $credential -Method Post -ContentType 'application/json' -Headers @{"Accept"="application/json"} -Body $JsonBody -ErrorVariable RespErr
+    }
+    }
+    catch
+    {
+    Write-Host
+    $RespErr
+    break
+    } 
 
 if ($result1.StatusCode -eq 204)
 {
@@ -456,15 +553,24 @@ $JsonBody = @{ "ResetType" = "On"
 $uri = "https://$idrac_ip/redfish/v1/Systems/System.Embedded.1/Actions/ComputerSystem.Reset"
 
 try
-{
-$result1 = Invoke-WebRequest -Uri $uri -Credential $credential -Method Post -Body $JsonBody -ContentType 'application/json' -Headers @{"Accept"="application/json"} -ErrorVariable RespErr
-}
-catch
-{
-Write-Host
-$RespErr
-break
-}
+    {
+    if ($global:get_powershell_version -gt 5)
+    {
+    
+    $result1 = Invoke-WebRequest -SkipHeaderValidation -SkipCertificateCheck -Uri $uri -Credential $credential -Body $JsonBody -Method Post -ContentType 'application/json' -Headers @{"Accept"="application/json"} -ErrorVariable RespErr
+    }
+    else
+    {
+    Ignore-SSLCertificates
+    $result1 = Invoke-WebRequest -Uri $uri -Credential $credential -Method Post -ContentType 'application/json' -Headers @{"Accept"="application/json"} -Body $JsonBody -ErrorVariable RespErr
+    }
+    }
+    catch
+    {
+    Write-Host
+    $RespErr
+    break
+    } 
 
 if ($result1.StatusCode -eq 204)
 {
@@ -490,15 +596,24 @@ $uri = "https://$idrac_ip/redfish/v1/Systems/System.Embedded.1/Actions/ComputerS
 # POST command to power ON the server
 
 try
-{
-$result1 = Invoke-WebRequest -Uri $uri -Credential $credential -Method Post -Body $JsonBody -ContentType 'application/json' -Headers @{"Accept"="application/json"} -ErrorVariable RespErr
-}
-catch
-{
-Write-Host
-$RespErr
-break
-}
+    {
+    if ($global:get_powershell_version -gt 5)
+    {
+    
+    $result1 = Invoke-WebRequest -SkipHeaderValidation -SkipCertificateCheck -Uri $uri -Credential $credential -Body $JsonBody -Method Post -ContentType 'application/json' -Headers @{"Accept"="application/json"} -ErrorVariable RespErr
+    }
+    else
+    {
+    Ignore-SSLCertificates
+    $result1 = Invoke-WebRequest -Uri $uri -Credential $credential -Method Post -ContentType 'application/json' -Headers @{"Accept"="application/json"} -Body $JsonBody -ErrorVariable RespErr
+    }
+    }
+    catch
+    {
+    Write-Host
+    $RespErr
+    break
+    } 
 
 if ($result1.StatusCode -eq 204)
 {
@@ -525,15 +640,23 @@ $loop_time = Get-Date
 $uri ="https://$idrac_ip/redfish/v1/TaskService/Tasks/$job_id"
 
 try
-{
-$result = Invoke-WebRequest -Uri $uri -Credential $credential -Method Get -UseBasicParsing -ContentType 'application/json' -Headers @{"Accept"="application/json"} -ErrorVariable RespErr
-}
-catch
-{
-Write-Host
-$RespErr
-break
-}
+    {
+    if ($global:get_powershell_version -gt 5)
+    {
+    $result = Invoke-WebRequest -SkipCertificateCheck -SkipHeaderValidation -Uri $uri -Credential $credential -Method Get -UseBasicParsing -ErrorAction RespErr -Headers @{"Accept"="application/json"}
+    }
+    else
+    {
+    Ignore-SSLCertificates
+    $result = Invoke-WebRequest -Uri $uri -Credential $credential -Method Get -UseBasicParsing -ErrorAction RespErr -Headers @{"Accept"="application/json"}
+    }
+    }
+    catch
+    {
+    Write-Host
+    $RespErr
+    break
+    }
 
 $overall_job_output=$result.Content | ConvertFrom-Json
 $current_job_message = "$overall_job_output.Messages.Message"
@@ -571,32 +694,33 @@ Start-Sleep 30
 
 # Run cmdlet
 
-Ignore-SSLCertificates
+get_powershell_version
 setup_idrac_creds
 
 # Code to check for supported iDRAC version installed
 
 $query_parameter = "?`$expand=*(`$levels=1)" 
 $uri = "https://$idrac_ip/redfish/v1/UpdateService/FirmwareInventory$query_parameter"
+
 try
-{
-$get_result = Invoke-WebRequest -Uri $uri -Credential $credential -Method Get -UseBasicParsing -ErrorVariable RespErr -Headers @{"Accept"="application/json"}
-}
-catch
-{
-Write-Host
-$RespErr
-return
-}
-if ($get_result.StatusCode -eq 200 -or $result.StatusCode -eq 202)
-{
-}
-else
-{
-Write-Host "`n- WARNING, iDRAC version detected does not support this feature using Redfish API or incorrect iDRAC user credentials passed in.`n"
-$get_result
-return
-}
+    {
+    if ($global:get_powershell_version -gt 5)
+    {
+    $result = Invoke-WebRequest -SkipCertificateCheck -SkipHeaderValidation -Uri $uri -Credential $credential -Method Get -UseBasicParsing -ErrorAction RespErr -Headers @{"Accept"="application/json"}
+    }
+    else
+    {
+    Ignore-SSLCertificates
+    $result = Invoke-WebRequest -Uri $uri -Credential $credential -Method Get -UseBasicParsing -ErrorAction RespErr -Headers @{"Accept"="application/json"}
+    }
+    }
+    catch
+    {
+    Write-Host "`n- WARNING, iDRAC version detected does not support this feature using Redfish API or incorrect iDRAC user credentials passed in.`n"
+    $RespErr
+    break
+    }
+
 
 
 if ($view_fw_inventory_only.ToLower() -eq "y")

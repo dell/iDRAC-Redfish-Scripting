@@ -1,6 +1,6 @@
 <#
 _author_ = Texas Roemer <Texas_Roemer@Dell.com>
-_version_ = 2.0
+_version_ = 3.0
 
 Copyright (c) 2020, Dell, Inc.
 
@@ -45,7 +45,10 @@ http://www.gnu.org/licenses/old-licenses/gpl-2.0.txt
    Invoke-SupportAssistCollectionLocalREDFISH -idrac_ip 192.168.0.120 -idrac_username root -idrac_password calvin -accept_SA_license_agreement y
    # This example will accept Support Assist license agreement
 .EXAMPLE
-   Invoke-SupportAssistCollectionLocalREDFISH -idrac_ip 100.65.84.79 -idrac_username root -idrac_password calvin -execute_SA_collection "1,3"
+   Invoke-SupportAssistCollectionLocalREDFISH -idrac_ip 192.168.0.120 -idrac_username root -idrac_password calvin -register_SA y -city Austin -companyname Dell -country US -email test@dell.com -firstname User -lastname Tester -phonenumber 512-111-5555 -street "511 street name" -state Texas -zip 78758
+   # This example will register Support Assist feature for iDRAC
+.EXAMPLE
+   Invoke-SupportAssistCollectionLocalREDFISH -idrac_ip 192.168.0.120 -idrac_username root -idrac_password calvin -execute_SA_collection "1,3"
    # This example will execute Support Assist collection locally capturing hardware data and storage logs. Once the job is marked completed, cmdlet will prompt user to download the Support Assist collection zip file.
 #>
 
@@ -131,6 +134,15 @@ $secpasswd = ConvertTo-SecureString $pass -AsPlainText -Force
 $global:credential = New-Object System.Management.Automation.PSCredential($user, $secpasswd)
 }
 
+# Function to get Powershell version
+
+function get_powershell_version 
+{
+$get_host_info = Get-Host
+$major_number = $get_host_info.Version.Major
+$global:get_powershell_version = $major_number
+}
+
 
 # Function Get Support Assist current license agreement information
 
@@ -141,15 +153,24 @@ $JsonBody = @{} | ConvertTo-Json -Compress
 $uri = "https://$idrac_ip/redfish/v1/Dell/Managers/iDRAC.Embedded.1/DellLCService/Actions/DellLCService.SupportAssistGetEULAStatus"
 
 try
-{
-$post_result = Invoke-WebRequest -Uri $uri -Credential $credential -Method Post -Body $JsonBody -ContentType 'application/json' -Headers @{"Accept"="application/json"} -ErrorVariable RespErr
-}
-catch
-{
-Write-Host
-$RespErr
-break
-}
+    {
+    if ($global:get_powershell_version -gt 5)
+    {
+    
+    $post_result = Invoke-WebRequest -SkipHeaderValidation -SkipCertificateCheck -Uri $uri -Credential $credential -Body $JsonBody -Method Post -ContentType 'application/json' -Headers @{"Accept"="application/json"} -ErrorVariable RespErr
+    }
+    else
+    {
+    Ignore-SSLCertificates
+    $post_result = Invoke-WebRequest -Uri $uri -Credential $credential -Method Post -ContentType 'application/json' -Headers @{"Accept"="application/json"} -Body $JsonBody -ErrorVariable RespErr
+    }
+    }
+    catch
+    {
+    Write-Host
+    $RespErr
+    break
+    } 
 
 if ($post_result.StatusCode -eq 200)
 {
@@ -189,20 +210,29 @@ $JsonBody = @{} | ConvertTo-Json -Compress
 $uri = "https://$idrac_ip/redfish/v1/Dell/Managers/iDRAC.Embedded.1/DellLCService/Actions/DellLCService.SupportAssistAcceptEULA"
 
 try
-{
-$post_result = Invoke-WebRequest -Uri $uri -Credential $credential -Method Post -Body $JsonBody -ContentType 'application/json' -Headers @{"Accept"="application/json"} -ErrorVariable RespErr
-}
-catch
-{
-Write-Host
-$RespErr
-break
-}
+    {
+    if ($global:get_powershell_version -gt 5)
+    {
+    
+    $post_result = Invoke-WebRequest -SkipHeaderValidation -SkipCertificateCheck -Uri $uri -Credential $credential -Body $JsonBody -Method Post -ContentType 'application/json' -Headers @{"Accept"="application/json"} -ErrorVariable RespErr
+    }
+    else
+    {
+    Ignore-SSLCertificates
+    $post_result = Invoke-WebRequest -Uri $uri -Credential $credential -Method Post -ContentType 'application/json' -Headers @{"Accept"="application/json"} -Body $JsonBody -ErrorVariable RespErr
+    }
+    }
+    catch
+    {
+    Write-Host
+    $RespErr
+    break
+    } 
 
 
 if ($post_result.StatusCode -eq 200 -or $post_result.StatusCode -eq 202)
 {
-Write-Host "`n- PASS, POST command passed to accept Support Assist license agreement (EULA)"
+Write-Host "`n- PASS, POST command passed to accept Support Assist license agreement (EULA)`n"
 }
 else
 {
@@ -221,15 +251,23 @@ function register_support_assist_feature
 
 $uri = "https://$idrac_ip/redfish/v1/Managers/iDRAC.Embedded.1/Attributes"
 try
-{
-$result = Invoke-WebRequest -Uri $uri -Credential $credential -Method Get -UseBasicParsing -Headers @{"Accept"="application/json"}
-}
-catch
-{
-Write-Host
-$RespErr
-break
-}
+    {
+    if ($global:get_powershell_version -gt 5)
+    {
+    $result = Invoke-WebRequest -SkipCertificateCheck -SkipHeaderValidation -Uri $uri -Credential $credential -Method Get -UseBasicParsing -ErrorAction RespErr -Headers @{"Accept"="application/json"}
+    }
+    else
+    {
+    Ignore-SSLCertificates
+    $result = Invoke-WebRequest -Uri $uri -Credential $credential -Method Get -UseBasicParsing -ErrorAction RespErr -Headers @{"Accept"="application/json"}
+    }
+    }
+    catch
+    {
+    Write-Host
+    $RespErr
+    break
+    }
 
 $get_all_attributes=$result.Content | ConvertFrom-Json | Select Attributes
 $get_iSM_running_status = $get_all_attributes.Attributes | Select "ServiceModule.1.ServiceModuleState"
@@ -250,16 +288,25 @@ $uri = "https://$idrac_ip/redfish/v1/Managers/iDRAC.Embedded.1/Attributes"
 $JsonBody = @{"Attributes"=@{"OS-BMC.1.AdminState" = "Enabled"}}
 $JsonBody = $JsonBody | ConvertTo-Json -Compress
 try
-{
-$result = Invoke-WebRequest -Uri $uri -Credential $credential -Method Patch -Body $JsonBody -ContentType 'application/json' -Headers @{"Accept"="application/json"} -ErrorVariable RespErr
-}
-catch
-{
-Write-Host
-$RespErr
-break
-}
-}
+    {
+    if ($global:get_powershell_version -gt 5)
+    {
+    
+    $result = Invoke-WebRequest -SkipHeaderValidation -SkipCertificateCheck -Uri $uri -Credential $credential -Body $JsonBody -Method Patch -ContentType 'application/json' -Headers @{"Accept"="application/json"} -ErrorVariable RespErr
+    }
+    else
+    {
+    Ignore-SSLCertificates
+    $result = Invoke-WebRequest -Uri $uri -Credential $credential -Method Patch -ContentType 'application/json' -Headers @{"Accept"="application/json"} -Body $JsonBody -ErrorVariable RespErr
+    }
+    }
+    catch
+    {
+    Write-Host
+    $RespErr
+    break
+    } 
+    }
 
 # Create body payload for POST command
 
@@ -314,15 +361,24 @@ $JsonBody = $JsonBody | ConvertTo-Json -Compress
 $uri = "https://$idrac_ip/redfish/v1/Dell/Managers/iDRAC.Embedded.1/DellLCService/Actions/DellLCService.SupportAssistRegister"
 
 try
-{
-$post_result = Invoke-WebRequest -Uri $uri -Credential $credential -Method Post -Body $JsonBody -ContentType 'application/json' -Headers @{"Accept"="application/json"} -ErrorVariable RespErr
-}
-catch
-{
-Write-Host "`n- FAIL, POST command failed to register Support Assist, detailed error results:`n"
-$RespErr
-break
-}
+    {
+    if ($global:get_powershell_version -gt 5)
+    {
+    
+    $post_result = Invoke-WebRequest -SkipHeaderValidation -SkipCertificateCheck -Uri $uri -Credential $credential -Body $JsonBody -Method Post -ContentType 'application/json' -Headers @{"Accept"="application/json"} -ErrorVariable RespErr
+    }
+    else
+    {
+    Ignore-SSLCertificates
+    $post_result = Invoke-WebRequest -Uri $uri -Credential $credential -Method Post -ContentType 'application/json' -Headers @{"Accept"="application/json"} -Body $JsonBody -ErrorVariable RespErr
+    }
+    }
+    catch
+    {
+    Write-Host
+    $RespErr
+    break
+    } 
 
 
 if ($post_result.StatusCode -eq 200 -or $post_result.StatusCode -eq 202)
@@ -408,16 +464,24 @@ $JsonBody = $JsonBody | ConvertTo-Json -Compress
 $uri = "https://$idrac_ip/redfish/v1/Dell/Managers/iDRAC.Embedded.1/DellLCService/Actions/DellLCService.SupportAssistCollection"
 
 try
-{
-$post_result = Invoke-WebRequest -Uri $uri -Credential $credential -Method Post -Body $JsonBody -ContentType 'application/json' -Headers @{"Accept"="application/json"} -ErrorVariable RespErr
-}
-
-catch
-{
-Write-Host "`n- FAIL, POST command failed to execute Support Assist collection, detailed error results:`n"
-$RespErr
-break
-}
+    {
+    if ($global:get_powershell_version -gt 5)
+    {
+    
+    $post_result = Invoke-WebRequest -SkipHeaderValidation -SkipCertificateCheck -Uri $uri -Credential $credential -Body $JsonBody -Method Post -ContentType 'application/json' -Headers @{"Accept"="application/json"} -ErrorVariable RespErr
+    }
+    else
+    {
+    Ignore-SSLCertificates
+    $post_result = Invoke-WebRequest -Uri $uri -Credential $credential -Method Post -ContentType 'application/json' -Headers @{"Accept"="application/json"} -Body $JsonBody -ErrorVariable RespErr
+    }
+    }
+    catch
+    {
+    Write-Host
+    $RespErr
+    break
+    } 
 
 if ($post_result.StatusCode -eq 202 -or $post_result.StatusCode -eq 200)
 {
@@ -451,9 +515,17 @@ while ($true)
 $loop_time = Get-Date
 $uri ="https://$idrac_ip/redfish/v1/Managers/iDRAC.Embedded.1/Jobs/$Global:job_id"
 
-    try
+   try
     {
-    $result = Invoke-WebRequest -Uri $uri -Credential $credential -Method Get -UseBasicParsing -ContentType 'application/json' -Headers @{"Accept"="application/json"} -ErrorVariable RespErr
+    if ($global:get_powershell_version -gt 5)
+    {
+    $result = Invoke-WebRequest -SkipCertificateCheck -SkipHeaderValidation -Uri $uri -Credential $credential -Method Get -UseBasicParsing -ErrorAction RespErr -Headers @{"Accept"="application/json"}
+    }
+    else
+    {
+    Ignore-SSLCertificates
+    $result = Invoke-WebRequest -Uri $uri -Credential $credential -Method Get -UseBasicParsing -ErrorAction RespErr -Headers @{"Accept"="application/json"}
+    }
     }
     catch
     {
@@ -548,23 +620,30 @@ Start-Sleep 30
 
 # Run cmdlet
 
-Ignore-SSLCertificates
+get_powershell_version 
 setup_idrac_creds
 
 # Check to validate iDRAC version detected supports this feature
 
 $uri = "https://$idrac_ip/redfish/v1/Dell/Managers/iDRAC.Embedded.1/DellLCService"
 try
-{
-$get_result = Invoke-WebRequest -Uri $uri -Credential $credential -Method Get -UseBasicParsing -ErrorVariable RespErr -Headers @{"Accept"="application/json"}
-}
-catch
-{
-Write-Host
-$RespErr
-return
-}
-
+    {
+    if ($global:get_powershell_version -gt 5)
+    {
+    $get_result = Invoke-WebRequest -SkipCertificateCheck -SkipHeaderValidation -Uri $uri -Credential $credential -Method Get -UseBasicParsing -ErrorAction RespErr -Headers @{"Accept"="application/json"}
+    }
+    else
+    {
+    Ignore-SSLCertificates
+    $get_result = Invoke-WebRequest -Uri $uri -Credential $credential -Method Get -UseBasicParsing -ErrorAction RespErr -Headers @{"Accept"="application/json"}
+    }
+    }
+    catch
+    {
+    Write-Host
+    $RespErr
+    break
+    }
 if ($get_result.StatusCode -eq 200 -or $result.StatusCode -eq 202)
 {
 $get_actions = $get_result.Content | ConvertFrom-Json
@@ -577,12 +656,12 @@ $validate_supported_idrac = $get_actions.Actions.$support_assist_collection_acti
     catch
     {
     Write-Host "`n- WARNING, iDRAC version detected does not support this feature using Redfish API or incorrect iDRAC user credentials passed in.`n"
-    return
+    break
     }
 }
 else
 {
-Write-Host "`n- WARNING, iDRAC version detected does not support this feature using Redfish API or incorrect iDRAC user credentials passed in.`n"
+Write-Host "`n- WARNING, iDRAC version detected does not support this feature using Redfish API or incorrect iDRAC user credentials passed in`n"
 return
 }
 

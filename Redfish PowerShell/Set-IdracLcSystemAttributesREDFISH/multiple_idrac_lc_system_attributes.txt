@@ -1,1 +1,1 @@
-LCAttributes.1.AutoBackup:Disabled|LCAttributes.1.AutoUpdate:Disabled
+LCAttributes.1.AutoBackup:Enabled|LCAttributes.1.AutoUpdate:Enabled

@@ -1,6 +1,6 @@
 <#
 _author_ = Texas Roemer <Texas_Roemer@Dell.com>
-_version_ = 3.0
+_version_ = 4.0
 Copyright (c) 2018, Dell, Inc.
 
 This software is licensed to you under the GNU General Public License,
@@ -93,7 +93,15 @@ function Ignore-SSLCertificates
     [System.Net.ServicePointManager]::CertificatePolicy = $TrustAll
 }
 
-Ignore-SSLCertificates
+$global:get_powershell_version = $null
+
+function get_powershell_version 
+{
+$get_host_info = Get-Host
+$major_number = $get_host_info.Version.Major
+$global:get_powershell_version = $major_number
+}
+get_powershell_version
 
 
 [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::TLS12
@@ -102,44 +110,66 @@ $pass= $idrac_password
 $secpasswd = ConvertTo-SecureString $pass -AsPlainText -Force
 $credential = New-Object System.Management.Automation.PSCredential($user, $secpasswd)
 
-if ($get_idrac_user_accounts -ne "" -and $idrac_user_id -ne "")
+if ($get_idrac_user_accounts -and $idrac_user_id)
 {
 Write-Host "`n- WARNING, executing GET command to get iDRAC user account $idrac_user_id information"
 
-$u = "https://$idrac_ip/redfish/v1/Managers/iDRAC.Embedded.1/Accounts/$idrac_user_id"
-try {
-$result = Invoke-WebRequest -Uri $u -Credential $credential -Method Get -UseBasicParsing -Headers @{"Accept"="application/json"}
+$uri = "https://$idrac_ip/redfish/v1/Managers/iDRAC.Embedded.1/Accounts/$idrac_user_id"
+            try
+            {
+            if ($global:get_powershell_version -gt 5)
+            {
+            $result = Invoke-WebRequest -SkipCertificateCheck -SkipHeaderValidation -Uri $uri -Credential $credential -Method Get -UseBasicParsing -ErrorAction RespErr -Headers @{"Accept"="application/json"}
+            }
+            else
+            {
+            Ignore-SSLCertificates
+            $result = Invoke-WebRequest -Uri $uri -Credential $credential -Method Get -UseBasicParsing -ErrorAction RespErr -Headers @{"Accept"="application/json"}
+            }
+            }
+            catch
+            {
+            Write-Host
+            $RespErr
+            break
+            }
 $result.Content | ConvertFrom-Json
-}
-catch {
-Write-Host "`n- FAIL, GET command failed for iDRAC user account id $idrac_user_id"
-return
-}
 return
 }
 
 
-if ($get_idrac_user_accounts -ne "")
+if ($get_idrac_user_accounts)
 {
 Write-Host "`n- WARNING, executing GET command to get iDRAC user account information`n"
 $count_range = 2,3,4,5,6,7,8,9,10,11,12,13,14,15,16
 foreach ($i in $count_range)
 {
-$u = "https://$idrac_ip/redfish/v1/Managers/iDRAC.Embedded.1/Accounts/$i"
-try {
-$result = Invoke-WebRequest -Uri $u -Credential $credential -Method Get -UseBasicParsing -Headers @{"Accept"="application/json"}
-$result.Content | ConvertFrom-Json
-}
-catch {
-Write-Host "`n- FAIL, GET command failed for iDRAC user account id $i"
-return
-}
+$uri = "https://$idrac_ip/redfish/v1/Managers/iDRAC.Embedded.1/Accounts/$i"
+            try
+            {
+            if ($global:get_powershell_version -gt 5)
+            {
+            $result = Invoke-WebRequest -SkipCertificateCheck -SkipHeaderValidation -Uri $uri -Credential $credential -Method Get -UseBasicParsing -ErrorAction RespErr -Headers @{"Accept"="application/json"}
+            }
+            else
+            {
+            Ignore-SSLCertificates
+            $result = Invoke-WebRequest -Uri $uri -Credential $credential -Method Get -UseBasicParsing -ErrorAction RespErr -Headers @{"Accept"="application/json"}
+            }
+            }
+            catch
+            {
+            Write-Host
+            $RespErr
+            break
+            }
+            $result.Content | ConvertFrom-Json
 }
 return
 }
 
 
-if ($idrac_new_username -ne "" -and $idrac_new_password -ne "" -and $idrac_user_privilege -ne "" -and $idrac_user_enable -ne "")
+if ($idrac_new_username -and $idrac_new_password -and $idrac_user_privilege -and $idrac_user_enable)
 {
 
 if ($idrac_user_enable -eq "true")
@@ -159,18 +189,27 @@ $parameters_used = $JsonBody.Replace("{","")
 $parameters_used = $parameters_used.Replace("}","")
 $parameters_used
 
-$u1 = "https://$idrac_ip/redfish/v1/Managers/iDRAC.Embedded.1/Accounts/$idrac_user_id"
+$uri = "https://$idrac_ip/redfish/v1/Managers/iDRAC.Embedded.1/Accounts/$idrac_user_id"
 
 try
 {
-$result1 = Invoke-WebRequest -Uri $u1 -Credential $credential -Method Patch -Body $JsonBody -ContentType 'application/json' -ErrorVariable RespErr -Headers @{"Accept"="application/json"}
+    if ($global:get_powershell_version -gt 5)
+    {
+    
+    $result1 = Invoke-WebRequest -SkipHeaderValidation -SkipCertificateCheck -Uri $uri -Credential $credential -Method Patch -ContentType 'application/json' -Headers @{"Accept"="application/json"} -Body $JsonBody -ErrorVariable RespErr
+    }
+    else
+    {
+    Ignore-SSLCertificates
+    $result1 = Invoke-WebRequest -Uri $uri -Credential $credential -Method Patch -ContentType 'application/json' -Headers @{"Accept"="application/json"} -Body $JsonBody -ErrorVariable RespErr
+    }
 }
 catch
 {
 Write-Host
 $RespErr
-return
-}
+break
+} 
 
 
 if ($result1.StatusCode -eq 200)
@@ -183,17 +222,25 @@ else
     return
 }
 
-$u = "https://$idrac_ip/redfish/v1/Managers/iDRAC.Embedded.1/Accounts/$idrac_user_id"
-try
-{
-$result = Invoke-WebRequest -Uri $u -Credential $credential -Method Get -UseBasicParsing -ErrorVariable RespErr -Headers @{"Accept"="application/json"}
-}
-catch
-{
-Write-Host
-$RespErr
-return
-}
+$uri = "https://$idrac_ip/redfish/v1/Managers/iDRAC.Embedded.1/Accounts/$idrac_user_id"
+            try
+            {
+            if ($global:get_powershell_version -gt 5)
+            {
+            $result = Invoke-WebRequest -SkipCertificateCheck -SkipHeaderValidation -Uri $uri -Credential $credential -Method Get -UseBasicParsing -ErrorAction RespErr -Headers @{"Accept"="application/json"}
+            }
+            else
+            {
+            Ignore-SSLCertificates
+            $result = Invoke-WebRequest -Uri $uri -Credential $credential -Method Get -UseBasicParsing -ErrorAction RespErr -Headers @{"Accept"="application/json"}
+            }
+            }
+            catch
+            {
+            Write-Host
+            $RespErr
+            break
+            }
 
 if ($result.StatusCode -ne 200)
 {
@@ -217,28 +264,55 @@ return
 }
 
 
-if ($delete_idrac_user -ne "")
+if ($delete_idrac_user)
 {
 Write-Host "`n- WARNING, deleting iDRAC user account $delete_idrac_user"
 $JsonBody = @{Enabled = $false; RoleId = "None"} | ConvertTo-Json
 
-$u1 = "https://$idrac_ip/redfish/v1/Managers/iDRAC.Embedded.1/Accounts/$delete_idrac_user"
-$result1 = Invoke-WebRequest -Uri $u1 -Credential $credential -Method Patch -Body $JsonBody -ContentType 'application/json' -Headers @{"Accept"="application/json"}
+$uri = "https://$idrac_ip/redfish/v1/Managers/iDRAC.Embedded.1/Accounts/$delete_idrac_user"
+try
+{
+    if ($global:get_powershell_version -gt 5)
+    {
+    
+    $result1 = Invoke-WebRequest -SkipHeaderValidation -SkipCertificateCheck -Uri $uri -Credential $credential -Method Patch -ContentType 'application/json' -Headers @{"Accept"="application/json"} -Body $JsonBody -ErrorVariable RespErr
+    }
+    else
+    {
+    Ignore-SSLCertificates
+    $result1 = Invoke-WebRequest -Uri $uri -Credential $credential -Method Patch -ContentType 'application/json' -Headers @{"Accept"="application/json"} -Body $JsonBody -ErrorVariable RespErr
+    }
+}
+catch
+{
+Write-Host
+$RespErr
+break
+} 
 
 $JsonBody = @{UserName = ""} | ConvertTo-Json -Compress
 
-$u1 = "https://$idrac_ip/redfish/v1/Managers/iDRAC.Embedded.1/Accounts/$delete_idrac_user"
+$uri = "https://$idrac_ip/redfish/v1/Managers/iDRAC.Embedded.1/Accounts/$delete_idrac_user"
 
 try
 {
-$result1 = Invoke-WebRequest -Uri $u1 -Credential $credential -Method Patch -Body $JsonBody -ContentType 'application/json' -ErrorVariable RespErr -Headers @{"Accept"="application/json"}
+    if ($global:get_powershell_version -gt 5)
+    {
+    
+    $result1 = Invoke-WebRequest -SkipHeaderValidation -SkipCertificateCheck -Uri $uri -Credential $credential -Method Patch -ContentType 'application/json' -Headers @{"Accept"="application/json"} -Body $JsonBody -ErrorVariable RespErr
+    }
+    else
+    {
+    Ignore-SSLCertificates
+    $result1 = Invoke-WebRequest -Uri $uri -Credential $credential -Method Patch -ContentType 'application/json' -Headers @{"Accept"="application/json"} -Body $JsonBody -ErrorVariable RespErr
+    }
 }
 catch
 {
 Write-Host
 $RespErr
 return
-}
+} 
 
 if ($result1.StatusCode -eq 200)
 {
@@ -250,17 +324,25 @@ else
     return
 }
 
-$u = "https://$idrac_ip/redfish/v1/Managers/iDRAC.Embedded.1/Accounts/$delete_idrac_user"
-try
-{
-$result = Invoke-WebRequest -Uri $u -Credential $credential -Method Get -UseBasicParsing -ErrorVariable RespErr -Headers @{"Accept"="application/json"}
-}
-catch
-{
-Write-Host
-$RespErr
-return
-}
+$uri = "https://$idrac_ip/redfish/v1/Managers/iDRAC.Embedded.1/Accounts/$delete_idrac_user"
+            try
+            {
+            if ($global:get_powershell_version -gt 5)
+            {
+            $result = Invoke-WebRequest -SkipCertificateCheck -SkipHeaderValidation -Uri $uri -Credential $credential -Method Get -UseBasicParsing -ErrorAction RespErr -Headers @{"Accept"="application/json"}
+            }
+            else
+            {
+            Ignore-SSLCertificates
+            $result = Invoke-WebRequest -Uri $uri -Credential $credential -Method Get -UseBasicParsing -ErrorAction RespErr -Headers @{"Accept"="application/json"}
+            }
+            }
+            catch
+            {
+            Write-Host
+            $RespErr
+            break
+            }
 
 if ($result.StatusCode -ne 200)
 {

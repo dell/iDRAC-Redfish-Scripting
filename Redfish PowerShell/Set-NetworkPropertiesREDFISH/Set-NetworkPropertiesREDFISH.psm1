@@ -1,6 +1,6 @@
 <#
 _author_ = Texas Roemer <Texas_Roemer@Dell.com>
-_version_ = 3.0
+_version_ = 4.0
 Copyright (c) 2018, Dell, Inc.
 
 This software is licensed to you under the GNU General Public License,
@@ -98,14 +98,25 @@ function Ignore-SSLCertificates
 
 function check_supported_idrac_version
 {
-$u = "https://$idrac_ip/redfish/v1/Systems/System.Embedded.1/NetworkAdapters"
-    try
+$uri = "https://$idrac_ip/redfish/v1/Systems/System.Embedded.1/NetworkAdapters"
+   try
     {
-    $result = Invoke-WebRequest -Uri $u -Credential $credential -Method Get -UseBasicParsing -ErrorVariable RespErr -Headers @{"Accept"="application/json"}
+    if ($global:get_powershell_version -gt 5)
+    {
+    $result = Invoke-WebRequest -SkipCertificateCheck -SkipHeaderValidation -Uri $uri -Credential $credential -Method Get -UseBasicParsing -ErrorVariable RespErr -Headers @{"Accept"="application/json"}
+    }
+    else
+    {
+    Ignore-SSLCertificates
+    $result = Invoke-WebRequest -Uri $uri -Credential $credential -Method Get -UseBasicParsing -ErrorVariable RespErr -Headers @{"Accept"="application/json"}
+    }
     }
     catch
     {
-    }
+    Write-Host "`n- WARNING, iDRAC version detected does not support this feature using Redfish API" -ForegroundColor Yellow
+    $RespErr
+    break
+    } 
 	    if ($result.StatusCode -ne 200)
 	    {
         Write-Host "`n- WARNING, iDRAC version detected does not support this feature using Redfish API" -ForegroundColor Yellow
@@ -117,7 +128,18 @@ $u = "https://$idrac_ip/redfish/v1/Systems/System.Embedded.1/NetworkAdapters"
 return
 }
 
-Ignore-SSLCertificates
+# Function to get Powershell version
+
+$global:get_powershell_version
+
+function get_powershell_version 
+{
+$get_host_info = Get-Host
+$major_number = $get_host_info.Version.Major
+$global:get_powershell_version = $major_number
+}
+
+get_powershell_version
 
 
 [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::TLS12
@@ -145,17 +167,25 @@ return
 
 if ($get_network_device_IDs -eq "y")
 {
-$u = "https://$idrac_ip/redfish/v1/Systems/System.Embedded.1/NetworkAdapters"
+$uri = "https://$idrac_ip/redfish/v1/Systems/System.Embedded.1/NetworkAdapters"
     try
     {
-    $result = Invoke-WebRequest -Uri $u -Credential $credential -Method Get -UseBasicParsing -ErrorVariable RespErr -Headers @{"Accept"="application/json"}
+    if ($global:get_powershell_version -gt 5)
+    {
+    $result = Invoke-WebRequest -SkipCertificateCheck -SkipHeaderValidation -Uri $uri -Credential $credential -Method Get -UseBasicParsing -ErrorVariable RespErr -Headers @{"Accept"="application/json"}
+    }
+    else
+    {
+    Ignore-SSLCertificates
+    $result = Invoke-WebRequest -Uri $uri -Credential $credential -Method Get -UseBasicParsing -ErrorVariable RespErr -Headers @{"Accept"="application/json"}
+    }
     }
     catch
     {
     Write-Host
     $RespErr
-    return
-    }
+    break
+    } 
 
     if ($result.StatusCode -eq 200)
     {
@@ -167,11 +197,11 @@ $u = "https://$idrac_ip/redfish/v1/Systems/System.Embedded.1/NetworkAdapters"
     return
     }
 
-$z=$result.Content | ConvertFrom-Json
-$z=$z.Members
+$get_result = $result.Content | ConvertFrom-Json
+$get_result = $get_result.Members
 $device_ids=@()
 Write-Host "- Network Device IDs Detected for iDRAC $idrac_ip -`n" -ForegroundColor Yellow
-    foreach ($i in $z)
+    foreach ($i in $get_result)
     {
     $i=[string]$i
     $i=$i.Split("/")[-1].Replace("}","")
@@ -180,22 +210,30 @@ Write-Host "- Network Device IDs Detected for iDRAC $idrac_ip -`n" -ForegroundCo
     }
         foreach ($i in $device_ids)
         {
-        $u = "https://$idrac_ip/redfish/v1/Systems/System.Embedded.1/NetworkAdapters/$i/NetworkDeviceFunctions"
-            try
-            {
-            $result = Invoke-WebRequest -Uri $u -Credential $credential -Method Get -UseBasicParsing -ErrorVariable RespErr -Headers @{"Accept"="application/json"}
-            }
-            catch
-            {
-            Write-Host
-            $RespErr
-            return
-            }
-        $z=$result.Content | ConvertFrom-Json
-        $z=$z.Members
+        $uri = "https://$idrac_ip/redfish/v1/Systems/System.Embedded.1/NetworkAdapters/$i/NetworkDeviceFunctions"
+    try
+    {
+    if ($global:get_powershell_version -gt 5)
+    {
+    $result = Invoke-WebRequest -SkipCertificateCheck -SkipHeaderValidation -Uri $uri -Credential $credential -Method Get -UseBasicParsing -ErrorVariable RespErr -Headers @{"Accept"="application/json"}
+    }
+    else
+    {
+    Ignore-SSLCertificates
+    $result = Invoke-WebRequest -Uri $uri -Credential $credential -Method Get -UseBasicParsing -ErrorVariable RespErr -Headers @{"Accept"="application/json"}
+    }
+    }
+    catch
+    {
+    Write-Host
+    $RespErr
+    break
+    } 
+        $get_result = $result.Content | ConvertFrom-Json
+        $get_result = $get_result.Members
         $port_ids=@()
         Write-Host "`n- Network port IDs Detected for network ID $i -`n" -ForegroundColor Yellow
-            foreach ($ii in $z)
+            foreach ($ii in $get_result)
             {
             $ii=[string]$ii
             $ii=$ii.Split("/")[-1].Replace("}","")
@@ -203,23 +241,32 @@ Write-Host "- Network Device IDs Detected for iDRAC $idrac_ip -`n" -ForegroundCo
             $port_ids+=$ii
             }
         }
+Write-Host
 Return
 }
 
 
 if ($get_detail_network_device_ID_info -ne "")
 {
-$u = "https://$idrac_ip/redfish/v1/Systems/System.Embedded.1/NetworkAdapters/$get_detail_network_device_ID_info"
+$uri = "https://$idrac_ip/redfish/v1/Systems/System.Embedded.1/NetworkAdapters/$get_detail_network_device_ID_info"
     try
     {
-    $result = Invoke-WebRequest -Uri $u -Credential $credential -Method Get -UseBasicParsing -ErrorVariable RespErr -Headers @{"Accept"="application/json"}
+    if ($global:get_powershell_version -gt 5)
+    {
+    $result = Invoke-WebRequest -SkipCertificateCheck -SkipHeaderValidation -Uri $uri -Credential $credential -Method Get -UseBasicParsing -ErrorVariable RespErr -Headers @{"Accept"="application/json"}
+    }
+    else
+    {
+    Ignore-SSLCertificates
+    $result = Invoke-WebRequest -Uri $uri -Credential $credential -Method Get -UseBasicParsing -ErrorVariable RespErr -Headers @{"Accept"="application/json"}
+    }
     }
     catch
     {
     Write-Host
     $RespErr
-    return
-    }
+    break
+    } 
 
     if ($result.StatusCode -eq 200)
     {
@@ -238,20 +285,28 @@ Return
 
 if ($get_detail_network_port_ID_info -ne "")
 {
-$s=$get_detail_network_port_ID_info.Split("-")
-$device_id=$s[0]
-$port_id=$s[0]+"-"+$s[1]
-$u = "https://$idrac_ip/redfish/v1/Systems/System.Embedded.1/NetworkAdapters/$device_id/NetworkPorts/$port_id"
+$get_details = $get_detail_network_port_ID_info.Split("-")
+$device_id = $get_details[0]
+$port_id = $get_details[0]+"-"+$get_details[1]
+$uri = "https://$idrac_ip/redfish/v1/Systems/System.Embedded.1/NetworkAdapters/$device_id/NetworkPorts/$port_id"
     try
     {
-    $result = Invoke-WebRequest -Uri $u -Credential $credential -Method Get -UseBasicParsing -ErrorVariable RespErr -Headers @{"Accept"="application/json"}
+    if ($global:get_powershell_version -gt 5)
+    {
+    $result = Invoke-WebRequest -SkipCertificateCheck -SkipHeaderValidation -Uri $uri -Credential $credential -Method Get -UseBasicParsing -ErrorVariable RespErr -Headers @{"Accept"="application/json"}
+    }
+    else
+    {
+    Ignore-SSLCertificates
+    $result = Invoke-WebRequest -Uri $uri -Credential $credential -Method Get -UseBasicParsing -ErrorVariable RespErr -Headers @{"Accept"="application/json"}
+    }
     }
     catch
     {
     Write-Host
     $RespErr
-    return
-    }
+    break
+    } 
 
     if ($result.StatusCode -eq 200)
     {
@@ -263,26 +318,36 @@ $u = "https://$idrac_ip/redfish/v1/Systems/System.Embedded.1/NetworkAdapters/$de
     return
     }
     Write-Host "- Detailed information for network device ID '$get_detail_network_port_ID_info'" -ForegroundColor Yellow
-    $z=$result.Content | ConvertFrom-Json
-    $z
+    $get_result = $result.Content | ConvertFrom-Json
+    $get_result
 Return    
 }
+
+
 
 if ($get_network_port_properties -ne "")
 {
 $s=$get_network_port_properties.Split("-")
 $device_id=$s[0]
-$u = "https://$idrac_ip/redfish/v1/Systems/System.Embedded.1/NetworkAdapters/$device_id/NetworkDeviceFunctions/$get_network_port_properties"
+$uri = "https://$idrac_ip/redfish/v1/Systems/System.Embedded.1/NetworkAdapters/$device_id/NetworkDeviceFunctions/$get_network_port_properties"
     try
     {
-    $result = Invoke-WebRequest -Uri $u -Credential $credential -Method Get -UseBasicParsing -ErrorVariable RespErr -Headers @{"Accept"="application/json"}
+    if ($global:get_powershell_version -gt 5)
+    {
+    $result = Invoke-WebRequest -SkipCertificateCheck -SkipHeaderValidation -Uri $uri -Credential $credential -Method Get -UseBasicParsing -ErrorVariable RespErr -Headers @{"Accept"="application/json"}
+    }
+    else
+    {
+    Ignore-SSLCertificates
+    $result = Invoke-WebRequest -Uri $uri -Credential $credential -Method Get -UseBasicParsing -ErrorVariable RespErr -Headers @{"Accept"="application/json"}
+    }
     }
     catch
     {
     Write-Host
     $RespErr
-    return
-    }
+    break
+    } 
 
     if ($result.StatusCode -eq 200)
     {
@@ -319,9 +384,9 @@ if ($set_network_properties -ne "")
 {
 
 try {
-    $JsonBody = Get-Content set_nic_properties.ini -ErrorAction Stop
+    $JsonBody = Get-Content set_nic_properties.ini -ErrorAction RespErr
     }
-catch [System.Management.Automation.ActionPreferenceStopException] {
+catch [System.Management.Automation.ActionPreferenceRespErrException] {
     Write-Host "`n- WARNING, 'set_nic_properties.ini' file not detected. Make sure this file is located in the same directory you are running the cmdlet from"  -ForegroundColor Yellow
     return
 }
@@ -346,17 +411,26 @@ $set_properties
 $s=$set_network_properties.Split("-")
 $device_id=$s[0]
 
-$u = "https://$idrac_ip/redfish/v1/Systems/System.Embedded.1/NetworkAdapters/$device_id/NetworkDeviceFunctions/$set_network_properties/Settings"
-    try
+$uri = "https://$idrac_ip/redfish/v1/Systems/System.Embedded.1/NetworkAdapters/$device_id/NetworkDeviceFunctions/$set_network_properties/Settings"
+     try
     {
-    $result = Invoke-WebRequest -Uri $u -Credential $credential -Method Patch -Body $JsonBody -ContentType 'application/json' -ErrorVariable RespErr -Headers @{"Accept"="application/json"}
+    if ($global:get_powershell_version -gt 5)
+    {
+    
+    $result = Invoke-WebRequest -SkipHeaderValidation -SkipCertificateCheck -Uri $uri -Credential $credential -Method Patch -ContentType 'application/json' -Headers @{"Accept"="application/json"} -Body $JsonBody -ErrorVariable RespErr
+    }
+    else
+    {
+    Ignore-SSLCertificates
+    $result = Invoke-WebRequest -Uri $uri -Credential $credential -Method Patch -ContentType 'application/json' -Headers @{"Accept"="application/json"} -Body $JsonBody -ErrorVariable RespErr
+    }
     }
     catch
     {
     Write-Host
     $RespErr
-    return
-    }
+    break
+    } 
 
     if ($result.StatusCode -eq 200)
     {
@@ -377,18 +451,27 @@ if ($job_type -eq "n")
 $s=$set_network_properties.Split("-")
 $device_id=$s[0]
 
-$u = "https://$idrac_ip/redfish/v1/Systems/System.Embedded.1/NetworkAdapters/$device_id/NetworkDeviceFunctions/$set_network_properties/Settings"
+$uri = "https://$idrac_ip/redfish/v1/Systems/System.Embedded.1/NetworkAdapters/$device_id/NetworkDeviceFunctions/$set_network_properties/Settings"
 $JsonBody = @{"@Redfish.SettingsApplyTime"=@{"ApplyTime"="OnReset"}} | ConvertTo-Json -Compress
-    try
+     try
     {
-    $result = Invoke-WebRequest -Uri $u -Credential $credential -Method Patch -Body $JsonBody -ContentType 'application/json' -ErrorVariable RespErr -Headers @{"Accept"="application/json"}
+    if ($global:get_powershell_version -gt 5)
+    {
+    
+    $result = Invoke-WebRequest -SkipHeaderValidation -SkipCertificateCheck -Uri $uri -Credential $credential -Method Patch -ContentType 'application/json' -Headers @{"Accept"="application/json"} -Body $JsonBody -ErrorVariable RespErr
+    }
+    else
+    {
+    Ignore-SSLCertificates
+    $result = Invoke-WebRequest -Uri $uri -Credential $credential -Method Patch -ContentType 'application/json' -Headers @{"Accept"="application/json"} -Body $JsonBody -ErrorVariable RespErr
+    }
     }
     catch
     {
     Write-Host
     $RespErr
-    return
-    }
+    break
+    } 
         if ($result.StatusCode -eq 202)
         {
         $status_code = $result.StatusCode
@@ -401,15 +484,32 @@ $JsonBody = @{"@Redfish.SettingsApplyTime"=@{"ApplyTime"="OnReset"}} | ConvertTo
         Write-Host "`n- FAIL, status code $status_code returned for PATCH command" -ForegroundColor Red
         return
         }
-$q=$result.RawContent | ConvertTo-Json -Compress
-$j=[regex]::Match($q, "JID_.+?r").captures.groups[0].value
-$job_id=$j.Replace("\r","")
+$get_result = $result.RawContent | ConvertTo-Json -Compress
+$job_search = [regex]::Match($get_result, "JID_.+?r").captures.groups[0].value
+$job_id = $job_search.Replace("\r","")
 Write-Host "- WARNING, job ID created for reboot now config job is: '$job_id'"
     
     while ($overall_job_output.JobState -ne "Scheduled")
     {
-    $u5 ="https://$idrac_ip/redfish/v1/Managers/iDRAC.Embedded.1/Jobs/$job_id"
-    $result = Invoke-WebRequest -Uri $u5 -Credential $credential -Method Get -UseBasicParsing -ContentType 'application/json' -Headers @{"Accept"="application/json"}
+    $uri ="https://$idrac_ip/redfish/v1/Managers/iDRAC.Embedded.1/Jobs/$job_id"
+    try
+    {
+    if ($global:get_powershell_version -gt 5)
+    {
+    $result = Invoke-WebRequest -SkipCertificateCheck -SkipHeaderValidation -Uri $uri -Credential $credential -Method Get -UseBasicParsing -ErrorVariable RespErr -Headers @{"Accept"="application/json"}
+    }
+    else
+    {
+    Ignore-SSLCertificates
+    $result = Invoke-WebRequest -Uri $uri -Credential $credential -Method Get -UseBasicParsing -ErrorVariable RespErr -Headers @{"Accept"="application/json"}
+    }
+    }
+    catch
+    {
+    Write-Host
+    $RespErr
+    break
+    } 
     $overall_job_output=$result.Content | ConvertFrom-Json
         if ($overall_job_output.JobState -eq "Failed") 
         {
@@ -423,36 +523,190 @@ Write-Host "- WARNING, job ID created for reboot now config job is: '$job_id'"
     }
     Write-Host "`n- PASS, reboot now job ID '$job_id' successfully marked as scheduled, rebooting the server`n"
     
-$JsonBody = @{ "ResetType" = "ForceOff"} | ConvertTo-Json -Compress
-
-$u4 = "https://$idrac_ip/redfish/v1/Systems/System.Embedded.1/Actions/ComputerSystem.Reset"
-$result1 = Invoke-WebRequest -Uri $u4 -Credential $credential -Method Post -Body $JsonBody -ContentType 'application/json' -Headers @{"Accept"="application/json"}
-
-    if ($result1.StatusCode -eq 204)
+$uri = "https://$idrac_ip/redfish/v1/Systems/System.Embedded.1"
+try
     {
-    [String]::Format("- PASS, statuscode {0} returned successfully to power OFF the server",$result1.StatusCode)
-    Start-Sleep 10
+    if ($global:get_powershell_version -gt 5)
+    {
+    $result = Invoke-WebRequest -SkipCertificateCheck -SkipHeaderValidation -Uri $uri -Credential $credential -Method Get -UseBasicParsing -ErrorAction RespErr -Headers @{"Accept"="application/json"}
     }
     else
     {
+    Ignore-SSLCertificates
+    $result = Invoke-WebRequest -Uri $uri -Credential $credential -Method Get -UseBasicParsing -ErrorAction RespErr -Headers @{"Accept"="application/json"}
+    }
+    }
+    catch
+    {
+    Write-Host
+    $RespErr
+    break
+    }
+$get_content = $result.Content | ConvertFrom-Json
+$host_power_state = $get_content.PowerState
+
+if ($host_power_state -eq "On")
+{
+Write-Host "- WARNING, server power state ON, performing graceful shutdown"
+$JsonBody = @{ "ResetType" = "GracefulShutdown" } | ConvertTo-Json -Compress
+
+
+$uri = "https://$idrac_ip/redfish/v1/Systems/System.Embedded.1/Actions/ComputerSystem.Reset"
+    try
+    {
+    if ($global:get_powershell_version -gt 5)
+    {
+    
+    $result1 = Invoke-WebRequest -SkipHeaderValidation -SkipCertificateCheck -Uri $uri -Credential $credential -Method Post -ContentType 'application/json' -Headers @{"Accept"="application/json"} -Body $JsonBody -ErrorVariable RespErr
+    }
+    else
+    {
+    Ignore-SSLCertificates
+    $result1 = Invoke-WebRequest -Uri $uri -Credential $credential -Method Post -ContentType 'application/json' -Headers @{"Accept"="application/json"} -Body $JsonBody -ErrorVariable RespErr
+    }
+    }
+    catch
+    {
+    Write-Host
+    $RespErr
+    break
+    } 
+
+if ($result1.StatusCode -eq 204)
+{
+    [String]::Format("- PASS, statuscode {0} returned to gracefully shutdown the server",$result1.StatusCode)
+    Start-Sleep 15
+}
+else
+{
     [String]::Format("- FAIL, statuscode {0} returned",$result1.StatusCode)
     return
-    }
+}
 
-$JsonBody = @{ "ResetType" = "On"} | ConvertTo-Json -Compress
+Start-Sleep 10
+$count = 1
+while ($true)
+{
 
-$u4 = "https://$idrac_ip/redfish/v1/Systems/System.Embedded.1/Actions/ComputerSystem.Reset"
-$result1 = Invoke-WebRequest -Uri $u4 -Credential $credential -Method Post -Body $JsonBody -ContentType 'application/json' -Headers @{"Accept"="application/json"}
+if ($count -eq 5)
+{
+Write-Host "- FAIL, retry count to validate graceful shutdown has been hit. Manually check server status and reboot to execute the configuration job"
+return 
+}
 
-    if ($result1.StatusCode -eq 204)
+$uri = "https://$idrac_ip/redfish/v1/Systems/System.Embedded.1"
+try
     {
+    if ($global:get_powershell_version -gt 5)
+    {
+    $result = Invoke-WebRequest -SkipCertificateCheck -SkipHeaderValidation -Uri $uri -Credential $credential -Method Get -UseBasicParsing -ErrorAction RespErr -Headers @{"Accept"="application/json"}
+    }
+    else
+    {
+    Ignore-SSLCertificates
+    $result = Invoke-WebRequest -Uri $uri -Credential $credential -Method Get -UseBasicParsing -ErrorAction RespErr -Headers @{"Accept"="application/json"}
+    }
+    }
+    catch
+    {
+    Write-Host
+    $RespErr
+    break
+    }
+$get_content = $result.Content | ConvertFrom-Json
+$host_power_state = $get_content.PowerState
+
+if ($host_power_state -eq "Off")
+{
+Write-Host "- PASS, verified server is in OFF state"
+$host_power_state = ""
+break
+}
+else
+{
+Write-Host "- WARNING, server still in ON state waiting for graceful shutdown to complete, polling power status again"
+Start-Sleep 15
+$count++
+}
+
+}
+
+$JsonBody = @{ "ResetType" = "On" } | ConvertTo-Json -Compress
+
+
+$uri = "https://$idrac_ip/redfish/v1/Systems/System.Embedded.1/Actions/ComputerSystem.Reset"
+    try
+    {
+    if ($global:get_powershell_version -gt 5)
+    {
+    
+    $result1 = Invoke-WebRequest -SkipHeaderValidation -SkipCertificateCheck -Uri $uri -Credential $credential -Method Post -ContentType 'application/json' -Headers @{"Accept"="application/json"} -Body $JsonBody -ErrorVariable RespErr
+    }
+    else
+    {
+    Ignore-SSLCertificates
+    $result1 = Invoke-WebRequest -Uri $uri -Credential $credential -Method Post -ContentType 'application/json' -Headers @{"Accept"="application/json"} -Body $JsonBody -ErrorVariable RespErr
+    }
+    }
+    catch
+    {
+    Write-Host
+    $RespErr
+    break
+    } 
+
+if ($result1.StatusCode -eq 204)
+{
     [String]::Format("- PASS, statuscode {0} returned successfully to power ON the server",$result1.StatusCode)
+    Write-Host
+}
+else
+{
+    [String]::Format("- FAIL, statuscode {0} returned",$result1.StatusCode)
+    return
+}
+}
+
+if ($host_power_state -eq "Off")
+{
+Write-Host "- WARNING, server power state OFF, performing power ON operation"
+$JsonBody = @{ "ResetType" = "On" } | ConvertTo-Json -Compress
+
+
+$uri = "https://$idrac_ip/redfish/v1/Systems/System.Embedded.1/Actions/ComputerSystem.Reset"
+    try
+    {
+    if ($global:get_powershell_version -gt 5)
+    {
+    
+    $result1 = Invoke-WebRequest -SkipHeaderValidation -SkipCertificateCheck -Uri $uri -Credential $credential -Method Post -ContentType 'application/json' -Headers @{"Accept"="application/json"} -Body $JsonBody -ErrorVariable RespErr
     }
     else
     {
+    Ignore-SSLCertificates
+    $result1 = Invoke-WebRequest -Uri $uri -Credential $credential -Method Post -ContentType 'application/json' -Headers @{"Accept"="application/json"} -Body $JsonBody -ErrorVariable RespErr
+    }
+    }
+    catch
+    {
+    Write-Host
+    $RespErr
+    break
+    } 
+
+if ($result1.StatusCode -eq 204)
+{
+    [String]::Format("- PASS, statuscode {0} returned successfully to power ON the server",$result1.StatusCode)
+    Start-Sleep 10
+}
+else
+{
     [String]::Format("- FAIL, statuscode {0} returned",$result1.StatusCode)
     return
-    }
+}
+
+Start-Sleep 10
+}
 
 Write-Host
 Write-Host "- WARNING, cmdlet will now poll job ID every 15 seconds until job ID '$job_id' marked completed"
@@ -466,8 +720,25 @@ $end_time = $start_time.AddMinutes(30)
 while ($overall_job_output.JobState -ne "Completed")
 {
 $loop_time = Get-Date
-$u5 ="https://$idrac_ip/redfish/v1/Managers/iDRAC.Embedded.1/Jobs/$job_id"
-$result = Invoke-WebRequest -Uri $u5 -Credential $credential -Method Get -UseBasicParsing -ContentType 'application/json' -Headers @{"Accept"="application/json"}
+$uri ="https://$idrac_ip/redfish/v1/Managers/iDRAC.Embedded.1/Jobs/$job_id"
+try
+    {
+    if ($global:get_powershell_version -gt 5)
+    {
+    $result = Invoke-WebRequest -SkipCertificateCheck -SkipHeaderValidation -Uri $uri -Credential $credential -Method Get -UseBasicParsing -ErrorVariable RespErr -Headers @{"Accept"="application/json"}
+    }
+    else
+    {
+    Ignore-SSLCertificates
+    $result = Invoke-WebRequest -Uri $uri -Credential $credential -Method Get -UseBasicParsing -ErrorVariable RespErr -Headers @{"Accept"="application/json"}
+    }
+    }
+    catch
+    {
+    Write-Host
+    $RespErr
+    break
+    } 
 $overall_job_output=$result.Content | ConvertFrom-Json
     if ($overall_job_output.JobState -eq "Failed")
     {
@@ -504,14 +775,23 @@ $u = "https://$idrac_ip/redfish/v1/Systems/System.Embedded.1/NetworkAdapters/$de
 $JsonBody = @{"@Redfish.SettingsApplyTime"=@{"ApplyTime"="OnReset"}} | ConvertTo-Json -Compress
     try
     {
-    $result = Invoke-WebRequest -Uri $u -Credential $credential -Method Patch -Body $JsonBody -ContentType 'application/json' -ErrorVariable RespErr -Headers @{"Accept"="application/json"}
+    if ($global:get_powershell_version -gt 5)
+    {
+    
+    $result = Invoke-WebRequest -SkipHeaderValidation -SkipCertificateCheck -Uri $uri -Credential $credential -Method Patch -ContentType 'application/json' -Headers @{"Accept"="application/json"} -Body $JsonBody -ErrorVariable RespErr
+    }
+    else
+    {
+    Ignore-SSLCertificates
+    $result = Invoke-WebRequest -Uri $uri -Credential $credential -Method Patch -ContentType 'application/json' -Headers @{"Accept"="application/json"} -Body $JsonBody -ErrorVariable RespErr
+    }
     }
     catch
     {
     Write-Host
     $RespErr
-    return
-    }
+    break
+    } 
         if ($result.StatusCode -eq 202)
         {
         $status_code = $result.StatusCode
@@ -529,8 +809,25 @@ Write-Host "- WARNING, job ID created for reboot now config job is: '$job_id'"
     
     while ($overall_job_output.JobState -ne "Scheduled")
     {
-    $u5 ="https://$idrac_ip/redfish/v1/Managers/iDRAC.Embedded.1/Jobs/$job_id"
-    $result = Invoke-WebRequest -Uri $u5 -Credential $credential -Method Get -UseBasicParsing -ContentType 'application/json' -Headers @{"Accept"="application/json"}
+    $uri ="https://$idrac_ip/redfish/v1/Managers/iDRAC.Embedded.1/Jobs/$job_id"
+    try
+    {
+    if ($global:get_powershell_version -gt 5)
+    {
+    $result = Invoke-WebRequest -SkipCertificateCheck -SkipHeaderValidation -Uri $uri -Credential $credential -Method Get -UseBasicParsing -ErrorVariable RespErr -Headers @{"Accept"="application/json"}
+    }
+    else
+    {
+    Ignore-SSLCertificates
+    $result = Invoke-WebRequest -Uri $uri -Credential $credential -Method Get -UseBasicParsing -ErrorVariable RespErr -Headers @{"Accept"="application/json"}
+    }
+    }
+    catch
+    {
+    Write-Host
+    $RespErr
+    break
+    } 
     $overall_job_output=$result.Content | ConvertFrom-Json
         if ($overall_job_output.JobState -eq "Failed") 
         {

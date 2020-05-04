@@ -1,6 +1,6 @@
 <#
 _author_ = Texas Roemer <Texas_Roemer@Dell.com>
-_version_ = 2.0
+_version_ = 3.0
 Copyright (c) 2019, Dell, Inc.
 
 This software is licensed to you under the GNU General Public License,
@@ -106,16 +106,34 @@ $global:credential = New-Object System.Management.Automation.PSCredential($user,
 function test_iDRAC_version 
 
 {
-$u = "https://$idrac_ip/redfish/v1/Dell/Systems/System.Embedded.1/DellOSDeploymentService"
-    try 
+$uri = "https://$idrac_ip/redfish/v1/Dell/Systems/System.Embedded.1/DellOSDeploymentService"
+try
     {
-    $result = Invoke-WebRequest -Uri $u -Credential $credential -Method Get -UseBasicParsing -Headers @{"Accept"="application/json"} -ErrorVariable RespErr
+    if ($global:get_powershell_version -gt 5)
+    {
+    $get_result = Invoke-WebRequest -SkipCertificateCheck -SkipHeaderValidation -Uri $uri -Credential $credential -Method Get -UseBasicParsing -ErrorAction RespErr -Headers @{"Accept"="application/json"}
+    }
+    else
+    {
+    Ignore-SSLCertificates
+    $get_result = Invoke-WebRequest -Uri $uri -Credential $credential -Method Get -UseBasicParsing -ErrorAction RespErr -Headers @{"Accept"="application/json"}
+    }
     }
     catch
     {
-    Write-Host "`n- WARNING, iDRAC version installed does not support this feature using Redfish API"
-    return
+    Write-Host "`n- WARNING, iDRAC version detected does not support this feature using Redfish API or incorrect iDRAC user credentials passed in.`n"
+    $RespErr
+    break
     }
+}
+
+# Function to get Powershell version
+
+function get_powershell_version 
+{
+$get_host_info = Get-Host
+$major_number = $get_host_info.Version.Major
+$global:get_powershell_version = $major_number
 }
 
 
@@ -125,21 +143,30 @@ function get_driver_pack_info
 
 {
 Write-Host "`n- WARNING, getting driver pack information for iDRAC $idrac_ip"
-$u = "https://$idrac_ip/redfish/v1/Dell/Systems/System.Embedded.1/DellOSDeploymentService/Actions/DellOSDeploymentService.GetDriverPackInfo"
+$uri = "https://$idrac_ip/redfish/v1/Dell/Systems/System.Embedded.1/DellOSDeploymentService/Actions/DellOSDeploymentService.GetDriverPackInfo"
 $JsonBody = @{} | ConvertTo-Json -Compress
     try
     {
-    $result1 = Invoke-WebRequest -Uri $u -Credential $credential -Method Post -Body $JsonBody -ContentType 'application/json' -ErrorVariable RespErr -Headers @{"Accept"="application/json"}
+    if ($global:get_powershell_version -gt 5)
+    {
+    
+    $result1 = Invoke-WebRequest -SkipHeaderValidation -SkipCertificateCheck -Uri $uri -Credential $credential -Body $JsonBody -Method Post -ContentType 'application/json' -Headers @{"Accept"="application/json"} -ErrorVariable RespErr
+    }
+    else
+    {
+    Ignore-SSLCertificates
+    $result1 = Invoke-WebRequest -Uri $uri -Credential $credential -Method Post -ContentType 'application/json' -Headers @{"Accept"="application/json"} -Body $JsonBody -ErrorVariable RespErr
+    }
     }
     catch
     {
     Write-Host
     $RespErr
-    return
-    }
+    break
+    } 
 if ($result1.StatusCode -eq 200)
 {
-$get_OS_list=$result1.Content |  ConvertFrom-Json
+$get_OS_list = $result1.Content |  ConvertFrom-Json
 Write-Host "`n- Supported Driver Packs For OS Installation -`n"
 $get_OS_list.OSList
 Write-Host
@@ -152,18 +179,27 @@ function get_attach_status
 
 {
 Write-Host "`n- WARNING, getting driver pack attach information for iDRAC $idrac_ip"
-$u = "https://$idrac_ip/redfish/v1/Dell/Systems/System.Embedded.1/DellOSDeploymentService/Actions/DellOSDeploymentService.GetAttachStatus"
+$uri = "https://$idrac_ip/redfish/v1/Dell/Systems/System.Embedded.1/DellOSDeploymentService/Actions/DellOSDeploymentService.GetAttachStatus"
 $JsonBody = @{} | ConvertTo-Json -Compress
-    try
+   try
     {
-    $result1 = Invoke-WebRequest -Uri $u -Credential $credential -Method Post -Body $JsonBody -ContentType 'application/json' -ErrorVariable RespErr -Headers @{"Accept"="application/json"}
+    if ($global:get_powershell_version -gt 5)
+    {
+    
+    $result1 = Invoke-WebRequest -SkipHeaderValidation -SkipCertificateCheck -Uri $uri -Credential $credential -Body $JsonBody -Method Post -ContentType 'application/json' -Headers @{"Accept"="application/json"} -ErrorVariable RespErr
+    }
+    else
+    {
+    Ignore-SSLCertificates
+    $result1 = Invoke-WebRequest -Uri $uri -Credential $credential -Method Post -ContentType 'application/json' -Headers @{"Accept"="application/json"} -Body $JsonBody -ErrorVariable RespErr
+    }
     }
     catch
     {
     Write-Host
     $RespErr
-    return
-    }
+    break
+    } 
 if ($result1.StatusCode -eq 200)
 {
 $get_attach_status=$result1.Content |  ConvertFrom-Json
@@ -179,18 +215,27 @@ function unpack_and_attach
 
 {
 Write-Host "`n- WARNING, unpacking and attach driver pack for iDRAC $idrac_ip"
-$u = "https://$idrac_ip/redfish/v1/Dell/Systems/System.Embedded.1/DellOSDeploymentService/Actions/DellOSDeploymentService.UnpackAndAttach"
+$uri = "https://$idrac_ip/redfish/v1/Dell/Systems/System.Embedded.1/DellOSDeploymentService/Actions/DellOSDeploymentService.UnpackAndAttach"
 $JsonBody = @{'OSName'=$unpack_and_attach} | ConvertTo-Json -Compress
     try
     {
-    $result1 = Invoke-WebRequest -Uri $u -Credential $credential -Method Post -Body $JsonBody -ContentType 'application/json' -ErrorVariable RespErr -Headers @{"Accept"="application/json"}
+    if ($global:get_powershell_version -gt 5)
+    {
+    
+    $result1 = Invoke-WebRequest -SkipHeaderValidation -SkipCertificateCheck -Uri $uri -Credential $credential -Body $JsonBody -Method Post -ContentType 'application/json' -Headers @{"Accept"="application/json"} -ErrorVariable RespErr
+    }
+    else
+    {
+    Ignore-SSLCertificates
+    $result1 = Invoke-WebRequest -Uri $uri -Credential $credential -Method Post -ContentType 'application/json' -Headers @{"Accept"="application/json"} -Body $JsonBody -ErrorVariable RespErr
+    }
     }
     catch
     {
     Write-Host
     $RespErr
-    return
-    }
+    break
+    } 
         if ($result1.StatusCode -eq 202)
         {
         Write-Host "- PASS, POST command passed to unpack and attach driver pack, cmdlet will now loop checking concrete job status"
@@ -198,41 +243,62 @@ $JsonBody = @{'OSName'=$unpack_and_attach} | ConvertTo-Json -Compress
         }
             while ($result2.TaskState -ne "Completed")
             {
-            $u = "https://$idrac_ip$concrete_job_uri"
-                try
-                {
-                $result2 = Invoke-WebRequest -Uri $u -Credential $credential -Method Get -UseBasicParsing -Headers @{"Accept"="application/json"}
-                }
-                catch
-                {
-                [String]::Format("- FAIL, GET command failed for URI {0}, status code {1} returned",$concrete_job_uri, $result2.StatusCode)
-                return
-                }
-            $result2 = $result2.Content | ConvertFrom-Json
-            if ($result2.TaskState -eq "Exception")
-            {
-            [String]::Format("`n- FAIL, concrete job status failed to be marked completed, job status is '{0}', detailed error message is '{1}'", $result2.TaskState,$result2.Messages.Message)
-            return
-            }
-            else
-            {
-            Start-Sleep 15
-            [String]::Format("- WARNING, current concrete job status not marked completed, current status is {0}", $result2.TaskState)
-            }
-            }
-Write-Host "- PASS, concrete job marked completed, verifying driver pack attach status"
-$u = "https://$idrac_ip/redfish/v1/Dell/Systems/System.Embedded.1/DellOSDeploymentService/Actions/DellOSDeploymentService.GetAttachStatus"
-$JsonBody = @{} | ConvertTo-Json -Compress
+            $uri = "https://$idrac_ip$concrete_job_uri"
     try
     {
-    $result1 = Invoke-WebRequest -Uri $u -Credential $credential -Method Post -Body $JsonBody -ContentType 'application/json' -ErrorVariable RespErr -Headers @{"Accept"="application/json"}
+    if ($global:get_powershell_version -gt 5)
+    {
+    $result2 = Invoke-WebRequest -SkipCertificateCheck -SkipHeaderValidation -Uri $uri -Credential $credential -Method Get -UseBasicParsing -ErrorAction RespErr -Headers @{"Accept"="application/json"}
+    }
+    else
+    {
+    Ignore-SSLCertificates
+    $result2 = Invoke-WebRequest -Uri $uri -Credential $credential -Method Get -UseBasicParsing -ErrorAction RespErr -Headers @{"Accept"="application/json"}
+    }
     }
     catch
     {
     Write-Host
     $RespErr
-    return
+    break
     }
+            $result2 = $result2.Content | ConvertFrom-Json
+            if ($result2.TaskState -eq "Exception")
+            {
+            $error_results = $result2.Messages.Message
+            Write-Host "`n- FAIL, concrete job status failed to be marked completed, detailed error message $error_results"
+            return
+            }
+            else
+            {
+            Start-Sleep 15
+            $current_status = $result2.TaskState
+            Write-Host "- WARNING, current concrete job status not marked completed, current status is $current_status"
+            }
+            }
+Write-Host "- PASS, concrete job marked completed, verifying driver pack attach status"
+Start-Sleep 5
+$uri = "https://$idrac_ip/redfish/v1/Dell/Systems/System.Embedded.1/DellOSDeploymentService/Actions/DellOSDeploymentService.GetAttachStatus"
+$JsonBody = @{} | ConvertTo-Json -Compress
+    try
+    {
+    if ($global:get_powershell_version -gt 5)
+    {
+    
+    $result1 = Invoke-WebRequest -SkipHeaderValidation -SkipCertificateCheck -Uri $uri -Credential $credential -Body $JsonBody -Method Post -ContentType 'application/json' -Headers @{"Accept"="application/json"} -ErrorVariable RespErr
+    }
+    else
+    {
+    Ignore-SSLCertificates
+    $result1 = Invoke-WebRequest -Uri $uri -Credential $credential -Method Post -ContentType 'application/json' -Headers @{"Accept"="application/json"} -Body $JsonBody -ErrorVariable RespErr
+    }
+    }
+    catch
+    {
+    Write-Host
+    $RespErr
+    break
+    } 
 if ($result1.StatusCode -eq 200)
 {
 $get_attach_status=$result1.Content |  ConvertFrom-Json
@@ -255,35 +321,54 @@ function detach
 
 {
 Write-Host "`n- WARNING, detaching driver pack for iDRAC $idrac_ip"
-$u = "https://$idrac_ip/redfish/v1/Dell/Systems/System.Embedded.1/DellOSDeploymentService/Actions/DellOSDeploymentService.DetachDrivers"
+$uri = "https://$idrac_ip/redfish/v1/Dell/Systems/System.Embedded.1/DellOSDeploymentService/Actions/DellOSDeploymentService.DetachDrivers"
 $JsonBody = @{} | ConvertTo-Json -Compress
     try
     {
-    $result1 = Invoke-WebRequest -Uri $u -Credential $credential -Method Post -Body $JsonBody -ContentType 'application/json' -ErrorVariable RespErr -Headers @{"Accept"="application/json"}
+    if ($global:get_powershell_version -gt 5)
+    {
+    
+    $result1 = Invoke-WebRequest -SkipHeaderValidation -SkipCertificateCheck -Uri $uri -Credential $credential -Body $JsonBody -Method Post -ContentType 'application/json' -Headers @{"Accept"="application/json"} -ErrorVariable RespErr
+    }
+    else
+    {
+    Ignore-SSLCertificates
+    $result1 = Invoke-WebRequest -Uri $uri -Credential $credential -Method Post -ContentType 'application/json' -Headers @{"Accept"="application/json"} -Body $JsonBody -ErrorVariable RespErr
+    }
     }
     catch
     {
     Write-Host
     $RespErr
-    return
-    }
+    break
+    } 
 if ($result1.StatusCode -eq 200)
 {
 $get_attach_status=$result1.Content |  ConvertFrom-Json
 [String]::Format("`n- PASS, POST command passed to detach driver pack, verifying attach status")
+Start-Sleep 5
 } 
-$u = "https://$idrac_ip/redfish/v1/Dell/Systems/System.Embedded.1/DellOSDeploymentService/Actions/DellOSDeploymentService.GetAttachStatus"
+$uri = "https://$idrac_ip/redfish/v1/Dell/Systems/System.Embedded.1/DellOSDeploymentService/Actions/DellOSDeploymentService.GetAttachStatus"
 $JsonBody = @{} | ConvertTo-Json -Compress
     try
     {
-    $result1 = Invoke-WebRequest -Uri $u -Credential $credential -Method Post -Body $JsonBody -ContentType 'application/json' -ErrorVariable RespErr -Headers @{"Accept"="application/json"}
+    if ($global:get_powershell_version -gt 5)
+    {
+    
+    $result1 = Invoke-WebRequest -SkipHeaderValidation -SkipCertificateCheck -Uri $uri -Credential $credential -Body $JsonBody -Method Post -ContentType 'application/json' -Headers @{"Accept"="application/json"} -ErrorVariable RespErr
+    }
+    else
+    {
+    Ignore-SSLCertificates
+    $result1 = Invoke-WebRequest -Uri $uri -Credential $credential -Method Post -ContentType 'application/json' -Headers @{"Accept"="application/json"} -Body $JsonBody -ErrorVariable RespErr
+    }
     }
     catch
     {
     Write-Host
     $RespErr
-    return
-    }
+    break
+    } 
 if ($result1.StatusCode -eq 200)
 {
 $get_attach_status=$result1.Content |  ConvertFrom-Json
@@ -304,21 +389,30 @@ Write-Host
 
 # Run code
 
-Ignore-SSLCertificates
+get_powershell_version 
 setup_idrac_creds
 
 # Code to check for supported iDRAC version
 
-$u = "https://$idrac_ip/redfish/v1/Dell/Systems/System.Embedded.1/DellOSDeploymentService"
-try 
-{
-$result = Invoke-WebRequest -Uri $u -Credential $credential -Method Get -UseBasicParsing -Headers @{"Accept"="application/json"} -ErrorVariable RespErr
-}
-catch
-{
-Write-Host "`n- WARNING, iDRAC version installed does not support this feature using Redfish API`n"
-return
-}
+$uri = "https://$idrac_ip/redfish/v1/Dell/Systems/System.Embedded.1/DellOSDeploymentService"
+try
+    {
+    if ($global:get_powershell_version -gt 5)
+    {
+    $get_result = Invoke-WebRequest -SkipCertificateCheck -SkipHeaderValidation -Uri $uri -Credential $credential -Method Get -UseBasicParsing -ErrorAction RespErr -Headers @{"Accept"="application/json"}
+    }
+    else
+    {
+    Ignore-SSLCertificates
+    $get_result = Invoke-WebRequest -Uri $uri -Credential $credential -Method Get -UseBasicParsing -ErrorAction RespErr -Headers @{"Accept"="application/json"}
+    }
+    }
+    catch
+    {
+    Write-Host "`n- WARNING, iDRAC version detected does not support this feature using Redfish API or incorrect iDRAC user credentials passed in.`n"
+    $RespErr
+    break
+    }
 
 if ($get_driver_pack_info -ne "")
 {

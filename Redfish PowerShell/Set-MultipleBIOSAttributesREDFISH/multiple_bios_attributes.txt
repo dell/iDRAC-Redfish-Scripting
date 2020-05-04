@@ -1,1 +1,1 @@
-MemTest:Enabled|EmbSata:RaidMode
+EmbSata:RaidMode|MemTest:Enabled

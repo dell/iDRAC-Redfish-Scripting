@@ -1,8 +1,8 @@
 <#
 _author_ = Texas Roemer <Texas_Roemer@Dell.com>
-_version_ = 4.0
+_version_ = 1.0
 
-Copyright (c) 2017, Dell, Inc.
+Copyright (c) 2020, Dell, Inc.
 
 This software is licensed to you under the GNU General Public License,
 version 2 (GPLv2). There is NO WARRANTY for this software, express or
@@ -17,21 +17,23 @@ http://www.gnu.org/licenses/old-licenses/gpl-2.0.txt
 
 <#
 .Synopsis
-   Cmdlet used to get complete iDRAC lifecycle logs 
+   Cmdlet used to get server slot information for all devices in the server. 
 .DESCRIPTION
-   Cmdlet using Redfish API with OEM extension to get complete iDRAC Lifecycle logs, echo to the screen. NOTE: Recommended to redirect output to a file due to large amount of data returned.
+   Cmdlet using Redfish API with OEM extension to get server slot information for all devices and will be echo output to the screen. if large amount of data is returned, its recommended to redirect output to a file.
    - idrac_ip: Pass in iDRAC IP address
    - idrac_username: Pass in iDRAC username
    - idrac_password: Pass in iDRAC username password
 .EXAMPLE
-   .\Get-IdracLifecycleLogsREDFISH -idrac_ip 192.168.0.120 -username root -password calvin 
-   This example will get complete iDRAC Lifecycle Logs, echo output to the screen.
+   .\Get-IdracServerSlotInformationREDFISH -idrac_ip 192.168.0.120 -username root -password calvin 
+   This example will get server slot information, echo to the screen.
 .EXAMPLE
-   .\Get-IdracLifecycleLogsREDFISH -idrac_ip 192.168.0.120 -username root -password calvin >  R640_iDRAC_LC_logs.txt
-   This example will get complete iDRAC Lifecycle Logs and redirect output to a file.
+   .\Get-IdracServerSlotInformationREDFISH -idrac_ip 192.168.0.120 -username root -password calvin > R640_slot_info.txt
+   This example will get server slot information and redirect output to a log file.
 #>
 
-function Get-IdracLifecycleLogsREDFISH {
+function Get-IdracServerSlotInformationREDFISH {
+
+
 
 
 
@@ -92,16 +94,17 @@ $pass= $idrac_password
 $secpasswd = ConvertTo-SecureString $pass -AsPlainText -Force
 $credential = New-Object System.Management.Automation.PSCredential($user, $secpasswd)
 
-Write-Host -ForegroundColor Yellow "`n- WARNING, getting Lifecycle Logs for iDRAC $idrac_ip. This cmdlet may take a few minutes to complete depending on log file size`n"
-Start-Sleep 10
 $next_link_value = 0
+
+Write-Host -ForegroundColor Yellow "`n- WARNING, getting server slot information for iDRAC $idrac_ip`n"
+Start-Sleep 5
 
 while ($true)
 {
 
 $skip_uri ="?"+"$"+"skip="+$next_link_value
 
-$uri = "https://$idrac_ip/redfish/v1/Managers/iDRAC.Embedded.1/Logs/Lclog$skip_uri"
+$uri = "https://$idrac_ip/redfish/v1/Dell/Systems/System.Embedded.1/DellSlotCollection$skip_uri"
 
 try
     {
@@ -144,4 +147,11 @@ $next_link_value = $next_link_value+50
 
 }
 
+
 }
+
+
+
+
+
+

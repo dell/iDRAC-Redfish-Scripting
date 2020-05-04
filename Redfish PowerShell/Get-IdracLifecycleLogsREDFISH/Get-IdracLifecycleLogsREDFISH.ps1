@@ -27,11 +27,11 @@ http://www.gnu.org/licenses/old-licenses/gpl-2.0.txt
    .\Get-IdracLifecycleLogsREDFISH -idrac_ip 192.168.0.120 -username root -password calvin 
    This example will get complete iDRAC Lifecycle Logs, echo output to the screen.
 .EXAMPLE
-   .\Get-IdracLifecycleLogsREDFISH -idrac_ip 192.168.0.120 -username root -password calvin >  R640_iDRAC_LC_logs.txt
-   This example will get complete iDRAC Lifecycle Logs and redirect output to a file.
+   .\Get-IdracLifecycleLogsREDFISH -idrac_ip 192.168.0.120 -username root -password calvin > R640_iDRAC_LC_logs.txt
+   This example will get complete iDRAC Lifecycle Logs and redir
 #>
 
-function Get-IdracLifecycleLogsREDFISH {
+
 
 
 
@@ -120,13 +120,13 @@ try
     if ([string]$RespErr.Contains("Unable to complete the operation because the value"))
     {
     Write-Host -ForegroundColor Yellow "`n- WARNING, cmdlet execution complete. Note: If needed, execute cmdlet again and redirect output to a file."
-    break
+    return
     }
     else
     {
     Write-Host
     $RespErr
-    break
+    return
     }
     }
 
@@ -144,4 +144,8 @@ $next_link_value = $next_link_value+50
 
 }
 
-}
+
+
+
+
+

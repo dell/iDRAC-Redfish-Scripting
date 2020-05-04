@@ -1,6 +1,6 @@
 <#
 _author_ = Texas Roemer <Texas_Roemer@Dell.com>
-_version_ = 2.0
+_version_ = 3.0
 Copyright (c) 2019, Dell, Inc.
 
 This software is licensed to you under the GNU General Public License,
@@ -114,6 +114,15 @@ $secpasswd = ConvertTo-SecureString $pass -AsPlainText -Force
 $global:credential = New-Object System.Management.Automation.PSCredential($user, $secpasswd)
 }
 
+$global:get_powershell_version = $null
+
+function get_powershell_version 
+{
+$get_host_info = Get-Host
+$major_number = $get_host_info.Version.Major
+$global:get_powershell_version = $major_number
+}
+
 
 # Function to get network ISO attach status
 
@@ -121,22 +130,30 @@ function get_attach_status
 
 {
 Write-Host "`n- WARNING, getting network ISO attach information for iDRAC $idrac_ip"
-$u = "https://$idrac_ip/redfish/v1/Dell/Systems/System.Embedded.1/DellOSDeploymentService/Actions/DellOSDeploymentService.GetAttachStatus"
+$uri = "https://$idrac_ip/redfish/v1/Dell/Systems/System.Embedded.1/DellOSDeploymentService/Actions/DellOSDeploymentService.GetAttachStatus"
 $JsonBody = @{} | ConvertTo-Json -Compress
-    try
+   try
+{
+    if ($global:get_powershell_version -gt 5)
     {
-    $result1 = Invoke-WebRequest -Uri $u -Credential $credential -Method Post -Body $JsonBody -ContentType 'application/json' -ErrorVariable RespErr -Headers @{"Accept"="application/json"}
+    
+    $result1 = Invoke-WebRequest -SkipHeaderValidation -SkipCertificateCheck -Uri $uri -Credential $credential -Method Post -ContentType 'application/json' -Headers @{"Accept"="application/json"} -Body $JsonBody -ErrorVariable RespErr
     }
-    catch
+    else
     {
-    Write-Host
-    $RespErr
-    return
+    Ignore-SSLCertificates
+    $result1 = Invoke-WebRequest -Uri $uri -Credential $credential -Method Post -ContentType 'application/json' -Headers @{"Accept"="application/json"} -Body $JsonBody -ErrorVariable RespErr
     }
+}
+catch
+{
+Write-Host
+$RespErr
+break
+} 
 if ($result1.StatusCode -eq 200)
 {
 $get_attach_status=$result1.Content |  ConvertFrom-Json
-
 [String]::Format("`n- PASS, POST command passed to get attach status. Current network ISO attach status is: {0}", $get_attach_status.ISOAttachStatus)
 }
 Write-Host
@@ -149,23 +166,32 @@ function connect_to_network_iso
 
 {
 Write-Host "`n- WARNING, attaching network ISO for iDRAC $idrac_ip"
-$u = "https://$idrac_ip/redfish/v1/Dell/Systems/System.Embedded.1/DellOSDeploymentService/Actions/DellOSDeploymentService.ConnectNetworkISOImage"
+$uri = "https://$idrac_ip/redfish/v1/Dell/Systems/System.Embedded.1/DellOSDeploymentService/Actions/DellOSDeploymentService.ConnectNetworkISOImage"
 $JsonBody = @{'ImageName'=$imagename;'IPAddress'=$ipaddress;'ShareType'=$sharetype;'ShareName'=$sharename} | ConvertTo-Json -Compress
 if ($username -ne "" -and $password -ne "")
 {
 $JsonBody = @{'ImageName'=$imagename;'IPAddress'=$ipaddress;'ShareType'=$sharetype;'ShareName'=$sharename;'UserName'=$username;'Password'=$password} | ConvertTo-Json -Compress
 }
 
-    try
+   try
     {
-    $result1 = Invoke-WebRequest -Uri $u -Credential $credential -Method Post -Body $JsonBody -ContentType 'application/json' -ErrorVariable RespErr -Headers @{"Accept"="application/json"}
+    if ($global:get_powershell_version -gt 5)
+    {
+    $result1 = Invoke-WebRequest -SkipHeaderValidation -SkipCertificateCheck -Uri $uri -Credential $credential -Method Post -ContentType 'application/json' -Headers @{"Accept"="application/json"} -Body $JsonBody -ErrorVariable RespErr
+    }
+    else
+    {
+    Ignore-SSLCertificates
+    $result1 = Invoke-WebRequest -Uri $uri -Credential $credential -Method Post -ContentType 'application/json' -Headers @{"Accept"="application/json"} -Body $JsonBody -ErrorVariable RespErr
+    }
     }
     catch
     {
     Write-Host
     $RespErr
-    return
-    }
+    break
+    } 
+
         if ($result1.StatusCode -eq 202)
         {
         Write-Host "- PASS, POST command passed to connect network ISO, cmdlet will now loop checking concrete job status"
@@ -173,16 +199,25 @@ $JsonBody = @{'ImageName'=$imagename;'IPAddress'=$ipaddress;'ShareType'=$sharety
         }
             while ($result2.TaskState -ne "Completed")
             {
-            $u = "https://$idrac_ip$concrete_job_uri"
-                try
-                {
-                $result2 = Invoke-WebRequest -Uri $u -Credential $credential -Method Get -UseBasicParsing -Headers @{"Accept"="application/json"}
-                }
-                catch
-                {
-                [String]::Format("- FAIL, GET command failed for URI {0}, status code {1} returned",$concrete_job_uri, $result2.StatusCode)
-                return
-                }
+            $uri = "https://$idrac_ip$concrete_job_uri"
+            try
+            {
+            if ($global:get_powershell_version -gt 5)
+            {
+            $result2 = Invoke-WebRequest -SkipCertificateCheck -SkipHeaderValidation -Uri $uri -Credential $credential -Method Get -UseBasicParsing -ErrorAction RespErr -Headers @{"Accept"="application/json"}
+            }
+            else
+            {
+            Ignore-SSLCertificates
+            $result2 = Invoke-WebRequest -Uri $uri -Credential $credential -Method Get -UseBasicParsing -ErrorAction RespErr -Headers @{"Accept"="application/json"}
+            }
+            }
+            catch
+            {
+            Write-Host
+            $RespErr
+            break
+            }
             $result2 = $result2.Content | ConvertFrom-Json
             if ($result2.TaskState -eq "Exception")
             {
@@ -193,23 +228,32 @@ $JsonBody = @{'ImageName'=$imagename;'IPAddress'=$ipaddress;'ShareType'=$sharety
             else
             {
             $job_status = $result2.TaskState
-            Write-Host "- WARNING, current concrete job status not marked completed, current status: $job_status"
-            Start-Sleep 15
+            Write-Host "- WARNING, polling concrete job, current status: $job_status"
+            Start-Sleep 1
             }
             }
 Write-Host "- PASS, concrete job marked completed, verifying network ISO attach status"
-$u = "https://$idrac_ip/redfish/v1/Dell/Systems/System.Embedded.1/DellOSDeploymentService/Actions/DellOSDeploymentService.GetAttachStatus"
+$uri = "https://$idrac_ip/redfish/v1/Dell/Systems/System.Embedded.1/DellOSDeploymentService/Actions/DellOSDeploymentService.GetAttachStatus"
 $JsonBody = @{} | ConvertTo-Json -Compress
     try
     {
-    $result1 = Invoke-WebRequest -Uri $u -Credential $credential -Method Post -Body $JsonBody -ContentType 'application/json' -ErrorVariable RespErr -Headers @{"Accept"="application/json"}
+    if ($global:get_powershell_version -gt 5)
+    {
+    
+    $result1 = Invoke-WebRequest -SkipHeaderValidation -SkipCertificateCheck -Uri $uri -Credential $credential -Method Post -ContentType 'application/json' -Headers @{"Accept"="application/json"} -Body $JsonBody -ErrorVariable RespErr
+    }
+    else
+    {
+    Ignore-SSLCertificates
+    $result1 = Invoke-WebRequest -Uri $uri -Credential $credential -Method Post -ContentType 'application/json' -Headers @{"Accept"="application/json"} -Body $JsonBody -ErrorVariable RespErr
+    }
     }
     catch
     {
     Write-Host
     $RespErr
-    return
-    }
+    break
+    } 
 if ($result1.StatusCode -eq 200)
 {
 $get_attach_status=$result1.Content |  ConvertFrom-Json
@@ -232,35 +276,53 @@ function detach
 
 {
 Write-Host "`n- WARNING, detaching network ISO for iDRAC $idrac_ip"
-$u = "https://$idrac_ip/redfish/v1/Dell/Systems/System.Embedded.1/DellOSDeploymentService/Actions/DellOSDeploymentService.DisconnectNetworkISOImage"
+$uri = "https://$idrac_ip/redfish/v1/Dell/Systems/System.Embedded.1/DellOSDeploymentService/Actions/DellOSDeploymentService.DisconnectNetworkISOImage"
 $JsonBody = @{} | ConvertTo-Json -Compress
     try
     {
-    $result1 = Invoke-WebRequest -Uri $u -Credential $credential -Method Post -Body $JsonBody -ContentType 'application/json' -ErrorVariable RespErr -Headers @{"Accept"="application/json"}
+    if ($global:get_powershell_version -gt 5)
+    {
+    
+    $result1 = Invoke-WebRequest -SkipHeaderValidation -SkipCertificateCheck -Uri $uri -Credential $credential -Method Post -ContentType 'application/json' -Headers @{"Accept"="application/json"} -Body $JsonBody -ErrorVariable RespErr
+    }
+    else
+    {
+    Ignore-SSLCertificates
+    $result1 = Invoke-WebRequest -Uri $uri -Credential $credential -Method Post -ContentType 'application/json' -Headers @{"Accept"="application/json"} -Body $JsonBody -ErrorVariable RespErr
+    }
     }
     catch
     {
     Write-Host
     $RespErr
-    return
-    }
+    break
+    } 
 if ($result1.StatusCode -eq 200)
 {
 $get_attach_status=$result1.Content |  ConvertFrom-Json
 [String]::Format("`n- PASS, POST command passed to detach network ISO, verifying attach status")
 } 
-$u = "https://$idrac_ip/redfish/v1/Dell/Systems/System.Embedded.1/DellOSDeploymentService/Actions/DellOSDeploymentService.GetAttachStatus"
+$uri = "https://$idrac_ip/redfish/v1/Dell/Systems/System.Embedded.1/DellOSDeploymentService/Actions/DellOSDeploymentService.GetAttachStatus"
 $JsonBody = @{} | ConvertTo-Json -Compress
     try
     {
-    $result1 = Invoke-WebRequest -Uri $u -Credential $credential -Method Post -Body $JsonBody -ContentType 'application/json' -ErrorVariable RespErr -Headers @{"Accept"="application/json"}
+    if ($global:get_powershell_version -gt 5)
+    {
+    
+    $result1 = Invoke-WebRequest -SkipHeaderValidation -SkipCertificateCheck -Uri $uri -Credential $credential -Method Post -ContentType 'application/json' -Headers @{"Accept"="application/json"} -Body $JsonBody -ErrorVariable RespErr
+    }
+    else
+    {
+    Ignore-SSLCertificates
+    $result1 = Invoke-WebRequest -Uri $uri -Credential $credential -Method Post -ContentType 'application/json' -Headers @{"Accept"="application/json"} -Body $JsonBody -ErrorVariable RespErr
+    }
     }
     catch
     {
     Write-Host
     $RespErr
-    return
-    }
+    break
+    } 
 if ($result1.StatusCode -eq 200)
 {
 $get_attach_status=$result1.Content |  ConvertFrom-Json
@@ -281,28 +343,31 @@ Write-Host
 
 # Run code
 
-Ignore-SSLCertificates
+get_powershell_version
 setup_idrac_creds
 
 # Code to check for supported iDRAC version installed
 
-$u = "https://$idrac_ip/redfish/v1/Dell/Systems/System.Embedded.1/DellOSDeploymentService"
+$uri = "https://$idrac_ip/redfish/v1/Dell/Systems/System.Embedded.1/DellOSDeploymentService"
 try
-{
-$result = Invoke-WebRequest -Uri $u -Credential $credential -Method Get -UseBasicParsing -ErrorVariable RespErr -Headers @{"Accept"="application/json"}
-}
-catch
-{
-}
-if ($result.StatusCode -eq 200 -or $result.StatusCode -eq 202)
-{
-}
-else
-{
-Write-Host "`n- WARNING, iDRAC version detected does not support this feature using Redfish API`n"
-$result
-return
-}
+            {
+            if ($global:get_powershell_version -gt 5)
+            {
+            $result2 = Invoke-WebRequest -SkipCertificateCheck -SkipHeaderValidation -Uri $uri -Credential $credential -Method Get -UseBasicParsing -ErrorAction RespErr -Headers @{"Accept"="application/json"}
+            }
+            else
+            {
+            Ignore-SSLCertificates
+            $result2 = Invoke-WebRequest -Uri $uri -Credential $credential -Method Get -UseBasicParsing -ErrorAction RespErr -Headers @{"Accept"="application/json"}
+            }
+            }
+            catch
+            {
+            Write-Host
+            $RespErr
+            break
+            }
+
 
 if ($get_attach_status -ne "")
 {

@@ -1,7 +1,7 @@
 ﻿
 <#
 _author_ = Texas Roemer <Texas_Roemer@Dell.com>
-_version_ = 2.0
+_version_ = 3.0
 
 Copyright (c) 2018, Dell, Inc.
 
@@ -103,7 +103,18 @@ function Ignore-SSLCertificates
     [System.Net.ServicePointManager]::CertificatePolicy = $TrustAll
 }
 
-Ignore-SSLCertificates
+# Function to get Powershell version
+
+$global:get_powershell_version
+
+function get_powershell_version 
+{
+$get_host_info = Get-Host
+$major_number = $get_host_info.Version.Major
+$global:get_powershell_version = $major_number
+}
+
+get_powershell_version
 
 [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::TLS12
 $user = $idrac_username
@@ -114,22 +125,31 @@ $credential = New-Object System.Management.Automation.PSCredential($user, $secpa
 
 $full_method_name="EID_674_Manager.ImportSystemConfiguration"
 
-$u = "https://$idrac_ip/redfish/v1/Managers/iDRAC.Embedded.1/Actions/Oem/$full_method_name"
+$uri = "https://$idrac_ip/redfish/v1/Managers/iDRAC.Embedded.1/Actions/Oem/$full_method_name"
 
 
 try
-{
-$result1 = Invoke-WebRequest -Uri $u -Credential $credential -Method Post -Body $JsonBody -ContentType 'application/json' -ErrorVariable RespErr -Headers @{"Accept"="application/json"}
-}
-catch
-{
-Write-Host
-$RespErr
-return
-}
-$q=$result1.RawContent | ConvertTo-Json
-$j=[regex]::Match($q, "JID_.+?r").captures.groups[0].value
-$job_id=$j.Replace("\r","")
+    {
+    if ($global:get_powershell_version -gt 5)
+    {
+    
+    $result1 = Invoke-WebRequest -SkipHeaderValidation -SkipCertificateCheck -Uri $uri -Credential $credential -Method Post -ContentType 'application/json' -Headers @{"Accept"="application/json"} -Body $JsonBody -ErrorVariable RespErr
+    }
+    else
+    {
+    Ignore-SSLCertificates
+    $result1 = Invoke-WebRequest -Uri $uri -Credential $credential -Method Post -ContentType 'application/json' -Headers @{"Accept"="application/json"} -Body $JsonBody -ErrorVariable RespErr
+    }
+    }
+    catch
+    {
+    Write-Host
+    $RespErr
+    break
+    } 
+$get_result = $result1.RawContent | ConvertTo-Json
+$search_jobid = [regex]::Match($get_result, "JID_.+?r").captures.groups[0].value
+$job_id = $search_jobid.Replace("\r","")
 
 if ($result1.StatusCode -eq 202)
 {
@@ -152,55 +172,119 @@ $end_time = $start_time.AddMinutes(30)
 while ($overall_job_output.JobState -ne "Completed")
 {
 $loop_time = Get-Date
-$u5 ="https://$idrac_ip/redfish/v1/Managers/iDRAC.Embedded.1/Jobs/$job_id"
-$result = Invoke-WebRequest -Uri $u5 -Credential $credential -Method Get -UseBasicParsing -ContentType 'application/json' -Headers @{"Accept"="application/json"}
-$overall_job_output=$result.Content | ConvertFrom-Json 
-$overall_job_output
-
-
-    if ($overall_job_output.JobState -eq "Failed") {
+$uri ="https://$idrac_ip/redfish/v1/Managers/iDRAC.Embedded.1/Jobs/$job_id"
+try
+    {
+    if ($global:get_powershell_version -gt 5)
+    {
+    $result = Invoke-WebRequest -SkipCertificateCheck -SkipHeaderValidation -Uri $uri -Credential $credential -Method Get -UseBasicParsing -ErrorAction RespErr -Headers @{"Accept"="application/json"}
+    }
+    else
+    {
+    Ignore-SSLCertificates
+    $result = Invoke-WebRequest -Uri $uri -Credential $credential -Method Get -UseBasicParsing -ErrorAction RespErr -Headers @{"Accept"="application/json"}
+    }
+    }
+    catch
+    {
     Write-Host
-    [String]::Format("- FAIL, final job status is: {0}",$overall_job_status.JobState)
-    return
+    $RespErr
+    break
     }
-    if ($overall_job_output.Message -eq "The system could not be shut down within the specified time.")
+$overall_job_output=$result.Content | ConvertFrom-Json
+if ($overall_job_output.JobState -eq "Failed") {
+Write-Host
+[String]::Format("- FAIL, final job status is: {0}, no configuration changes were applied",$overall_job_output.JobState)
+
+if ($overall_job_output.Message -eq "The system could not be shut down within the specified time.")
+{
+[String]::Format("- FAIL, 10 minute default shutdown timeout reached, final job message is: {0}",$overall_job_output.Message)
+return
+}
+else 
+{
+[String]::Format("- FAIL, final job message is: {0}",$overall_job_output.Message)
+return
+}
+}
+elseif ($loop_time -gt $end_time)
+{
+Write-Host "- FAIL, timeout of 30 minutes has been reached before marking the job completed"
+return
+}
+elseif ($overall_job_output.Message -eq "Import of Server Configuration Profile operation completed with errors.") {
+Write-Host
+[String]::Format("- WARNING, final job status is: {0}",$overall_job_output.Message)
+$uri ="https://$idrac_ip/redfish/v1/TaskService/Tasks/$job_id"
+try
     {
-    [String]::Format("`n- FAIL, 10 minute default shutdown timeout reached, final job message is: {0}",$overall_job_output.Message)
-    return
-    }
-    if ($loop_time -gt $end_time)
+    if ($global:get_powershell_version -gt 5)
     {
-    Write-Host "`n- FAIL, timeout of 30 minutes has been reached before marking the job completed"
-    return
+    $result = Invoke-WebRequest -SkipCertificateCheck -SkipHeaderValidation -Uri $uri -Credential $credential -Method Get -UseBasicParsing -ErrorAction RespErr -Headers @{"Accept"="application/json"}
     }
-    if ($overall_job_output.Message -eq "Import of Server Configuration Profile operation completed with errors." -or $overall_job_output.Message -eq "Unable to complete application of configuration profile values.") 
+    else
     {
-    $u5 ="https://$idrac_ip/redfish/v1/TaskService/Tasks/$job_id"
-    $result = Invoke-WebRequest -Uri $u5 -Credential $credential -Method Get -UseBasicParsing -ContentType 'application/json' -Headers @{"Accept"="application/json"}
-    Write-Host "`n- WARNING, failure detected for import job id '$job_id'. Check 'Messages' property below for more information on the failure.`n"
-    $result.Content | ConvertFrom-Json
-    return
+    Ignore-SSLCertificates
+    $result = Invoke-WebRequest -Uri $uri -Credential $credential -Method Get -UseBasicParsing -ErrorAction RespErr -Headers @{"Accept"="application/json"}
     }
-    if ($overall_job_output.Message -eq "No changes were applied since the current component configuration matched the requested configuration.")
+    }
+    catch
     {
-    Write-Host "`n- WARNING, import job id '$job_id' completed. No changes were applied since the current component configuration matched the requested configuration."
-    return
+    Write-Host
+    $RespErr
+    break
     }
-    if ($overall_job_output.Message -eq "No reboot Server Configuration Profile Import job scheduled, Waiting for System Reboot to complete the operation.")
-    {
-    Write-Host "- WARNING, ShutdownType NoReboot selected. Configuration changes will not be applied until next server manual reboot"
-    return
-    }
-continue
+Write-Host "`n- Detailed final job status and configuration results for import job ID '$job_id' -`n"
+
+$get_final_results = [string]$result.Content 
+$get_final_results.Split(",")
+return
+}
+elseif ($overall_job_output.JobState -eq "Completed") {
+break
+}
+else {
+[String]::Format("- WARNING, import job ID not marked completed, current job status: {0}",$overall_job_output.Message)
+Start-Sleep 10
+}
+}
+Write-Host
+[String]::Format("- PASS, {0} job ID marked as completed!",$job_id)
+$final_message = $overall_job_output.Message
+if ($final_message.Contains("No changes were applied"))
+{
+[String]::Format("`n- Final job status is: {0}",$overall_job_output.Message)
+return
 }
 
+$get_current_time=Get-Date -DisplayHint Time
+$final_time=$get_current_time-$get_time_old
+$final_completion_time=$final_time | select Minutes,Seconds 
+Write-Host "  Job completed in $final_completion_time"
 
-Write-Host "`n- WARNING, import job id '$job_id' completed. Final job status results -`n"
-$u6 ="https://$idrac_ip/redfish/v1/Managers/iDRAC.Embedded.1/Jobs/$job_id" 
-$result6 = Invoke-WebRequest -Uri $u6 -Credential $credential -Method Get -UseBasicParsing -ContentType 'application/json' -Headers @{"Accept"="application/json"}
-$result6.Content | ConvertFrom-Json
+$uri ="https://$idrac_ip/redfish/v1/TaskService/Tasks/$job_id"
+try
+    {
+    if ($global:get_powershell_version -gt 5)
+    {
+    $result = Invoke-WebRequest -SkipCertificateCheck -SkipHeaderValidation -Uri $uri -Credential $credential -Method Get -UseBasicParsing -ErrorAction RespErr -Headers @{"Accept"="application/json"}
+    }
+    else
+    {
+    Ignore-SSLCertificates
+    $result = Invoke-WebRequest -Uri $uri -Credential $credential -Method Get -UseBasicParsing -ErrorAction RespErr -Headers @{"Accept"="application/json"}
+    }
+    }
+    catch
+    {
+    Write-Host
+    $RespErr
+    break
+    }
+Write-Host "`n- Detailed final job status and configuration results for import job ID '$job_id' -`n"
 
-
-return
+$get_final_results = [string]$result.Content 
+$get_final_results.Split(",")
+break
 
 }

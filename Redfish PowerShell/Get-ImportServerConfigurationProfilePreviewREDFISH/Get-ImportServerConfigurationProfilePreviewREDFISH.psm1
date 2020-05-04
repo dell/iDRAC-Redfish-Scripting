@@ -1,6 +1,6 @@
 ﻿<#
 _author_ = Texas Roemer <Texas_Roemer@Dell.com>
-_version_ = 2.0
+_version_ = 3.0
 
 Copyright (c) 2017, Dell, Inc.
 
@@ -33,7 +33,7 @@ http://www.gnu.org/licenses/old-licenses/gpl-2.0.txt
 
 .EXAMPLE
    Set-ImportServerConfigurationProfilePreviewREDFISH -idrac_ip 192.168.0.120 -idrac_username root -idrac_password calvin -IPAddress 192.168.0.130 -ShareType NFS -ShareName /nfs_tex -FileName export_ps.xml
-   # This example shows executing import preview on a configuration file which has already been eported to NFS share.
+   # This example shows executing import preivew on a configuration file which has already been eported to NFS share.
    #>
 
 function Get-ImportServerConfigurationProfilePreviewREDFISH {
@@ -69,7 +69,7 @@ $share_info=@{"ShareParameters"=@{"Target"=$Target;"IPAddress"=$network_share_IP
 
 if ($ShareType -eq "CIFS")
 { 
-$share_info=@{"ShareParameters"=@{"Target"=$Target;"IPAddress"=$network_share_IPAddress;"ShareName"=$ShareName;"ShareType"=$ShareType;"FileName"=$FileName;"UserName"=$cifs_username;"Password"=$cifs_password}}
+$share_info=@{"ShareParameters"=@{"Target"=$Target;"IPAddress"=$network_share_IPAddress;"ShareName"=$ShareName;"ShareType"=$ShareType;"FileName"=$FileName;"Username"=$cifs_username;"Password"=$cifs_password}}
 }
 
 
@@ -111,7 +111,17 @@ function Ignore-SSLCertificates
     [System.Net.ServicePointManager]::CertificatePolicy = $TrustAll
 }
 
-Ignore-SSLCertificates
+# Function get Powershell version 
+
+$global:get_powershell_version = $null
+
+function get_powershell_version 
+{
+$get_host_info = Get-Host
+$major_number = $get_host_info.Version.Major
+$global:get_powershell_version = $major_number
+}
+get_powershell_version
 
 [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::TLS12
 $user = $idrac_username
@@ -121,11 +131,34 @@ $credential = New-Object System.Management.Automation.PSCredential($user, $secpa
 
 $full_method_name="EID_674_Manager.ImportSystemConfigurationPreview"
 
-$u = "https://$idrac_ip/redfish/v1/Managers/iDRAC.Embedded.1/Actions/Oem/$full_method_name"
+$uri = "https://$idrac_ip/redfish/v1/Managers/iDRAC.Embedded.1/Actions/Oem/$full_method_name"
+
+
 
 # POST command to import preview configuration file
 
-$result1 = Invoke-WebRequest -Uri $u -Credential $credential -Method Post -Body $JsonBody -ContentType 'application/json' -Headers @{"Accept"="application/json"}
+try
+{
+    if ($global:get_powershell_version -gt 5)
+    {
+    
+    $result1 = Invoke-WebRequest -SkipHeaderValidation -SkipCertificateCheck -Uri $uri -Credential $credential -Method Post -ContentType 'application/json' -Headers @{"Accept"="application/json"} -Body $JsonBody -ErrorVariable RespErr
+    }
+    else
+    {
+    Ignore-SSLCertificates
+    $result1 = Invoke-WebRequest -Uri $uri -Credential $credential -Method Post -ContentType 'application/json' -Headers @{"Accept"="application/json"} -Body $JsonBody -ErrorVariable RespErr
+    }
+}
+catch
+{
+Write-Host
+$RespErr
+return
+} 
+
+
+
 $raw_content=$result1.RawContent | ConvertTo-Json -Compress
 $job_id_search=[regex]::Match($raw_content, "JID_.+?r").captures.groups[0].value
 $job_id=$job_id_search.Replace("\r","")
@@ -153,8 +186,27 @@ $end_time = $start_time.AddMinutes(10)
 while ($overall_job_output.JobState -ne "Completed")
 {
 $loop_time = Get-Date
-$u5 ="https://$idrac_ip/redfish/v1/Managers/iDRAC.Embedded.1/Jobs/$job_id"
-$result = Invoke-WebRequest -Uri $u5 -Credential $credential -Method Get -UseBasicParsing -Headers @{"Accept"="application/json"}
+$uri ="https://$idrac_ip/redfish/v1/Managers/iDRAC.Embedded.1/Jobs/$job_id"
+
+ try
+    {
+    if ($global:get_powershell_version -gt 5)
+    {
+    $result = Invoke-WebRequest -SkipCertificateCheck -SkipHeaderValidation -Uri $uri -Credential $credential -Method Get -UseBasicParsing -ErrorAction RespErr -Headers @{"Accept"="application/json"}
+    }
+    else
+    {
+    Ignore-SSLCertificates
+    $result = Invoke-WebRequest -Uri $uri -Credential $credential -Method Get -UseBasicParsing -ErrorAction RespErr -Headers @{"Accept"="application/json"}
+    }
+    }
+    catch
+    {
+    Write-Host
+    $RespErr
+    break
+    }
+
 $overall_job_output=$result.Content | ConvertFrom-Json
 if ($overall_job_output.JobState -eq "Failed") {
 Write-Host

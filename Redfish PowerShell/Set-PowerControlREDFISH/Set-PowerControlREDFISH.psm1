@@ -1,6 +1,6 @@
 <#
 _author_ = Texas Roemer <Texas_Roemer@Dell.com>
-_version_ = 3.0
+_version_ = 4.0
 
 Copyright (c) 2017, Dell, Inc.
 
@@ -79,7 +79,16 @@ function Ignore-SSLCertificates
     [System.Net.ServicePointManager]::CertificatePolicy = $TrustAll
 }
 
-Ignore-SSLCertificates
+# Function to get Powershell version
+
+function get_powershell_version 
+{
+$get_host_info = Get-Host
+$major_number = $get_host_info.Version.Major
+$global:get_powershell_version = $major_number
+}
+
+get_powershell_version
 
 
 [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::TLS12
@@ -93,8 +102,25 @@ $credential = New-Object System.Management.Automation.PSCredential($user, $secpa
 if ($get_power_state_only -eq "y")
 {
 
-$u = "https://$idrac_ip/redfish/v1/Systems/System.Embedded.1/"
-$result = Invoke-WebRequest -Uri $u -Credential $credential -Method Get -UseBasicParsing -Headers @{"Accept"="application/json"} 
+$uri = "https://$idrac_ip/redfish/v1/Systems/System.Embedded.1/"
+try
+    {
+    if ($global:get_powershell_version -gt 5)
+    {
+    $result = Invoke-WebRequest -SkipCertificateCheck -SkipHeaderValidation -Uri $uri -Credential $credential -Method Get -UseBasicParsing -ErrorAction RespErr -Headers @{"Accept"="application/json"}
+    }
+    else
+    {
+    Ignore-SSLCertificates
+    $result = Invoke-WebRequest -Uri $uri -Credential $credential -Method Get -UseBasicParsing -ErrorAction RespErr -Headers @{"Accept"="application/json"}
+    }
+    }
+    catch
+    {
+    Write-Host
+    $RespErr
+    break
+    }
 
 if ($result.StatusCode -eq 200)
 {
@@ -107,25 +133,21 @@ else
     return
 }
 
-$get_content=$result.Content
-$power_state=[regex]::Match($get_content, "PowerState.+?,").Captures[0].value
-$power_state=$power_state -replace (",","")
-$power_state=$power_state -split (":")
 
-if ($power_state -eq '"On"')
-{
-Write-Host
-Write-Host "- WARNING, Server current power state is ON"
-}
-else
-{
-Write-Host
-Write-Host "- WARNING, Server current power state is OFF"
-}
-Write-Host
-Write-Host "Supported power control values are:`n`n- On`n- ForceOff`n- GracefulRestart`n- GracefulShutdown"
+$get_content = $result.Content | ConvertFrom-json
+$power_state = $get_content.PowerState
 
+Write-Host "`n- WARNING, current server power state is '$power_state'`n"
+
+Write-Host
+Write-Host "Supported power control values are:`n`n"
+$get_content = $result.Content | ConvertFrom-json
+$get_action = $get_content.Actions
+$create_hash_table = @{}
+$get_action.psobject.properties | Foreach { $create_hash_table[$_.Name] = $_.Value }
+$create_hash_table["#ComputerSystem.Reset"] | Convertto-Json
 return
+
 }
 
 if ($get_power_state_only -eq "n")
@@ -140,14 +162,32 @@ $JsonBody = @{ "ResetType" = $power_request_value
     } | ConvertTo-Json -Compress
 
 
-$u4 = "https://$idrac_ip/redfish/v1/Systems/System.Embedded.1/Actions/ComputerSystem.Reset"
-$result1 = Invoke-WebRequest -Uri $u4 -Credential $credential -Method Post -Body $JsonBody -ContentType 'application/json' -Headers @{"Accept"="application/json"}
+$uri = "https://$idrac_ip/redfish/v1/Systems/System.Embedded.1/Actions/ComputerSystem.Reset"
+ try
+    {
+    if ($global:get_powershell_version -gt 5)
+    {
+    
+    $result1 = Invoke-WebRequest -SkipHeaderValidation -SkipCertificateCheck -Uri $uri -Credential $credential -Method Post -ContentType 'application/json' -Headers @{"Accept"="application/json"} -Body $JsonBody -ErrorVariable RespErr
+    }
+    else
+    {
+    Ignore-SSLCertificates
+    $result1 = Invoke-WebRequest -Uri $uri -Credential $credential -Method Post -ContentType 'application/json' -Headers @{"Accept"="application/json"} -Body $JsonBody -ErrorVariable RespErr
+    }
+    }
+    catch
+    {
+    Write-Host
+    $RespErr
+    break
+    } 
 
 if ($result1.StatusCode -eq 204)
 {
     Write-Host
-    [String]::Format("- PASS, statuscode {0} returned, power control operation success for: {1}",$result1.StatusCode, $power_request_value)
-    Start-Sleep 3
+    [String]::Format("- PASS, statuscode {0} returned, power control operation success for value '{1}'",$result1.StatusCode, $power_request_value)
+    Start-Sleep 10
 }
 else
 {

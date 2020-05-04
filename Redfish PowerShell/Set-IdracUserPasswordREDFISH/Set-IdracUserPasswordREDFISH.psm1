@@ -1,6 +1,6 @@
 <#
 _author_ = Texas Roemer <Texas_Roemer@Dell.com>
-_version_ = 2.0
+_version_ = 3.0
 
 Copyright (c) 2017, Dell, Inc.
 
@@ -21,8 +21,12 @@ http://www.gnu.org/licenses/old-licenses/gpl-2.0.txt
    - idrac_ip "pass in iDRAC IP address"
    - idrac_username "pass in iDRAC username"
    - idrac_password "pass in iDRAC username current password"
+   - get_idrac_user_account_ids "pass in a value of 'y' to get iDRAC user account IDs
    - idrac_user_id "pass in the user account ID"
    - idrac_new_password "pass in the new password you want to set to"
+.EXAMPLE
+   Set-IdracUserPasswordREDFISH -idrac_ip192.168.0.120 -idrac_username root -idrac_password calvin -get_idrac_user_account_ids y
+   This example will get account details for all iDRAC user account IDs 1 through 16.
 .EXAMPLE
    Set-IdracUserPasswordREDFISH -idrac_ip 192.168.0.120 -idrac_username root -idrac_password calvin -idrac_user_id 2 -idrac_new_password test 
    This example shows changing root password. I pass in the current password of "calvin", pass in "2" for the user account ID and pass in the new password i want to change to which is "test".
@@ -38,10 +42,12 @@ param(
     [string]$idrac_username,
     [Parameter(Mandatory=$True)]
     [string]$idrac_password,
-    [Parameter(Mandatory=$True)]
+    [Parameter(Mandatory=$False)]
     [int]$idrac_user_id,
-    [Parameter(Mandatory=$True)]
-    [string]$idrac_new_password
+    [Parameter(Mandatory=$False)]
+    [string]$idrac_new_password,
+    [Parameter(Mandatory=$False)]
+    [string]$get_idrac_user_account_ids
 
     )
 
@@ -74,7 +80,18 @@ function Ignore-SSLCertificates
     [System.Net.ServicePointManager]::CertificatePolicy = $TrustAll
 }
 
-Ignore-SSLCertificates
+# Function to get Powershell version
+
+$global:get_powershell_version
+
+function get_powershell_version 
+{
+$get_host_info = Get-Host
+$major_number = $get_host_info.Version.Major
+$global:get_powershell_version = $major_number
+}
+
+get_powershell_version
 
 
 [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::TLS12
@@ -84,16 +101,79 @@ $secpasswd = ConvertTo-SecureString $pass -AsPlainText -Force
 $credential = New-Object System.Management.Automation.PSCredential($user, $secpasswd)
 
 
+if ($get_idrac_user_account_ids)
+{
+Write-Host "`n- Account details for all iDRAC users -`n"
+Start-Sleep 5
+
+foreach ($id in 1..16)
+{
+
+$uri = "https://$idrac_ip/redfish/v1/Managers/iDRAC.Embedded.1/Accounts/$id"
+
+ try
+    {
+    if ($global:get_powershell_version -gt 5)
+    {
+    $result = Invoke-WebRequest -SkipCertificateCheck -SkipHeaderValidation -Uri $uri -Credential $credential -Method Get -UseBasicParsing -ErrorVariable RespErr -Headers @{"Accept"="application/json"}
+    }
+    else
+    {
+    Ignore-SSLCertificates
+    $result = Invoke-WebRequest -Uri $uri -Credential $credential -Method Get -UseBasicParsing -ErrorVariable RespErr -Headers @{"Accept"="application/json"}
+    }
+    }
+    catch
+    {
+    Write-Host
+    $RespErr
+    break
+    } 
+
+if ($result.StatusCode -eq 200)
+{
+#Pass
+}
+else
+{
+    [String]::Format("- FAIL, statuscode {0} returned for GET command failure",$result.StatusCode)
+    return
+}
+$get_result = $result.Content | ConvertFrom-Json
+$get_result
+}
+}
+
+if ($idrac_new_password)
+{
 $JsonBody = @{'Password'= $idrac_new_password} | ConvertTo-Json -Compress
 
 
-$u1 = "https://$idrac_ip/redfish/v1/Managers/iDRAC.Embedded.1/Accounts/$idrac_user_id"
-$result1 = Invoke-WebRequest -Uri $u1 -Credential $credential -Method Patch -Body $JsonBody -ContentType 'application/json' -Headers @{"Accept"="application/json"}
+$uri = "https://$idrac_ip/redfish/v1/Managers/iDRAC.Embedded.1/Accounts/$idrac_user_id"
+ try
+    {
+    if ($global:get_powershell_version -gt 5)
+    {
+    
+    $result1 = Invoke-WebRequest -SkipHeaderValidation -SkipCertificateCheck -Uri $uri -Credential $credential -Method Patch -ContentType 'application/json' -Headers @{"Accept"="application/json"} -Body $JsonBody -ErrorVariable RespErr
+    }
+    else
+    {
+    Ignore-SSLCertificates
+    $result1 = Invoke-WebRequest -Uri $uri -Credential $credential -Method Patch -ContentType 'application/json' -Headers @{"Accept"="application/json"} -Body $JsonBody -ErrorVariable RespErr
+    }
+    }
+    catch
+    {
+    Write-Host
+    $RespErr
+    break
+    } 
 
 if ($result1.StatusCode -eq 200)
 {
     [String]::Format("`n- PASS, statuscode {0} returned successfully for PATCH command to change iDRAC user password",$result1.StatusCode)
-    Start-Sleep 5
+    Start-Sleep 15
     
     
 }
@@ -110,16 +190,26 @@ $credential = New-Object System.Management.Automation.PSCredential($user, $secpa
 
 Write-Host "`n- WARNING, executing GET command with new user password to validate password was changed"
 
-$u = "https://$idrac_ip/redfish/v1/Managers/iDRAC.Embedded.1/Accounts/$idrac_user_id"
+$uri = "https://$idrac_ip/redfish/v1/Managers/iDRAC.Embedded.1/Accounts/$idrac_user_id"
 
-try {
-$result = Invoke-WebRequest -Uri $u -Credential $credential -Method Get -UseBasicParsing -Headers @{"Accept"="application/json"}
-}
-catch {
-Write-Host "`n- FAIL, new password verification failed for iDRAC user"
-return
-}
- 
+ try
+    {
+    if ($global:get_powershell_version -gt 5)
+    {
+    $result = Invoke-WebRequest -SkipCertificateCheck -SkipHeaderValidation -Uri $uri -Credential $credential -Method Get -UseBasicParsing -ErrorVariable RespErr -Headers @{"Accept"="application/json"}
+    }
+    else
+    {
+    Ignore-SSLCertificates
+    $result = Invoke-WebRequest -Uri $uri -Credential $credential -Method Get -UseBasicParsing -ErrorVariable RespErr -Headers @{"Accept"="application/json"}
+    }
+    }
+    catch
+    {
+    Write-Host
+    $RespErr
+    break
+    } 
 
 if ($result.StatusCode -eq 200)
 {
@@ -130,5 +220,5 @@ else
     [String]::Format("- FAIL, statuscode {0} returned, password not changed",$result.StatusCode)
     return
 }
-
+}
 }

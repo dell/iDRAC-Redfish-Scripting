@@ -1,6 +1,6 @@
 <#
 _author_ = Texas Roemer <Texas_Roemer@Dell.com>
-_version_ = 1.0
+_version_ = 2.0
 Copyright (c) 2019, Dell, Inc.
 
 This software is licensed to you under the GNU General Public License,
@@ -100,20 +100,38 @@ $secpasswd = ConvertTo-SecureString $pass -AsPlainText -Force
 $global:credential = New-Object System.Management.Automation.PSCredential($user, $secpasswd)
 }
 
+# function to get Powershell version
+
+function get_powershell_version 
+{
+$get_host_info = Get-Host
+$major_number = $get_host_info.Version.Major
+$global:get_powershell_version = $major_number
+}
+
 # Function to test if iDRAC version supports this cmdlet
 
 function test_iDRAC_version 
 
 {
-$u = "https://$idrac_ip/redfish/v1/Managers/iDRAC.Embedded.1/VirtualMedia/CD"
-    try 
+$uri = "https://$idrac_ip/redfish/v1/Managers/iDRAC.Embedded.1/VirtualMedia/CD"
+    try
     {
-    $result = Invoke-WebRequest -Uri $u -Credential $credential -Method Get -UseBasicParsing -Headers @{"Accept"="application/json"} -ErrorVariable RespErr
+    if ($global:get_powershell_version -gt 5)
+    {
+    $result = Invoke-WebRequest -SkipCertificateCheck -SkipHeaderValidation -Uri $uri -Credential $credential -Method Get -UseBasicParsing -ErrorAction RespErr -Headers @{"Accept"="application/json"}
+    }
+    else
+    {
+    Ignore-SSLCertificates
+    $result = Invoke-WebRequest -Uri $uri -Credential $credential -Method Get -UseBasicParsing -ErrorAction RespErr -Headers @{"Accept"="application/json"}
+    }
     }
     catch
     {
-    Write-Host "`n- WARNING, iDRAC version installed does not support this feature using Redfish API"
-    return
+    Write-Host
+    $RespErr
+    break
     }
 }
 
@@ -123,33 +141,51 @@ $u = "https://$idrac_ip/redfish/v1/Managers/iDRAC.Embedded.1/VirtualMedia/CD"
 function get_virtual_media_info
 
 {
-$u = "https://$idrac_ip/redfish/v1/Managers/iDRAC.Embedded.1/VirtualMedia"
+$uri = "https://$idrac_ip/redfish/v1/Managers/iDRAC.Embedded.1/VirtualMedia"
     try
     {
-    $result = Invoke-WebRequest -Uri $u -Credential $credential -Method Get -UseBasicParsing -Headers @{"Accept"="application/json"}
+    if ($global:get_powershell_version -gt 5)
+    {
+    $result = Invoke-WebRequest -SkipCertificateCheck -SkipHeaderValidation -Uri $uri -Credential $credential -Method Get -UseBasicParsing -ErrorAction RespErr -Headers @{"Accept"="application/json"}
+    }
+    else
+    {
+    Ignore-SSLCertificates
+    $result = Invoke-WebRequest -Uri $uri -Credential $credential -Method Get -UseBasicParsing -ErrorAction RespErr -Headers @{"Accept"="application/json"}
+    }
     }
     catch
     {
-    [String]::Format("- FAIL, GET command failed for URI {0}, status code {1} returned",$u, $result.StatusCode)
-    return
+    Write-Host
+    $RespErr
+    break
     }
 [String]::Format("`n- GET command passed for URI {0}, status code {1} returned`n",$u, $result.StatusCode)
 $result = $result.Content | ConvertFrom-Json
     foreach ($i in $result.Members)
     {
     $u = $i.'@odata.id'
-    Write-Host "- Detailed information for URI: $u"
-        try
-        {
-        $result1 = Invoke-WebRequest -Uri "https://$idrac_ip$u" -Credential $credential -Method Get -UseBasicParsing -Headers @{"Accept"="application/json"}
-        }
-        catch
-        {
-        [String]::Format("- FAIL, GET command failed for URI {0}, status code {1} returned",$u, $result1.StatusCode)
-        return
-        }
-        Write-Host
-        $result1.Content | ConvertFrom-Json
+    Write-Host "- Detailed information for URI: $u"   
+    try
+    {
+    if ($global:get_powershell_version -gt 5)
+    {
+    $result1 = Invoke-WebRequest -SkipCertificateCheck -SkipHeaderValidation -Uri "https://$idrac_ip$u" -Credential $credential -Method Get -UseBasicParsing -ErrorAction RespErr -Headers @{"Accept"="application/json"}
+    }
+    else
+    {
+    Ignore-SSLCertificates
+    $result1 = Invoke-WebRequest -Uri "https://$idrac_ip$u" -Credential $credential -Method Get -UseBasicParsing -ErrorAction RespErr -Headers @{"Accept"="application/json"}
+    }
+    }
+    catch
+    {
+    Write-Host
+    $RespErr
+    break
+    }
+    Write-Host
+    $result1.Content | ConvertFrom-Json
     }
 
 }
@@ -177,7 +213,39 @@ return
 $JsonBody = @{'Image'=$uri_path;'Inserted'=$true;'WriteProtected'=$true} | ConvertTo-Json -Compress
     try
     {
-    $result1 = Invoke-WebRequest -Uri $u1 -Credential $credential -Method Post -Body $JsonBody -ContentType 'application/json' -ErrorVariable RespErr -Headers @{"Accept"="application/json"}
+    if ($global:get_powershell_version -gt 5)
+    {
+    
+    $result1 = Invoke-WebRequest -SkipHeaderValidation -SkipCertificateCheck -Uri $u1 -Credential $credential -Body $JsonBody -Method Post -ContentType 'application/json' -Headers @{"Accept"="application/json"} -ErrorVariable RespErr
+    }
+    else
+    {
+    Ignore-SSLCertificates
+    $result1 = Invoke-WebRequest -Uri $u1 -Credential $credential -Method Post -ContentType 'application/json' -Headers @{"Accept"="application/json"} -Body $JsonBody -ErrorVariable RespErr
+    }
+    }
+    catch
+    {
+    Write-Host  
+    $RespErr
+    break
+    } 
+
+if ($result1.StatusCode -eq 204)
+{
+[String]::Format("`n- PASS, POST command passed for Virtual Media Insert, status code {0} returned", $result1.StatusCode)
+}   
+    try
+    {
+    if ($global:get_powershell_version -gt 5)
+    {
+    $result1 = Invoke-WebRequest -SkipCertificateCheck -SkipHeaderValidation -Uri "https://$idrac_ip$get_uri" -Credential $credential -Method Get -UseBasicParsing -ErrorAction RespErr -Headers @{"Accept"="application/json"}
+    }
+    else
+    {
+    Ignore-SSLCertificates
+    $result1 = Invoke-WebRequest -Uri "https://$idrac_ip$get_uri" -Credential $credential -Method Get -UseBasicParsing -ErrorAction RespErr -Headers @{"Accept"="application/json"}
+    }
     }
     catch
     {
@@ -185,19 +253,10 @@ $JsonBody = @{'Image'=$uri_path;'Inserted'=$true;'WriteProtected'=$true} | Conve
     $RespErr
     return
     }
-if ($result1.StatusCode -eq 204)
-{
-[String]::Format("`n- PASS, POST command passed for Virtual Media Insert, status code {0} returned", $result1.StatusCode)
-} 
-    try
-    {
-    $result1 = Invoke-WebRequest -Uri "https://$idrac_ip$get_uri" -Credential $credential -Method Get -UseBasicParsing -Headers @{"Accept"="application/json"}
-    }
-    catch
-    {
-    [String]::Format("- FAIL, GET command failed for URI {0}, status code {1} returned",$get_ur, $result1.StatusCode)
-    return
-    }
+    break
+    $result1.Content | ConvertFrom-Json
+    
+
     Write-Host
     $final_results = $result1.Content | ConvertFrom-Json
 if ($final_results.Inserted -eq $true)
@@ -237,27 +296,48 @@ return
 $JsonBody = @{} | ConvertTo-Json -Compress
     try
     {
-    $result1 = Invoke-WebRequest -Uri $u1 -Credential $credential -Method Post -Body $JsonBody -ContentType 'application/json' -ErrorVariable RespErr -Headers @{"Accept"="application/json"}
+    if ($global:get_powershell_version -gt 5)
+    {
+    
+    $result1 = Invoke-WebRequest -SkipHeaderValidation -SkipCertificateCheck -Uri $u1 -Credential $credential -Body $JsonBody -Method Post -ContentType 'application/json' -Headers @{"Accept"="application/json"} -ErrorVariable RespErr
+    }
+    else
+    {
+    Ignore-SSLCertificates
+    $result1 = Invoke-WebRequest -Uri $u1 -Credential $credential -Method Post -ContentType 'application/json' -Headers @{"Accept"="application/json"} -Body $JsonBody -ErrorVariable RespErr
+    }
+    }
+    catch
+    {
+    Write-Host  
+    $RespErr
+    break
+    } 
+if ($result1.StatusCode -eq 204)
+{
+[String]::Format("`n- PASS, POST command passed for Virtual Media Eject, status code {0} returned", $result1.StatusCode)
+} 
+   try
+    {
+    if ($global:get_powershell_version -gt 5)
+    {
+    $result1 = Invoke-WebRequest -SkipCertificateCheck -SkipHeaderValidation -Uri "https://$idrac_ip$get_uri" -Credential $credential -Method Get -UseBasicParsing -ErrorAction RespErr -Headers @{"Accept"="application/json"}
+    }
+    else
+    {
+    Ignore-SSLCertificates
+    $result1 = Invoke-WebRequest -Uri "https://$idrac_ip$get_uri" -Credential $credential -Method Get -UseBasicParsing -ErrorAction RespErr -Headers @{"Accept"="application/json"}
+    }
     }
     catch
     {
     Write-Host
     $RespErr
-    return
+    break
     }
-if ($result1.StatusCode -eq 204)
-{
-[String]::Format("`n- PASS, POST command passed for Virtual Media Eject, status code {0} returned", $result1.StatusCode)
-} 
-    try
-    {
-    $result1 = Invoke-WebRequest -Uri "https://$idrac_ip$get_uri" -Credential $credential -Method Get -UseBasicParsing -Headers @{"Accept"="application/json"}
-    }
-    catch
-    {
-    [String]::Format("- FAIL, GET command failed for URI {0}, status code {1} returned",$get_ur, $result1.StatusCode)
-    return
-    }
+    Write-Host
+    Start-Sleep 5
+    
     Write-Host
     $final_results = $result1.Content | ConvertFrom-Json
 if ($final_results.Inserted -eq $false)
@@ -276,7 +356,7 @@ return
 
 # Run code
 
-Ignore-SSLCertificates
+get_powershell_version
 setup_idrac_creds
 test_iDRAC_version
 

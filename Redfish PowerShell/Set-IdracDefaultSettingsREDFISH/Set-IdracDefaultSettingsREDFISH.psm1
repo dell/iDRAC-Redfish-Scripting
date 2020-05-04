@@ -1,6 +1,6 @@
 <#
 _author_ = Texas Roemer <Texas_Roemer@Dell.com>
-_version_ = 2.0
+_version_ = 3.0
 
 Copyright (c) 2017, Dell, Inc.
 
@@ -16,16 +16,21 @@ http://www.gnu.org/licenses/old-licenses/gpl-2.0.txt
 .Synopsis
    Cmdlet used to reset iDRAC to default settings using Redfish API
 .DESCRIPTION
-   Cmdlet used to reset iDRAC to default settings using Redfish API. Once the POST command has completed, iDRAC will reset to defaults and restart the iDRAC. iDRAC should be back up within 1 minute.
+   Cmdlet used to reset iDRAC to default settins using Redfish API. Once the POST command has completed, iDRAC will reset to defaults and restart the iDRAC. iDRAC should be back up within 1 minute.
 
    PARAMETERS 
    - idrac_ip "pass in iDRAC IP address"
    - idrac_username "pass in iDRAC username"
    - idrac_password "pass in iDRAC username password"
-   
+   - get_reset_possible_values "pass in 'y' to get reset iDRAC possible values"
+   - reset_value "pass in string reset value for reset iDRAC. if needed, execute -get_reset_possible_values to get supported string values
+
 .EXAMPLE
-   Set-IdracDefaultSettingsREDFISH -idrac_ip 192.168.0.120 -idrac_username root -idrac_password calvin
-   This example shows reset the iDRAC to default settings
+   Set-IdracDefaultSettingsREDFISH -idrac_ip 192.168.0.120 -idrac_username root -idrac_password calvin -reset_idrac_possible_values y
+   This example shows getting possible values for reset iDRAC   
+.EXAMPLE
+   Set-IdracDefaultSettingsREDFISH -idrac_ip 192.168.0.120 -idrac_username root -idrac_password calvin -reset_value ResetAllWithRootDefaults
+   This example shows reset iDRAC to default settings, root user password set to calvin 
 #>
 
 function Set-IdracDefaultSettingsREDFISH {
@@ -37,7 +42,11 @@ param(
     [Parameter(Mandatory=$True)]
     [string]$idrac_username,
     [Parameter(Mandatory=$True)]
-    [string]$idrac_password
+    [string]$idrac_password,
+    [Parameter(Mandatory=$False)]
+    [string]$reset_idrac_possible_values,
+    [Parameter(Mandatory=$False)]
+    [string]$reset_value
     )
 
 # Function to ignore SSL certs
@@ -69,7 +78,17 @@ function Ignore-SSLCertificates
     [System.Net.ServicePointManager]::CertificatePolicy = $TrustAll
 }
 
-Ignore-SSLCertificates
+$global:get_powershell_version = $null
+
+function get_powershell_version 
+{
+$get_host_info = Get-Host
+$major_number = $get_host_info.Version.Major
+$global:get_powershell_version = $major_number
+}
+
+get_powershell_version 
+
 
 
 [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::TLS12
@@ -78,10 +97,43 @@ $pass= $idrac_password
 $secpasswd = ConvertTo-SecureString $pass -AsPlainText -Force
 $credential = New-Object System.Management.Automation.PSCredential($user, $secpasswd)
 
-$JsonBody = @{'ResetType'= 'All'} | ConvertTo-Json -Compress
+if ($reset_idrac_possible_values)
+{
+Write-Host "`n- Possible values for iDRAC reset -`n`n- All                       'Reset all iDRAC configuration, reset user to shipping values (root/calvin or server toetag)'`n- ResetAllWithRootDefaults  'Reset all iDRAC configuration, root user password set to calvin'`n- Default                   'Reset all iDRAC configuration to default but preserve user/network settings'`n"
+return
+}
 
-$u1 = "https://$idrac_ip/redfish/v1/Managers/iDRAC.Embedded.1/Actions/Oem/DellManager.ResetToDefaults"
-$result1 = Invoke-WebRequest -Uri $u1 -Credential $credential -Method Post -Body $JsonBody -ContentType 'application/json' -Headers @{"Accept"="application/json"}
+if ($reset_value)
+{
+$user_choice = Read-Host "`n- WARNING, reset iDRAC using '$reset_value' option, are you sure you want to perform this operation? Type 'y' to execute or 'n' to exit: " 
+if ($user_choice.ToLower() -eq 'n')
+{
+return
+}
+
+Write-Host "`n- WARNING, reset iDRAC to default settings using '$reset_value' option"
+$JsonBody = @{'ResetType'= $reset_value} | ConvertTo-Json -Compress
+
+$uri = "https://$idrac_ip/redfish/v1/Managers/iDRAC.Embedded.1/Actions/Oem/DellManager.ResetToDefaults"
+try
+    {
+    if ($global:get_powershell_version -gt 5)
+    {
+    
+    $result1 = Invoke-WebRequest -SkipHeaderValidation -SkipCertificateCheck -Uri $uri -Credential $credential -Body $JsonBody -Method Post -ContentType 'application/json' -Headers @{"Accept"="application/json"} -ErrorVariable RespErr
+    }
+    else
+    {
+    Ignore-SSLCertificates
+    $result1 = Invoke-WebRequest -Uri $uri -Credential $credential -Method Post -ContentType 'application/json' -Headers @{"Accept"="application/json"} -Body $JsonBody -ErrorVariable RespErr
+    }
+    }
+    catch
+    {
+    Write-Host
+    $RespErr
+    break
+    } 
 
 if ($result1.StatusCode -eq 200)
 {
@@ -96,6 +148,6 @@ else
     Exit
 }
 
-Write-Host -Foreground Yellow "`n- WARNING, iDRAC will now reset to default settings and restart the iDRAC. iDRAC should be back up within 1 minute.`n" 
-
+Write-Host -Foreground Yellow "`n- WARNING, iDRAC will now reset to default settings and restart the iDRAC. iDRAC should be back up within a few minutes.`n" 
+}
 }

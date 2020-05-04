@@ -1,6 +1,6 @@
 <#
 _author_ = Texas Roemer <Texas_Roemer@Dell.com>
-_version_ = 2.0
+_version_ = 3.0
 
 Copyright (c) 2017, Dell, Inc.
 
@@ -139,8 +139,16 @@ function Ignore-SSLCertificates
     [System.Net.ServicePointManager]::CertificatePolicy = $TrustAll
 }
 
-Ignore-SSLCertificates
+# Function to get Powershell version
 
+function get_powershell_version 
+{
+$get_host_info = Get-Host
+$major_number = $get_host_info.Version.Major
+$global:get_powershell_version = $major_number
+}
+
+get_powershell_version
 
 [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::TLS12
 $user = $idrac_username
@@ -154,8 +162,25 @@ return
 }
 
 
-$u = "https://$idrac_ip/redfish/v1/Systems/System.Embedded.1/Bios"
-$result = Invoke-WebRequest -Uri $u -Credential $credential -Method Get -UseBasicParsing -Headers @{"Accept"="application/json"}
+$uri = "https://$idrac_ip/redfish/v1/Systems/System.Embedded.1/Bios"
+try
+    {
+    if ($global:get_powershell_version -gt 5)
+    {
+    $result = Invoke-WebRequest -SkipCertificateCheck -SkipHeaderValidation -Uri $uri -Credential $credential -Method Get -UseBasicParsing -ErrorAction RespErr -Headers @{"Accept"="application/json"}
+    }
+    else
+    {
+    Ignore-SSLCertificates
+    $result = Invoke-WebRequest -Uri $uri -Credential $credential -Method Get -UseBasicParsing -ErrorAction RespErr -Headers @{"Accept"="application/json"}
+    }
+    }
+    catch
+    {
+    Write-Host
+    $RespErr
+    break
+    }
 Write-Host
 
 if ($result.StatusCode -eq 200)
@@ -172,8 +197,25 @@ $get_all_attributes=$result.Content | ConvertFrom-Json | Select Attributes
 $get_boot_mode_attribute= $get_all_attributes.Attributes | Select BootMode
 $current_boot_mode=$get_boot_mode_attribute.BootMode
 
-$u = "https://$idrac_ip/redfish/v1/Systems/System.Embedded.1/BootSources"
-$result = Invoke-WebRequest -Uri $u -Credential $credential -Method Get -UseBasicParsing -Headers @{"Accept"="application/json"} 
+$uri = "https://$idrac_ip/redfish/v1/Systems/System.Embedded.1/BootSources"
+try
+    {
+    if ($global:get_powershell_version -gt 5)
+    {
+    $result = Invoke-WebRequest -SkipCertificateCheck -SkipHeaderValidation -Uri $uri -Credential $credential -Method Get -UseBasicParsing -ErrorAction RespErr -Headers @{"Accept"="application/json"}
+    }
+    else
+    {
+    Ignore-SSLCertificates
+    $result = Invoke-WebRequest -Uri $uri -Credential $credential -Method Get -UseBasicParsing -ErrorAction RespErr -Headers @{"Accept"="application/json"}
+    }
+    }
+    catch
+    {
+    Write-Host
+    $RespErr
+    break
+    }
 
 if ($result.StatusCode -eq 200)
 {
@@ -189,29 +231,29 @@ $get_output=$result.Content
 
 # This code is needed to strip the string output to parse the data and only return the current boot order and boot source state in pretty format
 
-$j=[regex]::Match($get_output, "Attributes.+").captures.groups[0].value
-$jj=$j.Replace(",""Description"":""Boot Sources Current Settings"",""Id"":""BootSources"",""Name"":""Boot Sources Configuration Current Settings""}","")
-$jj=$jj.Replace("Attributes","")
-$jj=$jj.Replace("{"," ")
-$jj=$jj.Replace("}"," `n")
+$get_match = [regex]::Match($get_output, "Attributes.+").captures.groups[0].value
+$strip_string = $get_match.Replace(",""Description"":""Boot Sources Current Settings"",""Id"":""BootSources"",""Name"":""Boot Sources Configuration Current Settings""}","")
+$strip_string = $strip_string.Replace("Attributes","")
+$strip_string = $strip_string.Replace("{"," ")
+$strip_string = $strip_string.Replace("}"," `n")
 if ($current_boot_mode -eq "Uefi")
 {
-$jj=$jj.Replace(": ""UefiBootSeq"":[","")
+$strip_string = $strip_string.Replace(": ""UefiBootSeq"":[","")
 }
 else
 {
-$jj=$jj.Replace(": ""BootSeq"":[","")
-$jj=$jj.Replace("""HddSeq"":","")
+$strip_string = $strip_string.Replace(": ""BootSeq"":[","")
+$strip_string = $strip_string.Replace("""HddSeq"":","")
 }
-$jj=$jj.Replace(""" ","")
-$jj=$jj.Replace(" ","")
-$jj=$jj.Replace("]","")
-$jj=$jj.Replace("[","")
+$strip_string = $strip_string.Replace(""" ","")
+$strip_string = $strip_string.Replace(" ","")
+$strip_string = $strip_string.Replace("]","")
+$strip_string = $strip_string.Replace("[","")
 
 
 Write-Host "`n`n- Current boot source state and boot order for BIOS boot mode ""$current_boot_mode"" listed below:"
 Write-Host
-foreach ($i in $jj)
+foreach ($i in $strip_string)
 {
 $i.Split(",")
 }
@@ -219,10 +261,10 @@ $i.Split(",")
 if ($view_boot_order_boot_source_state_only -eq "y")
 {
 try {
-    Remove-Item("boot_devices.txt") -ErrorAction Stop
+    Remove-Item("boot_devices.txt") -ErrorAction RespErr
     Write-Host "- WARNING, boot_devices.txt file detected, file deleted and will create new file with latest boot order/boot source state content"
     }
-catch [System.Management.Automation.ActionPreferenceStopException] {
+catch [System.Management.Automation.ActionPreferenceRespErrException] {
     Write-Host "- WARNING, boot_devices.txt file not detected" 
 }
 $get_content_convert=$result.Content | ConvertFrom-Json
@@ -236,18 +278,36 @@ return
 $JsonBody_patch_command=Get-Content boot_devices.txt
 $JsonBody_patch_command=[string]$JsonBody_patch_command
 
-$u1 = "https://$idrac_ip/redfish/v1/Systems/System.Embedded.1/BootSources/Settings"
-$result_test = Invoke-WebRequest -Uri $u1 -Credential $credential -Method Patch -Body $JsonBody_patch_command -ContentType 'application/json' -Headers @{"Accept"="application/json"}
+$uri = "https://$idrac_ip/redfish/v1/Systems/System.Embedded.1/BootSources/Settings"
+try
+    {
+    if ($global:get_powershell_version -gt 5)
+    {
+    
+    $result = Invoke-WebRequest -SkipHeaderValidation -SkipCertificateCheck -Uri $uri -Credential $credential -Body $JsonBody_patch_command -Method Patch -ContentType 'application/json' -Headers @{"Accept"="application/json"} -ErrorVariable RespErr
+    }
+    else
+    {
+    Ignore-SSLCertificates
+    $result = Invoke-WebRequest -Uri $uri -Credential $credential -Method Patch -ContentType 'application/json' -Headers @{"Accept"="application/json"} -Body $JsonBody_patch_command -ErrorVariable RespErr
+    }
+    }
+    catch
+    {
+    Write-Host
+    $RespErr
+    break
+    } 
 
-if ($result_test.StatusCode -eq 200)
+if ($result.StatusCode -eq 200)
 {
-    [String]::Format("- PASS, statuscode {0} returned successfully to set pending value(s)",$result_test.StatusCode)
+    [String]::Format("- PASS, statuscode {0} returned successfully to set pending value(s)",$result.StatusCode)
     
     
 }
 else
 {
-    [String]::Format("- FAIL, statuscode {0} returned",$result_test.StatusCode)
+    [String]::Format("- FAIL, statuscode {0} returned",$result.StatusCode)
     return
 }
 
@@ -256,10 +316,28 @@ $JsonBody = @{ "TargetSettingsURI" ="/redfish/v1/Systems/System.Embedded.1/Bios/
     } | ConvertTo-Json -Compress
 
 
-$u2 = "https://$idrac_ip/redfish/v1/Managers/iDRAC.Embedded.1/Jobs"
-$result1 = Invoke-WebRequest -Uri $u2 -Credential $credential -Method Post -Body $JsonBody -ContentType 'application/json' -Headers @{"Accept"="application/json"}
-$raw_output=$result1.RawContent | ConvertTo-Json -Compress
-$job_search=[regex]::Match($raw_output, "JID_.+?r").captures.groups[0].value
+$uri = "https://$idrac_ip/redfish/v1/Managers/iDRAC.Embedded.1/Jobs"
+try
+    {
+    if ($global:get_powershell_version -gt 5)
+    {
+    
+    $result1 = Invoke-WebRequest -SkipHeaderValidation -SkipCertificateCheck -Uri $uri -Credential $credential -Body $JsonBody -Method Post -ContentType 'application/json' -Headers @{"Accept"="application/json"} -ErrorVariable RespErr
+    }
+    else
+    {
+    Ignore-SSLCertificates
+    $result1 = Invoke-WebRequest -Uri $uri -Credential $credential -Method Post -ContentType 'application/json' -Headers @{"Accept"="application/json"} -Body $JsonBody -ErrorVariable RespErr
+    }
+    }
+    catch
+    {
+    Write-Host
+    $RespErr
+    break
+    } 
+$raw_output = $result1.RawContent | ConvertTo-Json -Compress
+$job_search = [regex]::Match($raw_output, "JID_.+?r").captures.groups[0].value
 $job_id=$job_search.Replace("\r","")
 Start-Sleep 3
 if ($result1.StatusCode -eq 200)
@@ -274,8 +352,25 @@ else
 }
 
 
-$u3 ="https://$idrac_ip/redfish/v1/Managers/iDRAC.Embedded.1/Jobs/$job_id" 
-$result = Invoke-WebRequest -Uri $u3 -Credential $credential -Method Get -UseBasicParsing -ContentType 'application/json' -Headers @{"Accept"="application/json"}
+$uri ="https://$idrac_ip/redfish/v1/Managers/iDRAC.Embedded.1/Jobs/$job_id" 
+try
+    {
+    if ($global:get_powershell_version -gt 5)
+    {
+    $result = Invoke-WebRequest -SkipCertificateCheck -SkipHeaderValidation -Uri $uri -Credential $credential -Method Get -UseBasicParsing -ErrorAction RespErr -Headers @{"Accept"="application/json"}
+    }
+    else
+    {
+    Ignore-SSLCertificates
+    $result = Invoke-WebRequest -Uri $uri -Credential $credential -Method Get -UseBasicParsing -ErrorAction RespErr -Headers @{"Accept"="application/json"}
+    }
+    }
+    catch
+    {
+    Write-Host
+    $RespErr
+    break
+    }
 $overall_job_output=$result.Content | ConvertFrom-Json
 
 if ($overall_job_output.JobState -eq "Scheduled")
@@ -289,18 +384,182 @@ Write-Host
 [String]::Format("- Extended error details: {0}",$overall_job_output)
 return
 }
+Write-Host "- WARNING, rebooting the server to apply the configuration changes"
+
+$uri = "https://$idrac_ip/redfish/v1/Systems/System.Embedded.1"
+try
+    {
+    if ($global:get_powershell_version -gt 5)
+    {
+    $result = Invoke-WebRequest -SkipCertificateCheck -SkipHeaderValidation -Uri $uri -Credential $credential -Method Get -UseBasicParsing -ErrorAction RespErr -Headers @{"Accept"="application/json"}
+    }
+    else
+    {
+    Ignore-SSLCertificates
+    $result = Invoke-WebRequest -Uri $uri -Credential $credential -Method Get -UseBasicParsing -ErrorAction RespErr -Headers @{"Accept"="application/json"}
+    }
+    }
+    catch
+    {
+    Write-Host
+    $RespErr
+    break
+    }
+$get_content = $result.Content | ConvertFrom-Json
+$host_power_state = $get_content.PowerState
+
+if ($host_power_state -eq "On")
+{
+Write-Host "- WARNING, server power state ON, performing graceful shutdown"
+$JsonBody = @{ "ResetType" = "GracefulShutdown" } | ConvertTo-Json -Compress
 
 
-$JsonBody = @{ "ResetType" = "ForceOff"
-    } | ConvertTo-Json -Compress
-
-
-$u4 = "https://$idrac_ip/redfish/v1/Systems/System.Embedded.1/Actions/ComputerSystem.Reset"
-$result1 = Invoke-WebRequest -Uri $u4 -Credential $credential -Method Post -Body $JsonBody -ContentType 'application/json' -Headers @{"Accept"="application/json"}
+$uri = "https://$idrac_ip/redfish/v1/Systems/System.Embedded.1/Actions/ComputerSystem.Reset"
+    try
+    {
+    if ($global:get_powershell_version -gt 5)
+    {
+    
+    $result1 = Invoke-WebRequest -SkipHeaderValidation -SkipCertificateCheck -Uri $uri -Credential $credential -Method Post -ContentType 'application/json' -Headers @{"Accept"="application/json"} -Body $JsonBody -ErrorVariable RespErr
+    }
+    else
+    {
+    Ignore-SSLCertificates
+    $result1 = Invoke-WebRequest -Uri $uri -Credential $credential -Method Post -ContentType 'application/json' -Headers @{"Accept"="application/json"} -Body $JsonBody -ErrorVariable RespErr
+    }
+    }
+    catch
+    {
+    Write-Host
+    $RespErr
+    break
+    } 
 
 if ($result1.StatusCode -eq 204)
 {
-    [String]::Format("- PASS, statuscode {0} returned successfully to power OFF the server",$result1.StatusCode)
+    [String]::Format("- PASS, statuscode {0} returned to gracefully shutdown the server",$result1.StatusCode)
+    Start-Sleep 15
+}
+else
+{
+    [String]::Format("- FAIL, statuscode {0} returned",$result1.StatusCode)
+    return
+}
+
+Start-Sleep 10
+$count = 1
+while ($true)
+{
+
+if ($count -eq 5)
+{
+Write-Host "- FAIL, retry count to validate graceful shutdown has been hit. Manually check server status and reboot to execute the configuration job"
+return 
+}
+
+$uri = "https://$idrac_ip/redfish/v1/Systems/System.Embedded.1"
+try
+    {
+    if ($global:get_powershell_version -gt 5)
+    {
+    $result = Invoke-WebRequest -SkipCertificateCheck -SkipHeaderValidation -Uri $uri -Credential $credential -Method Get -UseBasicParsing -ErrorAction RespErr -Headers @{"Accept"="application/json"}
+    }
+    else
+    {
+    Ignore-SSLCertificates
+    $result = Invoke-WebRequest -Uri $uri -Credential $credential -Method Get -UseBasicParsing -ErrorAction RespErr -Headers @{"Accept"="application/json"}
+    }
+    }
+    catch
+    {
+    Write-Host
+    $RespErr
+    break
+    }
+$get_content = $result.Content | ConvertFrom-Json
+$host_power_state = $get_content.PowerState
+
+if ($host_power_state -eq "Off")
+{
+Write-Host "- PASS, verified server is in OFF state"
+$host_power_state = ""
+break
+}
+else
+{
+Write-Host "- WARNING, server still in ON state waiting for graceful shutdown to complete, polling power status again"
+Start-Sleep 15
+$count++
+}
+
+}
+
+$JsonBody = @{ "ResetType" = "On" } | ConvertTo-Json -Compress
+
+
+$uri = "https://$idrac_ip/redfish/v1/Systems/System.Embedded.1/Actions/ComputerSystem.Reset"
+    try
+    {
+    if ($global:get_powershell_version -gt 5)
+    {
+    
+    $result1 = Invoke-WebRequest -SkipHeaderValidation -SkipCertificateCheck -Uri $uri -Credential $credential -Method Post -ContentType 'application/json' -Headers @{"Accept"="application/json"} -Body $JsonBody -ErrorVariable RespErr
+    }
+    else
+    {
+    Ignore-SSLCertificates
+    $result1 = Invoke-WebRequest -Uri $uri -Credential $credential -Method Post -ContentType 'application/json' -Headers @{"Accept"="application/json"} -Body $JsonBody -ErrorVariable RespErr
+    }
+    }
+    catch
+    {
+    Write-Host
+    $RespErr
+    break
+    } 
+
+if ($result1.StatusCode -eq 204)
+{
+    [String]::Format("- PASS, statuscode {0} returned successfully to power ON the server",$result1.StatusCode)
+    Write-Host
+}
+else
+{
+    [String]::Format("- FAIL, statuscode {0} returned",$result1.StatusCode)
+    return
+}
+}
+
+if ($host_power_state -eq "Off")
+{
+Write-Host "- WARNING, server power state OFF, performing power ON operation"
+$JsonBody = @{ "ResetType" = "On" } | ConvertTo-Json -Compress
+
+
+$uri = "https://$idrac_ip/redfish/v1/Systems/System.Embedded.1/Actions/ComputerSystem.Reset"
+    try
+    {
+    if ($global:get_powershell_version -gt 5)
+    {
+    
+    $result1 = Invoke-WebRequest -SkipHeaderValidation -SkipCertificateCheck -Uri $uri -Credential $credential -Method Post -ContentType 'application/json' -Headers @{"Accept"="application/json"} -Body $JsonBody -ErrorVariable RespErr
+    }
+    else
+    {
+    Ignore-SSLCertificates
+    $result1 = Invoke-WebRequest -Uri $uri -Credential $credential -Method Post -ContentType 'application/json' -Headers @{"Accept"="application/json"} -Body $JsonBody -ErrorVariable RespErr
+    }
+    }
+    catch
+    {
+    Write-Host
+    $RespErr
+    break
+    } 
+
+if ($result1.StatusCode -eq 204)
+{
+    [String]::Format("- PASS, statuscode {0} returned successfully to power ON the server",$result1.StatusCode)
     Start-Sleep 10
 }
 else
@@ -309,23 +568,8 @@ else
     return
 }
 
-$JsonBody = @{ "ResetType" = "On"
-    } | ConvertTo-Json -Compress
-
-
-$u4 = "https://$idrac_ip/redfish/v1/Systems/System.Embedded.1/Actions/ComputerSystem.Reset"
-$result1 = Invoke-WebRequest -Uri $u4 -Credential $credential -Method Post -Body $JsonBody -ContentType 'application/json' -Headers @{"Accept"="application/json"}
-
-if ($result1.StatusCode -eq 204)
-{
-    [String]::Format("- PASS, statuscode {0} returned successfully to power ON the server",$result1.StatusCode)
+Start-Sleep 10
 }
-else
-{
-    [String]::Format("- FAIL, statuscode {0} returned",$result1.StatusCode)
-    return
-}
-
 Write-Host
 Write-Host "- WARNING, cmdlet will now poll job ID every 15 seconds until marked completed"
 Write-Host
@@ -338,8 +582,25 @@ $end_time = $start_time.AddMinutes(30)
 while ($overall_job_output.JobState -ne "Completed")
 {
 $loop_time = Get-Date
-$u5 ="https://$idrac_ip/redfish/v1/Managers/iDRAC.Embedded.1/Jobs/$job_id"
-$result = Invoke-WebRequest -Uri $u5 -Credential $credential -Method Get -UseBasicParsing -ContentType 'application/json' -Headers @{"Accept"="application/json"}
+$uri ="https://$idrac_ip/redfish/v1/Managers/iDRAC.Embedded.1/Jobs/$job_id"
+try
+    {
+    if ($global:get_powershell_version -gt 5)
+    {
+    $result = Invoke-WebRequest -SkipCertificateCheck -SkipHeaderValidation -Uri $uri -Credential $credential -Method Get -UseBasicParsing -ErrorAction RespErr -Headers @{"Accept"="application/json"}
+    }
+    else
+    {
+    Ignore-SSLCertificates
+    $result = Invoke-WebRequest -Uri $uri -Credential $credential -Method Get -UseBasicParsing -ErrorAction RespErr -Headers @{"Accept"="application/json"}
+    }
+    }
+    catch
+    {
+    Write-Host
+    $RespErr
+    break
+    }
 $overall_job_output=$result.Content | ConvertFrom-Json
 if ($overall_job_output.JobState -eq "Failed")
 {
@@ -367,8 +628,25 @@ Write-Host "  Job completed in $final_completion_time"
 
 
 
-$u = "https://$idrac_ip/redfish/v1/Systems/System.Embedded.1/BootSources"
-$result = Invoke-WebRequest -Uri $u -Credential $credential -Method Get -UseBasicParsing -Headers @{"Accept"="application/json"} 
+$uri = "https://$idrac_ip/redfish/v1/Systems/System.Embedded.1/BootSources"
+try
+    {
+    if ($global:get_powershell_version -gt 5)
+    {
+    $result = Invoke-WebRequest -SkipCertificateCheck -SkipHeaderValidation -Uri $uri -Credential $credential -Method Get -UseBasicParsing -ErrorAction RespErr -Headers @{"Accept"="application/json"}
+    }
+    else
+    {
+    Ignore-SSLCertificates
+    $result = Invoke-WebRequest -Uri $uri -Credential $credential -Method Get -UseBasicParsing -ErrorAction RespErr -Headers @{"Accept"="application/json"}
+    }
+    }
+    catch
+    {
+    Write-Host
+    $RespErr
+    break
+    }
 if ($result.StatusCode -eq 200)
 {
     Write-Host
@@ -383,27 +661,27 @@ else
 # Code to get parse new string GET output for boot order and boot source state, convert to pretty format
 
 $get_string_output=$result.Content
-$j=[regex]::Match($get_string_output, "Attributes.+").captures.groups[0].value
-$jj=$j.Replace(",""Description"":""Boot Sources Current Settings"",""Id"":""BootSources"",""Name"":""Boot Sources Configuration Current Settings""}","")
-$jj=$jj.Replace("Attributes","")
-$jj=$jj.Replace("{"," ")
-$jj=$jj.Replace("}"," `n")
+$get_match = [regex]::Match($get_string_output, "Attributes.+").captures.groups[0].value
+$strip_string = $get_match.Replace(",""Description"":""Boot Sources Current Settings"",""Id"":""BootSources"",""Name"":""Boot Sources Configuration Current Settings""}","")
+$strip_string = $strip_string.Replace("Attributes","")
+$strip_string = $strip_string.Replace("{"," ")
+$strip_string = $strip_string.Replace("}"," `n")
 if ($current_boot_mode -eq "Uefi")
 {
-$jj=$jj.Replace(": ""UefiBootSeq"":[","")
+$strip_string = $strip_string.Replace(": ""UefiBootSeq"":[","")
 }
 else
 {
-$jj=$jj.Replace(": ""BootSeq"":[","")
-$jj=$jj.Replace("""HddSeq"":","")
+$strip_string = $strip_string.Replace(": ""BootSeq"":[","")
+$strip_string = $strip_string.Replace("""HddSeq"":","")
 }
-$jj=$jj.Replace(""" ","")
-$jj=$jj.Replace(" ","")
-$jj=$jj.Replace("]","")
+$strip_string = $strip_string.Replace(""" ","")
+$strip_string = $strip_string.Replace(" ","")
+$strip_string = $strip_string.Replace("]","")
 
 Write-Host "`n`n- New boot source state and boot order for BIOS boot mode ""$current_boot_mode"" listed below:"
 Write-Host
-foreach ($i in $jj){
+foreach ($i in $strip_string){
 $i.Split(",")
 }
 
