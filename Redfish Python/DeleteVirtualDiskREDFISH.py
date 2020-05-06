@@ -2,7 +2,7 @@
 # DeleteVirtualDiskREDFISH. Python script using Redfish API to either get controllers / current virtual disks or delete virtual disk.
 #
 # _author_ = Texas Roemer <Texas_Roemer@Dell.com>
-# _version_ = 3.0
+# _version_ = 5.0
 #
 # Copyright (c) 2018, Dell, Inc.
 #
@@ -37,7 +37,7 @@ idrac_username=args["u"]
 idrac_password=args["p"]
 if args["v"]:
     controller=args["v"]
-elif args["c"]:
+elif args["c"] or args["cc"]:
     pass
 elif args["vv"]:
     controller=args["vv"]
@@ -45,7 +45,7 @@ elif args["D"]:
     virtual_disk=args["D"]
     controller=re.search(":.+",virtual_disk).group().strip(":")
 else:
-    print("- FAIL, you must pass in at least one argument with -ip, -u and -p")
+    print("- FAIL, you must pass in at least one agrument with -ip, -u and -p")
     sys.exit()
 
 def check_supported_idrac_version():
@@ -175,6 +175,19 @@ def delete_vd():
 start_time=datetime.now()
 
 def loop_job_status():
+    count_number = 0
+    start_time=datetime.now()
+    try:
+        req = requests.get('https://%s/redfish/v1/Managers/iDRAC.Embedded.1/Jobs/%s' % (idrac_ip, job_id), auth=(idrac_username, idrac_password), verify=False)
+    except requests.ConnectionError as error_message:
+        print(error_message)
+        sys.exit()
+    data = req.json()
+    if data[u'JobType'] == "RAIDConfiguration":
+        print("- PASS, staged job \"%s\" successfully created. Server will now reboot to apply the configuration changes" % job_id)
+    elif data[u'JobType'] == "RealTimeNoRebootConfiguration":
+        print("- PASS, realtime job \"%s\" successfully created. Server will apply the configuration changes in real time, no server reboot needed" % job_id)
+    print("\n- WARNING, script will now loop polling the job status until marked completed\n")
     while True:
         req = requests.get('https://%s/redfish/v1/Managers/iDRAC.Embedded.1/Jobs/%s' % (idrac_ip, job_id), auth=(idrac_username, idrac_password), verify=False)
         current_time=(datetime.now()-start_time)
@@ -186,13 +199,13 @@ def loop_job_status():
             print("Extended Info Message: {0}".format(req.json()))
             sys.exit()
         data = req.json()
-        if str(current_time)[0:7] >= "0:30:00":
-            print("\n- FAIL: Timeout of 30 minutes has been hit, script stopped\n")
+        if str(current_time)[0:7] >= "2:00:00":
+            print("\n- FAIL: Timeout of 2 hours has been hit, script stopped\n")
             sys.exit()
-        elif "Fail" in data[u'Message'] or "fail" in data[u'Message']:
-            print("- FAIL: %s failed" % job_id)
+        elif "Fail" in data[u'Message'] or "fail" in data[u'Message'] or data[u'JobState'] == "Failed":
+            print("\n- FAIL: job ID %s failed, detail error results: %s" % (job_id, data))
             sys.exit()
-        elif data[u'Message'] == "Job completed successfully.":
+        elif data[u'JobState'] == "Completed":
             print("\n--- PASS, Final Detailed Job Status Results ---\n")
             for i in data.items():
                 if "odata" in i[0] or "MessageArgs" in i[0] or "TargetSettingsURI" in i[0]:
@@ -201,8 +214,13 @@ def loop_job_status():
                     print("%s: %s" % (i[0],i[1]))
             break
         else:
-            print("- WARNING, JobStatus not completed, current status is: \"%s\", percent completion is: \"%s\"" % (data[u'Message'],data[u'PercentComplete']))
-            time.sleep(5)
+            count_number_now = data[u'PercentComplete']
+            if count_number_now > count_number:
+                print("- WARNING, JobStatus not completed, current status: \"%s\", percent complete: \"%s\"" % (data[u'Message'],data[u'PercentComplete']))
+                count_number = count_number_now
+                time.sleep(3)
+            else:
+                time.sleep(3)
 
 
 def get_job_status():
