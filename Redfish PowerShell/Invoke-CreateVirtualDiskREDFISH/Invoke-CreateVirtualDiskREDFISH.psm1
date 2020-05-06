@@ -1,6 +1,6 @@
 <#
 _author_ = Texas Roemer <Texas_Roemer@Dell.com>
-_version_ = 5.0
+_version_ = 6.0
 Copyright (c) 2018, Dell, Inc.
 
 This software is licensed to you under the GNU General Public License,
@@ -125,19 +125,19 @@ $uri = "https://$idrac_ip/redfish/v1/Systems/System.Embedded.1/Storage"
     {
     if ($global:get_powershell_version -gt 5)
     {
-    $result = Invoke-WebRequest -SkipCertificateCheck -SkipHeaderValidation -Uri $uri -Credential $credential -Method Get -UseBasicParsing -ErrorAction RespErr -Headers @{"Accept"="application/json"}
+    $result = Invoke-WebRequest -SkipCertificateCheck -SkipHeaderValidation -Uri $uri -Credential $credential -Method Get -UseBasicParsing -ErrorVariable RespErr -Headers @{"Accept"="application/json"}
     }
     else
     {
     Ignore-SSLCertificates
-    $result = Invoke-WebRequest -Uri $uri -Credential $credential -Method Get -UseBasicParsing -ErrorAction RespErr -Headers @{"Accept"="application/json"}
+    $result = Invoke-WebRequest -Uri $uri -Credential $credential -Method Get -UseBasicParsing -ErrorVariable RespErr -Headers @{"Accept"="application/json"}
     }
     }
     catch
     {
     Write-Host
     $RespErr
-    break
+    return
     }
 	    if ($result.StatusCode -ne 200)
 	    {
@@ -231,19 +231,19 @@ try
     {
     if ($global:get_powershell_version -gt 5)
     {
-    $result = Invoke-WebRequest -SkipCertificateCheck -SkipHeaderValidation -Uri $uri -Credential $credential -Method Get -UseBasicParsing -ErrorAction RespErr -Headers @{"Accept"="application/json"}
+    $result = Invoke-WebRequest -SkipCertificateCheck -SkipHeaderValidation -Uri $uri -Credential $credential -Method Get -UseBasicParsing -ErrorVariable RespErr -Headers @{"Accept"="application/json"}
     }
     else
     {
     Ignore-SSLCertificates
-    $result = Invoke-WebRequest -Uri $uri -Credential $credential -Method Get -UseBasicParsing -ErrorAction RespErr -Headers @{"Accept"="application/json"}
+    $result = Invoke-WebRequest -Uri $uri -Credential $credential -Method Get -UseBasicParsing -ErrorVariable RespErr -Headers @{"Accept"="application/json"}
     }
     }
     catch
     {
     Write-Host
     $RespErr
-    break
+    return
     }
 
 if ($result.StatusCode -eq 200)
@@ -271,25 +271,25 @@ try
     {
     if ($global:get_powershell_version -gt 5)
     {
-    $result = Invoke-WebRequest -SkipCertificateCheck -SkipHeaderValidation -Uri $uri -Credential $credential -Method Get -UseBasicParsing -ErrorAction RespErr -Headers @{"Accept"="application/json"}
+    $result = Invoke-WebRequest -SkipCertificateCheck -SkipHeaderValidation -Uri $uri -Credential $credential -Method Get -UseBasicParsing -ErrorVariable RespErr -Headers @{"Accept"="application/json"}
     }
     else
     {
     Ignore-SSLCertificates
-    $result = Invoke-WebRequest -Uri $uri -Credential $credential -Method Get -UseBasicParsing -ErrorAction RespErr -Headers @{"Accept"="application/json"}
+    $result = Invoke-WebRequest -Uri $uri -Credential $credential -Method Get -UseBasicParsing -ErrorVariable RespErr -Headers @{"Accept"="application/json"}
     }
     }
     catch
     {
     Write-Host
     $RespErr
-    break
+    return
     }
 
-$z=$result.Content | ConvertFrom-Json
-if ($z.VolumeType -ne "RawDevice")
+$get_result = $result.Content | ConvertFrom-Json
+if ($get_result.VolumeType -ne "RawDevice")
 {
-[String]::Format("{0}, Volume Type: {1}",$z.Id, $z.VolumeType)
+[String]::Format("{0}, Volume Type: {1}",$get_result.Id, $get_result.VolumeType)
 }
 }
 }
@@ -309,19 +309,19 @@ try
     {
     if ($global:get_powershell_version -gt 5)
     {
-    $result = Invoke-WebRequest -SkipCertificateCheck -SkipHeaderValidation -Uri $uri -Credential $credential -Method Get -UseBasicParsing -ErrorAction RespErr -Headers @{"Accept"="application/json"}
+    $result = Invoke-WebRequest -SkipCertificateCheck -SkipHeaderValidation -Uri $uri -Credential $credential -Method Get -UseBasicParsing -ErrorVariable RespErr -Headers @{"Accept"="application/json"}
     }
     else
     {
     Ignore-SSLCertificates
-    $result = Invoke-WebRequest -Uri $uri -Credential $credential -Method Get -UseBasicParsing -ErrorAction RespErr -Headers @{"Accept"="application/json"}
+    $result = Invoke-WebRequest -Uri $uri -Credential $credential -Method Get -UseBasicParsing -ErrorVariable RespErr -Headers @{"Accept"="application/json"}
     }
     }
     catch
     {
     Write-Host
     $RespErr
-    break
+    return
     }
 
 if ($result.StatusCode -eq 200)
@@ -347,19 +347,19 @@ try
     {
     if ($global:get_powershell_version -gt 5)
     {
-    $result = Invoke-WebRequest -SkipCertificateCheck -SkipHeaderValidation -Uri $uri -Credential $credential -Method Get -UseBasicParsing -ErrorAction RespErr -Headers @{"Accept"="application/json"}
+    $result = Invoke-WebRequest -SkipCertificateCheck -SkipHeaderValidation -Uri $uri -Credential $credential -Method Get -UseBasicParsing -ErrorVariable RespErr -Headers @{"Accept"="application/json"}
     }
     else
     {
     Ignore-SSLCertificates
-    $result = Invoke-WebRequest -Uri $uri -Credential $credential -Method Get -UseBasicParsing -ErrorAction RespErr -Headers @{"Accept"="application/json"}
+    $result = Invoke-WebRequest -Uri $uri -Credential $credential -Method Get -UseBasicParsing -ErrorVariable RespErr -Headers @{"Accept"="application/json"}
     }
     }
     catch
     {
     Write-Host
     $RespErr
-    break
+    return
     }
 if ($result.StatusCode -eq 200)
 {
@@ -381,19 +381,19 @@ try
     {
     if ($global:get_powershell_version -gt 5)
     {
-    $result = Invoke-WebRequest -SkipCertificateCheck -SkipHeaderValidation -Uri $uri -Credential $credential -Method Get -UseBasicParsing -ErrorAction RespErr -Headers @{"Accept"="application/json"}
+    $result = Invoke-WebRequest -SkipCertificateCheck -SkipHeaderValidation -Uri $uri -Credential $credential -Method Get -UseBasicParsing -ErrorVariable RespErr -Headers @{"Accept"="application/json"}
     }
     else
     {
     Ignore-SSLCertificates
-    $result = Invoke-WebRequest -Uri $uri -Credential $credential -Method Get -UseBasicParsing -ErrorAction RespErr -Headers @{"Accept"="application/json"}
+    $result = Invoke-WebRequest -Uri $uri -Credential $credential -Method Get -UseBasicParsing -ErrorVariable RespErr -Headers @{"Accept"="application/json"}
     }
     }
     catch
     {
     Write-Host
     $RespErr
-    break
+    return
     }
 if ($result.StatusCode -ne 200)
 {
@@ -410,19 +410,19 @@ try
     {
     if ($global:get_powershell_version -gt 5)
     {
-    $result = Invoke-WebRequest -SkipCertificateCheck -SkipHeaderValidation -Uri $uri -Credential $credential -Method Get -UseBasicParsing -ErrorAction RespErr -Headers @{"Accept"="application/json"}
+    $result = Invoke-WebRequest -SkipCertificateCheck -SkipHeaderValidation -Uri $uri -Credential $credential -Method Get -UseBasicParsing -ErrorVariable RespErr -Headers @{"Accept"="application/json"}
     }
     else
     {
     Ignore-SSLCertificates
-    $result = Invoke-WebRequest -Uri $uri -Credential $credential -Method Get -UseBasicParsing -ErrorAction RespErr -Headers @{"Accept"="application/json"}
+    $result = Invoke-WebRequest -Uri $uri -Credential $credential -Method Get -UseBasicParsing -ErrorVariable RespErr -Headers @{"Accept"="application/json"}
     }
     }
     catch
     {
     Write-Host
     $RespErr
-    break
+    return
     }
 
 $get_content = $result.Content | ConvertFrom-Json
@@ -444,19 +444,19 @@ try
     {
     if ($global:get_powershell_version -gt 5)
     {
-    $result = Invoke-WebRequest -SkipCertificateCheck -SkipHeaderValidation -Uri $uri -Credential $credential -Method Get -UseBasicParsing -ErrorAction RespErr -Headers @{"Accept"="application/json"}
+    $result = Invoke-WebRequest -SkipCertificateCheck -SkipHeaderValidation -Uri $uri -Credential $credential -Method Get -UseBasicParsing -ErrorVariable RespErr -Headers @{"Accept"="application/json"}
     }
     else
     {
     Ignore-SSLCertificates
-    $result = Invoke-WebRequest -Uri $uri -Credential $credential -Method Get -UseBasicParsing -ErrorAction RespErr -Headers @{"Accept"="application/json"}
+    $result = Invoke-WebRequest -Uri $uri -Credential $credential -Method Get -UseBasicParsing -ErrorVariable RespErr -Headers @{"Accept"="application/json"}
     }
     }
     catch
     {
     Write-Host
     $RespErr
-    break
+    return
     }
 
 if ($result.StatusCode -eq 200)
@@ -490,19 +490,19 @@ $uri = "https://$idrac_ip/redfish/v1/Systems/System.Embedded.1/Storage/$get_phys
     {
     if ($global:get_powershell_version -gt 5)
     {
-    $result = Invoke-WebRequest -SkipCertificateCheck -SkipHeaderValidation -Uri $uri -Credential $credential -Method Get -UseBasicParsing -ErrorAction RespErr -Headers @{"Accept"="application/json"}
+    $result = Invoke-WebRequest -SkipCertificateCheck -SkipHeaderValidation -Uri $uri -Credential $credential -Method Get -UseBasicParsing -ErrorVariable RespErr -Headers @{"Accept"="application/json"}
     }
     else
     {
     Ignore-SSLCertificates
-    $result = Invoke-WebRequest -Uri $uri -Credential $credential -Method Get -UseBasicParsing -ErrorAction RespErr -Headers @{"Accept"="application/json"}
+    $result = Invoke-WebRequest -Uri $uri -Credential $credential -Method Get -UseBasicParsing -ErrorVariable RespErr -Headers @{"Accept"="application/json"}
     }
     }
     catch
     {
     Write-Host
     $RespErr
-    break
+    return
     }
 
 $get_content = $result.Content | ConvertFrom-Json
@@ -519,19 +519,19 @@ $raw_device_count=0
     {
     if ($global:get_powershell_version -gt 5)
     {
-    $result = Invoke-WebRequest -SkipCertificateCheck -SkipHeaderValidation -Uri $uri -Credential $credential -Method Get -UseBasicParsing -ErrorAction RespErr -Headers @{"Accept"="application/json"}
+    $result = Invoke-WebRequest -SkipCertificateCheck -SkipHeaderValidation -Uri $uri -Credential $credential -Method Get -UseBasicParsing -ErrorVariable RespErr -Headers @{"Accept"="application/json"}
     }
     else
     {
     Ignore-SSLCertificates
-    $result = Invoke-WebRequest -Uri $uri -Credential $credential -Method Get -UseBasicParsing -ErrorAction RespErr -Headers @{"Accept"="application/json"}
+    $result = Invoke-WebRequest -Uri $uri -Credential $credential -Method Get -UseBasicParsing -ErrorVariable RespErr -Headers @{"Accept"="application/json"}
     }
     }
     catch
     {
     Write-Host
     $RespErr
-    break
+    return
     }
     $get_result = $result.Content | ConvertFrom-Json
     $get_result.id
@@ -547,19 +547,19 @@ try
     {
     if ($global:get_powershell_version -gt 5)
     {
-    $result = Invoke-WebRequest -SkipCertificateCheck -SkipHeaderValidation -Uri $uri -Credential $credential -Method Get -UseBasicParsing -ErrorAction RespErr -Headers @{"Accept"="application/json"}
+    $result = Invoke-WebRequest -SkipCertificateCheck -SkipHeaderValidation -Uri $uri -Credential $credential -Method Get -UseBasicParsing -ErrorVariable RespErr -Headers @{"Accept"="application/json"}
     }
     else
     {
     Ignore-SSLCertificates
-    $result = Invoke-WebRequest -Uri $uri -Credential $credential -Method Get -UseBasicParsing -ErrorAction RespErr -Headers @{"Accept"="application/json"}
+    $result = Invoke-WebRequest -Uri $uri -Credential $credential -Method Get -UseBasicParsing -ErrorVariable RespErr -Headers @{"Accept"="application/json"}
     }
     }
     catch
     {
     Write-Host
     $RespErr
-    break
+    return
     }
 $get_result = $result.Content | ConvertFrom-Json
 $count = 0
@@ -575,19 +575,19 @@ try
     {
     if ($global:get_powershell_version -gt 5)
     {
-    $result = Invoke-WebRequest -SkipCertificateCheck -SkipHeaderValidation -Uri $uri -Credential $credential -Method Get -UseBasicParsing -ErrorAction RespErr -Headers @{"Accept"="application/json"}
+    $result = Invoke-WebRequest -SkipCertificateCheck -SkipHeaderValidation -Uri $uri -Credential $credential -Method Get -UseBasicParsing -ErrorVariable RespErr -Headers @{"Accept"="application/json"}
     }
     else
     {
     Ignore-SSLCertificates
-    $result = Invoke-WebRequest -Uri $uri -Credential $credential -Method Get -UseBasicParsing -ErrorAction RespErr -Headers @{"Accept"="application/json"}
+    $result = Invoke-WebRequest -Uri $uri -Credential $credential -Method Get -UseBasicParsing -ErrorVariable RespErr -Headers @{"Accept"="application/json"}
     }
     }
     catch
     {
     Write-Host
     $RespErr
-    break
+    return
     }
 $get_result = $result.Content | ConvertFrom-Json
 $get_result
@@ -612,19 +612,19 @@ try
     {
     if ($global:get_powershell_version -gt 5)
     {
-    $result = Invoke-WebRequest -SkipCertificateCheck -SkipHeaderValidation -Uri $uri -Credential $credential -Method Get -UseBasicParsing -ErrorAction RespErr -Headers @{"Accept"="application/json"}
+    $result = Invoke-WebRequest -SkipCertificateCheck -SkipHeaderValidation -Uri $uri -Credential $credential -Method Get -UseBasicParsing -ErrorVariable RespErr -Headers @{"Accept"="application/json"}
     }
     else
     {
     Ignore-SSLCertificates
-    $result = Invoke-WebRequest -Uri $uri -Credential $credential -Method Get -UseBasicParsing -ErrorAction RespErr -Headers @{"Accept"="application/json"}
+    $result = Invoke-WebRequest -Uri $uri -Credential $credential -Method Get -UseBasicParsing -ErrorVariable RespErr -Headers @{"Accept"="application/json"}
     }
     }
     catch
     {
     Write-Host
     $RespErr
-    break
+    return
     }
 
 $get_result = $result.Content | ConvertFrom-Json
@@ -649,7 +649,7 @@ catch
 {
 Write-Host
 $RespErr
-break
+return
 } 
 
     if ($result1.StatusCode -eq 202)
@@ -672,19 +672,19 @@ try
     {
     if ($global:get_powershell_version -gt 5)
     {
-    $result = Invoke-WebRequest -SkipCertificateCheck -SkipHeaderValidation -Uri $uri -Credential $credential -Method Get -UseBasicParsing -ErrorAction RespErr -Headers @{"Accept"="application/json"}
+    $result = Invoke-WebRequest -SkipCertificateCheck -SkipHeaderValidation -Uri $uri -Credential $credential -Method Get -UseBasicParsing -ErrorVariable RespErr -Headers @{"Accept"="application/json"}
     }
     else
     {
     Ignore-SSLCertificates
-    $result = Invoke-WebRequest -Uri $uri -Credential $credential -Method Get -UseBasicParsing -ErrorAction RespErr -Headers @{"Accept"="application/json"}
+    $result = Invoke-WebRequest -Uri $uri -Credential $credential -Method Get -UseBasicParsing -ErrorVariable RespErr -Headers @{"Accept"="application/json"}
     }
     }
     catch
     {
     Write-Host
     $RespErr
-    break
+    return
     }
 if ($result.StatusCode -eq 200)
 {
@@ -719,19 +719,19 @@ if ($job_type -eq "realtime_config")
     {
     if ($global:get_powershell_version -gt 5)
     {
-    $result = Invoke-WebRequest -SkipCertificateCheck -SkipHeaderValidation -Uri $uri -Credential $credential -Method Get -UseBasicParsing -ErrorAction RespErr -Headers @{"Accept"="application/json"}
+    $result = Invoke-WebRequest -SkipCertificateCheck -SkipHeaderValidation -Uri $uri -Credential $credential -Method Get -UseBasicParsing -ErrorVariable RespErr -Headers @{"Accept"="application/json"}
     }
     else
     {
     Ignore-SSLCertificates
-    $result = Invoke-WebRequest -Uri $uri -Credential $credential -Method Get -UseBasicParsing -ErrorAction RespErr -Headers @{"Accept"="application/json"}
+    $result = Invoke-WebRequest -Uri $uri -Credential $credential -Method Get -UseBasicParsing -ErrorVariable RespErr -Headers @{"Accept"="application/json"}
     }
     }
     catch
     {
     Write-Host
     $RespErr
-    break
+    return
     }
 
     $overall_job_output = $result.Content | ConvertFrom-Json
@@ -756,19 +756,19 @@ try
     {
     if ($global:get_powershell_version -gt 5)
     {
-    $result = Invoke-WebRequest -SkipCertificateCheck -SkipHeaderValidation -Uri $uri -Credential $credential -Method Get -UseBasicParsing -ErrorAction RespErr -Headers @{"Accept"="application/json"}
+    $result = Invoke-WebRequest -SkipCertificateCheck -SkipHeaderValidation -Uri $uri -Credential $credential -Method Get -UseBasicParsing -ErrorVariable RespErr -Headers @{"Accept"="application/json"}
     }
     else
     {
     Ignore-SSLCertificates
-    $result = Invoke-WebRequest -Uri $uri -Credential $credential -Method Get -UseBasicParsing -ErrorAction RespErr -Headers @{"Accept"="application/json"}
+    $result = Invoke-WebRequest -Uri $uri -Credential $credential -Method Get -UseBasicParsing -ErrorVariable RespErr -Headers @{"Accept"="application/json"}
     }
     }
     catch
     {
     Write-Host
     $RespErr
-    break
+    return
     }
 $overall_job_output = $result.Content | ConvertFrom-Json
 $overall_job_output
@@ -778,19 +778,19 @@ try
     {
     if ($global:get_powershell_version -gt 5)
     {
-    $result = Invoke-WebRequest -SkipCertificateCheck -SkipHeaderValidation -Uri $uri -Credential $credential -Method Get -UseBasicParsing -ErrorAction RespErr -Headers @{"Accept"="application/json"}
+    $result = Invoke-WebRequest -SkipCertificateCheck -SkipHeaderValidation -Uri $uri -Credential $credential -Method Get -UseBasicParsing -ErrorVariable RespErr -Headers @{"Accept"="application/json"}
     }
     else
     {
     Ignore-SSLCertificates
-    $result = Invoke-WebRequest -Uri $uri -Credential $credential -Method Get -UseBasicParsing -ErrorAction RespErr -Headers @{"Accept"="application/json"}
+    $result = Invoke-WebRequest -Uri $uri -Credential $credential -Method Get -UseBasicParsing -ErrorVariable RespErr -Headers @{"Accept"="application/json"}
     }
     }
     catch
     {
     Write-Host
     $RespErr
-    break
+    return
     }
 
 $get_result = $result.Content | ConvertFrom-Json
@@ -818,19 +818,19 @@ try
     {
     if ($global:get_powershell_version -gt 5)
     {
-    $result = Invoke-WebRequest -SkipCertificateCheck -SkipHeaderValidation -Uri $uri -Credential $credential -Method Get -UseBasicParsing -ErrorAction RespErr -Headers @{"Accept"="application/json"}
+    $result = Invoke-WebRequest -SkipCertificateCheck -SkipHeaderValidation -Uri $uri -Credential $credential -Method Get -UseBasicParsing -ErrorVariable RespErr -Headers @{"Accept"="application/json"}
     }
     else
     {
     Ignore-SSLCertificates
-    $result = Invoke-WebRequest -Uri $uri -Credential $credential -Method Get -UseBasicParsing -ErrorAction RespErr -Headers @{"Accept"="application/json"}
+    $result = Invoke-WebRequest -Uri $uri -Credential $credential -Method Get -UseBasicParsing -ErrorVariable RespErr -Headers @{"Accept"="application/json"}
     }
     }
     catch
     {
     Write-Host
     $RespErr
-    break
+    return
     }
 $overall_job_output=$result.Content | ConvertFrom-Json
 if ($overall_job_output.JobState -eq "Failed")
@@ -855,19 +855,19 @@ try
     {
     if ($global:get_powershell_version -gt 5)
     {
-    $result = Invoke-WebRequest -SkipCertificateCheck -SkipHeaderValidation -Uri $uri -Credential $credential -Method Get -UseBasicParsing -ErrorAction RespErr -Headers @{"Accept"="application/json"}
+    $result = Invoke-WebRequest -SkipCertificateCheck -SkipHeaderValidation -Uri $uri -Credential $credential -Method Get -UseBasicParsing -ErrorVariable RespErr -Headers @{"Accept"="application/json"}
     }
     else
     {
     Ignore-SSLCertificates
-    $result = Invoke-WebRequest -Uri $uri -Credential $credential -Method Get -UseBasicParsing -ErrorAction RespErr -Headers @{"Accept"="application/json"}
+    $result = Invoke-WebRequest -Uri $uri -Credential $credential -Method Get -UseBasicParsing -ErrorVariable RespErr -Headers @{"Accept"="application/json"}
     }
     }
     catch
     {
     Write-Host
     $RespErr
-    break
+    return
     }
 $get_content = $result.Content | ConvertFrom-Json
 $host_power_state = $get_content.PowerState
@@ -896,7 +896,7 @@ $uri = "https://$idrac_ip/redfish/v1/Systems/System.Embedded.1/Actions/ComputerS
     {
     Write-Host
     $RespErr
-    break
+    return
     } 
 
 if ($result1.StatusCode -eq 204)
@@ -925,19 +925,19 @@ try
     {
     if ($global:get_powershell_version -gt 5)
     {
-    $result = Invoke-WebRequest -SkipCertificateCheck -SkipHeaderValidation -Uri $uri -Credential $credential -Method Get -UseBasicParsing -ErrorAction RespErr -Headers @{"Accept"="application/json"}
+    $result = Invoke-WebRequest -SkipCertificateCheck -SkipHeaderValidation -Uri $uri -Credential $credential -Method Get -UseBasicParsing -ErrorVariable RespErr -Headers @{"Accept"="application/json"}
     }
     else
     {
     Ignore-SSLCertificates
-    $result = Invoke-WebRequest -Uri $uri -Credential $credential -Method Get -UseBasicParsing -ErrorAction RespErr -Headers @{"Accept"="application/json"}
+    $result = Invoke-WebRequest -Uri $uri -Credential $credential -Method Get -UseBasicParsing -ErrorVariable RespErr -Headers @{"Accept"="application/json"}
     }
     }
     catch
     {
     Write-Host
     $RespErr
-    break
+    return
     }
 $get_content = $result.Content | ConvertFrom-Json
 $host_power_state = $get_content.PowerState
@@ -978,7 +978,7 @@ catch
 {
 Write-Host
 $RespErr
-break
+return
 } 
 
 if ($result1.StatusCode -eq 204)
@@ -1017,7 +1017,7 @@ $uri = "https://$idrac_ip/redfish/v1/Systems/System.Embedded.1/Actions/ComputerS
     {
     Write-Host
     $RespErr
-    break
+    return
     } 
 
 if ($result1.StatusCode -eq 204)
@@ -1044,19 +1044,19 @@ try
     {
     if ($global:get_powershell_version -gt 5)
     {
-    $result = Invoke-WebRequest -SkipCertificateCheck -SkipHeaderValidation -Uri $uri -Credential $credential -Method Get -UseBasicParsing -ErrorAction RespErr -Headers @{"Accept"="application/json"}
+    $result = Invoke-WebRequest -SkipCertificateCheck -SkipHeaderValidation -Uri $uri -Credential $credential -Method Get -UseBasicParsing -ErrorVariable RespErr -Headers @{"Accept"="application/json"}
     }
     else
     {
     Ignore-SSLCertificates
-    $result = Invoke-WebRequest -Uri $uri -Credential $credential -Method Get -UseBasicParsing -ErrorAction RespErr -Headers @{"Accept"="application/json"}
+    $result = Invoke-WebRequest -Uri $uri -Credential $credential -Method Get -UseBasicParsing -ErrorVariable RespErr -Headers @{"Accept"="application/json"}
     }
     }
     catch
     {
     Write-Host
     $RespErr
-    break
+    return
     }
 
 
@@ -1082,19 +1082,19 @@ try
     {
     if ($global:get_powershell_version -gt 5)
     {
-    $result = Invoke-WebRequest -SkipCertificateCheck -SkipHeaderValidation -Uri $uri -Credential $credential -Method Get -UseBasicParsing -ErrorAction RespErr -Headers @{"Accept"="application/json"}
+    $result = Invoke-WebRequest -SkipCertificateCheck -SkipHeaderValidation -Uri $uri -Credential $credential -Method Get -UseBasicParsing -ErrorVariable RespErr -Headers @{"Accept"="application/json"}
     }
     else
     {
     Ignore-SSLCertificates
-    $result = Invoke-WebRequest -Uri $uri -Credential $credential -Method Get -UseBasicParsing -ErrorAction RespErr -Headers @{"Accept"="application/json"}
+    $result = Invoke-WebRequest -Uri $uri -Credential $credential -Method Get -UseBasicParsing -ErrorVariable RespErr -Headers @{"Accept"="application/json"}
     }
     }
     catch
     {
     Write-Host
     $RespErr
-    break
+    return
     }
 
 $overall_job_output=$result.Content | ConvertFrom-Json

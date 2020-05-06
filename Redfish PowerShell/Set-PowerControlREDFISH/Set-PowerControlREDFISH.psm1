@@ -1,6 +1,6 @@
 <#
 _author_ = Texas Roemer <Texas_Roemer@Dell.com>
-_version_ = 4.0
+_version_ = 5.0
 
 Copyright (c) 2017, Dell, Inc.
 
@@ -107,19 +107,19 @@ try
     {
     if ($global:get_powershell_version -gt 5)
     {
-    $result = Invoke-WebRequest -SkipCertificateCheck -SkipHeaderValidation -Uri $uri -Credential $credential -Method Get -UseBasicParsing -ErrorAction RespErr -Headers @{"Accept"="application/json"}
+    $result = Invoke-WebRequest -SkipCertificateCheck -SkipHeaderValidation -Uri $uri -Credential $credential -Method Get -UseBasicParsing -ErrorVariable RespErr -Headers @{"Accept"="application/json"}
     }
     else
     {
     Ignore-SSLCertificates
-    $result = Invoke-WebRequest -Uri $uri -Credential $credential -Method Get -UseBasicParsing -ErrorAction RespErr -Headers @{"Accept"="application/json"}
+    $result = Invoke-WebRequest -Uri $uri -Credential $credential -Method Get -UseBasicParsing -ErrorVariable RespErr -Headers @{"Accept"="application/json"}
     }
     }
     catch
     {
     Write-Host
     $RespErr
-    break
+    return
     }
 
 if ($result.StatusCode -eq 200)
@@ -180,7 +180,7 @@ $uri = "https://$idrac_ip/redfish/v1/Systems/System.Embedded.1/Actions/ComputerS
     {
     Write-Host
     $RespErr
-    break
+    return
     } 
 
 if ($result1.StatusCode -eq 204)
@@ -194,7 +194,5 @@ else
     [String]::Format("- FAIL, statuscode {0} returned",$result1.StatusCode)
     return
 }
-
-return
 
 }

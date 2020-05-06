@@ -1,6 +1,6 @@
 <#
 _author_ = Texas Roemer <Texas_Roemer@Dell.com>
-_version_ = 4.0
+_version_ = 5.0
 
 Copyright (c) 2017, Dell, Inc.
 
@@ -113,7 +113,7 @@ try
     {
     Write-Host
     $RespErr
-    break
+    return
     } 
 Start-Sleep 5
 
@@ -152,19 +152,19 @@ try
     {
     if ($global:get_powershell_version -gt 5)
     {
-    $result = Invoke-WebRequest -SkipCertificateCheck -SkipHeaderValidation -Uri $uri -Credential $credential -Method Get -UseBasicParsing -ErrorAction RespErr -Headers @{"Accept"="application/json"}
+    $result = Invoke-WebRequest -SkipCertificateCheck -SkipHeaderValidation -Uri $uri -Credential $credential -Method Get -UseBasicParsing -ErrorVariable RespErr -Headers @{"Accept"="application/json"}
     }
     else
     {
     Ignore-SSLCertificates
-    $result = Invoke-WebRequest -Uri $uri -Credential $credential -Method Get -UseBasicParsing -ErrorAction RespErr -Headers @{"Accept"="application/json"}
+    $result = Invoke-WebRequest -Uri $uri -Credential $credential -Method Get -UseBasicParsing -ErrorVariable RespErr -Headers @{"Accept"="application/json"}
     }
     }
     catch
     {
     Write-Host
     $RespErr
-    break
+    return
     }
 $get_content = $result.Content | ConvertFrom-Json
 $host_power_state = $get_content.PowerState
@@ -193,7 +193,7 @@ $uri = "https://$idrac_ip/redfish/v1/Systems/System.Embedded.1/Actions/ComputerS
     {
     Write-Host
     $RespErr
-    break
+    return
     } 
 
 if ($result1.StatusCode -eq 204)
@@ -223,19 +223,19 @@ try
     {
     if ($global:get_powershell_version -gt 5)
     {
-    $result = Invoke-WebRequest -SkipCertificateCheck -SkipHeaderValidation -Uri $uri -Credential $credential -Method Get -UseBasicParsing -ErrorAction RespErr -Headers @{"Accept"="application/json"}
+    $result = Invoke-WebRequest -SkipCertificateCheck -SkipHeaderValidation -Uri $uri -Credential $credential -Method Get -UseBasicParsing -ErrorVariable RespErr -Headers @{"Accept"="application/json"}
     }
     else
     {
     Ignore-SSLCertificates
-    $result = Invoke-WebRequest -Uri $uri -Credential $credential -Method Get -UseBasicParsing -ErrorAction RespErr -Headers @{"Accept"="application/json"}
+    $result = Invoke-WebRequest -Uri $uri -Credential $credential -Method Get -UseBasicParsing -ErrorVariable RespErr -Headers @{"Accept"="application/json"}
     }
     }
     catch
     {
     Write-Host
     $RespErr
-    break
+    return
     }
 $get_content = $result.Content | ConvertFrom-Json
 $host_power_state = $get_content.PowerState
@@ -276,7 +276,7 @@ $uri = "https://$idrac_ip/redfish/v1/Systems/System.Embedded.1/Actions/ComputerS
     {
     Write-Host
     $RespErr
-    break
+    return
     } 
 
 if ($result1.StatusCode -eq 204)
@@ -315,7 +315,7 @@ $uri = "https://$idrac_ip/redfish/v1/Systems/System.Embedded.1/Actions/ComputerS
     {
     Write-Host
     $RespErr
-    break
+    return
     } 
 
 if ($result1.StatusCode -eq 204)

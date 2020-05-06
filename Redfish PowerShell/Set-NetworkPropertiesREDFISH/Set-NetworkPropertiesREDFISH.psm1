@@ -1,6 +1,6 @@
 <#
 _author_ = Texas Roemer <Texas_Roemer@Dell.com>
-_version_ = 4.0
+_version_ = 5.0
 Copyright (c) 2018, Dell, Inc.
 
 This software is licensed to you under the GNU General Public License,
@@ -184,7 +184,7 @@ $uri = "https://$idrac_ip/redfish/v1/Systems/System.Embedded.1/NetworkAdapters"
     {
     Write-Host
     $RespErr
-    break
+    return
     } 
 
     if ($result.StatusCode -eq 200)
@@ -227,7 +227,7 @@ Write-Host "- Network Device IDs Detected for iDRAC $idrac_ip -`n" -ForegroundCo
     {
     Write-Host
     $RespErr
-    break
+    return
     } 
         $get_result = $result.Content | ConvertFrom-Json
         $get_result = $get_result.Members
@@ -278,9 +278,9 @@ $uri = "https://$idrac_ip/redfish/v1/Systems/System.Embedded.1/NetworkAdapters/$
     return
     }
     Write-Host "- Detailed information for network device ID '$get_detail_network_device_ID_info'" -ForegroundColor Yellow
-    $z=$result.Content | ConvertFrom-Json
-    $z
-Return    
+    $get_result = $result.Content | ConvertFrom-Json
+    $get_result
+    return    
 }
 
 if ($get_detail_network_port_ID_info -ne "")
@@ -305,7 +305,7 @@ $uri = "https://$idrac_ip/redfish/v1/Systems/System.Embedded.1/NetworkAdapters/$
     {
     Write-Host
     $RespErr
-    break
+    return
     } 
 
     if ($result.StatusCode -eq 200)
@@ -346,7 +346,7 @@ $uri = "https://$idrac_ip/redfish/v1/Systems/System.Embedded.1/NetworkAdapters/$
     {
     Write-Host
     $RespErr
-    break
+    return
     } 
 
     if ($result.StatusCode -eq 200)
@@ -358,24 +358,24 @@ $uri = "https://$idrac_ip/redfish/v1/Systems/System.Embedded.1/NetworkAdapters/$
     [String]::Format("`n- FAIL, statuscode {0} returned",$result.StatusCode)
     return
     }
-    $z=$result.Content | ConvertFrom-Json
+    $get_result = $result.Content | ConvertFrom-Json
     Write-Host "- iSCSIBoot properties for '$get_network_port_properties'" -ForegroundColor Yellow
-        if ($z.iSCSIBoot.Length -eq 0)
+        if ($get_result.iSCSIBoot.Length -eq 0)
         {
         Write-Host "`n- WARNING, no iSCSIBoot properties detected for $get_network_port_properties'`n"
         }
         else
         {
-        $z.iSCSIBoot
+        $get_result.iSCSIBoot
         }
     Write-Host "- FibreChannel properties for '$get_network_port_properties'`n" -ForegroundColor Yellow
-        if ($z.FibreChannel.Length -eq 0)
+        if ($get_result.FibreChannel.Length -eq 0)
         {
         Write-Host "`n- WARNING, no FibreChannel properties supported for $get_network_port_properties'" 
         }
         else
         {
-        $z.FibreChannel
+        $get_result.FibreChannel
         }
 Return    
 }
@@ -384,10 +384,11 @@ if ($set_network_properties -ne "")
 {
 
 try {
-    $JsonBody = Get-Content set_nic_properties.ini -ErrorAction RespErr
+    $JsonBody = Get-Content set_nic_properties.ini -ErrorVariable RespErr
     }
 catch [System.Management.Automation.ActionPreferenceRespErrException] {
     Write-Host "`n- WARNING, 'set_nic_properties.ini' file not detected. Make sure this file is located in the same directory you are running the cmdlet from"  -ForegroundColor Yellow
+    $RespErr
     return
 }
 
@@ -429,7 +430,7 @@ $uri = "https://$idrac_ip/redfish/v1/Systems/System.Embedded.1/NetworkAdapters/$
     {
     Write-Host
     $RespErr
-    break
+    return
     } 
 
     if ($result.StatusCode -eq 200)
@@ -448,8 +449,8 @@ $uri = "https://$idrac_ip/redfish/v1/Systems/System.Embedded.1/NetworkAdapters/$
 
 if ($job_type -eq "n")
 {
-$s=$set_network_properties.Split("-")
-$device_id=$s[0]
+$get_properties = $set_network_properties.Split("-")
+$device_id = $get_properties[0]
 
 $uri = "https://$idrac_ip/redfish/v1/Systems/System.Embedded.1/NetworkAdapters/$device_id/NetworkDeviceFunctions/$set_network_properties/Settings"
 $JsonBody = @{"@Redfish.SettingsApplyTime"=@{"ApplyTime"="OnReset"}} | ConvertTo-Json -Compress
@@ -470,7 +471,7 @@ $JsonBody = @{"@Redfish.SettingsApplyTime"=@{"ApplyTime"="OnReset"}} | ConvertTo
     {
     Write-Host
     $RespErr
-    break
+    return
     } 
         if ($result.StatusCode -eq 202)
         {
@@ -508,7 +509,7 @@ Write-Host "- WARNING, job ID created for reboot now config job is: '$job_id'"
     {
     Write-Host
     $RespErr
-    break
+    return
     } 
     $overall_job_output=$result.Content | ConvertFrom-Json
         if ($overall_job_output.JobState -eq "Failed") 
@@ -528,19 +529,19 @@ try
     {
     if ($global:get_powershell_version -gt 5)
     {
-    $result = Invoke-WebRequest -SkipCertificateCheck -SkipHeaderValidation -Uri $uri -Credential $credential -Method Get -UseBasicParsing -ErrorAction RespErr -Headers @{"Accept"="application/json"}
+    $result = Invoke-WebRequest -SkipCertificateCheck -SkipHeaderValidation -Uri $uri -Credential $credential -Method Get -UseBasicParsing -ErrorVariable RespErr -Headers @{"Accept"="application/json"}
     }
     else
     {
     Ignore-SSLCertificates
-    $result = Invoke-WebRequest -Uri $uri -Credential $credential -Method Get -UseBasicParsing -ErrorAction RespErr -Headers @{"Accept"="application/json"}
+    $result = Invoke-WebRequest -Uri $uri -Credential $credential -Method Get -UseBasicParsing -ErrorVariable RespErr -Headers @{"Accept"="application/json"}
     }
     }
     catch
     {
     Write-Host
     $RespErr
-    break
+    return
     }
 $get_content = $result.Content | ConvertFrom-Json
 $host_power_state = $get_content.PowerState
@@ -569,7 +570,7 @@ $uri = "https://$idrac_ip/redfish/v1/Systems/System.Embedded.1/Actions/ComputerS
     {
     Write-Host
     $RespErr
-    break
+    return
     } 
 
 if ($result1.StatusCode -eq 204)
@@ -599,19 +600,19 @@ try
     {
     if ($global:get_powershell_version -gt 5)
     {
-    $result = Invoke-WebRequest -SkipCertificateCheck -SkipHeaderValidation -Uri $uri -Credential $credential -Method Get -UseBasicParsing -ErrorAction RespErr -Headers @{"Accept"="application/json"}
+    $result = Invoke-WebRequest -SkipCertificateCheck -SkipHeaderValidation -Uri $uri -Credential $credential -Method Get -UseBasicParsing -ErrorVariable RespErr -Headers @{"Accept"="application/json"}
     }
     else
     {
     Ignore-SSLCertificates
-    $result = Invoke-WebRequest -Uri $uri -Credential $credential -Method Get -UseBasicParsing -ErrorAction RespErr -Headers @{"Accept"="application/json"}
+    $result = Invoke-WebRequest -Uri $uri -Credential $credential -Method Get -UseBasicParsing -ErrorVariable RespErr -Headers @{"Accept"="application/json"}
     }
     }
     catch
     {
     Write-Host
     $RespErr
-    break
+    return
     }
 $get_content = $result.Content | ConvertFrom-Json
 $host_power_state = $get_content.PowerState
@@ -652,7 +653,7 @@ $uri = "https://$idrac_ip/redfish/v1/Systems/System.Embedded.1/Actions/ComputerS
     {
     Write-Host
     $RespErr
-    break
+    return
     } 
 
 if ($result1.StatusCode -eq 204)
@@ -691,7 +692,7 @@ $uri = "https://$idrac_ip/redfish/v1/Systems/System.Embedded.1/Actions/ComputerS
     {
     Write-Host
     $RespErr
-    break
+    return
     } 
 
 if ($result1.StatusCode -eq 204)
@@ -737,7 +738,7 @@ try
     {
     Write-Host
     $RespErr
-    break
+    return
     } 
 $overall_job_output=$result.Content | ConvertFrom-Json
     if ($overall_job_output.JobState -eq "Failed")
@@ -790,7 +791,7 @@ $JsonBody = @{"@Redfish.SettingsApplyTime"=@{"ApplyTime"="OnReset"}} | ConvertTo
     {
     Write-Host
     $RespErr
-    break
+    return
     } 
         if ($result.StatusCode -eq 202)
         {
@@ -826,7 +827,7 @@ Write-Host "- WARNING, job ID created for reboot now config job is: '$job_id'"
     {
     Write-Host
     $RespErr
-    break
+    return
     } 
     $overall_job_output=$result.Content | ConvertFrom-Json
         if ($overall_job_output.JobState -eq "Failed") 

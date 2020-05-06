@@ -1,6 +1,6 @@
 <#
 _author_ = Texas Roemer <Texas_Roemer@Dell.com>
-_version_ = 4.0
+_version_ = 5.0
 
 Copyright (c) 2017, Dell, Inc.
 
@@ -126,7 +126,7 @@ try
     {
     Write-Host
     $RespErr
-    break
+    return
     }
     }
 

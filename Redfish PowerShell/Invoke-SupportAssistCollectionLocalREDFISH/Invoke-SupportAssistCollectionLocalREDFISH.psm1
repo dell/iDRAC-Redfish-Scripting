@@ -1,6 +1,6 @@
 <#
 _author_ = Texas Roemer <Texas_Roemer@Dell.com>
-_version_ = 3.0
+_version_ = 4.0
 
 Copyright (c) 2020, Dell, Inc.
 
@@ -254,12 +254,12 @@ try
     {
     if ($global:get_powershell_version -gt 5)
     {
-    $result = Invoke-WebRequest -SkipCertificateCheck -SkipHeaderValidation -Uri $uri -Credential $credential -Method Get -UseBasicParsing -ErrorAction RespErr -Headers @{"Accept"="application/json"}
+    $result = Invoke-WebRequest -SkipCertificateCheck -SkipHeaderValidation -Uri $uri -Credential $credential -Method Get -UseBasicParsing -ErrorVariable RespErr -Headers @{"Accept"="application/json"}
     }
     else
     {
     Ignore-SSLCertificates
-    $result = Invoke-WebRequest -Uri $uri -Credential $credential -Method Get -UseBasicParsing -ErrorAction RespErr -Headers @{"Accept"="application/json"}
+    $result = Invoke-WebRequest -Uri $uri -Credential $credential -Method Get -UseBasicParsing -ErrorVariable RespErr -Headers @{"Accept"="application/json"}
     }
     }
     catch
@@ -389,7 +389,7 @@ break
 else
 {
 [String]::Format("- FAIL, POST command failed to register Support Assist, statuscode {0} returned. Detail error message: {1}",$post_result.StatusCode, $post_result)
-break
+return
 }
 
 }
@@ -489,12 +489,11 @@ if ($post_result.StatusCode -eq 202 -or $post_result.StatusCode -eq 200)
     $Global:job_id=$job_id_search.Split("/")[-1]
     [String]::Format("`n- PASS, statuscode {0} returned successfully for POST command to create update job ID '{1}'",$post_result.StatusCode, $Global:job_id)
     Write-Host
-    return
 }
 else
 {
     [String]::Format("- FAIL, statuscode {0} returned. Detail error message: {1}",$post_result.StatusCode,$post_result)
-    break
+    return
 }
 
 }
@@ -519,12 +518,12 @@ $uri ="https://$idrac_ip/redfish/v1/Managers/iDRAC.Embedded.1/Jobs/$Global:job_i
     {
     if ($global:get_powershell_version -gt 5)
     {
-    $result = Invoke-WebRequest -SkipCertificateCheck -SkipHeaderValidation -Uri $uri -Credential $credential -Method Get -UseBasicParsing -ErrorAction RespErr -Headers @{"Accept"="application/json"}
+    $result = Invoke-WebRequest -SkipCertificateCheck -SkipHeaderValidation -Uri $uri -Credential $credential -Method Get -UseBasicParsing -ErrorVariable RespErr -Headers @{"Accept"="application/json"}
     }
     else
     {
     Ignore-SSLCertificates
-    $result = Invoke-WebRequest -Uri $uri -Credential $credential -Method Get -UseBasicParsing -ErrorAction RespErr -Headers @{"Accept"="application/json"}
+    $result = Invoke-WebRequest -Uri $uri -Credential $credential -Method Get -UseBasicParsing -ErrorVariable RespErr -Headers @{"Accept"="application/json"}
     }
     }
     catch
@@ -539,6 +538,8 @@ $uri ="https://$idrac_ip/redfish/v1/Managers/iDRAC.Embedded.1/Jobs/$Global:job_i
     }
     catch
     {
+    Write-Host "- FAIL, unable to locate file location in headers output"
+    break
 }
 $overall_job_output=$result.Content | ConvertFrom-Json
 
@@ -573,7 +574,7 @@ $user_answer = Read-Host -Prompt "`n- Would you like to use default browser to d
     }
     else
     {
-    break
+    return
     }
 }
 elseif ($loop_time -gt $end_time)
@@ -630,19 +631,19 @@ try
     {
     if ($global:get_powershell_version -gt 5)
     {
-    $get_result = Invoke-WebRequest -SkipCertificateCheck -SkipHeaderValidation -Uri $uri -Credential $credential -Method Get -UseBasicParsing -ErrorAction RespErr -Headers @{"Accept"="application/json"}
+    $get_result = Invoke-WebRequest -SkipCertificateCheck -SkipHeaderValidation -Uri $uri -Credential $credential -Method Get -UseBasicParsing -ErrorVariable RespErr -Headers @{"Accept"="application/json"}
     }
     else
     {
     Ignore-SSLCertificates
-    $get_result = Invoke-WebRequest -Uri $uri -Credential $credential -Method Get -UseBasicParsing -ErrorAction RespErr -Headers @{"Accept"="application/json"}
+    $get_result = Invoke-WebRequest -Uri $uri -Credential $credential -Method Get -UseBasicParsing -ErrorVariable RespErr -Headers @{"Accept"="application/json"}
     }
     }
     catch
     {
     Write-Host
     $RespErr
-    break
+    return
     }
 if ($get_result.StatusCode -eq 200 -or $result.StatusCode -eq 202)
 {
@@ -656,7 +657,7 @@ $validate_supported_idrac = $get_actions.Actions.$support_assist_collection_acti
     catch
     {
     Write-Host "`n- WARNING, iDRAC version detected does not support this feature using Redfish API or incorrect iDRAC user credentials passed in.`n"
-    break
+    return
     }
 }
 else

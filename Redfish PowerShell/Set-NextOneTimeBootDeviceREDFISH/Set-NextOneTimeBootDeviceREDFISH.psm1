@@ -1,6 +1,6 @@
 <#
 _author_ = Texas Roemer <Texas_Roemer@Dell.com>
-_version_ = 4.0
+_version_ = 5.0
 
 Copyright (c) 2017, Dell, Inc.
 
@@ -127,7 +127,7 @@ $uri = "https://$idrac_ip/redfish/v1/Systems/System.Embedded.1"
     {
     Write-Host
     $RespErr
-    break
+    return
     } 
 
 if ($result.StatusCode -eq 200)
@@ -186,7 +186,7 @@ try
     {
     Write-Host
     $RespErr
-    break
+    return
     } 
 $get_result = $result1.RawContent | ConvertTo-Json -Compress
 
@@ -233,7 +233,7 @@ $uri = "https://$idrac_ip/redfish/v1/Systems/System.Embedded.1/"
     {
     Write-Host
     $RespErr
-    break
+    return
     }
 
     if ($result.StatusCode -eq 200)
@@ -272,7 +272,7 @@ $power_state = $result_output.PowerState
     {
     Write-Host
     $RespErr
-    break
+    return
     } 
 
     if ($result1.StatusCode -eq 204)
@@ -306,7 +306,7 @@ $power_state = $result_output.PowerState
     {
     Write-Host
     $RespErr
-    break
+    return
     }
         $result_output = $result.Content | ConvertFrom-Json
         $power_state = $result_output.PowerState
@@ -338,7 +338,7 @@ $power_state = $result_output.PowerState
     {
     Write-Host
     $RespErr
-    break
+    return
     } 
 
         if ($result1.StatusCode -eq 204)
@@ -381,7 +381,7 @@ $power_state = $result_output.PowerState
     {
     Write-Host
     $RespErr
-    break
+    return
     } 
 
     if ($result1.StatusCode -eq 204)

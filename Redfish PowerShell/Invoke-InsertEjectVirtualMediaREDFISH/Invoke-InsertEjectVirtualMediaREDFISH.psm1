@@ -1,6 +1,6 @@
 <#
 _author_ = Texas Roemer <Texas_Roemer@Dell.com>
-_version_ = 2.0
+_version_ = 3.0
 Copyright (c) 2019, Dell, Inc.
 
 This software is licensed to you under the GNU General Public License,
@@ -119,12 +119,12 @@ $uri = "https://$idrac_ip/redfish/v1/Managers/iDRAC.Embedded.1/VirtualMedia/CD"
     {
     if ($global:get_powershell_version -gt 5)
     {
-    $result = Invoke-WebRequest -SkipCertificateCheck -SkipHeaderValidation -Uri $uri -Credential $credential -Method Get -UseBasicParsing -ErrorAction RespErr -Headers @{"Accept"="application/json"}
+    $result = Invoke-WebRequest -SkipCertificateCheck -SkipHeaderValidation -Uri $uri -Credential $credential -Method Get -UseBasicParsing -ErrorVariable RespErr -Headers @{"Accept"="application/json"}
     }
     else
     {
     Ignore-SSLCertificates
-    $result = Invoke-WebRequest -Uri $uri -Credential $credential -Method Get -UseBasicParsing -ErrorAction RespErr -Headers @{"Accept"="application/json"}
+    $result = Invoke-WebRequest -Uri $uri -Credential $credential -Method Get -UseBasicParsing -ErrorVariable RespErr -Headers @{"Accept"="application/json"}
     }
     }
     catch
@@ -146,12 +146,12 @@ $uri = "https://$idrac_ip/redfish/v1/Managers/iDRAC.Embedded.1/VirtualMedia"
     {
     if ($global:get_powershell_version -gt 5)
     {
-    $result = Invoke-WebRequest -SkipCertificateCheck -SkipHeaderValidation -Uri $uri -Credential $credential -Method Get -UseBasicParsing -ErrorAction RespErr -Headers @{"Accept"="application/json"}
+    $result = Invoke-WebRequest -SkipCertificateCheck -SkipHeaderValidation -Uri $uri -Credential $credential -Method Get -UseBasicParsing -ErrorVariable RespErr -Headers @{"Accept"="application/json"}
     }
     else
     {
     Ignore-SSLCertificates
-    $result = Invoke-WebRequest -Uri $uri -Credential $credential -Method Get -UseBasicParsing -ErrorAction RespErr -Headers @{"Accept"="application/json"}
+    $result = Invoke-WebRequest -Uri $uri -Credential $credential -Method Get -UseBasicParsing -ErrorVariable RespErr -Headers @{"Accept"="application/json"}
     }
     }
     catch
@@ -170,12 +170,12 @@ $result = $result.Content | ConvertFrom-Json
     {
     if ($global:get_powershell_version -gt 5)
     {
-    $result1 = Invoke-WebRequest -SkipCertificateCheck -SkipHeaderValidation -Uri "https://$idrac_ip$u" -Credential $credential -Method Get -UseBasicParsing -ErrorAction RespErr -Headers @{"Accept"="application/json"}
+    $result1 = Invoke-WebRequest -SkipCertificateCheck -SkipHeaderValidation -Uri "https://$idrac_ip$u" -Credential $credential -Method Get -UseBasicParsing -ErrorVariable RespErr -Headers @{"Accept"="application/json"}
     }
     else
     {
     Ignore-SSLCertificates
-    $result1 = Invoke-WebRequest -Uri "https://$idrac_ip$u" -Credential $credential -Method Get -UseBasicParsing -ErrorAction RespErr -Headers @{"Accept"="application/json"}
+    $result1 = Invoke-WebRequest -Uri "https://$idrac_ip$u" -Credential $credential -Method Get -UseBasicParsing -ErrorVariable RespErr -Headers @{"Accept"="application/json"}
     }
     }
     catch
@@ -239,21 +239,20 @@ if ($result1.StatusCode -eq 204)
     {
     if ($global:get_powershell_version -gt 5)
     {
-    $result1 = Invoke-WebRequest -SkipCertificateCheck -SkipHeaderValidation -Uri "https://$idrac_ip$get_uri" -Credential $credential -Method Get -UseBasicParsing -ErrorAction RespErr -Headers @{"Accept"="application/json"}
+    $result1 = Invoke-WebRequest -SkipCertificateCheck -SkipHeaderValidation -Uri "https://$idrac_ip$get_uri" -Credential $credential -Method Get -UseBasicParsing -ErrorVariable RespErr -Headers @{"Accept"="application/json"}
     }
     else
     {
     Ignore-SSLCertificates
-    $result1 = Invoke-WebRequest -Uri "https://$idrac_ip$get_uri" -Credential $credential -Method Get -UseBasicParsing -ErrorAction RespErr -Headers @{"Accept"="application/json"}
+    $result1 = Invoke-WebRequest -Uri "https://$idrac_ip$get_uri" -Credential $credential -Method Get -UseBasicParsing -ErrorVariable RespErr -Headers @{"Accept"="application/json"}
     }
     }
     catch
     {
     Write-Host
     $RespErr
-    return
-    }
     break
+    }
     $result1.Content | ConvertFrom-Json
     
 
@@ -321,12 +320,12 @@ if ($result1.StatusCode -eq 204)
     {
     if ($global:get_powershell_version -gt 5)
     {
-    $result1 = Invoke-WebRequest -SkipCertificateCheck -SkipHeaderValidation -Uri "https://$idrac_ip$get_uri" -Credential $credential -Method Get -UseBasicParsing -ErrorAction RespErr -Headers @{"Accept"="application/json"}
+    $result1 = Invoke-WebRequest -SkipCertificateCheck -SkipHeaderValidation -Uri "https://$idrac_ip$get_uri" -Credential $credential -Method Get -UseBasicParsing -ErrorVariable RespErr -Headers @{"Accept"="application/json"}
     }
     else
     {
     Ignore-SSLCertificates
-    $result1 = Invoke-WebRequest -Uri "https://$idrac_ip$get_uri" -Credential $credential -Method Get -UseBasicParsing -ErrorAction RespErr -Headers @{"Accept"="application/json"}
+    $result1 = Invoke-WebRequest -Uri "https://$idrac_ip$get_uri" -Credential $credential -Method Get -UseBasicParsing -ErrorVariable RespErr -Headers @{"Accept"="application/json"}
     }
     }
     catch

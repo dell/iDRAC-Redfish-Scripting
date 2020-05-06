@@ -1,6 +1,6 @@
 <#
 _author_ = Texas Roemer <Texas_Roemer@Dell.com>
-_version_ = 3.0
+_version_ = 4.0
 
 Copyright (c) 2017, Dell, Inc.
 
@@ -127,7 +127,7 @@ $uri = "https://$idrac_ip/redfish/v1/Managers/iDRAC.Embedded.1/Accounts/$id"
     {
     Write-Host
     $RespErr
-    break
+    return
     } 
 
 if ($result.StatusCode -eq 200)
@@ -167,7 +167,7 @@ $uri = "https://$idrac_ip/redfish/v1/Managers/iDRAC.Embedded.1/Accounts/$idrac_u
     {
     Write-Host
     $RespErr
-    break
+    return
     } 
 
 if ($result1.StatusCode -eq 200)
@@ -208,7 +208,7 @@ $uri = "https://$idrac_ip/redfish/v1/Managers/iDRAC.Embedded.1/Accounts/$idrac_u
     {
     Write-Host
     $RespErr
-    break
+    return
     } 
 
 if ($result.StatusCode -eq 200)

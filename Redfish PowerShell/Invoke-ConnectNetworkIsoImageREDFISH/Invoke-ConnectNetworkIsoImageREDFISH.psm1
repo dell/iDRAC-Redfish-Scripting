@@ -1,6 +1,6 @@
 <#
 _author_ = Texas Roemer <Texas_Roemer@Dell.com>
-_version_ = 3.0
+_version_ = 4.0
 Copyright (c) 2019, Dell, Inc.
 
 This software is licensed to you under the GNU General Public License,
@@ -149,7 +149,7 @@ catch
 {
 Write-Host
 $RespErr
-break
+return
 } 
 if ($result1.StatusCode -eq 200)
 {
@@ -189,7 +189,7 @@ $JsonBody = @{'ImageName'=$imagename;'IPAddress'=$ipaddress;'ShareType'=$sharety
     {
     Write-Host
     $RespErr
-    break
+    return
     } 
 
         if ($result1.StatusCode -eq 202)
@@ -204,19 +204,19 @@ $JsonBody = @{'ImageName'=$imagename;'IPAddress'=$ipaddress;'ShareType'=$sharety
             {
             if ($global:get_powershell_version -gt 5)
             {
-            $result2 = Invoke-WebRequest -SkipCertificateCheck -SkipHeaderValidation -Uri $uri -Credential $credential -Method Get -UseBasicParsing -ErrorAction RespErr -Headers @{"Accept"="application/json"}
+            $result2 = Invoke-WebRequest -SkipCertificateCheck -SkipHeaderValidation -Uri $uri -Credential $credential -Method Get -UseBasicParsing -ErrorVariable RespErr -Headers @{"Accept"="application/json"}
             }
             else
             {
             Ignore-SSLCertificates
-            $result2 = Invoke-WebRequest -Uri $uri -Credential $credential -Method Get -UseBasicParsing -ErrorAction RespErr -Headers @{"Accept"="application/json"}
+            $result2 = Invoke-WebRequest -Uri $uri -Credential $credential -Method Get -UseBasicParsing -ErrorVariable RespErr -Headers @{"Accept"="application/json"}
             }
             }
             catch
             {
             Write-Host
             $RespErr
-            break
+            return
             }
             $result2 = $result2.Content | ConvertFrom-Json
             if ($result2.TaskState -eq "Exception")
@@ -252,7 +252,7 @@ $JsonBody = @{} | ConvertTo-Json -Compress
     {
     Write-Host
     $RespErr
-    break
+    return
     } 
 if ($result1.StatusCode -eq 200)
 {
@@ -295,7 +295,7 @@ $JsonBody = @{} | ConvertTo-Json -Compress
     {
     Write-Host
     $RespErr
-    break
+    return
     } 
 if ($result1.StatusCode -eq 200)
 {
@@ -321,7 +321,7 @@ $JsonBody = @{} | ConvertTo-Json -Compress
     {
     Write-Host
     $RespErr
-    break
+    return
     } 
 if ($result1.StatusCode -eq 200)
 {
@@ -353,19 +353,19 @@ try
             {
             if ($global:get_powershell_version -gt 5)
             {
-            $result2 = Invoke-WebRequest -SkipCertificateCheck -SkipHeaderValidation -Uri $uri -Credential $credential -Method Get -UseBasicParsing -ErrorAction RespErr -Headers @{"Accept"="application/json"}
+            $result2 = Invoke-WebRequest -SkipCertificateCheck -SkipHeaderValidation -Uri $uri -Credential $credential -Method Get -UseBasicParsing -ErrorVariable RespErr -Headers @{"Accept"="application/json"}
             }
             else
             {
             Ignore-SSLCertificates
-            $result2 = Invoke-WebRequest -Uri $uri -Credential $credential -Method Get -UseBasicParsing -ErrorAction RespErr -Headers @{"Accept"="application/json"}
+            $result2 = Invoke-WebRequest -Uri $uri -Credential $credential -Method Get -UseBasicParsing -ErrorVariable RespErr -Headers @{"Accept"="application/json"}
             }
             }
             catch
             {
             Write-Host
             $RespErr
-            break
+            return
             }
 
 

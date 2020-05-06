@@ -1,6 +1,6 @@
 <#
 _author_ = Texas Roemer <Texas_Roemer@Dell.com>
-_version_ = 9.0
+_version_ = 10.0
 
 Copyright (c) 2017, Dell, Inc.
 
@@ -118,7 +118,7 @@ $user = $idrac_username
 $pass= $idrac_password
 $secpasswd = ConvertTo-SecureString $pass -AsPlainText -Force
 $credential = New-Object System.Management.Automation.PSCredential($user, $secpasswd)
-$ErrorActionPreference = "RespErr"
+$ErrorVariablePreference = "RespErr"
 
 
 # Code to check if system iDRAC version supports update feature
@@ -128,19 +128,19 @@ $uri = "https://$idrac_ip/redfish/v1/UpdateService/FirmwareInventory"
     {
     if ($global:get_powershell_version -gt 5)
     {
-    $result = Invoke-WebRequest -SkipCertificateCheck -SkipHeaderValidation -Uri $uri -Credential $credential -Method Get -UseBasicParsing -ErrorAction RespErr -Headers @{"Accept"="application/json"}
+    $result = Invoke-WebRequest -SkipCertificateCheck -SkipHeaderValidation -Uri $uri -Credential $credential -Method Get -UseBasicParsing -ErrorVariable RespErr -Headers @{"Accept"="application/json"}
     }
     else
     {
     Ignore-SSLCertificates
-    $result = Invoke-WebRequest -Uri $uri -Credential $credential -Method Get -UseBasicParsing -ErrorAction RespErr -Headers @{"Accept"="application/json"}
+    $result = Invoke-WebRequest -Uri $uri -Credential $credential -Method Get -UseBasicParsing -ErrorVariable RespErr -Headers @{"Accept"="application/json"}
     }
     }
     catch
     {
     Write-Host
     $RespErr
-    break
+    return
     }
     
 	    if ($result.StatusCode -ne 200)
@@ -167,19 +167,19 @@ try
     {
     if ($global:get_powershell_version -gt 5)
     {
-    $result = Invoke-WebRequest -SkipCertificateCheck -SkipHeaderValidation -Uri $uri -Credential $credential -Method Get -UseBasicParsing -ErrorAction RespErr -Headers @{"Accept"="application/json"}
+    $result = Invoke-WebRequest -SkipCertificateCheck -SkipHeaderValidation -Uri $uri -Credential $credential -Method Get -UseBasicParsing -ErrorVariable RespErr -Headers @{"Accept"="application/json"}
     }
     else
     {
     Ignore-SSLCertificates
-    $result = Invoke-WebRequest -Uri $uri -Credential $credential -Method Get -UseBasicParsing -ErrorAction RespErr -Headers @{"Accept"="application/json"}
+    $result = Invoke-WebRequest -Uri $uri -Credential $credential -Method Get -UseBasicParsing -ErrorVariable RespErr -Headers @{"Accept"="application/json"}
     }
     }
     catch
     {
     Write-Host
     $RespErr
-    break
+    return
     }
     $get_fw_inventory = $result.Content | ConvertFrom-Json
     $get_fw_inventory.Members
@@ -202,7 +202,7 @@ if ($global:get_powershell_version -gt 5)
     else
     {
     Ignore-SSLCertificates
-    $result = Invoke-WebRequest -Uri $uri -Credential $credential -Method Get -UseBasicParsing -ErrorAction RespErr -Headers @{"Accept"="application/json"}
+    $result = Invoke-WebRequest -Uri $uri -Credential $credential -Method Get -UseBasicParsing -ErrorVariable RespErr -Headers @{"Accept"="application/json"}
     $ETag=$result.Headers.ETag
     }
 }
@@ -210,7 +210,7 @@ catch
 {
 Write-Host
 $RespErr
-break
+return
 }
 
 Write-Host "`n- WARNING, validating firmware image, this may take a few minutes depending of the size of the image.`n"
@@ -259,7 +259,7 @@ catch
 {
 Write-Host
 $RespErr
-break
+return
 } 
 
 if ($result1.StatusCode -eq 201)
@@ -312,7 +312,7 @@ catch
 {
 Write-Host
 $RespErr
-break
+return
 } 
 
 
@@ -364,14 +364,14 @@ if ($global:get_powershell_version -gt 5)
     {
 
     Ignore-SSLCertificates
-    $result = Invoke-WebRequest -Uri $uri -Credential $credential -Method Get -UseBasicParsing -ErrorAction RespErr -Headers @{"Accept"="application/json"}
+    $result = Invoke-WebRequest -Uri $uri -Credential $credential -Method Get -UseBasicParsing -ErrorVariable RespErr -Headers @{"Accept"="application/json"}
     }
 }
 catch
 {
 Write-Host
 $RespErr
-break
+return
 }
 
 
@@ -447,14 +447,14 @@ if ($global:get_powershell_version -gt 5)
     {
  
     Ignore-SSLCertificates
-    $result = Invoke-WebRequest -Uri $uri -Credential $credential -Method Get -UseBasicParsing -ErrorAction RespErr -Headers @{"Accept"="application/json"}
+    $result = Invoke-WebRequest -Uri $uri -Credential $credential -Method Get -UseBasicParsing -ErrorVariable RespErr -Headers @{"Accept"="application/json"}
     }
 }
 catch
 {
 Write-Host
 $RespErr
-break
+return
 }
 
 
@@ -528,7 +528,7 @@ catch
 {
 Write-Host
 $RespErr
-break
+return
 }
 	    if ($result.StatusCode -eq 200)
 	    {
