@@ -1,6 +1,6 @@
 ﻿<#
 _author_ = Texas Roemer <Texas_Roemer@Dell.com>
-_version_ = 1.0
+_version_ = 2.0
 
 Copyright (c) 2020, Dell, Inc.
 
@@ -86,7 +86,7 @@ if(!(test-path $path))
       Start-Sleep 3
       try
       {
-      (new-object net.webclient).DownloadString("https://raw.githubusercontent.com/dell/iDRAC-Redfish-Scripting/master/Redfish%20PowerShell/$raw_dir") | Out-File "C:\Users\$os_username\Documents\WindowsPowerShell\Modules\$raw_dir"
+      (new-object net.webclient).DownloadString("https://raw.githubusercontent.com/dell/iDRAC-Redfish-Scripting/master/Redfish%20PowerShell/$raw_dir") | Out-File "C:\Users\$os_username\Documents\$powershell_version\Modules\$raw_dir"
       }
       catch
       {
