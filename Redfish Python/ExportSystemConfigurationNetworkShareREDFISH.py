@@ -4,7 +4,7 @@
 # 
 #
 # _author_ = Texas Roemer <Texas_Roemer@Dell.com>
-# _version_ = 7.0
+# _version_ = 8.0
 #
 # Copyright (c) 2017, Dell, Inc.
 #
@@ -71,13 +71,13 @@ def export_server_configuration_profile():
     if args["e"]:
         payload["ExportUse"] = args["e"]
     if args["i"]:
-        if args["i"] == "1":
+        if args["i"] == "0":
             payload["IncludeInExport"] = "Default"
-        if args["i"] == "2":
+        if args["i"] == "1":
             payload["IncludeInExport"] = "IncludeReadOnly"
-        if args["i"] == "3":
+        if args["i"] == "2":
             payload["IncludeInExport"] = "IncludePasswordHashValues"
-        if args["i"] == "4":
+        if args["i"] == "3":
             payload["IncludeInExport"] = "IncludeReadOnly,IncludePasswordHashValues"
     if args["ipaddress"]:
         payload["ShareParameters"]["IPAddress"] = args["ipaddress"]
