@@ -2,7 +2,7 @@
 # GetIdracServerSlotInformationREDFISH. Python script using Redfish API with OEM extension to get iDRAC server slot information.
 #
 # _author_ = Texas Roemer <Texas_Roemer@Dell.com>
-# _version_ = 2.0
+# _version_ = 4.0
 #
 # Copyright (c) 2020, Dell, Inc.
 #
@@ -52,7 +52,13 @@ def get_server_slot_info():
     else:
         print("\n- FAIL, GET request failed, status code %s returned. Detailed error results: \n%s" % (response.status_code,data))
         sys.exit()
-    for i in data[u'Members']:
+    if data['Members'] == []:
+        print("- FAIL, no data detected for Members property. Manually execute GET on URI 'https://%s/redfish/v1/Dell/Systems/System.Embedded.1/DellSlotCollection' in browser to check. If no data detected, reboot server and run Collecting Inventory to refresh the configuration database for iDRAC, try GET again." % idrac_ip)
+        sys.exit()
+    else:
+        pass
+              
+    for i in data['Members']:
         for ii in i.items():
             server_slot_entry = ("%s: %s" % (ii[0],ii[1]))
             print(server_slot_entry)
@@ -102,8 +108,12 @@ def get_server_slot_info_xml():
     else:
         print("\n- FAIL, GET request failed, status code %s returned. Detailed error results: \n%s" % (response.status_code,data))
         sys.exit()
-    
-    for i in data[u'Members']:
+    if data['Members'] == []:
+        print("- FAIL, no data detected for Members property. Manually execute GET on URI 'https://%s/redfish/v1/Dell/Systems/System.Embedded.1/DellSlotCollection' in browser to check. if no data detected, reboot server and run Collecting Inventory to refresh the configuration database for iDRAC" % idrac_ip)
+        sys.exit()
+    else:
+        pass
+    for i in data['Members']:
         create_dict = {}
         for ii in i.items():
             if ii[0] == "Id":
@@ -136,7 +146,12 @@ def get_server_slot_info_xml():
             pass
         else:
             break
-        for i in data[u'Members']:
+        if data['Members'] == []:
+            print("- FAIL, no data detected for Members property. Manually execute GET on URI 'https://%s/redfish/v1/Dell/Systems/System.Embedded.1/DellSlotCollection' in browser to check. If no data detected, reboot server and run Collecting Inventory to refresh the configuration database for iDRAC, try GET again." % idrac_ip)
+            sys.exit()
+        else:
+            pass
+        for i in data['Members']:
             create_dict = {}
             for ii in i.items():
                 if ii[0] == "Id":
