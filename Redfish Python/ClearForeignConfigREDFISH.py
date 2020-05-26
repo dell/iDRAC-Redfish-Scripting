@@ -2,7 +2,7 @@
 # ClearForeignConfigREDFISH. Python script using Redfish API with OEM extension to clear a storage controller foreign configuration
 #
 # _author_ = Texas Roemer <Texas_Roemer@Dell.com>
-# _version_ = 5.0
+# _version_ = 6.0
 #
 # Copyright (c) 2019, Dell, Inc.
 #
@@ -202,7 +202,7 @@ def check_foreign_cleared():
         sys.exit()
     else:
         for i in data['Drives']:
-            drive_list.append(i['@odata.id'][53:])
+            drive_list.append(i['@odata.id'].split("/")[-1])
     foreign_disks_detected=[]
     for i in drive_list:
       response = requests.get('https://%s/redfish/v1/Systems/System.Embedded.1/Storage/Drives/%s' % (idrac_ip, i),verify=False,auth=(idrac_username, idrac_password))
