@@ -2,7 +2,7 @@
 # GetSetBiosAttributesREDFISH. Python script using Redfish API DMTF to either get or set BIOS attributes using Redfish SettingApplyTime.
 #
 # _author_ = Texas Roemer <Texas_Roemer@Dell.com>
-# _version_ = 10.0
+# _version_ = 12.0
 #
 # Copyright (c) 2019, Dell, Inc.
 #
@@ -246,6 +246,9 @@ def check_job_status_schedule():
             elif args["r"] == "n":
                 print("- PASS, %s job id successfully scheduled, rebooting the server to apply boot option changes" % job_id)
                 break
+        if "Lifecycle Controller in use" in data['Messages'][0]['Message']:
+            print("- WARNING, Lifecycle Controller in use, this job will start when Lifecycle Controller is available. Check overall jobqueue to make sure no other jobs are running and make sure server is either off or out of POST")
+            sys.exit()
         else:
             print("- WARNING: JobStatus not scheduled, current status is: %s" % data['Messages'][0]['Message'])
 
@@ -332,7 +335,7 @@ def check_job_status_final():
             try:
                 req = requests.get('https://%s/redfish/v1/TaskService/Tasks/%s' % (idrac_ip, job_id), auth=(idrac_username, idrac_password), verify=False)
                 break
-            except RuntimeError as error_message:
+            except requests.ConnectionError as error_message:
                 print("- FAIL, requests command failed to GET job status, detailed error information: \n%s" % error_message)
                 time.sleep(10)
                 print("- WARNING, script will now attempt to get job status again")
@@ -394,6 +397,7 @@ if __name__ == "__main__":
             create_next_boot_config_job()
             check_job_status_schedule()
             reboot_server()
+            time.sleep(20)
             check_job_status_final()
         elif job_type == "l":
             create_next_boot_config_job()
