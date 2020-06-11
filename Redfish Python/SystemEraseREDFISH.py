@@ -2,7 +2,7 @@
 # SystemEraseREDFISH. Python script using Redfish API with OEM extension to perform iDRAC System Erase feature.
 #
 # _author_ = Texas Roemer <Texas_Roemer@Dell.com>
-# _version_ = 1.0
+# _version_ = 2.0
 #
 # Copyright (c) 2020, Dell, Inc.
 #
@@ -52,7 +52,7 @@ def check_supported_idrac_version():
         else:
             pass
     if supported == "no":
-        print("\n- WARNING, iDRAC version installed does not support this feature using Redfish API")
+        print("\n- WARNING, iDRAC version installed does not support this feature using Redfish API or incorrect iDRAC user credentials passed in")
         sys.exit()
     else:
         pass
@@ -139,24 +139,38 @@ def loop_job_status():
     data = req.json()
     print("- WARNING, JobStatus not completed, current status: \"%s\", percent complete: \"%s\"" % (data['Message'],data['PercentComplete']))
     start_job_status = data['Message']
+    retry_count = 1
     while True:
         try:
             req = requests.get('https://%s/redfish/v1/Managers/iDRAC.Embedded.1/Jobs/%s' % (idrac_ip, job_id), auth=(idrac_username, idrac_password), verify=False)
         except:
-            print("- WARNING, lost iDRAC network connection. Check the overall job queue for the job ID status")
-            sys.exit()
+            if retry_count == 10:
+                print("- WARNING, retry count of 10 has been reached to communicate with iDRAC, script will exit")
+                sys.exit()
+            else:
+                print("- WARNING, lost iDRAC network connection, retry GET request after 10 second sleep delay")
+                retry_count+=1
+                time.sleep(15)
+                continue
+            
         current_time=(datetime.now()-start_time)
         statusCode = req.status_code
         if statusCode == 200:
             current_job_status = data['Message']
         else:
             print("\n- FAIL, Command failed to check job status, return code is %s" % statusCode)
-            try:
-                print("Extended Info Message: {0}".format(req.json()))
-                sys.exit()
-            except:
-                print("- WARNING, lost iDRAC network connection. Check the overall job queue for the job ID status")
-                sys.exit()
+##            try:
+##                print("Extended Info Message: {0}".format(req.json()))
+##                sys.exit()
+##            except:
+##                if retry_count = 10:
+##                    print("- WARNING, retry count of 10 has been reached to communicate with iDRAC, script will exit")
+##                    sys.exit()
+##                else:
+##                    print("- WARNING, lost iDRAC network connection, retry GET request after 10 second sleep delay")
+##                    retry_count+=1
+##                    time.sleep(15)
+##                    continue
         data = req.json()
         if str(current_time)[0:7] >= "2:00:00":
             print("\n- FAIL: Timeout of 2 hours has been hit, script stopped\n")
@@ -164,7 +178,7 @@ def loop_job_status():
         elif data['JobState'] == "Failed" or "Fail" in data['Message'] or "Unable" in data['Message'] or "Invalid" in data['Message'] or "fail" in data['Message'] or "Cannot" in data['Message'] or "cannot" in data['Message']:
             print("- FAIL: job ID %s failed, failed message is: %s" % (job_id, data['Message']))
             sys.exit()
-        elif data['Message'] == "Job completed successfully.":
+        elif data['Message'] == "Job completed successfully." or data['PercentComplete'] == 100:
             print("\n--- PASS, Final Detailed Job Status Results ---\n")
             for i in data.items():
                 if "odata" in i[0] or "MessageArgs" in i[0] or "TargetSettingsURI" in i[0]:
