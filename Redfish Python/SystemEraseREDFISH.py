@@ -2,7 +2,7 @@
 # SystemEraseREDFISH. Python script using Redfish API with OEM extension to perform iDRAC System Erase feature.
 #
 # _author_ = Texas Roemer <Texas_Roemer@Dell.com>
-# _version_ = 2.0
+# _version_ = 3.0
 #
 # Copyright (c) 2020, Dell, Inc.
 #
@@ -70,13 +70,13 @@ def get_components():
         if i == "BIOS":
             print("BIOS: \"Reset BIOS to default configuration settings\"")
         elif i == "DIAG":
-            print("DIAG: \"Delete only DIAG fimrware image stored on iDRAC\"")
+            print("DIAG: \"Delete only DIAG firmware image stored on iDRAC\"")
         elif i == "DrvPack":
-            print("DrvPack: \"Delete only Driver Pack fimrware image stored on iDRAC\"")
+            print("DrvPack: \"Delete only Driver Pack firmware image stored on iDRAC\"")
         elif i == "IDRAC":
             print("IDRAC: \"Reset iDRAC to default settings\"")
         elif i == "LCData":
-            print("LCData: \"Delete Lifecycle Controller data(clears: Lifecycle logs, LC inventory, any rollback fimrware packages stored on iDRAC)\"")
+            print("LCData: \"Delete Lifecycle Controller data(clears: Lifecycle logs, LC inventory, any rollback firmware packages stored on iDRAC)\"")
         elif i == "NonVolatileMemory":
             print("NonVolatileMemory: \"Erase NVDIMM devices\"")
         elif i == "OverwritePD":
@@ -90,7 +90,7 @@ def get_components():
         elif i == "vFlash":
             print("vFlash: \"Erase iDRAC vFlash card\"")
         elif i == "AllApps":
-            print("AllApps: \"Delete DIAG/Driver Pack firmwware images and SupportAssist related non-volatile storage\"")
+            print("AllApps: \"Delete DIAG/Driver Pack firmware images and SupportAssist related non-volatile storage\"")
         else:
             print(i)
 
@@ -159,18 +159,6 @@ def loop_job_status():
             current_job_status = data['Message']
         else:
             print("\n- FAIL, Command failed to check job status, return code is %s" % statusCode)
-##            try:
-##                print("Extended Info Message: {0}".format(req.json()))
-##                sys.exit()
-##            except:
-##                if retry_count = 10:
-##                    print("- WARNING, retry count of 10 has been reached to communicate with iDRAC, script will exit")
-##                    sys.exit()
-##                else:
-##                    print("- WARNING, lost iDRAC network connection, retry GET request after 10 second sleep delay")
-##                    retry_count+=1
-##                    time.sleep(15)
-##                    continue
         data = req.json()
         if str(current_time)[0:7] >= "2:00:00":
             print("\n- FAIL: Timeout of 2 hours has been hit, script stopped\n")
