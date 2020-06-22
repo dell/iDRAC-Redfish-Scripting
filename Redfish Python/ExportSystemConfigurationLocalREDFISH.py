@@ -4,7 +4,7 @@
 # 
 #
 # _author_ = Texas Roemer <Texas_Roemer@Dell.com>
-# _version_ = 5.0
+# _version_ = 6.0
 #
 # Copyright (c) 2017, Dell, Inc.
 #
@@ -22,21 +22,29 @@ from datetime import datetime
 
 warnings.filterwarnings("ignore")
 
-parser=argparse.ArgumentParser(description="Python script using Redfish API with OEM extension to export the host server configuration profile locally.")
+parser=argparse.ArgumentParser(description="Python script using Redfish API with OEM extension to export the host server configuration profile locally in either XML or JSON format.")
 parser.add_argument('-ip',help='iDRAC IP address', required=True)
 parser.add_argument('-u', help='iDRAC username', required=True)
 parser.add_argument('-p', help='iDRAC password', required=True)
-parser.add_argument('-t', help='Pass in Target value to get component attributes. You can pass in \"ALL" to get all component attributes or pass in a specific component to get only those attributes. Supported values are: ALL, System, BIOS, IDRAC, NIC, FC, LifecycleController, RAID.', required=True)
+parser.add_argument('script_examples',action="store_true",help='ExportSystemConfigurationLocalREDFISH.py -ip 192.168.0.120 -u root -p calvin -t ALL, this example will export all components locally in XML format. ExportSystemConfigurationLocalREDFISH.py -ip 192.168.0.120 -u root -p calvin -t BIOS -f JSON, this example will export only BIOS attributes in JSON format.')
+parser.add_argument('-t', help='Pass in Target value to get component attributes. You can pass in \"ALL" to get all component attributes or pass in a specific component to get only those attributes. Supported values are: ALL, System, BIOS, IDRAC, NIC, FC, LifecycleController, RAID, EventFilters.', required=True)
 parser.add_argument('-e', help='Pass in ExportUse value. Supported values are Default, Clone and Replace. If you don\'t use this parameter, default setting is Default or Normal export.', required=False)
 parser.add_argument('-i', help='Pass in IncludeInExport value. Supported values are 1 for \"Default\", 2 for \"IncludeReadOnly\", 3 for \"IncludePasswordHashValues\" or 4 for \"IncludeReadOnly,IncludePasswordHashValues\". If you don\'t use this parameter, default setting is Default for IncludeInExport.', required=False)
+parser.add_argument('-f', help='Pass in Export format type, either \"XML\" or \"JSON\". Note, If you don\'t pass in this argument, default setting is XML', required=False)
 args=vars(parser.parse_args())
 
 idrac_ip=args["ip"]
 idrac_username=args["u"]
 idrac_password=args["p"]
 
+
+if args["f"] == None:
+    args["f"] = "XML"
+else:
+    pass
+
 url = 'https://%s/redfish/v1/Managers/iDRAC.Embedded.1/Actions/Oem/EID_674_Manager.ExportSystemConfiguration' % idrac_ip
-payload = {"ExportFormat":"XML","ShareParameters":{"Target":args["t"]}}
+payload = {"ExportFormat":args["f"].upper(),"ShareParameters":{"Target":args["t"]}}
 if args["e"]:
     payload["ExportUse"] = args["e"]
 if args["i"]:
@@ -75,53 +83,75 @@ while True:
     current_time=(datetime.now()-start_time)
     req = requests.get('https://%s/redfish/v1/TaskService/Tasks/%s' % (idrac_ip, job_id), auth=(idrac_username, idrac_password), verify=False)
     d=req.__dict__
-    if "<SystemConfiguration Model" in str(d):
-        print("\n- Export locally job ID %s successfully completed. Attributes exported:\n" % job_id)
-        zz=re.search("<SystemConfiguration.+</SystemConfiguration>",str(d)).group()
-        try:
-            security_string = re.search('<Attribute Name="GUI.1#SecurityPolicyMessage">.+?>', zz).group()
-        except:
+    if args["f"] == "XML":
+        if "<SystemConfiguration Model" in str(d):
+            print("\n- Export locally job ID %s successfully completed. Attributes exported:\n" % job_id)
+            zz=re.search("<SystemConfiguration.+</SystemConfiguration>",str(d)).group()
+            try:
+                security_string = re.search('<Attribute Name="GUI.1#SecurityPolicyMessage">.+?>', zz).group()
+            except:
+                pass
+        
+            #Below code is needed to parse the string to set up in pretty XML format
+            q=zz.replace("\\n"," ")
+            q=q.replace("<!--  ","<!--")
+            q=q.replace(" -->","-->")
+            del_attribute='<Attribute Name="SerialRedirection.1#QuitKey">^\\\\</Attribute>'
+            try:
+                q=q.replace(del_attribute,"")
+            except:
+                pass
+            try:
+                q=q.replace(security_string,"")
+            except:
+                pass
+            l=q.split("> ")
+            export_xml=[]
+            for i in l:
+                x=i+">"
+                export_xml.append(x)
+            export_xml[-1]="</SystemConfiguration>"
+            d=datetime.now()
+            filename="%s-%s-%s_%s%s%s_export.xml"% (d.year,d.month,d.day,d.hour,d.minute,d.second)
+            f=open(filename,"w")
+            for i in export_xml:
+                f.writelines("%s \n" % i)
+            f.close()
+            for i in export_xml:
+                print(i)
+
+            print("\n")
+            req = requests.get('https://%s/redfish/v1/Managers/iDRAC.Embedded.1/Jobs/%s' % (idrac_ip, job_id), auth=(idrac_username, idrac_password), verify=False)
+            
+            data = req.json()
+            print("\n- PASS, final detailed job status results for job ID %s -\n" % job_id)
+            for i in data.items():
+                print("%s: %s" % (i[0],i[1]))
+            print("\n- Exported attributes also saved in file: %s" % filename)
+            sys.exit()
+        else:
+            pass
+    elif args["f"] == "JSON":
+        if "SystemConfiguration" in str(d):
+            data = req.json()
+            json_format = json.dumps(data)
+            get_date_info=datetime.now()
+            filename="%s-%s-%s_%s%s%s_export.json"% (get_date_info.year,get_date_info.month,get_date_info.day,get_date_info.hour,get_date_info.minute,get_date_info.second)
+            f=open(filename,"w")
+            f.write(json.dumps(json.loads(json_format), indent=4))
+            #f.write(json.dumps(json.loads(json_format), indent=4, sort_keys=True))
+            f.close()
+            req = requests.get('https://%s/redfish/v1/Managers/iDRAC.Embedded.1/Jobs/%s' % (idrac_ip, job_id), auth=(idrac_username, idrac_password), verify=False)
+            
+            data = req.json()
+            print("\n- PASS, final detailed job status results for job ID %s -\n" % job_id)
+            for i in data.items():
+                print("%s: %s" % (i[0],i[1]))
+            print("\n- Exported attributes saved to file: %s" % filename)
+            sys.exit()
+        else:
             pass
     
-        #Below code is needed to parse the string to set up in pretty XML format
-        q=zz.replace("\\n"," ")
-        q=q.replace("<!--  ","<!--")
-        q=q.replace(" -->","-->")
-        del_attribute='<Attribute Name="SerialRedirection.1#QuitKey">^\\\\</Attribute>'
-        try:
-            q=q.replace(del_attribute,"")
-        except:
-            pass
-        try:
-            q=q.replace(security_string,"")
-        except:
-            pass
-        l=q.split("> ")
-        export_xml=[]
-        for i in l:
-            x=i+">"
-            export_xml.append(x)
-        export_xml[-1]="</SystemConfiguration>"
-        d=datetime.now()
-        filename="%s-%s-%s_%s%s%s_export.xml"% (d.year,d.month,d.day,d.hour,d.minute,d.second)
-        f=open(filename,"w")
-        for i in export_xml:
-            f.writelines("%s \n" % i)
-        f.close()
-        for i in export_xml:
-            print(i)
-
-        print("\n")
-        req = requests.get('https://%s/redfish/v1/Managers/iDRAC.Embedded.1/Jobs/%s' % (idrac_ip, job_id), auth=(idrac_username, idrac_password), verify=False)
-        
-        data = req.json()
-        print("- WARNING, final detailed job status results for job ID %s -\n" % job_id)
-        for i in data.items():
-            print("%s: %s" % (i[0],i[1]))
-        print("\n Exported attributes also saved in file: %s" % filename)
-        sys.exit()
-    else:
-        pass
         
     statusCode = req.status_code
     data = req.json()
@@ -145,7 +175,6 @@ while True:
 
     else:
         print("- WARNING, JobStatus not completed, current status: \"%s\", percent complete: \"%s\"" % (data[u'Oem'][u'Dell'][u'Message'],data[u'Oem'][u'Dell'][u'PercentComplete']))
-        #print(data)
         time.sleep(1)
         continue
 
