@@ -4,7 +4,7 @@
 # 
 #
 # _author_ = Texas Roemer <Texas_Roemer@Dell.com>
-# _version_ = 1.0
+# _version_ = 2.0
 #
 # Copyright (c) 2020, Dell, Inc.
 #
@@ -86,6 +86,7 @@ def delete_jobID():
         sys.exit()
     if args["cr"]:
         print("\n- WARNING, Lifecycle Controller services restarted. Script will loop checking the status of Lifecycle Controller until Ready state")
+        time.sleep(60)
         while True:
             url = 'https://%s/redfish/v1/Dell/Managers/iDRAC.Embedded.1/DellLCService/Actions/DellLCService.GetRemoteServicesAPIStatus' % (idrac_ip)
             method = "GetRemoteServicesAPIStatus"
