@@ -2,7 +2,7 @@
 # SetNetworkDevicePropertiesREDFISH. Python script using Redfish API to either get network devices/ports or set network properties.
 #
 # _author_ = Texas Roemer <Texas_Roemer@Dell.com>
-# _version_ = 4.0
+# _version_ = 6.0
 #
 # Copyright (c) 2018, Dell, Inc.
 #
@@ -280,7 +280,7 @@ def create_schedule_config_job():
         else:
             print("%s: %s" % (i[0],i[1]))
                     
-    print("\n\n- PASS, %s maintenance window config jid successfully created.\n\nJob will go to scheduled state once job start time has elapsed. You will need to schedule a seperate server reboot during the maintenance windows for the config job to execute.\n" % (job_id))
+    print("\n\n- PASS, %s maintenance window config jid successfully created.\n\nJob will go to scheduled state once job start time has elapsed. You will need to schedule a seperate server reboot during the maintenance windows for the config job to execute. NOTE: If using iDRAC version 4.20 or newer, a reboot job will now get created and scheduled at the same time of the configuration job. Server will automatically reboot once scheduled time has been hit.\n" % (job_id))
     
 start_time=datetime.now()
 
