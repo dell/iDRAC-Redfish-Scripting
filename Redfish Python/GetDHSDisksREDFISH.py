@@ -2,7 +2,7 @@
 # GetDHSDisksREDFISH. Python script using Redfish API with OEM extension to get available disks for dedicated hot spare(DHS) assignment
 #
 # _author_ = Texas Roemer <Texas_Roemer@Dell.com>
-# _version_ = 1.0
+# _version_ = 2.0
 #
 # Copyright (c) 2019, Dell, Inc.
 #
@@ -57,8 +57,8 @@ def get_storage_controllers():
     print("\n- Server controller(s) detected -\n")
     controller_list=[]
     for i in data[u'Members']:
-        controller_list.append(i[u'@odata.id'][46:])
-        print(i[u'@odata.id'][46:])
+        controller_list.append(i[u'@odata.id'].split("/")[-1])
+        print(i[u'@odata.id'].split("/")[-1])
     if args["c"] == "yy":
         for i in controller_list:
             response = requests.get('https://%s/redfish/v1/Systems/System.Embedded.1/Storage/%s' % (idrac_ip, i),verify=False,auth=(idrac_username, idrac_password))
@@ -79,7 +79,7 @@ def get_virtual_disks():
         sys.exit()
     else:
         for i in data[u'Members']:
-            vd_list.append(i[u'@odata.id'][54:])
+            vd_list.append(i[u'@odata.id'].split("/")[-1])
     print("\n- Volume(s) detected for %s controller -" % args["v"])
     print("\n")
     for ii in vd_list:
@@ -105,15 +105,14 @@ def get_virtual_disk_details():
     else:
         print("\n- Volume(s) detected for %s controller -\n" % args["vv"])
         for i in data[u'Members']:
-            vd_list.append(i[u'@odata.id'][54:])
-            print(i[u'@odata.id'][54:])
+            vd_list.append(i[u'@odata.id'].split("/")[-1])
+            print(i[u'@odata.id'].split("/")[-1])
     for ii in vd_list:
         response = requests.get('https://%s/redfish/v1/Systems/System.Embedded.1/Storage/Volumes/%s' % (idrac_ip, ii),verify=False,auth=(idrac_username, idrac_password))
         data = response.json()
         print("\n - Detailed Volume information for %s -\n" % ii)
         for i in data.items():
             print("%s: %s" % (i[0],i[1]))
-                
     sys.exit()
 
 
@@ -122,18 +121,14 @@ def get_DHS_disks():
     payload={"TargetFQDD":args["t"]}
 
     headers = {'content-type': 'application/json'}
-    #payload={"TargetFQDD":args["a"],"DiskType":"IncludeAllTypes","Diskprotocol":"IncludeAllProtocols","RaidLevel":"RAID1"}
-    #payload={"TargetFQDD":args["a"],"VirtualDiskArray":args["V"]}
-    #print payload
-    #sys.exit()
     response = requests.post(url, data=json.dumps(payload), headers=headers, verify=False,auth=(idrac_username,idrac_password))
     data = response.json()
     check_for_drives_detected=str(data)
-    if "PDArray" not in check_for_drives_detected:
+    if data[u'PDArray'] == []:
         print("\n- WARNING, either no drives available to assign as DHS, virtual disk RAID level does not support assign DHS or invalid virtual disk FQDD passed in\n")
         sys.exit()
     if response.status_code == 200:
-        print("\n- PASS: POST command passed to get DHS disks for virtual disk \"%s\"" % args["t"])
+        pass
     else:
         print("\n- FAIL, POST command failed to get DHS disks for virtual disk \"%s\"" % args["t"])
         data = response.json()
