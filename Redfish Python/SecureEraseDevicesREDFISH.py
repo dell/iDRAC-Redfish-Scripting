@@ -2,7 +2,7 @@
 # SecureEraseDevicesREDFISH. Python script using Redfish API to either get storage controllers/supported secure erase devices and erase supported devices.
 #
 # _author_ = Texas Roemer <Texas_Roemer@Dell.com>
-# _version_ = 9.0
+# _version_ = 12.0
 #
 # Copyright (c) 2018, Dell, Inc.
 #
@@ -28,18 +28,14 @@ parser.add_argument('-p', help='iDRAC password', required=True)
 parser.add_argument('script_examples',action="store_true",help='SecureEraseDevicesREDFISH.py -ip 192.168.0.120 -u root -p calvin -s Disk.Bay.1:Enclosure.Internal.0-1:RAID.Integrated.1-1, this example will secure erase disk 1 for RAID.Integrated.1-1 controller.')
 parser.add_argument('-c', help='Get server storage controllers, pass in \"y\". To get detailed information for the storage controllers, pass in \"yy\"', required=False)
 parser.add_argument('-d', help='Get controller drives, pass in storage controller FQDD, Example "\RAID.Integrated.1-1\"', required=False)
-parser.add_argument('-sd', help='Get controller SED drives or PCIe SSD devices only, pass in controller FQDD, Examples "\RAID.Integrated.1-1\", \"PCIeExtender.Slot.7\"', required=False)
+parser.add_argument('-sd', help='Get controller SED/ISE drives or PCIe SSD devices only, pass in controller FQDD, Examples "\RAID.Integrated.1-1\", \"PCIeExtender.Slot.7\"', required=False)
 parser.add_argument('-s', help='Pass in device FQDD for secure erase operation. Supported devices are ISE, SED drives or PCIe SSD devices(drives and cards). NOTE: If using iDRAC 7/8, only PCIeSSD devices are supported for SecureErase', required=False)
 args=vars(parser.parse_args())
 
 idrac_ip=args["ip"]
 idrac_username=args["u"]
 idrac_password=args["p"]
-if args["d"]:
-    controller=args["d"]
-elif args["s"]:
-    secure_erase_device=args["s"]
-    controller = args["s"].split(":")[-1]
+    
 
     
 def get_iDRAC_version():
@@ -70,17 +66,17 @@ def get_storage_controllers():
             
 
 def get_controller_disks():
-    response = requests.get('https://%s/redfish/v1/Systems/System.Embedded.1/Storage/%s' % (idrac_ip, controller),verify=False,auth=(idrac_username, idrac_password))
+    response = requests.get('https://%s/redfish/v1/Systems/System.Embedded.1/Storage/%s' % (idrac_ip, args["d"]),verify=False,auth=(idrac_username, idrac_password))
     data = response.json()
     drive_list=[]
     if response.status_code != 200:
         print("\n- FAIL, either controller not found on server or typo in controller FQDD name")
         sys.exit()
     if data['Drives'] == []:
-        print("\n- WARNING, no drives detected for %s" % controller)
+        print("\n- WARNING, no drives detected for %s" % args["d"])
         sys.exit()
     else:
-        print("\n- Drive(s) detected for %s -\n" % controller)
+        print("\n- Drive(s) detected for %s -\n" % args["d"])
         for i in data['Drives']:
             drive = i['@odata.id'].split("/")[-1]
             print(drive)
@@ -157,14 +153,27 @@ def get_secure_erase_devices_iDRAC8():
 def secure_erase():
     global job_id
     global job_type
+    secure_erase_device=args["s"]
+    controller = args["s"].split(":")[-1]
+    if "Enclosure.Internal" in controller:
+            controller = "CPU.1"
+    else:
+        pass
     if server_model_number >= 14:
         url = 'https://%s/redfish/v1/Systems/System.Embedded.1/Storage/%s/Drives/%s/Actions/Drive.SecureErase' % (idrac_ip, controller, secure_erase_device)
     else:
         url = 'https://%s/redfish/v1/Systems/System.Embedded.1/Storage/Drives/%s/Actions/Drive.SecureErase' % (idrac_ip, secure_erase_device)    
     headers = {'content-type': 'application/json'}
     payload = {}
-    response = requests.post(url, data=json.dumps(payload), headers=headers, verify=False,auth=(idrac_username,idrac_password))
-    #response = requests.post(url, headers=headers, verify=False,auth=(idrac_username,idrac_password))
+    try:
+        response = requests.post(url, data=json.dumps(payload), headers=headers, verify=False,auth=(idrac_username,idrac_password))
+    except:
+        if "Enclosure.Internal.0-1" in controller:
+            controller = "CPU.2"
+            url = 'https://%s/redfish/v1/Systems/System.Embedded.1/Storage/%s/Drives/%s/Actions/Drive.SecureErase' % (idrac_ip, controller, secure_erase_device)
+            response = requests.post(url, data=json.dumps(payload), headers=headers, verify=False,auth=(idrac_username,idrac_password))
+        else:
+            pass
     if response.status_code == 202:
         print("\n- PASS: POST command passed to secure erase device \"%s\", status code 202 returned" % secure_erase_device)
     else:
@@ -172,9 +181,9 @@ def secure_erase():
         data = response.json()
         print("\n- POST command failure is:\n %s" % data)
         sys.exit()
-    x=response.headers["Location"]
+    location_search = response.headers["Location"]
     try:
-        job_id=re.search("JID.+",x).group()
+        job_id = re.search("JID.+", location_search).group()
     except:
         print("\n- FAIL, unable to create job ID")
         sys.exit()
