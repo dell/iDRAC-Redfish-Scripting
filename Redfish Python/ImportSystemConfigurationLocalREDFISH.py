@@ -6,7 +6,7 @@
 # NOTE: Before executing the script, modify the payload dictionary with supported parameters. For payload dictionary supported parameters, refer to schema "https://'iDRAC IP'/redfish/v1/Managers/iDRAC.Embedded.1/"
 #
 # _author_ = Texas Roemer <Texas_Roemer@Dell.com>
-# _version_ = 9.0
+# _version_ = 11.0
 #
 # Copyright (c) 2017, Dell, Inc.
 #
@@ -28,11 +28,19 @@ parser=argparse.ArgumentParser(description="Python script using Redfish API to i
 parser.add_argument('-ip',help='iDRAC IP address', required=True)
 parser.add_argument('-u', help='iDRAC username', required=True)
 parser.add_argument('-p', help='iDRAC password', required=True)
+parser.add_argument('-np', help='Pass in new iDRAC user password that gets set during SCP import. This will be required to continue to query the job status.', required=False)
 args=vars(parser.parse_args())
 
 idrac_ip=args["ip"]
 idrac_username=args["u"]
 idrac_password=args["p"]
+
+response = requests.get('https://%s/redfish/v1/Managers/iDRAC.Embedded.1' % (idrac_ip), auth=(idrac_username, idrac_password), verify=False)
+if response.status_code == 401:
+    print("\n- WARNING, status code 401 detected, check iDRAC username / password credentials")
+    sys.exit()
+else:
+    pass
     
 url = 'https://%s/redfish/v1/Managers/iDRAC.Embedded.1/Actions/Oem/EID_674_Manager.ImportSystemConfiguration' % idrac_ip
 
@@ -40,7 +48,9 @@ url = 'https://%s/redfish/v1/Managers/iDRAC.Embedded.1/Actions/Oem/EID_674_Manag
  
 
 
-payload = {"ShareParameters":{"Target":"ALL"},"ImportBuffer":"<SystemConfiguration><Component FQDD=\"System.Embedded.1\"><Attribute Name=\"ServerTopology.1#DataCenterName\">Dell</Attribute><Attribute Name=\"ServerTopology.1#AisleName\">12</Attribute></Component></SystemConfiguration>"}
+payload = {"ShareParameters":{"Target":"ALL"},"ImportBuffer":"<SystemConfiguration><Component FQDD=\"iDRAC.Embedded.1\"><Attribute Name=\"Users.3#UserName\">user3</Attribute><Attribute Name=\"Users.3#Password\">P@ssw0rd</Attribute><Attribute Name=\"Users.3#Privilege\">511</Attribute><Attribute Name=\"Users.3#IpmiLanPrivilege\">Administrator</Attribute><Attribute Name=\"Users.3#IpmiSerialPrivilege\">Administrator</Attribute><Attribute Name=\"Users.3#Enable\">Enabled</Attribute><Attribute Name=\"Users.3#SolEnable\">Enabled</Attribute><Attribute Name=\"Users.3#ProtocolEnable\">Enabled</Attribute><Attribute Name=\"Users.3#AuthenticationProtocol\">MD5</Attribute><Attribute Name=\"Users.3#PrivacyProtocol\">DES</Attribute></Component></SystemConfiguration>"}
+
+
 
 
 
@@ -78,17 +88,27 @@ while True:
         try:
             req = requests.get('https://%s/redfish/v1/TaskService/Tasks/%s' % (idrac_ip, job_id), auth=(idrac_username, idrac_password), verify=False)
             break
-        except RuntimeError as error_message:
+        except requests.ConnectionError as error_message:
             print("- FAIL, requests command failed to GET job status, detailed error information: \n%s" % error_message)
-            error_message = str(error_message)
-            if "Failed to establish a new connection" in error_message:
-                print("- WARNING, failed to establish connection, executing command again")
-                time.sleep(10)
-                count+=1
-                continue
-            else:
-                sys.exit()
+            time.sleep(10)
+            print("- WARNING, script will now attempt to get job status again")
+            count+=1
+            continue
     statusCode = req.status_code
+    if statusCode == 401 and args["np"]:
+        print("- WARNING, status code 401 and argument -np detected. Script will now query job status using iDRAC user \"%s\" new password set by SCP import" % idrac_username)
+        idrac_password = args["np"]
+        req = requests.get('https://%s/redfish/v1/TaskService/Tasks/%s' % (idrac_ip, job_id), auth=(idrac_username, idrac_password), verify=False)
+        if req.status_code == 401:
+            print("- WARNING, new password passed in for argument -np still failed with status code 401 for idrac user \"%s\", unable to check job status" % idrac_username)
+            sys.exit()
+        else:
+            continue
+    elif statusCode == 401:
+        print("- WARNING, status code 401 still detected for iDRAC user \"%s\". Check SCP file to see if iDRAC user \"%s\" password was changed for import" % (idrac_username, idrac_username))
+        sys.exit()
+    else:
+        pass
     data = req.json()
     current_time=(datetime.now()-start_time)
     if statusCode == 202 or statusCode == 200:
@@ -116,6 +136,13 @@ while True:
                 
             print("- %s completed in: %s" % (job_id, str(current_time)[0:7]))
         sys.exit()
+            
+    elif "No reboot Server" in data['Oem']['Dell']['Message']:
+        print("- PASS, job ID %s successfully marked completed. NoReboot value detected and config changes will not be applied until next manual server reboot\n" % job_id)
+        print("\n- Detailed job results for job ID %s\n" % job_id)
+        for i in data['Oem']['Dell'].items():
+            print("%s: %s" % (i[0], i[1]))
+        sys.exit()
     elif "Successfully imported" in data['Oem']['Dell']['Message'] or "completed with errors" in data['Oem']['Dell']['Message'] or "Successfully imported" in data['Oem']['Dell']['Message']:
         print("- PASS, job ID %s successfully marked completed\n" % job_id)
         print("- Detailed configuration changes and job results for \"%s\"\n" % job_id)
@@ -132,9 +159,10 @@ while True:
             print("- FAIL, unable to get configuration results for job ID, returning only final job results\n")
             for i in data['Oem']['Dell'].items():
                 print("%s: %s" % (i[0], i[1]))
-                
-            print("- %s completed in: %s" % (job_id, str(current_time)[0:7]))
+            
+        print("- %s completed in: %s" % (job_id, str(current_time)[0:7]))
         sys.exit()
+            
     elif "No changes" in data['Oem']['Dell']['Message'] or "No configuration changes" in data['Oem']['Dell']['Message']:
         print("\n- PASS, job ID %s marked completed\n" % job_id)
         print("- Detailed job results for job ID %s\n" % job_id)
@@ -143,6 +171,6 @@ while True:
         sys.exit()
     else:
         print("- WARNING, JobStatus not completed, current status: \"%s\", percent complete: \"%s\"" % (data['Oem']['Dell']['Message'],data['Oem']['Dell']['PercentComplete']))
-        time.sleep(1)
+        time.sleep(3)
         continue
     

@@ -4,7 +4,7 @@
 # 
 #
 # _author_ = Texas Roemer <Texas_Roemer@Dell.com>
-# _version_ = 11.0
+# _version_ = 12.0
 #
 # Copyright (c) 2017, Dell, Inc.
 #
@@ -26,6 +26,7 @@ parser=argparse.ArgumentParser(description="Python script using Redfish API to i
 parser.add_argument('-ip',help='iDRAC IP address', required=True)
 parser.add_argument('-u', help='iDRAC username', required=True)
 parser.add_argument('-p', help='iDRAC password', required=True)
+parser.add_argument('-np', help='Pass in new iDRAC user password that gets set during SCP import. This will be required to continue to query the job status.', required=False)
 parser.add_argument('script_examples',action="store_true",help='ImportSystemConfigurationNetworkShareREDFISH.py -ip 192.168.0.120 -u root -p calvin -t ALL --ipaddress 192.168.0.130 --sharetype NFS --sharename /nfs --filename SCP_export_R740, this example is going to import SCP file from NFS share and apply all attribute changes for all components. \nImportSystemConfigurationNetworkShareREDFISH.py -ip 192.168.0.120 -u root -p calvin -t BIOS --ipaddress 192.168.0.140 --sharetype CIFS --sharename cifs_share_vm --filename R740_scp_file -s Forced --username administrator --password password, this example is going to only apply BIOS changes from the SCP file on the CIFS share along with forcing a server power reboot.')
 parser.add_argument('-st', help='Pass in \"y\" to get supported share types for your iDRAC firmware version', required=False)
 parser.add_argument('--ipaddress', help='Pass in the IP address of the network share', required=False)
@@ -46,6 +47,14 @@ args=vars(parser.parse_args())
 idrac_ip=args["ip"]
 idrac_username=args["u"]
 idrac_password=args["p"]
+
+def test_idrac_credentials():
+    response = requests.get('https://%s/redfish/v1/Managers/iDRAC.Embedded.1' % (idrac_ip), auth=(idrac_username, idrac_password), verify=False)
+    if response.status_code == 401:
+        print("\n- WARNING, status code 401 detected, check iDRAC username / password credentials")
+        sys.exit()
+    else:
+        pass
 
 def get_sharetypes():
     req = requests.get('https://%s/redfish/v1/Managers/iDRAC.Embedded.1' % (idrac_ip), auth=(idrac_username, idrac_password), verify=False)
@@ -96,7 +105,6 @@ def import_server_configuration_profile():
                     print("%s: %s" % (ii[0],ii[1]))
         else:
             print("%s: %s" % (i[0],i[1]))
-    
     headers = {'content-type': 'application/json'}
     response = requests.post(url, data=json.dumps(payload), headers=headers, verify=False, auth=(idrac_username,idrac_password))
     post_output_convert_to_string = str(response.__dict__)
@@ -122,30 +130,76 @@ def import_server_configuration_profile():
 
     
 def loop_job_status():
+    idrac_ip=args["ip"]
+    idrac_username=args["u"]
+    idrac_password=args["p"]
     start_time=datetime.now()
-    count = 0
     while True:
-        try:
-            req = requests.get('https://%s/redfish/v1/TaskService/Tasks/%s' % (idrac_ip, job_id), auth=(idrac_username, idrac_password), verify=False)
-        except:
-            time.sleep(20)
-            req = requests.get('https://%s/redfish/v1/TaskService/Tasks/%s' % (idrac_ip, job_id), auth=(idrac_username, idrac_password), verify=False)
+        count = 1
+        while True:
+            if count == 5:
+                print("- FAIL, 5 attempts at getting job status failed, script will exit")
+                sys.exit()
+            try:
+                req = requests.get('https://%s/redfish/v1/TaskService/Tasks/%s' % (idrac_ip, job_id), auth=(idrac_username, idrac_password), verify=False)
+                break
+            except requests.ConnectionError as error_message:
+                print("- FAIL, requests command failed to GET job status, detailed error information: \n%s" % error_message)
+                time.sleep(10)
+                print("- WARNING, script will now attempt to get job status again")
+                count+=1
+                continue
         statusCode = req.status_code
+        if statusCode == 401 and args["np"]:
+            print("- WARNING, status code 401 and argument -np detected. Script will now query job status using iDRAC user \"%s\" new password set by SCP import" % idrac_username)
+            idrac_password = args["np"]
+            req = requests.get('https://%s/redfish/v1/TaskService/Tasks/%s' % (idrac_ip, job_id), auth=(idrac_username, idrac_password), verify=False)
+            if req.status_code == 401:
+                print("- WARNING, new password passed in for argument -np still failed with status code 401 for idrac user \"%s\", unable to check job status" % idrac_username)
+                sys.exit()
+            else:
+                continue
+        elif statusCode == 401:
+            print("- WARNING, status code 401 still detected for iDRAC user \"%s\". Check SCP file to see if iDRAC user \"%s\" password was changed for import" % (idrac_username, idrac_username))
+            sys.exit()
+        else:
+            pass
         data = req.json()
         current_time=(datetime.now()-start_time)
         if statusCode == 202 or statusCode == 200:
             pass
             time.sleep(3)
-        elif count == 10:
-            print("- FAIL, retry count for querying job status has been reached, script will exit")
-            sys.exit()
         else:
-            print("WARNING, query job ID command failed, error code is: %s. Script will retry checking job status" % statusCode)
-            time.sleep(10)
-            count+=1
-            continue
-        if "failed" in data['Oem']['Dell']['Message'] or "completed with errors" in data['Oem']['Dell']['Message'] or "Not one" in data['Oem']['Dell']['Message'] or "not compliant" in data['Oem']['Dell']['Message'] or "Unable" in data['Oem']['Dell']['Message'] or "The system could not be shut down" in data['Oem']['Dell']['Message'] or "timed out" in data['Oem']['Dell']['Message']:
+            print("Query job ID command failed, error code is: %s" % statusCode)
+            sys.exit()
+        if "failed" in data['Oem']['Dell']['Message'] or "completed with errors" in data['Oem']['Dell']['Message'] or "Not one" in data['Oem']['Dell']['Message'] or "not compliant" in data['Oem']['Dell']['Message'] or "Unable" in data['Oem']['Dell']['Message'] or "The system could not be shut down" in data['Oem']['Dell']['Message'] or "No device configuration" in data['Oem']['Dell']['Message'] or "timed out" in data['Oem']['Dell']['Message']:
             print("- FAIL, Job ID %s marked as %s but detected issue(s). See detailed job results below for more information on failure\n" % (job_id, data['Oem']['Dell']['JobState']))
+            print("- Detailed configuration changes and job results for \"%s\"\n" % job_id)
+            try:
+                for i in data["Messages"]:
+                    for ii in i.items():
+                        if ii[0] == "Oem":
+                            for iii in ii[1]["Dell"].items():
+                                print("%s: %s" % (iii[0], iii[1])) 
+                        else:
+                            print("%s: %s" % (ii[0], ii[1]))
+                    print("\n")
+            except:
+                print("- FAIL, unable to get configuration results for job ID, returning only final job results\n")
+                for i in data['Oem']['Dell'].items():
+                    print("%s: %s" % (i[0], i[1]))
+                    
+                print("- %s completed in: %s" % (job_id, str(current_time)[0:7]))
+            sys.exit()
+                
+        elif "No reboot Server" in data['Oem']['Dell']['Message']:
+            print("- PASS, job ID %s successfully marked completed. NoReboot value detected and config changes will not be applied until next manual server reboot\n" % job_id)
+            print("\n- Detailed job results for job ID %s\n" % job_id)
+            for i in data['Oem']['Dell'].items():
+                print("%s: %s" % (i[0], i[1]))
+            sys.exit()
+        elif "Successfully imported" in data['Oem']['Dell']['Message'] or "completed with errors" in data['Oem']['Dell']['Message'] or "Successfully imported" in data['Oem']['Dell']['Message']:
+            print("- PASS, job ID %s successfully marked completed\n" % job_id)
             print("- Detailed configuration changes and job results for \"%s\"\n" % job_id)
             try:
                 for i in data["Messages"]:
@@ -163,33 +217,7 @@ def loop_job_status():
                 
             print("- %s completed in: %s" % (job_id, str(current_time)[0:7]))
             sys.exit()
-            
-        elif "No reboot Server" in data['Oem']['Dell']['Message']:
-            print("- PASS, job ID %s successfully marked completed. NoReboot value detected and config changes will not be applied until next manual server reboot\n" % job_id)
-            print("\n- Detailed job results for job ID %s\n" % job_id)
-            for i in data['Oem']['Dell'].items():
-                print("%s: %s" % (i[0], i[1]))
-            sys.exit()
-        elif "Successfully imported" in data['Oem']['Dell']['Message'] or "completed with errors" in data['Oem']['Dell']['Message'] or "Successfully imported" in data['Oem']['Dell']['Message']:
-            print("- PASS, job ID %s successfully marked completed\n" % job_id)
-            print("- Detailed configuration changes and job results for job ID %s\n" % job_id)
-            try:
-                for i in data["Messages"]:
-                    for ii in i.items():
-                        if ii[0] == "Oem":
-                            for iii in ii[1]["Dell"].items():
-                                print("%s: %s" % (iii[0], iii[1])) 
-                        else:
-                            print("%s: %s" % (ii[0], ii[1]))
-                    print("\n")
-            except:
-                print("- FAIL, unable to get configuration results for job ID, returning only final job results\n")
-                for i in data['Oem']['Dell'].items():
-                    print("%s: %s" % (i[0], i[1]))
                 
-            print("- %s completed in: %s" % (job_id, str(current_time)[0:7]))
-            sys.exit()
-            
         elif "No changes" in data['Oem']['Dell']['Message'] or "No configuration changes" in data['Oem']['Dell']['Message']:
             print("\n- PASS, job ID %s marked completed\n" % job_id)
             print("- Detailed job results for job ID %s\n" % job_id)
@@ -202,6 +230,7 @@ def loop_job_status():
             continue
 
 if __name__ == "__main__":
+    test_idrac_credentials()
     if args["st"]:
         get_sharetypes()
     else:

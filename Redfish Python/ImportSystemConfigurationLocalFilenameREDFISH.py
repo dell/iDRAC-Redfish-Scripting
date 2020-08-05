@@ -2,7 +2,7 @@
 # ImportSystemConfigurationLocalFilenameREDFISH. Python script using Redfish API to import system configuration profile attributes locally from a configuration file.
 #
 # _author_ = Texas Roemer <Texas_Roemer@Dell.com>
-# _version_ = 11.0
+# _version_ = 12.0
 #
 # Copyright (c) 2017, Dell, Inc.
 #
@@ -24,7 +24,8 @@ parser=argparse.ArgumentParser(description="Python script using Redfish API to i
 parser.add_argument('-ip',help='iDRAC IP address', required=True)
 parser.add_argument('-u', help='iDRAC username', required=True)
 parser.add_argument('-p', help='iDRAC password', required=True)
-parser.add_argument('script_examples',action="store_true",help='ImportSystemConfigurationLocalFilenameREDFISH.py -ip 192.168.0.120 -u root -p calvin -t ALL --filename SCP_export_R740, this example is going to import SCP file and apply all attribute changes for all components. \nImportSystemConfigurationLocalFilenameREDFISH.py -ip 192.168.0.120 -u root -p calvin -t BIOS --filename R740_scp_file -s Forced, this example is going to only apply BIOS changes from the SCP file along with forcing a server power reboot.')
+parser.add_argument('-np', help='Pass in new iDRAC user password that gets set during SCP import. This will be required to continue to query the job status.', required=False)
+parser.add_argument('script_examples',action="store_true",help='ImportSystemConfigurationLocalFilenameREDFISH.py -ip 192.168.0.120 -u root -p calvin -t ALL --filename SCP_export_R740, this example is going to import SCP file and apply all attribute changes for all components. \nImportSystemConfigurationLocalFilenameREDFISH.py -ip 192.168.0.120 -u root -p calvin -t BIOS --filename R740_scp_file -s Forced, this example is going to only apply BIOS changes from the SCP file along with forcing a server power reboot. ImportSystemConfigurationLocalFilenameREDFISH.py -ip 192.168.0.120 -u root -t IDRAC -f 2020-8-5_135318_export.xml -p calvin -np Test1234#, this example uses SCP import to change root user password and will leverage the new user password to continue to query the job status until marked completed')
 parser.add_argument('-t', help='Pass in Target value to set component attributes. You can pass in \"ALL" to set all component attributes or pass in a specific component to set only those attributes. Supported values are: ALL, System, BIOS, IDRAC, NIC, FC, LifecycleController, RAID.', required=True)
 parser.add_argument('-s', help='Pass in ShutdownType value. Supported values are Graceful, Forced and NoReboot. If you don\'t use this optional parameter, default value is Graceful. NOTE: If you pass in NoReboot value, configuration changes will not be applied until the next server manual reboot.', required=False)
 parser.add_argument('-f', help='Pass in Server Configuration Profile filename', required=True)
@@ -35,6 +36,13 @@ idrac_ip=args["ip"]
 idrac_username=args["u"]
 idrac_password=args["p"]
 filename=args["f"]
+
+response = requests.get('https://%s/redfish/v1/Managers/iDRAC.Embedded.1' % (idrac_ip), auth=(idrac_username, idrac_password), verify=False)
+if response.status_code == 401:
+    print("\n- WARNING, status code 401 detected, check iDRAC username / password credentials")
+    sys.exit()
+else:
+    pass
 
 try:
     f=open(filename,"r")
@@ -87,7 +95,6 @@ job_id=re.search("JID_.+",job_id).group()
 
 start_time=datetime.now()
 while True:
-    #req = requests.get('https://%s/redfish/v1/TaskService/Tasks/%s' % (idrac_ip, job_id), auth=(idrac_username, idrac_password), verify=False)
     count = 1
     while True:
         if count == 5:
@@ -96,17 +103,27 @@ while True:
         try:
             req = requests.get('https://%s/redfish/v1/TaskService/Tasks/%s' % (idrac_ip, job_id), auth=(idrac_username, idrac_password), verify=False)
             break
-        except RuntimeError as error_message:
+        except requests.ConnectionError as error_message:
             print("- FAIL, requests command failed to GET job status, detailed error information: \n%s" % error_message)
-            error_message = str(error_message)
-            if "Failed to establish a new connection" in error_message:
-                print("- WARNING, failed to establish connection, executing command again")
-                time.sleep(10)
-                count+=1
-                continue
-            else:
-                sys.exit()
+            time.sleep(10)
+            print("- WARNING, script will now attempt to get job status again")
+            count+=1
+            continue
     statusCode = req.status_code
+    if statusCode == 401 and args["np"]:
+        print("- WARNING, status code 401 and argument -np detected. Script will now query job status using iDRAC user \"%s\" new password set by SCP import" % idrac_username)
+        idrac_password = args["np"]
+        req = requests.get('https://%s/redfish/v1/TaskService/Tasks/%s' % (idrac_ip, job_id), auth=(idrac_username, idrac_password), verify=False)
+        if req.status_code == 401:
+            print("- WARNING, new password passed in for argument -np still failed with status code 401 for idrac user \"%s\", unable to check job status" % idrac_username)
+            sys.exit()
+        else:
+            continue
+    elif statusCode == 401:
+        print("- WARNING, status code 401 still detected for iDRAC user \"%s\". Check SCP file to see if iDRAC user \"%s\" password was changed for import" % (idrac_username, idrac_username))
+        sys.exit()
+    else:
+        pass
     data = req.json()
     current_time=(datetime.now()-start_time)
     if statusCode == 202 or statusCode == 200:
@@ -169,7 +186,7 @@ while True:
         sys.exit()
     else:
         print("- WARNING, JobStatus not completed, current status: \"%s\", percent complete: \"%s\"" % (data['Oem']['Dell']['Message'],data['Oem']['Dell']['PercentComplete']))
-        time.sleep(1)
+        time.sleep(3)
         continue
     
 
