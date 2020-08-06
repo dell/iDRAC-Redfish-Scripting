@@ -4,7 +4,7 @@
 # 
 #
 # _author_ = Texas Roemer <Texas_Roemer@Dell.com>
-# _version_ = 3.0
+# _version_ = 4.0
 #
 # Copyright (c) 2017, Dell, Inc.
 #
@@ -92,15 +92,28 @@ def set_idrac_user_password():
         sys.exit()
     print("- WARNING, executing GET request using new password for validating successful change")
     time.sleep(10)
-    response = requests.get('https://%s/redfish/v1/Managers/iDRAC.Embedded.1/Accounts/%s' % (idrac_ip, idrac_account_id),verify=False,auth=(idrac_username, idrac_new_password))
-    
-    statusCode = response.status_code
-    if statusCode == 200:
-        print("\n- PASS, status code %s returned for GET command, iDRAC user password change success" % statusCode)
-    else:
-        data = response.json()
-        print("\n- FAIL, status code %s returned for GET command. Detail error results: \n%s" % (statusCode, data))
-        sys.exit()
+    count = 1
+    while True:
+        if count == 10:
+            print("- WARNING, GET request to validate iDRAC user \"%s\" new password fails, retry count of 10 has been reached" % idrac_username)
+            sys.exit()
+        else:
+            response = requests.get('https://%s/redfish/v1/Managers/iDRAC.Embedded.1/Accounts/%s' % (idrac_ip, idrac_account_id),verify=False,auth=(idrac_username, idrac_new_password))
+            statusCode = response.status_code
+        if statusCode == 401:
+            print("- WARNING, GET request failed to test iDRAC user \"%s\" new password, retry" % idrac_username)
+            time.sleep(10)
+            count+=1
+            continue
+        else:
+            pass
+        if statusCode == 200:
+            print("\n- PASS, status code %s returned for GET command, iDRAC user password change success" % statusCode)
+            break
+        else:
+            data = response.json()
+            print("\n- FAIL, status code %s returned for GET command. Detail error results: \n%s" % (statusCode, data))
+            sys.exit()
     
 ### Run code
 
