@@ -4,7 +4,7 @@
 # 
 #
 # _author_ = Texas Roemer <Texas_Roemer@Dell.com>
-# _version_ = 4.0
+# _version_ = 7.0
 #
 # Copyright (c) 2017, Dell, Inc.
 #
@@ -23,7 +23,7 @@ from datetime import datetime
 warnings.filterwarnings("ignore")
 
 
-parser=argparse.ArgumentParser(description="Python script using Redfish API with OEM extension to change iDRAC username password. Once the password is changed, the script will also execute a GET command to verify the password change was successful.")
+parser=argparse.ArgumentParser(description="Python script using Redfish API with OEM extension to change iDRAC username password. Once the password is changed, the script will execute GET command to verify the password change was successful.")
 parser.add_argument('script_examples',action="store_true",help='ChangeIdracUserPasswordREDFISH.py -ip 192.168.0.120 -u root -p calvin -g y, this example will get user account information for all iDRAC users. ChangeIdracUserPasswordREDFISH.py -ip 192.168.0.120 -u user -p calvin -id 3 -np pAssw0rd, this example shows changing iDRAC user ID 3 password.')
 parser.add_argument('-ip',help='iDRAC IP address', required=True)
 parser.add_argument('-u', help='iDRAC username', required=True)
@@ -78,6 +78,16 @@ def get_iDRAC_user_account_info():
 ### Function to change iDRAC user password and verify password was changed by executing GET command with new password
 
 def set_idrac_user_password():
+    response = requests.get('https://%s/redfish/v1/Managers/iDRAC.Embedded.1/Accounts/%s' % (idrac_ip, idrac_account_id),verify=False,auth=(idrac_username, idrac_password))
+    if response.status_code == 401:
+        print("\n- WARNING, status code 401 detected, check iDRAC username / password credentials and privilege level")
+        sys.exit()
+    else:
+        pass
+    data = response.json()
+    username = data["UserName"]
+    user_roleID = data["RoleId"]
+    user_id = data["Id"]
     url = 'https://%s/redfish/v1/Managers/iDRAC.Embedded.1/Accounts/%s' % (idrac_ip, idrac_account_id)
     payload = {'Password': idrac_new_password}
     headers = {'content-type': 'application/json'}
@@ -85,30 +95,37 @@ def set_idrac_user_password():
 
     statusCode = response.status_code
     if statusCode == 200:
-        print("\n- PASS, status code %s returned for PATCH command to change iDRAC user password" % statusCode)
+        print("\n- PASS, status code %s returned for PATCH command to change iDRAC user password for user ID %s" % (statusCode, idrac_account_id))
     else:
         data = response.json()
         print("\n- FAIL, status code %s returned, password was not changed. Detailed error results: \n%s" % (statusCode, data))
         sys.exit()
-    print("- WARNING, executing GET request using new password for validating successful change")
+    print("- WARNING, executing GET request to validate using new password for iDRAC user ID %s" % idrac_account_id)
     time.sleep(10)
     count = 1
     while True:
         if count == 10:
-            print("- WARNING, GET request to validate iDRAC user \"%s\" new password fails, retry count of 10 has been reached" % idrac_username)
+            print("- WARNING, GET request to validate iDRAC user account \"%s\" new password failed, retry count of 10 has been reached" % idrac_account_id)
             sys.exit()
         else:
-            response = requests.get('https://%s/redfish/v1/Managers/iDRAC.Embedded.1/Accounts/%s' % (idrac_ip, idrac_account_id),verify=False,auth=(idrac_username, idrac_new_password))
-            statusCode = response.status_code
+            if idrac_username == username:
+                response = requests.get('https://%s/redfish/v1/Managers/iDRAC.Embedded.1/Accounts/%s' % (idrac_ip, idrac_account_id),verify=False,auth=(idrac_username, idrac_new_password))
+            else:
+                if user_roleID == "None":
+                    print("- WARNING, iDRAC user \"%s\" privileges set to None, password is changed but unable to execute GET request due to incorrect privilege level" % username)
+                    sys.exit()
+                else:
+                    response = requests.get('https://%s/redfish/v1/Managers/iDRAC.Embedded.1/Accounts/%s' % (idrac_ip, user_id),verify=False,auth=(username, idrac_new_password))
+                    statusCode = response.status_code
         if statusCode == 401:
-            print("- WARNING, GET request failed to test iDRAC user \"%s\" new password, retry" % idrac_username)
+            print("- WARNING, GET request failed to test iDRAC user account \"%s\" new password, retry" % idrac_account_id)
             time.sleep(10)
             count+=1
             continue
         else:
             pass
         if statusCode == 200:
-            print("\n- PASS, status code %s returned for GET command, iDRAC user password change success" % statusCode)
+            print("\n- PASS, status code %s returned for GET command, iDRAC user password change successful for account ID %s" % (statusCode, idrac_account_id))
             break
         else:
             data = response.json()
