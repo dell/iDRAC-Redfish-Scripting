@@ -2,7 +2,7 @@
 # ImportSystemConfigurationLocalFilenameREDFISH. Python script using Redfish API to import system configuration profile attributes locally from a configuration file.
 #
 # _author_ = Texas Roemer <Texas_Roemer@Dell.com>
-# _version_ = 12.0
+# _version_ = 14.0
 #
 # Copyright (c) 2017, Dell, Inc.
 #
@@ -140,9 +140,20 @@ while True:
                 for ii in i.items():
                     if ii[0] == "Oem":
                         for iii in ii[1]["Dell"].items():
-                            print("%s: %s" % (iii[0], iii[1])) 
+                            print("%s: %s" % (iii[0], iii[1]))
                     else:
-                        print("%s: %s" % (ii[0], ii[1]))
+                        if ii[0] == "Severity":
+                            if ii[1] == "Critical":
+                                print("%s: %s" % (ii[0], ii[1]))
+                                print("Status: Failure")
+                            elif ii[1] == "OK":
+                                print("%s: %s" % (ii[0], ii[1]))
+                                print("Status: Success")
+                            else:
+                                print("%s: %s" % (ii[0], ii[1]))
+                                
+                        else:
+                            print("%s: %s" % (ii[0], ii[1]))
                 print("\n")
         except:
             print("- FAIL, unable to get configuration results for job ID, returning only final job results\n")
@@ -166,9 +177,20 @@ while True:
                 for ii in i.items():
                     if ii[0] == "Oem":
                         for iii in ii[1]["Dell"].items():
-                            print("%s: %s" % (iii[0], iii[1])) 
+                            print("%s: %s" % (iii[0], iii[1]))
                     else:
-                        print("%s: %s" % (ii[0], ii[1]))
+                        if ii[0] == "Severity":
+                            if ii[1] == "Critical":
+                                print("%s: %s" % (ii[0], ii[1]))
+                                print("Status: Failure")
+                            elif ii[1] == "OK":
+                                print("%s: %s" % (ii[0], ii[1]))
+                                print("Status: Success")
+                            else:
+                                print("%s: %s" % (ii[0], ii[1]))
+                                
+                        else:
+                            print("%s: %s" % (ii[0], ii[1]))
                 print("\n")
         except:
             print("- FAIL, unable to get configuration results for job ID, returning only final job results\n")
@@ -185,7 +207,7 @@ while True:
             print("%s: %s" % (i[0], i[1]))
         sys.exit()
     else:
-        print("- WARNING, JobStatus not completed, current status: \"%s\", percent complete: \"%s\"" % (data['Oem']['Dell']['Message'],data['Oem']['Dell']['PercentComplete']))
+        print("- INFO, JobStatus not completed, current status: \"%s\", percent complete: \"%s\"" % (data['Oem']['Dell']['Message'],data['Oem']['Dell']['PercentComplete']))
         time.sleep(3)
         continue
     

@@ -6,7 +6,7 @@
 # NOTE: Before executing the script, modify the payload dictionary with supported parameters. For payload dictionary supported parameters, refer to schema "https://'iDRAC IP'/redfish/v1/Managers/iDRAC.Embedded.1/"
 #
 # _author_ = Texas Roemer <Texas_Roemer@Dell.com>
-# _version_ = 11.0
+# _version_ = 12.0
 #
 # Copyright (c) 2017, Dell, Inc.
 #
@@ -44,15 +44,11 @@ else:
     
 url = 'https://%s/redfish/v1/Managers/iDRAC.Embedded.1/Actions/Oem/EID_674_Manager.ImportSystemConfiguration' % idrac_ip
 
+
 # Make sure to modify this payload dictionary first before you execute the script. Payload listed below is an example of showing the correct format. 
+
  
-
-
-payload = {"ShareParameters":{"Target":"ALL"},"ImportBuffer":"<SystemConfiguration><Component FQDD=\"iDRAC.Embedded.1\"><Attribute Name=\"Users.3#UserName\">user3</Attribute><Attribute Name=\"Users.3#Password\">P@ssw0rd</Attribute><Attribute Name=\"Users.3#Privilege\">511</Attribute><Attribute Name=\"Users.3#IpmiLanPrivilege\">Administrator</Attribute><Attribute Name=\"Users.3#IpmiSerialPrivilege\">Administrator</Attribute><Attribute Name=\"Users.3#Enable\">Enabled</Attribute><Attribute Name=\"Users.3#SolEnable\">Enabled</Attribute><Attribute Name=\"Users.3#ProtocolEnable\">Enabled</Attribute><Attribute Name=\"Users.3#AuthenticationProtocol\">MD5</Attribute><Attribute Name=\"Users.3#PrivacyProtocol\">DES</Attribute></Component></SystemConfiguration>"}
-
-
-
-
+payload = {"ShareParameters":{"Target":"ALL"},"ImportBuffer":"<SystemConfiguration><Component FQDD=\"iDRAC.Embedded.1\"><Attribute Name=\"IPMILan.1#Enable\">Disabled</Attribute><Attribute Name=\"IPMILan.1#AlertEnable\">Disabled</Attribute></Component></SystemConfiguration>"}
 
 headers = {'content-type': 'application/json'}
 response = requests.post(url, data=json.dumps(payload), headers=headers, verify=False, auth=(idrac_username,idrac_password))
@@ -125,9 +121,20 @@ while True:
                 for ii in i.items():
                     if ii[0] == "Oem":
                         for iii in ii[1]["Dell"].items():
-                            print("%s: %s" % (iii[0], iii[1])) 
+                            print("%s: %s" % (iii[0], iii[1]))
                     else:
-                        print("%s: %s" % (ii[0], ii[1]))
+                        if ii[0] == "Severity":
+                            if ii[1] == "Critical":
+                                print("%s: %s" % (ii[0], ii[1]))
+                                print("Status: Failure")
+                            elif ii[1] == "OK":
+                                print("%s: %s" % (ii[0], ii[1]))
+                                print("Status: Success")
+                            else:
+                                print("%s: %s" % (ii[0], ii[1]))
+                                
+                        else:
+                            print("%s: %s" % (ii[0], ii[1]))
                 print("\n")
         except:
             print("- FAIL, unable to get configuration results for job ID, returning only final job results\n")
@@ -151,9 +158,20 @@ while True:
                 for ii in i.items():
                     if ii[0] == "Oem":
                         for iii in ii[1]["Dell"].items():
-                            print("%s: %s" % (iii[0], iii[1])) 
+                            print("%s: %s" % (iii[0], iii[1]))
                     else:
-                        print("%s: %s" % (ii[0], ii[1]))
+                        if ii[0] == "Severity":
+                            if ii[1] == "Critical":
+                                print("%s: %s" % (ii[0], ii[1]))
+                                print("Status: Failure")
+                            elif ii[1] == "OK":
+                                print("%s: %s" % (ii[0], ii[1]))
+                                print("Status: Success")
+                            else:
+                                print("%s: %s" % (ii[0], ii[1]))
+                                
+                        else:
+                            print("%s: %s" % (ii[0], ii[1]))
                 print("\n")
         except:
             print("- FAIL, unable to get configuration results for job ID, returning only final job results\n")
@@ -170,7 +188,7 @@ while True:
             print("%s: %s" % (i[0], i[1]))
         sys.exit()
     else:
-        print("- WARNING, JobStatus not completed, current status: \"%s\", percent complete: \"%s\"" % (data['Oem']['Dell']['Message'],data['Oem']['Dell']['PercentComplete']))
+        print("- INFO, JobStatus not completed, current status: \"%s\", percent complete: \"%s\"" % (data['Oem']['Dell']['Message'],data['Oem']['Dell']['PercentComplete']))
         time.sleep(3)
         continue
     
