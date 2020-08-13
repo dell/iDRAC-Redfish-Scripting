@@ -2,7 +2,7 @@
 # RunDiagnosticsREDFISH. Python script using Redfish API with OEM extension to run remote diagnostics on the server.
 #
 # _author_ = Texas Roemer <Texas_Roemer@Dell.com>
-# _version_ = 1.0
+# _version_ = 2.0
 #
 # Copyright (c) 2020, Dell, Inc.
 #
@@ -92,7 +92,7 @@ def run_remote_diags():
             print("- FAIL, invalid value entered for -m argument")
             sys.exit()
     
-    print("\n- WARNING, arguments and values for %s method\n" % method)
+    print("\n- INFO, arguments and values for %s method\n" % method)
     for i in payload.items():
         if i[0] == "Password":
             print("Password: ********")
@@ -117,7 +117,7 @@ def run_remote_diags():
 
 
 def loop_job_status():
-    print("- WARNING, server will now automatically reboot and run remote diagnostics once POST completes. Script will check job status every 1 minute until marked completed\n")
+    print("- INFO, server will now automatically reboot and run remote diagnostics once POST completes. Script will check job status every 1 minute until marked completed\n")
     start_time=datetime.now()
     time.sleep(10)
     while True:
@@ -129,7 +129,7 @@ def loop_job_status():
                 time.sleep(10)
                 continue
             else:
-                print("- WARNING, GET command failed to get job status")
+                print("- WARNING, GET command failed to get job status, script will exit")
                 sys.exit()   
         current_time=(datetime.now()-start_time)
         statusCode = req.status_code
@@ -140,7 +140,8 @@ def loop_job_status():
             print("Extended Info Message: {0}".format(req.json()))
             sys.exit()
         data = req.json()
-        if str(current_time)[0:7] >= "10:00:00":
+        max_timeout = "10:00:00"
+        if str(current_time)[0:7] >= max_timeout and len(str(current_time)[0:7]) == len(max_timeout):
             print("\n- FAIL: Timeout of 10 hours has been hit, script stopped. Check iDRAC LC logs or Job Queue to debug.\n")
             sys.exit()
         elif "Fail" in data['Message'] or "fail" in data['Message'] or data['JobState'] == "Failed" or "Unable" in data['Message']:
@@ -158,8 +159,8 @@ def loop_job_status():
                     print("%s: %s" % (i[0],i[1]))
             break
         else:
-            print("- WARNING, job not marked completed, current job status is running, current job execution time: %s" % str(current_time)[0:7])
-            time.sleep(10)
+            print("- STATUS, job not marked completed, status running, execution time: %s" % str(current_time)[0:7])
+            time.sleep(60)
             
 
     
