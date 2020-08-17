@@ -4,7 +4,7 @@
 # 
 #
 # _author_ = Texas Roemer <Texas_Roemer@Dell.com>
-# _version_ = 3.0
+# _version_ = 4.0
 #
 # Copyright (c) 2019, Dell, Inc.
 #
@@ -68,11 +68,11 @@ def get_idrac_license_info():
     else:
         pass
     data = response.json()
-    if data[u'Members'] == []:
+    if data['Members'] == []:
         print("\n- WARNING, no licenses detected for iDRAC %s" % idrac_ip)
     else:
         print("\n- License(s) detected for iDRAC %s -\n" % idrac_ip)
-        for i in (data[u'Members']):
+        for i in (data['Members']):
             for ii in i.items():
                 print("%s: %s" % (ii[0], ii[1]))
             print("\n")
@@ -87,7 +87,7 @@ def get_network_share_types():
         pass
     data = response.json()
     print("\n- Supported network share types for Export / Import license from network share -\n")
-    for i in data[u'Actions'][u'#DellLicenseManagementService.ExportLicenseToNetworkShare'][u'ShareType@Redfish.AllowableValues']:
+    for i in data['Actions']['#DellLicenseManagementService.ExportLicenseToNetworkShare']['ShareType@Redfish.AllowableValues']:
         print(i)
     
 
@@ -106,10 +106,10 @@ def export_idrac_license_locally():
         print("\n- POST command failure results:\n %s" % data)
         sys.exit()
     print("- iDRAC license for \"%s\" ID:\n" % args["el"])
-    print(data[u'LicenseFile'])
-    with open("%s_iDRAC_license.xml" % args["el"], "w") as x:
-        x.writelines(data[u'LicenseFile'])
-    print("\n- License also copied to \"%s_iDRAC_license.xml\" file" % args["el"])
+    print(data['LicenseFile'])
+    with open("%s_iDRAC_license.txt" % args["el"], "w") as x:
+        x.writelines(data['LicenseFile'])
+    print("\n- License also copied to \"%s_iDRAC_license.txt\" file" % args["el"])
     
 def export_import_idrac_license_network_share():
     global job_id
@@ -219,11 +219,11 @@ def loop_job_status():
         if str(current_time)[0:7] >= "0:05:00":
             print("\n- FAIL: Timeout of 5 minutes has been hit, script stopped\n")
             sys.exit()
-        elif "Fail" in data[u'Message'] or "fail" in data[u'Message'] or data[u'JobState'] == "Failed":
-            print("- FAIL: job ID %s failed, failed message is: %s" % (job_id, data[u'Message']))
+        elif "Fail" in data['Message'] or "fail" in data['Message'] or data['JobState'] == "Failed":
+            print("- FAIL: job ID %s failed, failed message is: %s" % (job_id, data['Message']))
             sys.exit()
-        elif data[u'JobState'] == "Completed":
-            if data[u'Message'] == "The command was successful":
+        elif data['JobState'] == "Completed":
+            if data['Message'] == "The command was successful":
                 print("\n--- PASS, Final Detailed Job Status Results ---\n")
             else:
                 print("\n--- FAIL, Final Detailed Job Status Results ---\n")
