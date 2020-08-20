@@ -3,7 +3,7 @@
 #
 #
 # _author_ = Texas Roemer <Texas_Roemer@Dell.com>
-# _version_ = 6.0
+# _version_ = 8.0
 #
 # Copyright (c) 2019, Dell, Inc.
 #
@@ -67,7 +67,10 @@ def get_current_boot_order():
     boot_device_display_name = ""
     boot_device_id = ""
     count = 0
-    print("\n- Current boot order detected for BIOS boot mode \"%s\" -\n" % current_boot_mode) 
+    print("\n- Current boot order detected for BIOS boot mode \"%s\" -\n" % current_boot_mode)
+    if data["Members"] == []:
+        print("- WARNING, no boot devices detected for BIOS boot mode %s" % current_boot_mode)
+        sys.exit()
     for i in data['Members']:
         for ii in i.items():
             response = requests.get('https://%s%s' % (idrac_ip, ii[1]),verify=False,auth=(idrac_username,idrac_password))
