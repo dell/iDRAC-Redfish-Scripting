@@ -2,7 +2,7 @@
 # DeviceFirmwareSimpleUpdateREDFISH. Python script using Redfish API to update a device firmware with DMTF action SimpleUpdate. Supported file image types are Windows DUPs, d7/d9 image or pm files.
 #
 # _author_ = Texas Roemer <Texas_Roemer@Dell.com>
-# _version_ = 7.0
+# _version_ = 8.0
 #
 # Copyright (c) 2018, Dell, Inc.
 #
@@ -38,10 +38,16 @@ idrac_ip=args["ip"]
 idrac_username=args["u"]
 idrac_password=args["p"]
 
+
+
+
 def check_supported_idrac_version():
     response = requests.get('https://%s/redfish/v1/UpdateService/FirmwareInventory/' % idrac_ip,verify=False,auth=(idrac_username, idrac_password))
     data = response.json()
-    if response.status_code != 200:
+    if response.status_code == 401:
+        print("\n- WARNING, status code %s returned. Incorrect iDRAC username/password or invalid privilege detected." % response.status_code)
+        sys.exit()
+    elif response.status_code != 200:
         print("\n- WARNING, iDRAC version installed does not support this feature using Redfish API")
         sys.exit()
     else:
@@ -131,7 +137,7 @@ def check_job_status():
         statusCode = req.status_code
         data = req.json()
         if data[u"TaskState"] == "Completed":
-            print("\n- PASS, job ID %s successfully marked completed, detailed final job status results:\n" % data[u"Id"])
+            print("\n- PASS, job ID %s successfuly marked completed, detailed final job status results:\n" % data[u"Id"])
             for i in data[u'Oem'][u'Dell'].items():
                 print("%s: %s" % (i[0],i[1]))
             print("\n- JOB ID %s completed in %s" % (job_id, current_time))
