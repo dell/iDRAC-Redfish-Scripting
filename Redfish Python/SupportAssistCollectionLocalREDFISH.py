@@ -2,7 +2,7 @@
 # SupportAssistCollectionLocalREDFISH. Python script using Redfish API with OEM extension to perform Support Assist operations.
 #
 # _author_ = Texas Roemer <Texas_Roemer@Dell.com>
-# _version_ = 2.0
+# _version_ = 4.0
 #
 # Copyright (c) 2020, Dell, Inc.
 #
@@ -40,7 +40,7 @@ parser.add_argument('--phonenumber', help='Pass in phone number to register Supp
 parser.add_argument('--street', help='Pass in street name to register Support Assist', required=False)
 parser.add_argument('--state', help='Pass in state to register Support Assist', required=False)
 parser.add_argument('--zip', help='Pass in zipcode to register Support Assist', required=False)
-parser.add_argument('-d', help='Pass in a value for the type of data you want to collect for Support Assist collection. Supported values are: pass in 0 for \"DebugLogs\", pass in 1 for "HWData\", pass in 2 for \"OSAppData\", pass in 3 for \"TTYLogs\". Note: If you do not pass in this argument, default settings will collect HWData. Note: You can pass in one value or multiple values to collect. If you pass in multiple values, use comma separator for the values (Example: 0,3)', required=False)
+parser.add_argument('-d', help='Pass in a value for the type of data you want to collect for Support Assist collection. Supported values are: pass in 0 for \"DebugLogs\", pass in 1 for "HWData\", pass in 2 for \"OSAppData\", pass in 3 for \"TTYLogs\", pass in 4 for \"TelemetryReports\". Note: If you do not pass in this argument, default settings will collect HWData. Note: You can pass in one value or multiple values to collect. If you pass in multiple values, use comma separator for the values (Example: 0,3)', required=False)
 
 
 
@@ -93,6 +93,8 @@ def support_assist_collection():
                 data_selector_values.append("OSAppData")
             if "3" in data_selector:
                 data_selector_values.append("TTYLogs")
+            if "4" in data_selector:
+                data_selector_values.append("TelemetryReports")
             payload["DataSelectorArrayIn"] = data_selector_values
         else:
             if args["d"] == "0":
@@ -103,6 +105,8 @@ def support_assist_collection():
                 data_selector_values.append("OSAppData")
             if args["d"] == "3":
                 data_selector_values.append("TTYLogs")
+            if args["d"] == "4":
+                data_selector_values.append("TelemetryReports")
             payload["DataSelectorArrayIn"] = data_selector_values
     print("\n- WARNING, arguments and values for %s method\n" % method)
     for i in payload.items():
@@ -204,18 +208,25 @@ def loop_job_status():
         current_time=(datetime.now()-start_time)
         statusCode = req.status_code
         if statusCode == 200:
-            pass
+            data = req.json()
         else:
             print("\n- FAIL, Command failed to check job status, return code is %s" % statusCode)
             print("Extended Info Message: {0}".format(req.json()))
             sys.exit()
         try:
-            if req.headers['Location'] == "/redfish/v1/Dell/sacollect.zip":
+            if req.headers['Location'] == "/redfish/v1/Dell/sacollect.zip" or req.headers['Location'] == "/redfish/v1/Oem/Dell/sacollect.zip":
                 print("- PASS, job ID successfully marked completed. Support Assist logs filename: \"%s\"" % req.headers['Location'].split("/")[-1])
+                python_version = sys.version_info
                 while True:
-                    request = input("\n* Would you like to open browser session to download Support Assist file? Type \"y\" to download or \"n\" to not download: ")
+                    if python_version.major <= 2:
+                        request = raw_input("\n* Would you like to open browser session to download Support Assist file? Type \"y\" to download or \"n\" to not download: ")
+                    elif python_version.major >= 3:
+                        request = input("\n* Would you like to open browser session to download Support Assist file? Type \"y\" to download or \"n\" to not download: ")
+                    else:
+                        print("- FAIL, unable to get current python version, manually run GET on URI \"%s\" to get Support Assist logs capture" % req.headers['Location'])
+                        sys.exit()
                     if str(request) == "y":
-                        webbrowser.open('https://%s/redfish/v1/Dell/sacollect.zip' % (idrac_ip))
+                        webbrowser.open('https://%s%s' % (idrac_ip, req.headers['Location']))
                         print("\n- WARNING, check you default browser session for downloaded Support Assist logs")
                         return
                     elif str(request) == "n":
@@ -224,27 +235,27 @@ def loop_job_status():
                         print("- FAIL, incorrect value passed in for request, try again")
                         continue
         except:
-            data = req.json()
-        if str(current_time)[0:7] >= "0:30:00":
-            print("\n- FAIL: Timeout of 30 minutes has been hit, script stopped\n")
-            sys.exit()
-        elif "Fail" in data['Message'] or "fail" in data['Message'] or data['JobState'] == "Failed" or "error" in data['Message'] or "Error" in data['Message']:
-            print("- FAIL: job ID %s failed, failed message is: %s" % (job_id, data['Message']))
-            sys.exit()
-        elif data['JobState'] == "Completed":
-            if "local path" in data['Message']:
-                print("\n--- PASS, Final Detailed Job Status Results ---\n")
-            else:
-                pass
-            for i in data.items():
-                if "odata" in i[0] or "MessageArgs" in i[0] or "TargetSettingsURI" in i[0]:
-                    pass
+            if str(current_time)[0:7] >= "0:30:00":
+                print("\n- FAIL: Timeout of 30 minutes has been hit, script stopped\n")
+                sys.exit()
+            elif "Fail" in data['Message'] or "fail" in data['Message'] or data['JobState'] == "Failed" or "error" in data['Message'] or "Error" in data['Message']:
+                print("- FAIL: job ID %s failed, failed message is: %s" % (job_id, data['Message']))
+                sys.exit()
+            elif data['JobState'] == "Completed" or "complete" in data['Message'] or "Complete" in data['Message']:
+                if "local path" in data['Message']:
+                    print("\n--- PASS, Final Detailed Job Status Results ---\n")
                 else:
-                    print("%s: %s" % (i[0],i[1]))
-            break
-        else:
-            print("- WARNING, JobStatus not marked completed, polling job status again, job execution time: %s" % str(current_time)[0:7])
-            time.sleep(30)
+                    print("- WARNING, unable to detect final job status message. Manually run GET on URI \"%s\" using browser to see if SA zip collection is available to download." % req.headers['Location'])
+                    sys.exit()
+                for i in data.items():
+                    if "odata" in i[0] or "MessageArgs" in i[0] or "TargetSettingsURI" in i[0]:
+                        pass
+                    else:
+                        print("%s: %s" % (i[0],i[1]))
+                break
+            else:
+                print("- INFO, Job status not marked completed, polling job status again, execution time: %s" % str(current_time)[0:7])
+                time.sleep(30)
             
 
     
