@@ -2,7 +2,7 @@
 # ExportImportSSLCertificateREDFISH.py   Python script using Redfish API with OEM extension to either export or import SSL certificate.
 #
 # _author_ = Texas Roemer <Texas_Roemer@Dell.com>
-# _version_ = 1.0
+# _version_ = 2.0
 #
 # Copyright (c) 2019, Dell, Inc.
 #
@@ -25,12 +25,12 @@ parser=argparse.ArgumentParser(description="Python script using Redfish API with
 parser.add_argument('-ip',help='iDRAC IP address', required=True)
 parser.add_argument('-u', help='iDRAC username', required=True)
 parser.add_argument('-p', help='iDRAC password', required=True)
-parser.add_argument('script_examples',action="store_true",help='ExportImportSSLCertificateREDFISH.py -ip 192.168.0.120 -u root -p calvin -e y -sct 1\", this example will export Web Server Certificate locally\n- \"ExportImportSSLCertificateREDFISH.py -ip 192.168.0.120 -u root -p calvin -i y -ct 4 -scf ssl_certificate.txt\", this example will import the Client Trust Cert from ssl_certificate.txt file')
+parser.add_argument('script_examples',action="store_true",help='ExportImportSSLCertificateREDFISH.py -ip 192.168.0.120 -u root -p calvin -e y -sct 1\", this example will export Web Server Certificate locally\n- \"ExportImportSSLCertificateREDFISH.py -ip 192.168.0.120 -u root -p calvin -i y -ct 4 -scf ssl_cert.pem\", this example will import client trust certificate')
 parser.add_argument('-e', help='Export SSL cert, pass in \"y\". Argument -sct is also required for export SSL cert', required=False)
 parser.add_argument('-i', help='Import SSL cert, pass in \"y\". Argument -ct and -scf is also required for import SSL cert', required=False)
 parser.add_argument('-sct', help='Pass in SSL cert type for export. Supported values are: 1 for \"Server\"(Web Server Certificate), 2 for \"CSC\"(Custom Signing Certificate), 3 for \"CA\"(CA certificate for Directory Service:), 4 for \"ClientTrustCertificate\"', required=False)
 parser.add_argument('-ct', help='Pass in cert type for import. Supported values are: 1 for \"Server\"(Web Server Certificate), 2 for \"CSC\"(Custom Signing Certificate), 3 for \"CA\"(CA certificate for Directory Service:), 4 for \"ClientTrustCertificate\"', required=False)
-parser.add_argument('-scf', help='Pass in the file name which contains the certificate to import. Script will automatically search and attempt to locate the cert to import. It will look for cert within the open tag \"-----BEGIN CERTIFICATE-----" and end tag \"-----END CERTIFICATE-----\"', required=False)
+parser.add_argument('-scf', help='Pass in the file name which contains the certificate to import. Cert file contents should start with open tag \"-----BEGIN CERTIFICATE-----" and end tag \"-----END CERTIFICATE-----\"', required=False)
 
 
 
@@ -44,6 +44,9 @@ idrac_password=args["p"]
 def check_supported_idrac_version():
     response = requests.get('https://%s/redfish/v1/Dell/Managers/iDRAC.Embedded.1/DelliDRACCardService' % idrac_ip,verify=False,auth=(idrac_username, idrac_password))
     data = response.json()
+    if response.status_code == 401:
+        print("\n- WARNING, unable to access iDRAC, check to make sure you are passing in valid iDRAC credentials")
+        sys.exit()
     if response.status_code != 200:
         print("\n- WARNING, iDRAC version installed does not support this feature using Redfish API")
         sys.exit()
@@ -108,8 +111,6 @@ def import_SSL_cert():
     headers = {'content-type': 'application/json'}
     f = open(args["scf"],"r")
     read_file = f.read()
-    read_file = re.sub("\n","",read_file)
-    read_file = re.search("-----B.+",read_file).group()
     f.close()
     payload={"CertificateType":cert_type,"SSLCertificateFile":read_file}
     response = requests.post(url, data=json.dumps(payload), headers=headers, verify=False,auth=(idrac_username,idrac_password))
