@@ -2,7 +2,7 @@
 # SystemEraseREDFISH. Python script using Redfish API with OEM extension to perform iDRAC System Erase feature.
 #
 # _author_ = Texas Roemer <Texas_Roemer@Dell.com>
-# _version_ = 3.0
+# _version_ = 5.0
 #
 # Copyright (c) 2020, Dell, Inc.
 #
@@ -45,6 +45,12 @@ def check_supported_idrac_version():
     else:
         pass
     data = response.json()
+    if response.status_code == 200 or response.status_code == 202:
+        pass
+    else:
+        print("\n- WARNING, iDRAC version detected does not support this feature")
+        sys.exit()
+    
     supported = "no"
     for i in data['Actions'].keys():
         if "SystemErase" in i:
@@ -100,6 +106,7 @@ def system_erase():
     global method
     method = "SystemErase"
     url = 'https://%s/redfish/v1/Dell/Managers/iDRAC.Embedded.1/DellLCService/Actions/DellLCService.SystemErase' % (idrac_ip)
+    #url = 'https://%s/redfish/v1/Managers/iDRAC.Embedded.1/Oem/Dell/DellLCService/Actions/DellLCService.SystemErase' % (idrac_ip)
 
         
     headers = {'content-type': 'application/json'}
@@ -137,8 +144,8 @@ def loop_job_status():
         print("- WARNING, lost iDRAC network connection. Check the overall job queue for the job ID status")
         sys.exit()
     data = req.json()
-    print("- WARNING, JobStatus not completed, current status: \"%s\", percent complete: \"%s\"" % (data['Message'],data['PercentComplete']))
-    start_job_status = data['Message']
+    print("- WARNING, JobStatus not completed, current status: \"%s\"" % (data['Message']))
+    start_job_status_message = data['Message']
     retry_count = 1
     while True:
         try:
@@ -160,13 +167,14 @@ def loop_job_status():
         else:
             print("\n- FAIL, Command failed to check job status, return code is %s" % statusCode)
         data = req.json()
+        new_job_status_message = data['Message']
         if str(current_time)[0:7] >= "2:00:00":
             print("\n- FAIL: Timeout of 2 hours has been hit, script stopped\n")
             sys.exit()
         elif data['JobState'] == "Failed" or "Fail" in data['Message'] or "Unable" in data['Message'] or "Invalid" in data['Message'] or "fail" in data['Message'] or "Cannot" in data['Message'] or "cannot" in data['Message']:
             print("- FAIL: job ID %s failed, failed message is: %s" % (job_id, data['Message']))
             sys.exit()
-        elif data['Message'] == "Job completed successfully." or data['PercentComplete'] == 100:
+        elif data['Message'] == "Job completed successfully.":
             print("\n--- PASS, Final Detailed Job Status Results ---\n")
             for i in data.items():
                 if "odata" in i[0] or "MessageArgs" in i[0] or "TargetSettingsURI" in i[0]:
@@ -248,12 +256,12 @@ def loop_job_status():
                     print("\n- PASS, script complete!")
                     return
         else:
-            count_number_now = data['PercentComplete']
-            if count_number_now > count_number:
-                print("- WARNING, JobStatus not completed, current status: \"%s\", percent complete: \"%s\"" % (data['Message'],data['PercentComplete']))
-                count_number = count_number_now
+            if start_job_status_message != new_job_status_message:
+                print("- WARNING, JobStatus not completed, current status: \"%s\"" % (data['Message']))
+                start_job_status_message = new_job_status_message
             else:
-                continue
+                pass
+            continue
             
 
 if __name__ == "__main__":
