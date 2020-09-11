@@ -2,7 +2,7 @@
 # PrepareToRemoveREDFISH. Python script using Redfish API with OEM extension to safely prepare to remove PCIeSSD / NVMe drive.
 #
 # _author_ = Texas Roemer <Texas_Roemer@Dell.com>
-# _version_ = 1.0
+# _version_ = 3.0
 #
 # Copyright (c) 2020, Dell, Inc.
 #
@@ -238,7 +238,7 @@ def loop_job_status():
             print("\n- WARNING, PCIeSSD drive \"%s\" is ready to be removed. Drive carrier should now be blinking to identify." % args["R"])
             break
         else:
-            print("- WARNING, JobStatus not completed, current status is: \"%s\", percent completion is: \"%s\"" % (data['Message'],data['PercentComplete']))
+            print("- WARNING, JobStatus not completed, current status is: \"%s\"" % (data['Message']))
             time.sleep(5)
 
 
