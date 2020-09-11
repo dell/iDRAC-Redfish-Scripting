@@ -2,7 +2,7 @@
 # SecureEraseDevicesREDFISH. Python script using Redfish API to either get storage controllers/supported secure erase devices and erase supported devices.
 #
 # _author_ = Texas Roemer <Texas_Roemer@Dell.com>
-# _version_ = 12.0
+# _version_ = 13.0
 #
 # Copyright (c) 2018, Dell, Inc.
 #
@@ -42,6 +42,12 @@ def get_iDRAC_version():
     global server_model_number
     response = requests.get('https://%s/redfish/v1/Managers/iDRAC.Embedded.1' % idrac_ip,verify=False,auth=(idrac_username, idrac_password))
     data = response.json()
+    if response.status_code == 401:
+        print("\n- WARNING, status code %s returned. Incorrect iDRAC username/password or invalid privilege detected." % response.status_code)
+        sys.exit()
+    if response.status_code != 200:
+        print("\n- WARNING, iDRAC version installed does not support this feature using Redfish API")
+        sys.exit()
     server_model_number = int(data["Model"].split(" ")[0].strip("G"))
 
 
@@ -239,8 +245,8 @@ def loop_job_status():
             print("\n- WARNING, job creation to completion time is: %s" % str(datetime.now()-start_time)[0:7])
             break
         else:
-            print("- WARNING, JobStatus not completed, current status is: \"%s\"" % (data['Message']))
-            print("- WARNING, current job execution time is: %s" % str(datetime.now()-start_time)[0:7])
+            print("- INFO, job status not completed, current status: \"%s\"" % (data['Message']))
+            print("- INFO, current job execution time: %s" % str(datetime.now()-start_time)[0:7])
             time.sleep(10)
 
 def get_job_status():
@@ -259,8 +265,8 @@ def get_job_status():
             print("- PASS, staged config job marked as scheduled, powering on or rebooting the system")
             break
         else:
-            print("- WARNING, JobStatus not completed, current status is: \"%s\"" % (data['Message']))
-            print("- WARNING, current job execution time is: %s" % str(datetime.now()-start_time)[0:7])
+            print("- INFO, JobStatus not completed, current status: \"%s\"" % (data['Message']))
+            print("- INFO, current job execution time: %s" % str(datetime.now()-start_time)[0:7])
             time.sleep(10)
 
 
@@ -269,7 +275,7 @@ def reboot_server():
     count = 1
     response = requests.get('https://%s/redfish/v1/Systems/System.Embedded.1/' % idrac_ip,verify=False,auth=(idrac_username, idrac_password))
     data = response.json()
-    print("\n- WARNING, Current server power state is: %s" % data['PowerState'])
+    print("\n- INFO, Current server power state is: %s" % data['PowerState'])
     if data['PowerState'] == "On":
         url = 'https://%s/redfish/v1/Systems/System.Embedded.1/Actions/ComputerSystem.Reset' % idrac_ip
         payload = {'ResetType': 'GracefulShutdown'}
