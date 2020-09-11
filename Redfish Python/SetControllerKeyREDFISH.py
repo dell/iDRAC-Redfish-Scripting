@@ -2,7 +2,7 @@
 # SetControllerKeyREDFISH. Python script using Redfish API with OEM extension to set the storage controller key (enable encryption)
 #
 # _author_ = Texas Roemer <Texas_Roemer@Dell.com>
-# _version_ = 2.0
+# _version_ = 5.0
 #
 # Copyright (c) 2019, Dell, Inc.
 #
@@ -43,6 +43,9 @@ idrac_password=args["p"]
 def check_supported_idrac_version():
     response = requests.get('https://%s/redfish/v1/Dell/Systems/System.Embedded.1/DellRaidService' % idrac_ip,verify=False,auth=(idrac_username, idrac_password))
     data = response.json()
+    if response.status_code == 401:
+        print("\n- WARNING, status code %s returned. Incorrect iDRAC username/password or invalid privilege detected." % response.status_code)
+        sys.exit()
     if response.status_code != 200:
         print("\n- WARNING, iDRAC version installed does not support this feature using Redfish API")
         sys.exit()
@@ -55,16 +58,30 @@ def get_storage_controllers():
     data = response.json()
     print("\n- Server controller(s) detected -\n")
     controller_list=[]
-    for i in data[u'Members']:
-        controller_list.append(i[u'@odata.id'].split("/")[-1])
-        print(i[u'@odata.id'].split("/")[-1])
+    for i in data['Members']:
+        controller_list.append(i['@odata.id'].split("/")[-1])
+        print(i['@odata.id'].split("/")[-1])
     if args["c"] == "yy":
         for i in controller_list:
             response = requests.get('https://%s/redfish/v1/Systems/System.Embedded.1/Storage/%s' % (idrac_ip, i),verify=False,auth=(idrac_username, idrac_password))
             data = response.json()
             print("\n - Detailed controller information for %s -\n" % i)
             for i in data.items():
-                print("%s: %s" % (i[0], i[1]))
+                if "@" in str(i[0]):
+                    pass
+                elif i[0] == "Oem":
+                    for ii in i[1]["Dell"]["DellController"].items():
+                        print("%s: %s" % (ii[0], ii[1]))
+                elif i[0] == "Actions":
+                    pass
+                elif i[0] == "Status":
+                    for ii in i[1].items():
+                        print("%s: %s" % (ii[0], ii[1]))
+                elif i[0] == "StorageControllers":
+                    for ii in i[1][0].items():
+                        print("%s: %s" % (ii[0], ii[1]))    
+                else:
+                    print("%s: %s" % (i[0], i[1]))
     else:
         pass
     sys.exit()
@@ -75,9 +92,9 @@ def get_controller_encryption_setting():
     data = response.json()
     try:
         print("\n- Encryption Mode Settings for controller %s -\n" % args["g"])
-        print("EncryptionMode: %s" % data[u'Oem'][u'Dell'][u'DellController'][u'EncryptionMode'])
-        print("EncryptionCapability: %s" % data[u'Oem'][u'Dell'][u'DellController'][u'EncryptionCapability'])
-        print("SecurityStatus: %s" % data[u'Oem'][u'Dell'][u'DellController'][u'SecurityStatus'])
+        print("EncryptionMode: %s" % data['Oem']['Dell']['DellController']['EncryptionMode'])
+        print("EncryptionCapability: %s" % data['Oem']['Dell']['DellController']['EncryptionCapability'])
+        print("SecurityStatus: %s" % data['Oem']['Dell']['DellController']['SecurityStatus'])
     except:
         print("- FAIL, invalid controller FQDD string passed in")
     
@@ -89,7 +106,7 @@ def set_controller_key():
     test_valid_controller_FQDD_string(args["e"])
     response = requests.get('https://%s/redfish/v1/Systems/System.Embedded.1/Storage/%s' % (idrac_ip, args["e"]),verify=False,auth=(idrac_username, idrac_password))
     data = response.json()
-    if data[u'Oem'][u'Dell'][u'DellController'][u'SecurityStatus'] == "EncryptionNotCapable":
+    if data['Oem']['Dell']['DellController']['SecurityStatus'] == "EncryptionNotCapable":
         print("\n- WARNING, storage controller %s does not support encryption" % args["e"])
         sys.exit()
     else:
@@ -116,10 +133,10 @@ def set_controller_key():
 def check_controller_key_set():
     response = requests.get('https://%s/redfish/v1/Systems/System.Embedded.1/Storage/%s' % (idrac_ip, args["e"]),verify=False,auth=(idrac_username, idrac_password))
     data = response.json()
-    if data[u'Oem'][u'Dell'][u'DellController'][u'SecurityStatus'] == "SecurityKeyAssigned":
+    if data['Oem']['Dell']['DellController']['SecurityStatus'] == "SecurityKeyAssigned":
         print("\n- PASS, encryption enabled for storage controller %s " % args["e"])
     else:
-        print("\n- FAIL, encryption not enabled for storage controller %s, current security status is \"%s\"" % (args["e"], data[u'Oem'][u'Dell'][u'DellController'][u'SecurityStatus']))
+        print("\n- FAIL, encryption not enabled for storage controller %s, current security status is \"%s\"" % (args["e"], data['Oem']['Dell']['DellController']['SecurityStatus']))
     sys.exit()
 
 def loop_job_status():
@@ -138,10 +155,10 @@ def loop_job_status():
         if str(current_time)[0:7] >= "2:00:00":
             print("\n- FAIL: Timeout of 2 hours has been hit, script stopped\n")
             sys.exit()
-        elif "Fail" in data[u'Message'] or "fail" in data[u'Message'] or data[u'JobState'] == "Failed":
-            print("- FAIL: job ID %s failed, failed message is: %s" % (job_id, data[u'Message']))
+        elif "Fail" in data['Message'] or "fail" in data['Message'] or data['JobState'] == "Failed":
+            print("- FAIL: job ID %s failed, failed message is: %s" % (job_id, data['Message']))
             sys.exit()
-        elif data[u'JobState'] == "Completed":
+        elif data['JobState'] == "Completed":
             print("\n--- PASS, Final Detailed Job Status Results ---\n")
             for i in data.items():
                 if "odata" in i[0] or "MessageArgs" in i[0] or "TargetSettingsURI" in i[0]:
@@ -150,7 +167,7 @@ def loop_job_status():
                     print("%s: %s" % (i[0],i[1]))
             break
         else:
-            print("- WARNING, JobStatus not completed, current status: \"%s\", percent complete: \"%s\"" % (data[u'Message'],data[u'PercentComplete']))
+            print("- INFO, JobStatus not completed, current status: \"%s\", percent complete: \"%s\"" % (data['Message'],data['PercentComplete']))
             time.sleep(3)
 
 def test_valid_controller_FQDD_string(x):
