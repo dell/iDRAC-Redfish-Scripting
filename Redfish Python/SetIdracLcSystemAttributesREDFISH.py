@@ -6,7 +6,7 @@
 # NOTE: Possible supported values for attribute_group parameter are: idrac, lc and system.
 #
 # _author_ = Texas Roemer <Texas_Roemer@Dell.com>
-# _version_ = 8.0
+# _version_ = 9.0
 #
 # Copyright (c) 2017, Dell, Inc.
 #
@@ -47,6 +47,9 @@ idrac_password=args["p"]
 def check_supported_idrac_version():
     response = requests.get('https://%s/redfish/v1/Managers/iDRAC.Embedded.1/Attributes' % idrac_ip,verify=False,auth=(idrac_username, idrac_password))
     data = response.json()
+    if response.status_code == 401:
+        print("\n- WARNING, status code %s returned. Incorrect iDRAC username/password or invalid privilege detected." % response.status_code)
+        sys.exit()
     if response.status_code != 200:
         print("\n- WARNING, iDRAC version installed does not support this feature using Redfish API")
         print("\nNote: If using iDRAC 7/8, this script is not supported. Use Server Configuration Profile feature instead with Redfish to set iDRAC / System and Lifecycle Controller attributes") 
@@ -78,7 +81,7 @@ def get_attribute_registry():
 
 
 def attribute_registry_get_specific_attribute():
-    print("\n- WARNING, searching attribute registry for attribute \"%s\"" % args["ars"])
+    print("\n- INFO, searching attribute registry for attribute \"%s\"" % args["ars"])
     response = requests.get('https://%s/redfish/v1/Registries/ManagerAttributeRegistry/ManagerAttributeRegistry.v1_0_0.json' % idrac_ip,verify=False,auth=(idrac_username,idrac_password))
     data = response.json()
     found = ""
@@ -112,7 +115,7 @@ def set_attributes():
     attribute_values = args["av"].split(",")
     for i,ii in zip(attribute_names, attribute_values):
         payload["Attributes"][i] = ii
-    print("\n- WARNING, changing \"%s\" attributes -\n" % args["s"].upper())
+    print("\n- INFO, configuring \"%s\" attributes\n" % args["s"].upper())
     for i in payload["Attributes"].items():
         response = requests.get('https://%s/redfish/v1/Registries/ManagerAttributeRegistry/ManagerAttributeRegistry.v1_0_0.json' % idrac_ip,verify=False,auth=(idrac_username,idrac_password))
         data = response.json()
@@ -124,12 +127,18 @@ def set_attributes():
                             payload["Attributes"][i[0]] = int(i[1])
     for i in payload["Attributes"].items():
         print(" Attribute Name: %s, setting new value to: %s" % (i[0], i[1]))
+   
     headers = {'content-type': 'application/json'}
     response = requests.patch(url, data=json.dumps(payload), headers=headers, verify=False,auth=(idrac_username, idrac_password))
     statusCode = response.status_code
     data = response.json()
     if statusCode == 200:
-        print("\n- PASS, Command passed to successfully set \"%s\" attribute(s), status code %s returned\n" % (args["s"].upper(),statusCode))
+        print("\n- PASS, PATCH command passed to successfully set \"%s\" attribute(s), status code %s returned\n" % (args["s"].upper(),statusCode))
+        if "error" in data.keys():
+            print("- WARNING, error detected for one or more of the attribute(s) being set, detailed error results:\n\n %s" % data["error"])
+            print("\n- INFO, for attributes that detected no error, these will still get applied")
+        else:
+            pass
     else:
         print("\n- FAIL, Command failed to set %s attributes(s), status code is: %s\n" % (args["s"].upper(),statusCode))
         print("Extended Info Message: {0}".format(response.json()))
@@ -137,7 +146,7 @@ def set_attributes():
     
     
 def get_new_attribute_values():
-    print("- WARNING, getting new attribute values - \n")
+    print("- INFO, getting new attribute current values \n")
     time.sleep(30)
     response = requests.get('%s' % (url),verify=False,auth=(idrac_username, idrac_password))
     data = response.json()
