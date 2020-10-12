@@ -4,7 +4,7 @@
 # 
 #
 # _author_ = Texas Roemer <Texas_Roemer@Dell.com>
-# _version_ = 3.0
+# _version_ = 4.0
 #
 # Copyright (c) 2018, Dell, Inc.
 #
@@ -46,12 +46,20 @@ if args["s"]:
 
 def get_ethernet_interfaces():
     response = requests.get('https://%s/redfish/v1/Systems/System.Embedded.1/EthernetInterfaces' % idrac_ip,verify=False,auth=(idrac_username, idrac_password))
+    if response.status_code == 401:
+        print("\n- FAIL, incorrect iDRAC username or password detected")
+        sys.exit()
+    elif response.status_code != 200:
+        print("\n- WARNING, iDRAC version installed does not support this feature using Redfish API")
+        sys.exit()
+    else:
+        pass
     data = response.json()
     if args["e"] == "y":
         print("\n- Ethernet FQDDs detected -\n")
     else:
         pass
-    for i in data[u'Members']:
+    for i in data['Members']:
         for ii in i.items():
             fqdd = (ii[1].split("/")[-1])
             if args["e"] == "y":
@@ -72,7 +80,7 @@ def get_specific_ethernet_property_old():
     data = response.json()
     print("\n"),
     correct_value=0
-    for i in data[u'Members']:
+    for i in data['Members']:
         for ii in i.items():
             fqdd = (ii[1].split("/")[-1])
             response = requests.get('https://%s/redfish/v1/Systems/System.Embedded.1/EthernetInterfaces/%s' % (idrac_ip, fqdd),verify=False,auth=(idrac_username, idrac_password))
@@ -94,14 +102,14 @@ def get_specific_ethernet_property():
     response = requests.get('https://%s/redfish/v1/Systems/System.Embedded.1/EthernetInterfaces' % idrac_ip,verify=False,auth=(idrac_username, idrac_password))
     data = response.json()
     nic_fqdds = []
-    for i in data[u'Members']:
+    for i in data['Members']:
         for ii in i.items():
             fqdd = (ii[1].split("/")[-1])
             nic_fqdds.append(fqdd)
     for i in nic_fqdds:
         response = requests.get('https://%s/redfish/v1/Systems/System.Embedded.1/EthernetInterfaces/%s' % (idrac_ip, i),verify=False,auth=(idrac_username, idrac_password))
         data = response.json()
-        print("\n- Specific properties for FQDD %s -\n" % i)
+        print("\n- FQDD %s -\n" % i)
         for ii in specific_property:
             if ii in data.keys():
                 print("%s: %s" % (ii, data[ii]))
@@ -112,7 +120,7 @@ def get_specific_ethernet_property():
 def get_FQDD_details():
     response = requests.get('https://%s/redfish/v1/Systems/System.Embedded.1/EthernetInterfaces/%s' % (idrac_ip, fqdd),verify=False,auth=(idrac_username, idrac_password))
     data = response.json()
-    print("\n- Detailed Ethernet Information for FQDD %s -\n" % fqdd)
+    print("\n- Detailed Information for FQDD %s -\n" % fqdd)
     for i in data.items():
         print("%s: %s" % (i[0], i[1]))
     
