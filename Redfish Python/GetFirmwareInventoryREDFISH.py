@@ -6,7 +6,7 @@
 # 
 #
 # _author_ = Texas Roemer <Texas_Roemer@Dell.com>
-# _version_ = 4.0
+# _version_ = 5.0
 #
 # Copyright (c) 2018, Dell, Inc.
 #
@@ -41,17 +41,20 @@ idrac_password=args["p"]
 
 
 def check_idrac_fw_support():
-    req = requests.get('https://%s/redfish/v1/UpdateService/FirmwareInventory/' % (idrac_ip), auth=(idrac_username, idrac_password), verify=False)
-    statusCode = req.status_code
-    if statusCode == 400:
-        print("\n- WARNING, current server iDRAC version does not support Redfish firmware features. Refer to Dell online Redfish documentation for information on which iDRAC version support firmware features.")
+    response = requests.get('https://%s/redfish/v1/UpdateService/FirmwareInventory/' % (idrac_ip), auth=(idrac_username, idrac_password), verify=False)
+    statusCode = response.status_code
+    if response.status_code == 401:
+        print("\n- WARNING, status code %s returned. Incorrect iDRAC username/password or invalid privilege detected." % response.status_code)
+        sys.exit()
+    elif response.status_code != 200:
+        print("\n- WARNING, iDRAC version installed does not support this feature using Redfish API")
         sys.exit()
     else:
-        pass
+        pass  
     
 
 def get_FW_inventory():
-    print("\n- WARNING, get current firmware version(s) for all devices in the system iDRAC supports\n")
+    print("\n- INFO, get current firmware version(s) for all devices in the system iDRAC supports\n")
     time.sleep(3)
     try:
         os.remove("fw_inventory.txt")
@@ -65,16 +68,25 @@ def get_FW_inventory():
     req = requests.get('https://%s/redfish/v1/UpdateService/FirmwareInventory?$expand=*($levels=1)' % (idrac_ip), auth=(idrac_username, idrac_password), verify=False)
     statusCode = req.status_code
     data = req.json()
-    for i in data[u'Members']:
+    if "Members" in data.keys():
+        if data["Members@odata.count"] > 0:
+            pass
+        else:
+            print("- FAIL, no URI members detected for firmware inventory, manually run GET on URI \"/redfish/v1/UpdateService/FirmwareInventory\" to debug issue")
+            sys.exit()
+    else:
+        print("- FAIL, unable to locate \"Members\" in JSON output, manually run GET on URI \"/redfish/v1/UpdateService/FirmwareInventory\" to debug issue")
+        sys.exit()
+    for i in data['Members']:
         for ii in i.items():
-            if ii[0] == u'@odata.type':
+            if ii[0] == '@odata.type':
                 message = "\n%s: %s" % (ii[0], ii[1])
                 f.writelines(message)
                 print(message)
                 message = "\n"
                 f.writelines(message)
             elif ii[0] == "Oem":
-                for iii in ii[1][u'Dell'][u'DellSoftwareInventory'].items():
+                for iii in ii[1]['Dell']['DellSoftwareInventory'].items():
                     message = "%s: %s" % (iii[0], iii[1])
                     f.writelines(message)
                     print(message)
