@@ -6,7 +6,7 @@
 # 
 #
 # _author_ = Texas Roemer <Texas_Roemer@Dell.com>
-# _version_ = 5.0
+# _version_ = 6.0
 #
 # Copyright (c) 2018, Dell, Inc.
 #
@@ -36,8 +36,7 @@ args=vars(parser.parse_args())
 idrac_ip=args["ip"]
 idrac_username=args["u"]
 idrac_password=args["p"]
-
-
+filename = "iDRAC_%s_FW_inventory.txt" % idrac_ip
 
 
 def check_idrac_fw_support():
@@ -57,10 +56,10 @@ def get_FW_inventory():
     print("\n- INFO, get current firmware version(s) for all devices in the system iDRAC supports\n")
     time.sleep(3)
     try:
-        os.remove("fw_inventory.txt")
+        os.remove(filename)
     except:
         pass
-    f=open("fw_inventory.txt","a")
+    f=open(filename,"a")
     d=datetime.now()
     current_date_time="- Data collection timestamp: %s-%s-%s  %s:%s:%s\n" % (d.month,d.day,d.year, d.hour,d.minute,d.second)
     f.writelines(current_date_time)
@@ -100,7 +99,7 @@ def get_FW_inventory():
                 message = "\n"
                 f.writelines(message)
 
-    print("\n- Firmware inventory output is also captured in \"fw_inventory.txt\" file")
+    print("\n- Firmware inventory output is also captured in \"%s\" file" % filename)
     f.close()
         
         
