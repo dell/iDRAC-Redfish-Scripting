@@ -4,7 +4,7 @@
 # 
 #
 # _author_ = Texas Roemer <Texas_Roemer@Dell.com>
-# _version_ = 14.0
+# _version_ = 15.0
 #
 # Copyright (c) 2017, Dell, Inc.
 #
@@ -172,7 +172,7 @@ def loop_job_status():
         else:
             print("Query job ID command failed, error code is: %s" % statusCode)
             sys.exit()
-        if "failed" in data['Oem']['Dell']['Message'] or "completed with errors" in data['Oem']['Dell']['Message'] or "Not one" in data['Oem']['Dell']['Message'] or "not compliant" in data['Oem']['Dell']['Message'] or "Unable" in data['Oem']['Dell']['Message'] or "The system could not be shut down" in data['Oem']['Dell']['Message'] or "No device configuration" in data['Oem']['Dell']['Message'] or "timed out" in data['Oem']['Dell']['Message']:
+        if "failed" in data['Oem']['Dell']['Message'] or "completed with errors" in data['Oem']['Dell']['Message'] or "Not one" in data['Oem']['Dell']['Message'] or "not compliant" in data['Oem']['Dell']['Message'] or "Unable" in data['Oem']['Dell']['Message'] or "The system could not be shut down" in data['Oem']['Dell']['Message'] or "No device configuration" in data['Oem']['Dell']['Message'] or "timed out" in data['Oem']['Dell']['Message'] and data['Oem']['Dell']['JobState'] == "Completed":
             print("- FAIL, Job ID %s marked as %s but detected issue(s). See detailed job results below for more information on failure\n" % (job_id, data['Oem']['Dell']['JobState']))
             print("- Detailed configuration changes and job results for \"%s\"\n" % job_id)
             try:
@@ -209,7 +209,7 @@ def loop_job_status():
             for i in data['Oem']['Dell'].items():
                 print("%s: %s" % (i[0], i[1]))
             sys.exit()
-        elif "Successfully imported" in data['Oem']['Dell']['Message'] or "completed with errors" in data['Oem']['Dell']['Message'] or "Successfully imported" in data['Oem']['Dell']['Message']:
+        elif "Successfully imported" in data['Oem']['Dell']['Message'] or "completed with errors" in data['Oem']['Dell']['Message'] or "Successfully imported" in data['Oem']['Dell']['Message'] and data['Oem']['Dell']['JobState'] == "Completed":
             print("- PASS, job ID %s successfully marked completed\n" % job_id)
             print("- Detailed configuration changes and job results for \"%s\"\n" % job_id)
             try:
