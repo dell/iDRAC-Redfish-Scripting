@@ -2,7 +2,7 @@
 # GetSetBiosAttributesREDFISH. Python script using Redfish API DMTF to either get or set BIOS attributes using Redfish SettingApplyTime.
 #
 # _author_ = Texas Roemer <Texas_Roemer@Dell.com>
-# _version_ = 12.0
+# _version_ = 14.0
 #
 # Copyright (c) 2019, Dell, Inc.
 #
@@ -15,7 +15,7 @@
 #
 
 
-import requests, json, sys, re, time, warnings, argparse, os
+import requests, json, sys, re, time, warnings, argparse, os, subprocess
 
 from datetime import datetime
 
@@ -62,7 +62,10 @@ if args["r"] and args["an"] and args["av"]:
 def check_supported_idrac_version():
     response = requests.get('https://%s/redfish/v1/Systems/System.Embedded.1/Bios' % idrac_ip,verify=False,auth=(idrac_username, idrac_password))
     data = response.json()
-    if response.status_code != 200:
+    if response.status_code == 401:
+        print("\n- WARNING, status code %s returned, check your iDRAC username/password is correct or iDRAC user has correct privileges to execute Redfish commands" % response.status_code)
+        sys.exit()
+    elif response.status_code != 200:
         print("\n- WARNING, iDRAC version installed does not support this feature using Redfish API")
         sys.exit()
     else:
@@ -152,10 +155,10 @@ def create_bios_attribute_dict():
             if i[0] in ii.values():
                 if ii['Type'] == "Integer":
                     bios_attribute_payload['Attributes'][i[0]] = int(i[1])
-    print("\n- WARNING, script will be setting BIOS attributes -\n")
+    print("\n- INFO, script will be setting BIOS attribute(s) -\n")
     for i in bios_attribute_payload["Attributes"].items():
         print("Attribute Name: %s, setting new value to: %s" % (i[0], i[1]))
-    
+
     
 def create_next_boot_config_job():
     global job_id
@@ -247,15 +250,15 @@ def check_job_status_schedule():
                 print("- PASS, %s job id successfully scheduled, rebooting the server to apply boot option changes" % job_id)
                 break
         if "Lifecycle Controller in use" in data['Messages'][0]['Message']:
-            print("- WARNING, Lifecycle Controller in use, this job will start when Lifecycle Controller is available. Check overall jobqueue to make sure no other jobs are running and make sure server is either off or out of POST")
+            print("- INFO, Lifecycle Controller in use, this job will start when Lifecycle Controller is available. Check overall jobqueue to make sure no other jobs are running and make sure server is either off or out of POST")
             sys.exit()
         else:
-            print("- WARNING: JobStatus not scheduled, current status is: %s" % data['Messages'][0]['Message'])
+            print("- INFO: JobStatus not scheduled, current status is: %s" % data['Messages'][0]['Message'])
 
 def reboot_server():
     response = requests.get('https://%s/redfish/v1/Systems/System.Embedded.1/' % idrac_ip,verify=False,auth=(idrac_username, idrac_password))
     data = response.json()
-    print("\n- WARNING, Current server power state is: %s" % data['PowerState'])
+    print("\n- INFO, Current server power state is: %s" % data['PowerState'])
     if data['PowerState'] == "On":
         url = 'https://%s/redfish/v1/Systems/System.Embedded.1/Actions/ComputerSystem.Reset' % idrac_ip
         payload = {'ResetType': 'GracefulShutdown'}
@@ -264,7 +267,7 @@ def reboot_server():
         statusCode = response.status_code
         if statusCode == 204:
             print("- PASS, POST command passed to gracefully power OFF server, status code return is %s" % statusCode)
-            print("- WARNING, script will now verify the server was able to perform a graceful shutdown. If the server was unable to perform a graceful shutdown, forced shutdown will be invoked in 5 minutes")
+            print("- INFO, script will now verify the server was able to perform a graceful shutdown. If the server was unable to perform a graceful shutdown, forced shutdown will be invoked in 5 minutes")
             time.sleep(15)
             start_time = datetime.now()
         else:
@@ -279,7 +282,7 @@ def reboot_server():
                 print("- PASS, GET command passed to verify graceful shutdown was successful and server is in OFF state")
                 break
             elif current_time == "0:05:00":
-                print("- WARNING, unable to perform graceful shutdown, server will now perform forced shutdown")
+                print("- INFO, unable to perform graceful shutdown, server will now perform forced shutdown")
                 payload = {'ResetType': 'ForceOff'}
                 headers = {'content-type': 'application/json'}
                 response = requests.post(url, data=json.dumps(payload), headers=headers, verify=False, auth=(idrac_username,idrac_password))
@@ -324,26 +327,16 @@ def reboot_server():
         print("- FAIL, unable to get current server power state to perform either reboot or power on")
         sys.exit()
 
-def check_job_status_final():
+
+def check_final_job_status():
     start_time=datetime.now()
+    time.sleep(1)
     while True:
-        count = 1
-        while True:
-            if count == 5:
-                print("- FAIL, unable to get job status after 5 attempts, script will exit")
-                sys.exit()
-            try:
-                req = requests.get('https://%s/redfish/v1/TaskService/Tasks/%s' % (idrac_ip, job_id), auth=(idrac_username, idrac_password), verify=False)
-                break
-            except requests.ConnectionError as error_message:
-                print("- FAIL, requests command failed to GET job status, detailed error information: \n%s" % error_message)
-                time.sleep(10)
-                print("- WARNING, script will now attempt to get job status again")
-                count+=1
-                continue
-        current_time=(datetime.now()-start_time)
+        check_idrac_connection()
+        req = requests.get('https://%s/redfish/v1/Managers/iDRAC.Embedded.1/Jobs/%s' % (idrac_ip, job_id), auth=(idrac_username, idrac_password), verify=False)
+        current_time=str((datetime.now()-start_time))[0:7]
         statusCode = req.status_code
-        if statusCode == 202 or statusCode == 200:
+        if statusCode == 200:
             pass
         else:
             print("\n- FAIL, Command failed to check job status, return code is %s" % statusCode)
@@ -353,31 +346,41 @@ def check_job_status_final():
         if str(current_time)[0:7] >= "0:30:00":
             print("\n- FAIL: Timeout of 30 minutes has been hit, script stopped\n")
             sys.exit()
-        elif "Complete" in data['Messages'][0]['Message'] or "complete" in data['Messages'][0]['Message']:
-            print("- PASS, %s job id successfully completed\n" % job_id)
-            count = 0
-            while True:
-                response = requests.get('https://%s/redfish/v1/Systems/System.Embedded.1/Bios' % idrac_ip,verify=False,auth=(idrac_username,idrac_password))
-                if response.status_code == 200 or response.status_code == 202:
-                    data = response.json()
-                    for i in payload_patch["Attributes"]:
-                        for ii in data['Attributes'].items():
-                            if ii[0] == i:
-                                print("- Current value for attribute \"%s\" is \"%s\"" % (i, ii[1]))
-                    return
-                elif count == 5:
-                    print("- WARNING, GET command failed 5 times to get BIOS attributes, script will exit")
-                    sys.exit()
-                else:
-                    print("- WARNING, GET command failed to get BIOS attributes, status code %s detected, retry" % response.status_code)
-                    time.sleep(10)
-                    count+=1
-        elif "fail" in data['Messages'][0]['Message'] or "Fail" in data['Messages'][0]['Message']:
-            print("- FAIL, %s job id marked as failed. Check iDRAC Lifecycle Logs for more details on the failure" % job_id)
+        elif "Fail" in data['Message'] or "fail" in data['Message'] or "fail" in data['JobState'] or "Fail" in data['JobState']:
+            print("- FAIL: %s failed" % job_id)
+            sys.exit()
+        
+        elif "completed successfully" in data['Message']:
+            print("\n- PASS, job ID %s successfully marked completed" % job_id)
+            print("\n- Final detailed job results -\n")
+            for i in data.items():
+                print("%s: %s" % (i[0], i[1]))
+            print("\n- JOB ID %s completed in %s" % (job_id, current_time))
             sys.exit()
         else:
-            print("- WARNING: JobStatus not marked completed, current status is: %s" % data['Messages'][0]['Message'])
-            time.sleep(20)
+            print("- INFO, JobStatus not completed, current status: \"%s\", execution time: \"%s\"" % (data['Message'], current_time))
+            check_idrac_connection()
+            time.sleep(5)
+
+
+def check_idrac_connection():
+    ping_command="ping %s -n 5" % idrac_ip
+    while True:
+        try:
+            ping_output = subprocess.Popen(ping_command, stdout = subprocess.PIPE, shell=True).communicate()[0]
+            ping_results = re.search("Lost = .", ping_output).group()
+            if ping_results == "Lost = 0":
+                break
+            else:
+                print("\n- INFO, iDRAC connection lost due to slow network connection or component being updated requires iDRAC reset. Script will recheck iDRAC connection in 3 minutes")
+                time.sleep(180)
+        except:
+            ping_output = subprocess.run(ping_command,universal_newlines=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+            if "Lost = 0" in ping_output.stdout:
+                break
+            else:
+                print("\n- INFO, iDRAC connection lost due to slow network connection or component being updated requires iDRAC reset. Script will recheck iDRAC connection in 3 minutes")
+                time.sleep(180)
 
 
 
@@ -398,7 +401,7 @@ if __name__ == "__main__":
             check_job_status_schedule()
             reboot_server()
             time.sleep(20)
-            check_job_status_final()
+            check_final_job_status()
         elif job_type == "l":
             create_next_boot_config_job()
             check_job_status_schedule()
