@@ -2,7 +2,7 @@
 # DeviceFirmwareSimpleUpdateREDFISH. Python script using Redfish API to update a device firmware with DMTF action SimpleUpdate. Supported file image types are Windows DUPs, d7/d9 image or pm files.
 #
 # _author_ = Texas Roemer <Texas_Roemer@Dell.com>
-# _version_ = 8.0
+# _version_ = 10.0
 #
 # Copyright (c) 2018, Dell, Inc.
 #
@@ -54,40 +54,35 @@ def check_supported_idrac_version():
         pass
     
 def get_FW_inventory():
-    print("\n- WARNING, current devices detected with firmware version and updateable status -\n")
+    print("\n- INFO, current devices detected with firmware version and updateable status -\n")
     req = requests.get('https://%s/redfish/v1/UpdateService/FirmwareInventory/' % (idrac_ip), auth=(idrac_username, idrac_password), verify=False)
     statusCode = req.status_code
     installed_devices=[]
     data = req.json()
-    for i in data[u'Members']:
+    for i in data['Members']:
         for ii in i.items():
             if "Installed" in ii[1]:
                 installed_devices.append(ii[1])
-    if installed_devices == []:
-        print("- FAIL, no INSTALLED URIs detected for firmware inventory")
-        sys.exit()
-    else:
-        print("-"*80)
     for i in installed_devices:
         req = requests.get('https://%s%s' % (idrac_ip, i), auth=(idrac_username, idrac_password), verify=False)
         statusCode = req.status_code
         data = req.json()
-        componentID = data[u'Oem'][u'Dell'][u'DellSoftwareInventory'][u'ComponentID']
-        updateable_status = data[u'Updateable']
-        version = data[u'Version']
-        device_name = data[u'Name']
-        print("Name: %s\nComponent ID: %s\nVersion: %s\nUpdatable: %s" % (device_name, componentID, version, updateable_status))
-        print("-"*80)
+        updateable_status = data['Updateable']
+        version = data['Version']
+        device_name = data['Name']
+        print("Device Name: %s, Firmware Version: %s, Updatable: %s" % (device_name, version, updateable_status))
     sys.exit()
     
 
 def download_image_payload():
     global available_entry
     global http_push_uri
-    print("\n- WARNING, downloading \"%s\" image, this may take a few minutes depending on the size of the image" % args["f"])
+    global start_time
+    start_time=datetime.now()
+    print("\n- INFO, downloading \"%s\" image, this may take a few minutes depending on the size of the image" % args["f"])
     req = requests.get('https://%s/redfish/v1/UpdateService/' % (idrac_ip), auth=(idrac_username, idrac_password), verify=False)
     data = req.json()
-    http_push_uri = data[u'HttpPushUri']
+    http_push_uri = data['HttpPushUri']
     req = requests.get('https://%s%s' % (idrac_ip, http_push_uri), auth=(idrac_username, idrac_password), verify=False)
     statusCode = req.status_code
     data = req.json()
@@ -106,8 +101,8 @@ def download_image_payload():
         print("\n- FAIL: POST command failed to download image payload, status code is %s, error is %s" % (response.status_code, response))
         print("\nMore details on status code error: %s " % post_command_response_output)
         sys.exit()
-    available_entry = post_command_response_output[u'Id']
-    print("- WARNING, AVAILABLE entry created for download image \"%s\" is \"%s\"" % (filename, available_entry))
+    available_entry = post_command_response_output['Id']
+    print("- INFO, AVAILABLE entry created for download image \"%s\" is \"%s\"" % (filename, available_entry))
     
 
     
@@ -130,22 +125,20 @@ def install_image_payload():
 
 
 def check_job_status():
-    global start_time
-    start_time=datetime.now()
     while True:
         req = requests.get('https://%s/redfish/v1/TaskService/Tasks/%s' % (idrac_ip, job_id), auth=(idrac_username, idrac_password), verify=False)
         statusCode = req.status_code
         data = req.json()
-        if data[u"TaskState"] == "Completed":
-            print("\n- PASS, job ID %s successfuly marked completed, detailed final job status results:\n" % data[u"Id"])
-            for i in data[u'Oem'][u'Dell'].items():
+        if data["TaskState"] == "Completed":
+            print("\n- INFO, job ID %s marked completed, detailed final job status results:\n" % data["Id"])
+            for i in data['Oem']['Dell'].items():
                 print("%s: %s" % (i[0],i[1]))
             print("\n- JOB ID %s completed in %s" % (job_id, current_time))
             sys.exit()
         current_time = str(datetime.now()-start_time)[0:7]   
         statusCode = req.status_code
         data = req.json()
-        message_string=data[u"Messages"]
+        message_string=data["Messages"]
         if statusCode == 202 or statusCode == 200:
             pass
         else:
@@ -154,30 +147,30 @@ def check_job_status():
         if str(current_time)[0:7] >= "0:30:00":
             print("\n- FAIL: Timeout of 30 minutes has been hit, update job should of already been marked completed. Check the iDRAC job queue and LC logs to debug the issue\n")
             sys.exit()
-        elif "failed" in data[u'Oem'][u'Dell'][u'Message'] or "completed with errors" in data[u'Oem'][u'Dell'][u'Message'] or "Failed" in data[u'Oem'][u'Dell'][u'Message']:
-            print("- FAIL: Job failed, current message is: %s" % data[u"Messages"])
+        elif "failed" in data['Oem']['Dell']['Message'] or "completed with errors" in data['Oem']['Dell']['Message'] or "Failed" in data['Oem']['Dell']['Message']:
+            print("- FAIL: Job failed, current message is: %s" % data["Messages"])
             sys.exit()
-        elif "scheduled" in data[u'Oem'][u'Dell'][u'Message']:
-            print("\n- PASS, job ID %s successfully marked as scheduled, powering on or rebooting the server to apply the update" % data[u"Id"])
+        elif "scheduled" in data['Oem']['Dell']['Message']:
+            print("\n- PASS, job ID %s successfully marked as scheduled, powering on or rebooting the server to apply the update" % data["Id"])
             break
-        elif "completed successfully" in data[u'Oem'][u'Dell'][u'Message']:
-            print("\n- PASS, job ID %s successfully marked completed, detailed final job status results:\n" % data[u"Id"])
-            for i in data[u'Oem'][u'Dell'].items():
+        elif "completed successfully" in data['Oem']['Dell']['Message']:
+            print("\n- PASS, job ID %s successfully marked completed, detailed final job status results:\n" % data["Id"])
+            for i in data['Oem']['Dell'].items():
                 print("%s: %s" % (i[0],i[1]))
-            print("\n- %s completed in: %s" % (job_id, str(current_time)[0:7]))
+            print("\n- INFO, firmware update completed in: %s" % (str(current_time)[0:7]))
         else:
             if "d9" in args["f"] or "d8" in args["f"] or "d7" in args["f"]:
-                print("- Message: Downloading package \"%s\"" % args["f"])
+                print("- INFO: Downloading package \"%s\"" % args["f"])
             else:
-                print("- Message: %s, current job execution time is: %s" % (message_string[0][u"Message"], current_time))
+                print("- INFO: %s, current update execution time: %s" % (message_string[0]["Message"], current_time))
             time.sleep(1)
             continue
 
 def reboot_server():
     response = requests.get('https://%s/redfish/v1/Systems/System.Embedded.1/' % idrac_ip,verify=False,auth=(idrac_username, idrac_password))
     data = response.json()
-    print("\n- WARNING, Current server power state is: %s" % data[u'PowerState'])
-    if data[u'PowerState'] == "On":
+    print("\n- INFO, Current server power state is: %s" % data['PowerState'])
+    if data['PowerState'] == "On":
         url = 'https://%s/redfish/v1/Systems/System.Embedded.1/Actions/ComputerSystem.Reset' % idrac_ip
         payload = {'ResetType': 'GracefulShutdown'}
         headers = {'content-type': 'application/json'}
@@ -194,11 +187,11 @@ def reboot_server():
         while True:
             response = requests.get('https://%s/redfish/v1/Systems/System.Embedded.1/' % idrac_ip,verify=False,auth=(idrac_username, idrac_password))
             data = response.json()
-            if data[u'PowerState'] == "Off":
+            if data['PowerState'] == "Off":
                 print("- PASS, GET command passed to verify server is in OFF state")
                 break
             elif count == 20:
-                print("- WARNING, unable to graceful shutdown the server, will perform forced shutdown now")
+                print("- INFO, unable to graceful shutdown the server, will perform forced shutdown now")
                 url = 'https://%s/redfish/v1/Systems/System.Embedded.1/Actions/ComputerSystem.Reset' % idrac_ip
                 payload = {'ResetType': 'ForceOff'}
                 headers = {'content-type': 'application/json'}
@@ -228,7 +221,7 @@ def reboot_server():
             print("\n- FAIL, Command failed to power ON server, status code is: %s\n" % statusCode)
             print("Extended Info Message: {0}".format(response.json()))
             sys.exit()
-    elif data[u'PowerState'] == "Off":
+    elif data['PowerState'] == "Off":
         url = 'https://%s/redfish/v1/Systems/System.Embedded.1/Actions/ComputerSystem.Reset' % idrac_ip
         payload = {'ResetType': 'On'}
         headers = {'content-type': 'application/json'}
@@ -246,35 +239,40 @@ def reboot_server():
 
 
 def loop_check_final_job_status():
-    start_time=datetime.now()
+    count = 0
     while True:
         req = requests.get('https://%s/redfish/v1/TaskService/Tasks/%s' % (idrac_ip, job_id), auth=(idrac_username, idrac_password), verify=False)
         current_time=str((datetime.now()-start_time))[0:7]
         statusCode = req.status_code
+        if count == 10:
+            print("- FAIL, retry count of 10 has been reached for checking job status, manually check the job queue for job status")
+            sys.exit()
         if statusCode == 202 or statusCode == 200:
             pass
         else:
             print("\n- FAIL, Command failed to check job status, return code is %s" % statusCode)
             print("Extended Info Message: {0}".format(req.json()))
-            sys.exit()
+            print("\n- INFO, script will wait 10 seconds before attempting to check job status again")
+            time.sleep(10)
+            count+=1
+            continue
         data = req.json()
-        #print data
-        if str(current_time)[0:7] >= "2:00:00":
-            print("\n- FAIL: Timeout of 2 hours has been hit, update job should of already been marked completed. Check the iDRAC job queue and LC logs to debug the issue\n")
+        if str(current_time)[0:7] >= "4:00:00":
+            print("\n- FAIL: Timeout of 4 hours has been hit, update job should of already been marked completed. Check the iDRAC job queue and LC logs to debug the issue\n")
             sys.exit()
-        elif "Fail" in data[u'Oem'][u'Dell'][u'Message'] or "fail" in data[u'Oem'][u'Dell'][u'Message']:
+        elif "Fail" in data['Oem']['Dell']['Message'] or "fail" in data['Oem']['Dell']['Message']:
             print("- FAIL: %s failed" % job_id)
             sys.exit()
         
-        elif "completed successfully" in data[u'Oem'][u'Dell'][u'Message']:
+        elif "completed successfully" in data['Oem']['Dell']['Message']:
             print("\n- PASS, job ID %s successfully marked completed" % job_id)
             print("\n- Final detailed job results -\n")
-            for i in data[u'Oem'][u'Dell'].items():
+            for i in data['Oem']['Dell'].items():
                 print("%s: %s" % (i[0], i[1]))
-            print("\n- JOB ID %s completed in %s" % (job_id, current_time))
+            print("\n- INFO, firmware update completed in %s" % (str(current_time)[0:7]))
             sys.exit()
         else:
-            print("- WARNING, JobStatus not completed, current status is: \"%s\", job execution time is \"%s\"" % (data[u'Oem'][u'Dell'][u'Message'], current_time))
+            print("- INFO, Job status not completed, current status: \"%s\", update execution time: \"%s\"" % (data['Oem']['Dell']['Message'], current_time))
             time.sleep(20)
 
 
