@@ -2,7 +2,7 @@
 # CreateVirtualDiskREDFISH. Python script using Redfish API to either get controllers / disks / virtual disks / supported RAID levels or create virtual disk.
 #
 # _author_ = Texas Roemer <Texas_Roemer@Dell.com>
-# _version_ = 10.0
+# _version_ = 14.0
 #
 # Copyright (c) 2018, Dell, Inc.
 #
@@ -36,7 +36,7 @@ parser.add_argument('-e', help='Get current server storage enclosure information
 parser.add_argument('-s', help='Get current supported volume types (RAID levels) for your controller, pass in \"y\". You must use agrument -cc with your controller FQDD', required=False)
 parser.add_argument('-C', help='Pass in controller FQDD to create virtual disk, pass in storage controller FQDD, Example "\RAID.Integrated.1-1\"', required=False)
 parser.add_argument('-D', help='Pass in disk FQDD to create virtual disk, pass in storage disk FQDD, Example \"Disk.Bay.2:Enclosure.Internal.0-1:RAID.Mezzanine.1-1\". You can pass in multiple drives, just use a comma seperator between each disk FQDD string', required=False)
-parser.add_argument('-R', help='Pass in the RAID level you want to create. Possible supported values are: 0, 1, 5, 10 and 50. You must also pass in arguments -V, -C and -D', required=False)
+parser.add_argument('-R', help='Pass in the RAID level you want to create. Possible supported values are: 0, 1, 5, 6, 10, 50 and 60. You must also pass in arguments -V, -C and -D. NOTE: Depending on your storage controller, not all RAID levels will be supported. if needed, check the storage controller user guide for details on which RAID levels are supported. For RAID levels 6 and 60, you must have iDRAC 4.40 or newer.', required=False)
 parser.add_argument('-V', help='Create virtual disk, pass in \"y\". You must also pass in arguments -C and -D', required=False)
 parser.add_argument('--size', help='Pass in the size(CapacityBytes) in bytes for VD creation. This is OPTIONAL, if you don\'t pass in the size, VD creation will use full disk size to create the VD', required=False)
 parser.add_argument('--stripesize', help='Pass in the stripesize(OptimumIOSizeBytes) in kilobytes for VD creation. This is OPTIONAL, if you don\'t pass in stripesize, controller will use the default value', required=False)
@@ -61,12 +61,31 @@ elif args["cc"]:
 elif args["C"] and args["D"] and args["V"] and args["R"]:
     controller=args["C"]
     disks=args["D"]
-    raid_levels={"0":"NonRedundant","1":"Mirrored","5":"StripedWithParity","10":"SpannedMirrors","50":"SpannedStripesWithParity"}
-    try:
-        volume_type=raid_levels[args["R"]]
-    except:
-        print("\n- FAIL, invalid RAID level value entered")
+    response = requests.get('https://%s/redfish/v1/Managers/iDRAC.Embedded.1' % idrac_ip,verify=False,auth=(idrac_username, idrac_password))
+    if response.status_code == 401:
+        print("\n- WARNING, status code 401 returned, check to make sure you are passing in correct iDRAC username or password")
         sys.exit()
+    else:
+        pass
+    
+    data = response.json()
+    get_version = data['FirmwareVersion'].split(".")[:2]
+    get_version = int("".join(get_version))
+    if get_version < 440:
+        raid_levels={"0":"NonRedundant","1":"Mirrored","5":"StripedWithParity","10":"SpannedMirrors","50":"SpannedStripesWithParity"}
+        try:
+            volume_type=raid_levels[args["R"]]  
+        except:
+            print("\n- FAIL, invalid RAID level value entered")
+            sys.exit()
+    elif get_version >= 440:
+        raid_levels={"0":"RAID0","1":"RAID1","5":"RAID5","6":"RAID6","10":"RAID10","50":"RAID50","60":"RAID60"}
+        try:
+            volume_type=raid_levels[args["R"]]  
+        except:
+            print("\n- FAIL, invalid RAID level value entered")
+            sys.exit()
+        
     if args["size"]:
         vd_size=int(args["size"])
     if args["stripesize"]:
@@ -76,7 +95,7 @@ elif args["C"] and args["D"] and args["V"] and args["R"]:
 elif args["e"]:
     pass
 else:
-        print("- FAIL, you must pass in at least one agrument with -ip, -u and -p")
+        print("\n- WARNING, missing or incorrect arguments passed in for executing script")
         sys.exit()
     
 
@@ -204,6 +223,9 @@ def get_pdisks():
             drive_list.append(i['@odata.id'].split("/")[-1])
             response = requests.get('https://%s/redfish/v1/Systems/System.Embedded.1/Storage/Drives/%s' % (idrac_ip, i['@odata.id'].split("/")[-1]),verify=False,auth=(idrac_username, idrac_password))
             data = response.json()
+            if response.status_code != 200:
+                print("- FAIL, status code %s detected, detailed error results: \n%s" % (response.status_code, data))
+                sys.exit()
             if data['Links']['Volumes'] == []:
                 print("Disk: %s, RaidStatus: Disk is not part of a RAID volume" % (i['@odata.id'].split("/")[-1]))
             else:
@@ -247,14 +269,14 @@ def get_virtual_disks():
     else:
         for i in data['Members']:
             vd_list.append(i['@odata.id'].split("/")[-1])
-    print("\n- Volume(s) detected for %s controller -" % controller)
-    print("\n")
+    print("\n- Volume(s) detected for %s controller -\n" % controller)
     for ii in vd_list:
         response = requests.get('https://%s/redfish/v1/Systems/System.Embedded.1/Storage/Volumes/%s' % (idrac_ip, ii),verify=False,auth=(idrac_username, idrac_password))
         data = response.json()
-        for i in data.items():
-            if i[0] == "VolumeType":
-                print("%s, Volume type: %s" % (ii, i[1]))
+        try:
+            print("%s, Volume type: %s, RAID type: %s" % (ii, data["VolumeType"], data["RAIDType"]))
+        except:
+            print("%s, Volume type: %s" % (ii, data["VolumeType"]))
     sys.exit()
 
 def get_virtual_disk_details():
@@ -304,7 +326,10 @@ def create_raid_vd():
         s="/redfish/v1/Systems/System.Embedded.1/Storage/Drives/"+i
         d={"@odata.id":s}
         final_disks_list.append(d)
-    payload = {"VolumeType":volume_type,"Drives":final_disks_list}
+    if get_version < 440:
+        payload = {"VolumeType":volume_type,"Drives":final_disks_list}
+    elif get_version >= 440:
+        payload = {"RAIDType":volume_type,"Drives":final_disks_list}
     try:
         payload["CapacityBytes"]=vd_size
     except:
@@ -345,25 +370,37 @@ def create_raid_vd():
 start_time=datetime.now()
 
 def loop_job_status():
+    count_number = 0
+    start_time=datetime.now()
+    try:
+        req = requests.get('https://%s/redfish/v1/Managers/iDRAC.Embedded.1/Jobs/%s' % (idrac_ip, job_id), auth=(idrac_username, idrac_password), verify=False)
+    except requests.ConnectionError as error_message:
+        print(error_message)
+        sys.exit()
+    data = req.json()
+    if data['JobType'] == "RAIDConfiguration":
+        print("- PASS, staged job \"%s\" successfully created. Server will now reboot to apply the configuration changes" % job_id)
+    elif data['JobType'] == "RealTimeNoRebootConfiguration":
+        print("- PASS, realtime job \"%s\" successfully created. Server will apply the configuration changes in real time, no server reboot needed" % job_id)
+    print("\n- WARNING, script will now loop polling the job status until marked completed\n")
     while True:
         req = requests.get('https://%s/redfish/v1/Managers/iDRAC.Embedded.1/Jobs/%s' % (idrac_ip, job_id), auth=(idrac_username, idrac_password), verify=False)
         current_time=(datetime.now()-start_time)
         statusCode = req.status_code
         if statusCode == 200:
-            #print("\n- PASS, Command passed to check job status, code 200 returned")
             pass
         else:
             print("\n- FAIL, Command failed to check job status, return code is %s" % statusCode)
             print("Extended Info Message: {0}".format(req.json()))
             sys.exit()
         data = req.json()
-        if str(current_time)[0:7] >= "0:30:00":
-            print("\n- FAIL: Timeout of 30 minutes has been hit, script stopped\n")
+        if str(current_time)[0:7] >= "2:00:00":
+            print("\n- FAIL: Timeout of 2 hours has been hit, script stopped\n")
             sys.exit()
-        elif "Fail" in data['Message'] or "fail" in data['Message']:
-            print("- FAIL: %s failed" % job_id)
+        elif "Fail" in data['Message'] or "fail" in data['Message'] or data['JobState'] == "Failed":
+            print("\n- FAIL: job ID %s failed, detail error results: %s" % (job_id, data))
             sys.exit()
-        elif data['Message'] == "Job completed successfully.":
+        elif data['JobState'] == "Completed":
             print("\n--- PASS, Final Detailed Job Status Results ---\n")
             for i in data.items():
                 if "odata" in i[0] or "MessageArgs" in i[0] or "TargetSettingsURI" in i[0]:
@@ -372,8 +409,16 @@ def loop_job_status():
                     print("%s: %s" % (i[0],i[1]))
             break
         else:
-            print("- WARNING, JobStatus not completed, current status is: \"%s\", percent completion is: \"%s\"" % (data['Message'],data['PercentComplete']))
-            time.sleep(5)
+            count_number_now = data['PercentComplete']
+            if count_number_now > count_number:
+                try:
+                    print("- WARNING, JobStatus not completed, current status: \"%s\", percent complete: \"%s\"" % (data['Message'],data['PercentComplete']))
+                except:
+                    print("- WARNING, JobStatus not completed, current status: \"%s\"" % (data['Message']))
+                count_number = count_number_now
+                time.sleep(3)
+            else:
+                time.sleep(3)
 
 def get_job_status():
     while True:
