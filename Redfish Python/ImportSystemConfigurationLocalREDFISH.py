@@ -6,7 +6,7 @@
 # NOTE: Before executing the script, modify the payload dictionary with supported parameters. For payload dictionary supported parameters, refer to schema "https://'iDRAC IP'/redfish/v1/Managers/iDRAC.Embedded.1/"
 #
 # _author_ = Texas Roemer <Texas_Roemer@Dell.com>
-# _version_ = 12.0
+# _version_ = 13.0
 #
 # Copyright (c) 2017, Dell, Inc.
 #
@@ -40,7 +40,9 @@ if response.status_code == 401:
     print("\n- WARNING, status code 401 detected, check iDRAC username / password credentials")
     sys.exit()
 else:
-    pass
+    data = response.json()
+    get_version = data['FirmwareVersion'].split(".")[:2]
+    get_version = int("".join(get_version))
     
 url = 'https://%s/redfish/v1/Managers/iDRAC.Embedded.1/Actions/Oem/EID_674_Manager.ImportSystemConfiguration' % idrac_ip
 
@@ -48,7 +50,7 @@ url = 'https://%s/redfish/v1/Managers/iDRAC.Embedded.1/Actions/Oem/EID_674_Manag
 # Make sure to modify this payload dictionary first before you execute the script. Payload listed below is an example of showing the correct format. 
 
  
-payload = {"ShareParameters":{"Target":"ALL"},"ImportBuffer":"<SystemConfiguration><Component FQDD=\"iDRAC.Embedded.1\"><Attribute Name=\"IPMILan.1#Enable\">Disabled</Attribute><Attribute Name=\"IPMILan.1#AlertEnable\">Disabled</Attribute></Component></SystemConfiguration>"}
+payload = {"ShareParameters":{"Target":"ALL"},"ImportBuffer":"<SystemConfiguration><Component FQDD=\"iDRAC.Embedded.1\"><Attribute Name=\"Users.3#IpmiLanPrivilege\">Administrator</Attribute><Attribute Name=\"Users.3#SolEnable\">Enabled</Attribute><Attribute Name=\"IPMILan.1#Enable\">Enabled</Attribute></Component></SystemConfiguration>"}
 
 headers = {'content-type': 'application/json'}
 response = requests.post(url, data=json.dumps(payload), headers=headers, verify=False, auth=(idrac_username,idrac_password))
@@ -124,6 +126,8 @@ while True:
                             print("%s: %s" % (iii[0], iii[1]))
                     else:
                         if ii[0] == "Severity":
+                            pass
+                        if get_version < 440:
                             if ii[1] == "Critical":
                                 print("%s: %s" % (ii[0], ii[1]))
                                 print("Status: Failure")
@@ -141,7 +145,7 @@ while True:
             for i in data['Oem']['Dell'].items():
                 print("%s: %s" % (i[0], i[1]))
                 
-            print("- %s completed in: %s" % (job_id, str(current_time)[0:7]))
+        print("- %s completed in: %s" % (job_id, str(current_time)[0:7]))
         sys.exit()
             
     elif "No reboot Server" in data['Oem']['Dell']['Message']:

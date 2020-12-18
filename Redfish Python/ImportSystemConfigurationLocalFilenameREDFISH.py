@@ -2,7 +2,7 @@
 # ImportSystemConfigurationLocalFilenameREDFISH. Python script using Redfish API to import system configuration profile attributes locally from a configuration file.
 #
 # _author_ = Texas Roemer <Texas_Roemer@Dell.com>
-# _version_ = 16.0
+# _version_ = 18.0
 #
 # Copyright (c) 2017, Dell, Inc.
 #
@@ -42,7 +42,9 @@ if response.status_code == 401:
     print("\n- WARNING, status code 401 detected, check iDRAC username / password credentials")
     sys.exit()
 else:
-    pass
+    data = response.json()
+    get_version = data['FirmwareVersion'].split(".")[:2]
+    get_version = int("".join(get_version))
 
 response = requests.get('https://%s/redfish/v1/Managers/iDRAC.Embedded.1?$select=FirmwareVersion' % (idrac_ip), auth=(idrac_username, idrac_password), verify=False)
 data = response.json()
@@ -163,6 +165,8 @@ while True:
                             print("%s: %s" % (iii[0], iii[1]))
                     else:
                         if ii[0] == "Severity":
+                            pass
+                        if get_version < 440:
                             if ii[1] == "Critical":
                                 print("%s: %s" % (ii[0], ii[1]))
                                 print("Status: Failure")

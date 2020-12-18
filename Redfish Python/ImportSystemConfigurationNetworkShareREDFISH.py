@@ -4,7 +4,7 @@
 # 
 #
 # _author_ = Texas Roemer <Texas_Roemer@Dell.com>
-# _version_ = 16.0
+# _version_ = 17.0
 #
 # Copyright (c) 2017, Dell, Inc.
 #
@@ -54,7 +54,9 @@ def test_idrac_credentials():
         print("\n- WARNING, status code 401 detected, check iDRAC username / password credentials")
         sys.exit()
     else:
-        pass
+        data = response.json()
+        get_version = data['FirmwareVersion'].split(".")[:2]
+        get_version = int("".join(get_version))
 
 def get_sharetypes():
     req = requests.get('https://%s/redfish/v1/Managers/iDRAC.Embedded.1' % (idrac_ip), auth=(idrac_username, idrac_password), verify=False)
@@ -184,32 +186,13 @@ def loop_job_status():
                     print("%s: %s" % (i[0], i[1]))
                 sys.exit()
             print("- Detailed configuration changes and job results for \"%s\"\n" % job_id)
-            try:
-                for i in data["Messages"]:
-                    for ii in i.items():
-                        if ii[0] == "Oem":
-                            for iii in ii[1]["Dell"].items():
-                                print("%s: %s" % (iii[0], iii[1]))
-                        else:
-                            if ii[0] == "Severity":
-                                if ii[1] == "Critical":
-                                    print("%s: %s" % (ii[0], ii[1]))
-                                    print("Status: Failure")
-                                elif ii[1] == "OK":
-                                    print("%s: %s" % (ii[0], ii[1]))
-                                    print("Status: Success")
-                                else:
-                                    print("%s: %s" % (ii[0], ii[1]))
-                                    
-                            else:
-                                print("%s: %s" % (ii[0], ii[1]))
-                    print("\n")
-            except:
-                print("- FAIL, unable to get configuration results for job ID, returning only final job results\n")
-                for i in data['Oem']['Dell'].items():
-                    print("%s: %s" % (i[0], i[1]))
-                    
-            print("- %s completed in: %s" % (job_id, str(current_time)[0:7]))
+            for i in data["Messages"]:
+                for ii in i.items():
+                    if ii[0] == "Oem":
+                        for iii in ii[1]["Dell"].items():
+                            print("%s: %s" % (iii[0], iii[1]))
+                        print("\n")
+
             sys.exit()
                 
         elif "No reboot Server" in data['Oem']['Dell']['Message']:
