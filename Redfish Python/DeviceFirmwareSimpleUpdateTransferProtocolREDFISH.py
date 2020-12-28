@@ -2,7 +2,7 @@
 # DeviceFirmwareSimpleUpdateTransferProtocolREDFISH. Python script using Redfish API to update a device firmware with DMTF standard SimpleUpdate with TransferProtocol. Only supported file image type is Windows Dell Update Packages(DUPs).
 #
 # _author_ = Texas Roemer <Texas_Roemer@Dell.com>
-# _version_ = 8.0
+# _version_ = 9.0
 #
 # Copyright (c) 2019, Dell, Inc.
 #
@@ -26,7 +26,7 @@ parser=argparse.ArgumentParser(description="Python script using Redfish API to u
 parser.add_argument('-ip',help='iDRAC IP address', required=True)
 parser.add_argument('-u', help='iDRAC username', required=True)
 parser.add_argument('-p', help='iDRAC password', required=True)
-parser.add_argument('script_examples',action="store_true",help='DeviceFirmwareSimpleUpdateTransferProtocolREDFISH.py -ip 192.168.0.120 -u root -p calvin -g y, this example will return current firmware versions for all devices supported for updates. DeviceFirmwareSimpleUpdateTransferProtocolREDFISH.py -ip 192.168.0.120 -u root -p calvin -T HTTP --uri http://192.168.0.130/updates_http/CPLD_Firmware_WN64_1.0.2_A00.EXE -r y, this example will reboot the server now and update CPLD firmware using HTTP share. DeviceFirmwareSimpleUpdateTransferProtocolREDFISH.py -ip 192.168.0.120 -u root -p calvin -T HTTP --uri http://192.168.0.130/updates_http/BIOS_WN64_2.4.11_A00.EXE, this example using iDRAC9 4.00 will reboot the server now and update BIOS firmware using HTTP share') 
+parser.add_argument('script_examples',action="store_true",help='DeviceFirmwareSimpleUpdateTransferProtocolREDFISH.py -ip 192.168.0.120 -u root -p calvin -g y, this example will return current firmware versions for all devices supported for updates. DeviceFirmwareSimpleUpdateTransferProtocolREDFISH.py -ip 192.168.0.120 -u root -p calvin -t HTTP --uri http://192.168.0.130/updates_http/CPLD_Firmware_WN64_1.0.2_A00.EXE -r y, this example will reboot the server now and update CPLD firmware using HTTP share. DeviceFirmwareSimpleUpdateTransferProtocolREDFISH.py -ip 192.168.0.120 -u root -p calvin -t HTTP --uri http://192.168.0.130/updates_http/BIOS_WN64_2.4.11_A00.EXE, this example using iDRAC9 4.00 will reboot the server now and update BIOS firmware using HTTP share') 
 parser.add_argument('-g', help='Get current supported devices for firmware updates and their current firmware versions, pass in \"y\"', required=False)
 parser.add_argument('-s', help='Get current supported transfer protocols for SimpleUpdate action, pass in \"y\"', required=False)
 parser.add_argument('--uri', help='Pass in the complete URI path of the network share along with the firmware image name', required=False)
@@ -58,23 +58,29 @@ def check_supported_idrac_version():
     
 
 def check_idrac_lost_connection():
+    count = 0
     while True:
+        if count == 20:
+            print("- WARNING, retry count of 20 has been hit for checking iDRAC network connection, script will exit.")
+            sys.exit()
         ping_command = "ping %s -n 2" % idrac_ip
         try:
             ping_output = subprocess.Popen(ping_command, stdout = subprocess.PIPE, shell=True).communicate()[0]
             ping_results = re.search("Lost = .", ping_output).group()
-            if ping_results == "Lost = 0":
+            if ping_results == "Lost = 0" or ping_results == "Lost = 1":
                 break
             else:
-                print("\n- WARNING, iDRAC connection lost due to slow network connection or component being updated requires iDRAC reset. Script will recheck iDRAC connection in 3 minutes")
-                time.sleep(180)
+                print("\n- WARNING, iDRAC connection lost due to slow network connection. Script will recheck iDRAC connection in 10 seconds")
+                time.sleep(10)
+                count+=1
         except:
             ping_output = subprocess.run(ping_command,universal_newlines=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-            if "Lost = 0" in ping_output.stdout:
+            if "Lost = 0" in ping_output.stdout or "Lost = 1" in ping_output.stdout:
                 break
             else:
-                print("\n- WARNING, iDRAC connection lost due to slow network connection or component being updated requires iDRAC reset. Script will recheck iDRAC connection in 3 minutes")
-                time.sleep(180)
+                print("\n- WARNING, iDRAC connection lost due to slow network connection. Script will recheck iDRAC connection in 10 seconds")
+                time.sleep(10)
+                count+=1
             
     
 def get_FW_inventory():
@@ -136,7 +142,7 @@ def check_job_status():
         statusCode = req.status_code
         data = req.json()
         if data[u"TaskState"] == "Completed":
-            print("\n- PASS, job ID %s successfuly marked completed, detailed final job status results:\n" % data[u"Id"])
+            print("\n- PASS, job ID %s successfully marked completed, detailed final job status results:\n" % data[u"Id"])
             for i in data['Oem']['Dell'].items():
                 print("%s: %s" % (i[0],i[1]))
             print("\n- JOB ID %s completed in %s" % (job_id, current_time))
