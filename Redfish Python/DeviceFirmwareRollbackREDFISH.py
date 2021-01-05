@@ -2,7 +2,7 @@
 # DeviceFirmwareRollbackREDFISH. Python script using Redfish API with OEM extension to rollback firmware for a device iDRAC supports. 
 #
 # _author_ = Texas Roemer <Texas_Roemer@Dell.com>
-# _version_ = 1.0
+# _version_ = 2.0
 #
 # Copyright (c) 2020, Dell, Inc.
 #
@@ -53,7 +53,7 @@ def check_supported_idrac_version():
         sys.exit()
 
 
-def get_rollback_entires():
+def get_rollback_entries():
     req = requests.get('https://%s/redfish/v1/UpdateService/FirmwareInventory/' % (idrac_ip), auth=(idrac_username, idrac_password), verify=False)
     statusCode = req.status_code
     previous_devices=[]
@@ -69,10 +69,13 @@ def get_rollback_entires():
     for i in previous_devices:
         response = requests.get('https://%s%s' % (idrac_ip, i), auth=(idrac_username, idrac_password), verify=False)
         data = response.json()
-        print("Name: %s" % data["Name"])
-        print("Version: %s" % data["Version"])
-        print("URI: %s" % i)
-        print("\n")
+        try:
+            print("Name: %s" % data["Name"])
+            print("Version: %s" % data["Version"])
+            print("URI: %s" % i)
+            print("\n")
+        except:
+            pass
 
 
 def get_FW_inventory():
@@ -232,16 +235,23 @@ def reboot_server():
 
 def loop_check_final_job_status():
     start_time=datetime.now()
+    count = 0
     while True:
         req = requests.get('https://%s/redfish/v1/TaskService/Tasks/%s' % (idrac_ip, job_id), auth=(idrac_username, idrac_password), verify=False)
         current_time=str((datetime.now()-start_time))[0:7]
         statusCode = req.status_code
+        if count == 10:
+            print("- FAIL, retry count of 10 has been reached for checking job status, manually check the job queue for job status")
+            sys.exit()
         if statusCode == 202 or statusCode == 200:
             pass
         else:
             print("\n- FAIL, Command failed to check job status, return code is %s" % statusCode)
             print("Extended Info Message: {0}".format(req.json()))
-            sys.exit()
+            print("\n- INFO, script will wait 10 seconds before attempting to check job status again")
+            time.sleep(10)
+            count+=1
+            continue
         data = req.json()
         if str(current_time)[0:7] >= "2:00:00":
             print("\n- FAIL: Timeout of 2 hours has been hit, update job should of already been marked completed. Check the iDRAC job queue and LC logs to debug the issue\n")
@@ -258,7 +268,7 @@ def loop_check_final_job_status():
             print("\n- JOB ID %s completed in %s" % (job_id, current_time))
             sys.exit()
         else:
-            print("- INFO, job status not completed, current status: \"%s\", execution time: \"%s\"" % (data['Oem']['Dell']['Message'], current_time))
+            print("- INFO, Job status not completed, current status: \"%s\", job execution time: \"%s\"" % (data['Oem']['Dell']['Message'], current_time))
             time.sleep(20)
 
 
@@ -267,7 +277,7 @@ if __name__ == "__main__":
     if args["gf"]:
         get_FW_inventory()
     elif args["gr"]:
-        get_rollback_entires()
+        get_rollback_entries()
     elif args["r"]:
         rollback_fw()
         check_job_status()
