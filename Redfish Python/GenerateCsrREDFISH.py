@@ -1,7 +1,7 @@
 #!/usr/bin/python
 #
 # _author_ = Texas Roemer <Texas_Roemer@Dell.com>
-# _version_ = 1.0
+# _version_ = 2.0
 #
 # Copyright (c) 2021, Dell, Inc.
 #
@@ -71,7 +71,7 @@ def get_current_iDRAC_certs():
     else:
         for i in data["Members"]:
             for ii in i.items():
-                print("\n- Details for cert \%s\"\n" % ii[1].split("/")[-1])
+                print("\n- Details for cert \"%s\"\n" % ii[1].split("/")[-1])
                 response = requests.get('https://%s%s' % (idrac_ip, ii[1]),verify=False,auth=(idrac_username, idrac_password))
                 data = response.json()
                 for i in data.items():
