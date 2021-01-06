@@ -1,7 +1,7 @@
 #!/usr/bin/python
 #
 # _author_ = Texas Roemer <Texas_Roemer@Dell.com>
-# _version_ = 2.0
+# _version_ = 3.0
 #
 # Copyright (c) 2021, Dell, Inc.
 #
@@ -88,6 +88,7 @@ def generate_CSR():
         pass
     else:
         print("- FAIL, generate CSR failed, status code %s returned, detailed error results: \n%s" % (response.status_code, data_post))
+        sys.exit()
     print("\n- INFO, CSR generated for iDRAC %s\n" % idrac_ip)
     print(data_post["CSRString"])
     response = requests.get('https://%s/redfish/v1/Chassis/System.Embedded.1' % idrac_ip,verify=False,auth=(idrac_username, idrac_password))
