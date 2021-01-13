@@ -1,3 +1,4 @@
+#!/usr/bin/env python
 #
 # ExportLCLogREDFISH. Python script using Redfish API with OEM extension to export iDRAC lifecycle (LC) logs to either local directory or a network share
 #
@@ -15,9 +16,14 @@
 #
 
 
-import requests, json, sys, re, time, warnings, argparse, os
-
+import json
+import sys
+import warnings
+import argparse
+import os
 from datetime import datetime
+import requests
+
 
 warnings.filterwarnings("ignore")
 
@@ -35,8 +41,6 @@ parser.add_argument('--password', help='Pass in the network share username passw
 parser.add_argument('--workgroup', help='Pass in the workgroup of your CIFS network share. This argument is optional', required=False)
 parser.add_argument('--filename', help='Pass in unique file name string for the export LC log file', required=False)
 parser.add_argument('--ignorecertwarning', help='Supported values are Off and On. This argument is only required if using HTTPS for share type', required=False)
-
-
 
 args=vars(parser.parse_args())
 
@@ -76,15 +80,13 @@ def get_supported_network_share_types():
                 print(ii)
 
 
-
-
 def export_lc_log():
     global job_id
     url = 'https://%s/redfish/v1/Dell/Managers/iDRAC.Embedded.1/DellLCService/Actions/DellLCService.ExportLCLog' % (idrac_ip)
     method = "ExportLCLog"
     headers = {'content-type': 'application/json'}
     payload={}
-        
+
     headers = {'content-type': 'application/json'}
     payload={}
     if args["ipaddress"]:
@@ -97,7 +99,7 @@ def export_lc_log():
     if args["sharename"]:
         payload["ShareName"] = args["sharename"]
     if args["filename"]:
-            payload["FileName"] = args["filename"]
+        payload["FileName"] = args["filename"]
     if args["username"]:
         payload["UserName"] = args["username"]
     if args["password"]:
@@ -108,7 +110,7 @@ def export_lc_log():
         payload["IgnoreCertWarning"] = args["ignorecertwarning"]
     print("\n- WARNING, arguments and values for %s method\n" % method)
     for i in payload.items():
-          print("%s: %s" % (i[0],i[1]))
+        print("%s: %s" % (i[0],i[1]))
     response = requests.post(url, data=json.dumps(payload), headers=headers, verify=False,auth=(idrac_username,idrac_password))
     data = response.json()
     if response.status_code == 202:
@@ -125,8 +127,11 @@ def export_lc_log():
         print("- WARNING, Redfish export LC log URI: \"%s\"\n" % response.headers['Location'])
         response = requests.get('https://%s%s' % (idrac_ip, response.headers['Location']),verify=False,auth=(idrac_username, idrac_password))
         get_datetime_info = datetime.now()
-        export_filename = "%s-%s-%s_%s%s%s_export_LC_log_%s.xml"% (get_datetime_info.year, get_datetime_info.month, get_datetime_info.day, get_datetime_info.hour, get_datetime_info.minute, get_datetime_info.second, chassis_service_tag)
-        filename_open = open(export_filename,"a")
+        if args["filename"]:
+            export_filename = args["filename"]
+        else:
+            export_filename = "%s-%s-%s_%s%s%s_export_LC_log_%s.xml"% (get_datetime_info.year, get_datetime_info.month, get_datetime_info.day, get_datetime_info.hour, get_datetime_info.minute, get_datetime_info.second, chassis_service_tag)
+        filename_open = open(export_filename, "a")
         dict_response = response.__dict__['_content']
         string_convert=str(dict_response)
         string_convert=string_convert.lstrip("'b")
@@ -136,7 +141,7 @@ def export_lc_log():
             filename_open.writelines(i)
             filename_open.writelines("\n")
         filename_open.close()
-        print("- Exported LC log captured to file \"%s\%s\"" % (os.getcwd(), export_filename))
+        print("- Exported LC log captured to file \"%s\\%s\"" % (os.getcwd(), export_filename))
         sys.exit()
     else:
         try:
@@ -145,7 +150,6 @@ def export_lc_log():
             print("- FAIL, unable to find job ID in headers POST response, headers output is:\n%s" % response.headers)
             sys.exit()
         print("- PASS, job ID %s successfuly created for %s method\n" % (job_id, method))
-    
 
 
 def loop_job_status():
@@ -180,10 +184,7 @@ def loop_job_status():
             break
         else:
             print("- WARNING, job state not marked completed, current job status is running, polling again")
-        
-            
 
-    
 
 if __name__ == "__main__":
     check_supported_idrac_version()
@@ -192,9 +193,3 @@ if __name__ == "__main__":
     else:
         export_lc_log()
         loop_job_status()
-    
-    
-        
-            
-        
-        
