@@ -53,7 +53,7 @@ def check_supported_idrac_version():
     response = requests.get('https://%s/redfish/v1/Dell/Managers/iDRAC.Embedded.1/DellLCService' % idrac_ip,verify=False,auth=(idrac_username, idrac_password))
     if response.__dict__['reason'] == "Unauthorized":
         print("\n- FAIL, unauthorized to execute Redfish command. Check to make sure you are passing in correct iDRAC username/password and the IDRAC user has the correct privileges")
-        sys.exit()
+        sys.exit(1)
     else:
         pass
     data = response.json()
@@ -65,7 +65,7 @@ def check_supported_idrac_version():
             pass
     if supported == "no":
         print("\n- WARNING, iDRAC version installed does not support this feature using Redfish API")
-        sys.exit()
+        sys.exit(1)
     else:
         pass
 
@@ -119,7 +119,7 @@ def export_lc_log():
         print("\n- FAIL, POST command failed for %s method, status code is %s" % (method, response.status_code))
         data = response.json()
         print("\n- POST command failure results:\n %s" % data)
-        sys.exit()
+        sys.exit(1)
     if args["sharetype"] == "local" or args["sharetype"] == "Local":
         get_service_tag = requests.get('https://%s/redfish/v1/Systems/System.Embedded.1' % (idrac_ip),verify=False,auth=(idrac_username, idrac_password))
         data_get_service_tag = get_service_tag.json()
@@ -148,7 +148,7 @@ def export_lc_log():
             job_id = response.headers['Location'].split("/")[-1]
         except:
             print("- FAIL, unable to find job ID in headers POST response, headers output is:\n%s" % response.headers)
-            sys.exit()
+            sys.exit(1)
         print("- PASS, job ID %s successfuly created for %s method\n" % (job_id, method))
 
 
@@ -163,14 +163,14 @@ def loop_job_status():
         else:
             print("\n- FAIL, Command failed to check job status, return code is %s" % statusCode)
             print("Extended Info Message: {0}".format(req.json()))
-            sys.exit()
+            sys.exit(1)
         data = req.json()
         if str(current_time)[0:7] >= "0:05:00":
             print("\n- FAIL: Timeout of 5 minutes has been hit, script stopped\n")
-            sys.exit()
+            sys.exit(1)
         elif "Fail" in data[u'Message'] or "fail" in data[u'Message'] or data[u'JobState'] == "Failed" or "Unable" in data[u'Message']:
             print("- FAIL: job ID %s failed, failed message is: %s" % (job_id, data[u'Message']))
-            sys.exit()
+            sys.exit(1)
         elif data[u'JobState'] == "Completed":
             if data[u'Message'] == "LCL Export was successful":
                 print("\n--- PASS, Final Detailed Job Status Results ---\n")
