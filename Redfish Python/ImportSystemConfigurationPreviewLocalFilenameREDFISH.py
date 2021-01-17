@@ -4,7 +4,7 @@
 # 
 #
 # _author_ = Texas Roemer <Texas_Roemer@Dell.com>
-# _version_ = 1.0
+# _version_ = 2.0
 #
 # Copyright (c) 2018, Dell, Inc.
 #
@@ -35,8 +35,16 @@ idrac_username=args["u"]
 idrac_password=args["p"]
 filename=args["f"]
 
+response = requests.get('https://%s/redfish/v1/Managers/iDRAC.Embedded.1' % idrac_ip,verify=False,auth=(idrac_username, idrac_password))
+data = response.json()
+if response.status_code == 401:
+    print("\n- WARNING, unable to access iDRAC, check to make sure you are passing in valid iDRAC credentials")
+    sys.exit()
+else:
+    pass
+        
 try:
-    f=open(filename,"r")
+    file_open=open(filename,"r")
 except:
     print("\n-FAIL, \"%s\" file doesn't exist" % filename)
     sys.exit()
@@ -44,11 +52,11 @@ except:
 url = 'https://%s/redfish/v1/Managers/iDRAC.Embedded.1/Actions/Oem/EID_674_Manager.ImportSystemConfigurationPreview' % idrac_ip 
 
 # Code needed to modify the XML to one string to pass in for POST command
-z=f.read()
-z=re.sub(" \n ","",z)
-z=re.sub(" \n","",z)
-xml_string=re.sub("   ","",z)
-f.close()
+modify_xml = file_open.read()
+modify_xml = re.sub(" \n ","",modify_xml)
+modify_xml = re.sub(" \n","",modify_xml)
+xml_string=re.sub("   ","",modify_xml)
+file_open.close()
 
 payload = {"ImportBuffer":"","ShareParameters":{"Target":"ALL"}}
 
@@ -57,16 +65,16 @@ payload["ImportBuffer"]=xml_string
 headers = {'content-type': 'application/json'}
 response = requests.post(url, data=json.dumps(payload), headers=headers, verify=False, auth=(idrac_username, idrac_password))
 
-d=str(response.__dict__)
+dict_response = str(response.__dict__)
 
 try:
-    z=re.search("JID_.+?,",d).group()
+    job_id_search = re.search("JID_.+?,",dict_response).group()
 except:
     print("\n- FAIL: status code %s returned" % response.status_code)
-    print("- Detailed error information: %s" % d)
+    print("- Detailed error information: %s" % dict_response)
     sys.exit()
 
-job_id=re.sub("[,']","",z)
+job_id=re.sub("[,']","",job_id_search)
 if response.status_code != 202:
     print("\n- FAIL, status code not 202\n, code is: %s" % response.status_code )  
     sys.exit()
