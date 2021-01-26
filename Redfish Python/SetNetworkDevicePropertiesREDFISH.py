@@ -2,7 +2,7 @@
 # SetNetworkDevicePropertiesREDFISH. Python script using Redfish API to either get network devices/ports or set network properties.
 #
 # _author_ = Texas Roemer <Texas_Roemer@Dell.com>
-# _version_ = 6.0
+# _version_ = 7.0
 #
 # Copyright (c) 2018, Dell, Inc.
 #
@@ -25,7 +25,7 @@ parser=argparse.ArgumentParser(description="Python script using Redfish API to e
 parser.add_argument('-ip',help='iDRAC IP address', required=True)
 parser.add_argument('-u', help='iDRAC username', required=True)
 parser.add_argument('-p', help='iDRAC password', required=True)
-parser.add_argument('-E', help='Pass in a value of \"y\" to see examples of executing the script', required=False)
+parser.add_argument('script_examples',action="store_true",help='SetNetworkDevicePropertiesREDFISH.py -ip 192.168.0.120 -u root -p calvin -n y, this example will return network devices detected for your server. SetNetworkDevicePropertiesREDFISH.py -ip 192.168.0.120 -u root -p calvin -a NIC.Integrated.1-1-1, this example will return NIC properties for NIC.Integrated.1-1-1 port. SetNetworkDevicePropertiesREDFISH.py -ip 192.168.0.120 -u root -p calvin -g y, this example will generate the ini file needed to set NIC properties. It will also return an example of a modified dictionary for the ini file. SetNetworkDevicePropertiesREDFISH.py -ip 192.168.0.120 -u root -p calvin -s NIC.Integrated.1-1-1 -r n, this example is going to apply property changes immediately from the ini file to NIC.Integrated.1-1-1. ')
 parser.add_argument('-g', help='Pass in\"y\", this will generate ini file with payload dictionary to set properties. If setting properties, make sure to generate this ini file first. This file is needed to pass in the properties you want to configure', required=False)
 parser.add_argument('-n', help='Get server network FQDD devices, pass in \"y\"', required=False)
 parser.add_argument('-d', help='Get network device details, pass in network device ID, Example \"NIC.Integrated.1\"', required=False)
@@ -65,23 +65,20 @@ elif args["r"] and args["s"]:
 def check_supported_idrac_version():
     response = requests.get('https://%s/redfish/v1/Systems/System.Embedded.1/NetworkAdapters' % idrac_ip,verify=False,auth=(idrac_username, idrac_password))
     data = response.json()
-    if response.status_code != 200:
+    if response.status_code == 401:
+        print("\n- WARNING, status code %s returned, check your iDRAC username/password is correct or iDRAC user has correct privileges to execute Redfish commands" % response.status_code)
+        sys.exit()
+    elif response.status_code != 200:
         print("\n- WARNING, iDRAC version installed does not support this feature using Redfish API")
         sys.exit()
     else:
         pass
-
-def script_examples():
-    print("\n- Executing Script Examples -")
-    print("\nSetNetworkDevicePropertiesREDFISH.py -ip 192.168.0.120 -u root -p calvin -n y, this example will return network devices detected for your server\n\nSetNetworkDevicePropertiesREDFISH.py -ip 192.168.0.120 -u root -p calvin -a NIC.Integrated.1-1-1, this example will return NIC properties for NIC.Integrated.1-1-1 port\n\nSetNetworkDevicePropertiesREDFISH.py -ip 192.168.0.120 -u root -p calvin -g y, this example will generate the ini file needed to set NIC properties. It will also return an example of a modified dictionary for the ini file\n\nSetNetworkDevicePropertiesREDFISH.py -ip 192.168.0.120 -u root -p calvin -s NIC.Integrated.1-1-1 -r n, this example is going to apply property changes immediately from the ini file to NIC.Integrated.1-1-1\n")
-    
-    
     
 def generate_payload_dictionary_file():
     payload={"iSCSIBoot":{},"FibreChannel":{}}
     with open("set_network_properties.ini","w") as x:
         json.dump(payload,x)
-    print("\n- WARNING, \"set_network_properties.ini\" file created. This file contains payload dictionary which will be used to set network properties.\n")
+    print("\n- INFO, \"set_network_properties.ini\" file created. This file contains payload dictionary which will be used to set network properties.\n")
     print("Modify the payload dictionary passing in property names and values for the correct group.\n")
     print("Example of modified dictionary: {\"iSCSIBoot\":{\"InitiatorIPAddress\":\"192.168.0.120\",\"InitiatorNetmask\":\"255.255.255.0\"},\"FibreChannel\":{\"FCoELocalVLANId\":100}}\n")
     
@@ -313,7 +310,7 @@ def loop_job_status():
             print("\n- %s job execution time: %s" % (job_id,str(current_time)[0:7]))
             break
         else:
-            print("- WARNING, JobStatus not completed, current status is: \"%s\", percent completion is: \"%s\"" % (data['Message'],data['PercentComplete']))
+            print("- INFO, job status not completed, current status: \"%s\"" % (data['Message']))
             time.sleep(10)
 
 def get_job_status():
@@ -330,37 +327,84 @@ def get_job_status():
         data = req.json()
         if data['Message'] == "Task successfully scheduled.":
             if args["r"] == "n":
-                print("\n- WARNING, config job marked as scheduled, system will now reboot to apply configuration changes")
+                print("\n- INFO, config job marked as scheduled, system will now reboot to apply configuration changes")
             elif args["r"] == "l":
-                print("\n- WARNING, staged config job marked as scheduled, next manual reboot of system will apply configuration changes\n")
+                print("\n- INFO, staged config job marked as scheduled, next manual reboot of system will apply configuration changes\n")
             else:
                 pass
             break
         else:
-            print("- WARNING: JobStatus not scheduled, current status is: %s" % data['Message'])
+            print("- INFO: job status not scheduled, current status: %s" % data['Message'])
 
 def reboot_server():
-    url = 'https://%s/redfish/v1/Systems/System.Embedded.1/Actions/ComputerSystem.Reset' % idrac_ip
-    payload = {'ResetType': 'ForceOff'}
-    headers = {'content-type': 'application/json'}
-    response = requests.post(url, data=json.dumps(payload), headers=headers, verify=False, auth=(idrac_username,idrac_password))
-    statusCode = response.status_code
-    if statusCode == 204:
-        print("\n- PASS, Command passed to power OFF server, code return is %s\n" % statusCode)
+    response = requests.get('https://%s/redfish/v1/Systems/System.Embedded.1/' % idrac_ip,verify=False,auth=(idrac_username, idrac_password))
+    data = response.json()
+    print("\n- INFO, Current server power state is: %s" % data[u'PowerState'])
+    if data['PowerState'] == "On":
+        url = 'https://%s/redfish/v1/Systems/System.Embedded.1/Actions/ComputerSystem.Reset' % idrac_ip
+        payload = {'ResetType': 'GracefulShutdown'}
+        headers = {'content-type': 'application/json'}
+        response = requests.post(url, data=json.dumps(payload), headers=headers, verify=False, auth=(idrac_username,idrac_password))
+        statusCode = response.status_code
+        if statusCode == 204:
+            print("- PASS, Command passed to gracefully power OFF server, code return is %s" % statusCode)
+            time.sleep(10)
+        else:
+            print("\n- FAIL, Command failed to gracefully power OFF server, status code is: %s\n" % statusCode)
+            print("Extended Info Message: {0}".format(response.json()))
+            sys.exit()
+        count = 0
+        while True:
+            response = requests.get('https://%s/redfish/v1/Systems/System.Embedded.1/' % idrac_ip,verify=False,auth=(idrac_username, idrac_password))
+            data = response.json()
+            if data['PowerState'] == "Off":
+                print("- PASS, GET command passed to verify server is in OFF state")
+                break
+            elif count == 20:
+                print("- INFO, unable to graceful shutdown the server, will perform forced shutdown now")
+                url = 'https://%s/redfish/v1/Systems/System.Embedded.1/Actions/ComputerSystem.Reset' % idrac_ip
+                payload = {'ResetType': 'ForceOff'}
+                headers = {'content-type': 'application/json'}
+                response = requests.post(url, data=json.dumps(payload), headers=headers, verify=False, auth=(idrac_username,idrac_password))
+                statusCode = response.status_code
+                if statusCode == 204:
+                    print("- PASS, Command passed to forcefully power OFF server, code return is %s" % statusCode)
+                    time.sleep(15)
+                    break
+                else:
+                    print("\n- FAIL, Command failed to gracefully power OFF server, status code is: %s\n" % statusCode)
+                    print("Extended Info Message: {0}".format(response.json()))
+                    sys.exit()
+                
+            else:
+                time.sleep(2)
+                count+=1
+                continue
+            
+        payload = {'ResetType': 'On'}
+        headers = {'content-type': 'application/json'}
+        response = requests.post(url, data=json.dumps(payload), headers=headers, verify=False, auth=(idrac_username,idrac_password))
+        statusCode = response.status_code
+        if statusCode == 204:
+            print("- PASS, Command passed to power ON server, code return is %s" % statusCode)
+        else:
+            print("\n- FAIL, Command failed to power ON server, status code is: %s\n" % statusCode)
+            print("Extended Info Message: {0}".format(response.json()))
+            sys.exit()
+    elif data['PowerState'] == "Off":
+        url = 'https://%s/redfish/v1/Systems/System.Embedded.1/Actions/ComputerSystem.Reset' % idrac_ip
+        payload = {'ResetType': 'On'}
+        headers = {'content-type': 'application/json'}
+        response = requests.post(url, data=json.dumps(payload), headers=headers, verify=False, auth=(idrac_username,idrac_password))
+        statusCode = response.status_code
+        if statusCode == 204:
+            print("- PASS, Command passed to power ON server, code return is %s" % statusCode)
+        else:
+            print("\n- FAIL, Command failed to power ON server, status code is: %s\n" % statusCode)
+            print("Extended Info Message: {0}".format(response.json()))
+            sys.exit()
     else:
-        print("\n- FAIL, Command failed to power OFF server, status code is: %s\n" % statusCode)
-        print("Extended Info Message: {0}".format(response.json()))
-        sys.exit()
-    time.sleep(10)
-    payload = {'ResetType': 'On'}
-    headers = {'content-type': 'application/json'}
-    response = requests.post(url, data=json.dumps(payload), headers=headers, verify=False, auth=(idrac_username,idrac_password))
-    statusCode = response.status_code
-    if statusCode == 204:
-        print("\n- PASS, Command passed to power ON server, code return is %s\n" % statusCode)
-    else:
-        print("\n- FAIL, Command failed to power ON server, status code is: %s\n" % statusCode)
-        print("Extended Info Message: {0}".format(response.json()))
+        print("- FAIL, unable to get current server power state to perform either reboot or power on")
         sys.exit()
 
 
@@ -370,8 +414,6 @@ if __name__ == "__main__":
     check_supported_idrac_version()
     if args["n"]:
         get_network_devices()
-    elif args["E"]:
-          script_examples()
     elif args["g"]:
         generate_payload_dictionary_file()
     elif args["d"]:
@@ -381,7 +423,8 @@ if __name__ == "__main__":
     elif args["a"]:
         get_network_device_properties()
     elif args["s"]:
-        set_network_properties()     
+        set_network_properties()
+        time.sleep(5)
         if job_type == "n":
             create_next_boot_config_job()
             get_job_status()
