@@ -2,7 +2,7 @@
 # ResetConfigStorageREDFISH. Python script using Redfish API with OEM extension to reset the storage controller
 #
 # _author_ = Texas Roemer <Texas_Roemer@Dell.com>
-# _version_ = 3.0
+# _version_ = 4.0
 #
 # Copyright (c) 2019, Dell, Inc.
 #
@@ -41,6 +41,9 @@ idrac_password=args["p"]
 def check_supported_idrac_version():
     response = requests.get('https://%s/redfish/v1/Dell/Systems/System.Embedded.1/DellRaidService' % idrac_ip,verify=False,auth=(idrac_username, idrac_password))
     data = response.json()
+    if response.status_code == 401:
+        print("\n- WARNING, status code %s returned. Incorrect iDRAC username/password or invalid privilege detected." % response.status_code)
+        sys.exit()
     if response.status_code != 200:
         print("\n- WARNING, iDRAC version installed does not support this feature using Redfish API")
         sys.exit()
@@ -51,6 +54,11 @@ def check_supported_idrac_version():
 def get_storage_controllers():
     response = requests.get('https://%s/redfish/v1/Systems/System.Embedded.1/Storage' % idrac_ip,verify=False,auth=(idrac_username, idrac_password))
     data = response.json()
+    if response.status_code == 200:
+        pass
+    else:
+        print("- FAIL, status code %s returned, detailed error results:\n%s" % (response.status_code, data))
+        sys.exit()
     print("\n- Server controller(s) detected -\n")
     controller_list=[]
     for i in data[u'Members']:
@@ -74,6 +82,11 @@ def get_virtual_disks():
     response = requests.get('https://%s/redfish/v1/Systems/System.Embedded.1/Storage/%s/Volumes' % (idrac_ip, args["v"]),verify=False,auth=(idrac_username, idrac_password))
     data = response.json()
     vd_list=[]
+    if response.status_code == 200:
+        pass
+    else:
+        print("- FAIL, status code %s returned, detailed error results:\n%s" % (response.status_code, data))
+        sys.exit()
     if data[u'Members'] == []:
         print("\n- WARNING, no volume(s) detected for %s" % args["v"])
         sys.exit()
