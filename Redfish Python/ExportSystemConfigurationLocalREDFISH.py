@@ -4,7 +4,7 @@
 # 
 #
 # _author_ = Texas Roemer <Texas_Roemer@Dell.com>
-# _version_ = 6.0
+# _version_ = 7.0
 #
 # Copyright (c) 2017, Dell, Inc.
 #
@@ -31,6 +31,7 @@ parser.add_argument('-t', help='Pass in Target value to get component attributes
 parser.add_argument('-e', help='Pass in ExportUse value. Supported values are Default, Clone and Replace. If you don\'t use this parameter, default setting is Default or Normal export.', required=False)
 parser.add_argument('-i', help='Pass in IncludeInExport value. Supported values are 1 for \"Default\", 2 for \"IncludeReadOnly\", 3 for \"IncludePasswordHashValues\" or 4 for \"IncludeReadOnly,IncludePasswordHashValues\". If you don\'t use this parameter, default setting is Default for IncludeInExport.', required=False)
 parser.add_argument('-f', help='Pass in Export format type, either \"XML\" or \"JSON\". Note, If you don\'t pass in this argument, default setting is XML', required=False)
+parser.add_argument('-d', help='Pass in directory path where you want the SCP file saved to. If you don\'t pass in this argument, SCP file will be saved to the directory you are executing the script from.', required=False)
 args=vars(parser.parse_args())
 
 idrac_ip=args["ip"]
@@ -82,41 +83,44 @@ start_time=datetime.now()
 while True:
     current_time=(datetime.now()-start_time)
     req = requests.get('https://%s/redfish/v1/TaskService/Tasks/%s' % (idrac_ip, job_id), auth=(idrac_username, idrac_password), verify=False)
-    d=req.__dict__
+    dict_output = req.__dict__
     if args["f"] == "XML":
-        if "<SystemConfiguration Model" in str(d):
+        if "<SystemConfiguration Model" in str(dict_output):
             print("\n- Export locally job ID %s successfully completed. Attributes exported:\n" % job_id)
-            zz=re.search("<SystemConfiguration.+</SystemConfiguration>",str(d)).group()
+            regex_search = re.search("<SystemConfiguration.+</SystemConfiguration>",str(dict_output)).group()
             try:
-                security_string = re.search('<Attribute Name="GUI.1#SecurityPolicyMessage">.+?>', zz).group()
+                security_string = re.search('<Attribute Name="GUI.1#SecurityPolicyMessage">.+?>', regex_search).group()
             except:
                 pass
         
             #Below code is needed to parse the string to set up in pretty XML format
-            q=zz.replace("\\n"," ")
-            q=q.replace("<!--  ","<!--")
-            q=q.replace(" -->","-->")
-            del_attribute='<Attribute Name="SerialRedirection.1#QuitKey">^\\\\</Attribute>'
+            replace_variable = regex_search.replace("\\n"," ")
+            replace_variable = replace_variable.replace("<!--  ","<!--")
+            replace_variable = replace_variable.replace(" -->","-->")
+            del_attribute = '<Attribute Name="SerialRedirection.1#QuitKey">^\\\\</Attribute>'
             try:
-                q=q.replace(del_attribute,"")
+                replace_variable = replace_variable.replace(del_attribute,"")
             except:
                 pass
             try:
-                q=q.replace(security_string,"")
+                replace_variable = replace_variable.replace(security_string,"")
             except:
                 pass
-            l=q.split("> ")
+            create_list = replace_variable.split("> ")
             export_xml=[]
-            for i in l:
-                x=i+">"
-                export_xml.append(x)
+            for i in create_list:
+                create_string = i+">"
+                export_xml.append(create_string)
             export_xml[-1]="</SystemConfiguration>"
-            d=datetime.now()
-            filename="%s-%s-%s_%s%s%s_export.xml"% (d.year,d.month,d.day,d.hour,d.minute,d.second)
-            f=open(filename,"w")
+            get_date_info = datetime.now()
+            if args["d"]:
+                filename="%s\%s-%s-%s_%s%s%s_export.xml"% (args["d"],get_date_info.year,get_date_info.month,get_date_info.day,get_date_info.hour,get_date_info.minute,get_date_info.second)
+            else:
+                filename="%s-%s-%s_%s%s%s_export.xml"% (get_date_info.year,get_date_info.month,get_date_info.day,get_date_info.hour,get_date_info.minute,get_date_info.second)
+            open_file = open(filename,"w")
             for i in export_xml:
-                f.writelines("%s \n" % i)
-            f.close()
+                open_file.writelines("%s \n" % i)
+            open_file.close()
             for i in export_xml:
                 print(i)
 
@@ -132,17 +136,18 @@ while True:
         else:
             pass
     elif args["f"] == "JSON":
-        if "SystemConfiguration" in str(d):
+        if "SystemConfiguration" in str(dict_output):
             data = req.json()
             json_format = json.dumps(data)
             get_date_info=datetime.now()
-            filename="%s-%s-%s_%s%s%s_export.json"% (get_date_info.year,get_date_info.month,get_date_info.day,get_date_info.hour,get_date_info.minute,get_date_info.second)
-            f=open(filename,"w")
-            f.write(json.dumps(json.loads(json_format), indent=4))
-            #f.write(json.dumps(json.loads(json_format), indent=4, sort_keys=True))
-            f.close()
+            if args["d"]:
+                filename="%s\%s-%s-%s_%s%s%s_export.json"% (args["d"],get_date_info.year,get_date_info.month,get_date_info.day,get_date_info.hour,get_date_info.minute,get_date_info.second)
+            else:
+                filename="%s-%s-%s_%s%s%s_export.json"% (get_date_info.year,get_date_info.month,get_date_info.day,get_date_info.hour,get_date_info.minute,get_date_info.second)
+            open_file = open(filename,"w")
+            open_file.write(json.dumps(json.loads(json_format), indent=4))
+            open_file.close()
             req = requests.get('https://%s/redfish/v1/Managers/iDRAC.Embedded.1/Jobs/%s' % (idrac_ip, job_id), auth=(idrac_username, idrac_password), verify=False)
-            
             data = req.json()
             print("\n- PASS, final detailed job status results for job ID %s -\n" % job_id)
             for i in data.items():
@@ -174,8 +179,12 @@ while True:
         sys.exit()
 
     else:
-        print("- WARNING, JobStatus not completed, current status: \"%s\", percent complete: \"%s\"" % (data[u'Oem'][u'Dell'][u'Message'],data[u'Oem'][u'Dell'][u'PercentComplete']))
-        time.sleep(1)
+        try:
+            print("- INFO, JobStatus not completed, current status: \"%s\", percent complete: \"%s\"" % (data['Oem']['Dell']['Message'],data['Oem']['Dell']['PercentComplete']))
+            time.sleep(1)
+        except:
+            print("- INFO, unable to print job status message, trying again")
+            time.sleep(1)
         continue
 
 
