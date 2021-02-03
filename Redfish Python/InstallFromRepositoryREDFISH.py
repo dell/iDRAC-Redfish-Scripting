@@ -2,7 +2,7 @@
 # InstallFromRepositoryREDFISH. Python script using Redfish API with OEM extension to either get firmware version for all devices, get repository update list or install firmware from a repository on a network share.
 #
 # _author_ = Texas Roemer <Texas_Roemer@Dell.com>
-# _version_ = 8.0
+# _version_ = 10.0
 #
 # Copyright (c) 2019, Dell, Inc.
 #
@@ -29,6 +29,7 @@ parser.add_argument('script_examples',action="store_true",help='InstallFromRepos
 parser.add_argument('-g', help='Get current supported devices for firmware updates and their current firmware version, pass in \"y\"', required=False)
 parser.add_argument('-r', help='Get repository update list, pass in \"y\". Output will be returned in XML format. You must first execute install from repository but don\'t apply updates to get the repository update list', required=False)
 parser.add_argument('-i', help='Install from repository, pass in \"y\"', required=False)
+parser.add_argument('-c', help='Get device name and criticality information only from repository update list XML, pass in \"y\". You must first execute install from repository but don\'t apply updates to get the repository update list', required=False)
 parser.add_argument('-q', help='Get current job ids in the job queue, pass in a value of \"y\"', required=False)
 parser.add_argument('--ipaddress', help='Pass in the IP address of the network share', required=False)
 parser.add_argument('--sharetype', help='Pass in the share type of the network share. Supported values are NFS, CIFS, HTTP, HTTPS. NOTE: For HTTP/HTTPS, recommended to use either IIS or Apache.', required=False)
@@ -126,6 +127,43 @@ def get_repo_based_update_list():
     f.close()
     print("\n- WARNING, get repo based update list data is also copied to file \"repo_based_update_list.xml\"")
     sys.exit()
+
+def get_device_name_criticality_info():
+    print("\n- Device Name and Criticality Details for Updatable Devices -\n")
+    url = 'https://%s/redfish/v1/Dell/Systems/System.Embedded.1/DellSoftwareInstallationService/Actions/DellSoftwareInstallationService.GetRepoBasedUpdateList' % (idrac_ip)
+    headers = {'content-type': 'application/json'}
+   
+    payload={}
+    response = requests.post(url, data=json.dumps(payload), headers=headers, verify=False,auth=(idrac_username,idrac_password))
+    data = response.json()
+    try:
+        get_all_devices = re.findall("Criticality.+BaseLocation",data["PackageList"])
+    except:
+        print("- FAIL, regex was unable to parse the XML to get criticality data")
+        sys.exit()
+    for i in get_all_devices:
+        get_critical_value = re.search("Criticality.+?/",i).group()
+        if "1" in get_critical_value:
+            critical_string_value = "Criticality = (1)Recommended"
+        elif "2" in get_critical_value:
+            critical_string_value = "Criticality = (2)Urgent"
+        elif "3" in get_critical_value:
+            critical_string_value = "Criticality = (3)Optional"
+        else:
+            critical_string_value = "Criticality = NA"
+        try:
+            get_display_name = re.search("DisplayName.+?/VALUE",i).group()
+            get_display_name = re.sub("DisplayName\" TYPE=\"string\"><VALUE>","",get_display_name)
+            get_display_name = re.sub("</VALUE","",get_display_name)
+        except:
+            print("- FAIL, regex was unable to parse the XML to get device name")
+            sys.exit()
+        get_display_name = "DeviceName = " + get_display_name
+        print(get_display_name)
+        print(critical_string_value)
+        print("\n")
+        
+        
     
 def install_from_repository():
     global current_jobstore_job_ids
@@ -339,6 +377,8 @@ if __name__ == "__main__":
         get_job_queue_job_ids()
     elif args["r"]:
         get_repo_based_update_list()
+    elif args["c"]:
+        get_device_name_criticality_info()
     elif args["i"]:
         install_from_repository()
         loop_job_status(repo_job_id)
