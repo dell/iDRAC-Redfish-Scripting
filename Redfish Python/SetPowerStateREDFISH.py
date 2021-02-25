@@ -3,7 +3,7 @@
 #
 #
 # _author_ = Texas Roemer <Texas_Roemer@Dell.com>
-# _version_ = 4.0
+# _version_ = 5.0
 #
 # Copyright (c) 2021, Dell, Inc.
 #
@@ -46,21 +46,29 @@ idrac_ip = args["ip"]
 idrac_username = args["u"]
 idrac_password = args["p"]
 
+def test_idrac_creds():
+    response = requests.get('https://%s/redfish/v1/Managers/iDRAC.Embedded.1' % (idrac_ip), auth=(idrac_username, idrac_password), verify=False)
+    if response.status_code == 401:
+        print("\n- WARNING, status code 401 detected, check iDRAC username / password credentials")
+        sys.exit(1)
+    else:
+        pass
+
 
 def get_current_power_state():
     response = requests.get('https://%s/redfish/v1/Systems/System.Embedded.1/' % idrac_ip, verify=False,
                             auth=(idrac_username, idrac_password))
     data = response.json()
-    print("\n- WARNING, Current server power state is: %s\n" % data[u'PowerState'])
+    print("\n- INFO, Current server power state is: %s\n" % data['PowerState'])
     print("- Supported values for server power control are:\n")
-    for i in data[u'Actions'][u'#ComputerSystem.Reset'][u'ResetType@Redfish.AllowableValues']:
+    for i in data['Actions']['#ComputerSystem.Reset']['ResetType@Redfish.AllowableValues']:
         print(i)
 
 
 def set_power_state():
     requests.get('https://%s/redfish/v1/Systems/System.Embedded.1/' % idrac_ip, verify=False,
                  auth=(idrac_username, idrac_password))
-    print("\n- WARNING, setting new server power state to: %s" % (args["r"]))
+    print("\n- INFO, setting new server power state to: %s" % (args["r"]))
 
     url = 'https://%s/redfish/v1/Systems/System.Embedded.1/Actions/ComputerSystem.Reset' % idrac_ip
     payload = {'ResetType': args["r"]}
@@ -75,18 +83,19 @@ def set_power_state():
     else:
         print("\n- FAIL, Command failed, status code %s returned\n" % status_code)
         print(response.json())
-        sys.exit()
+        sys.exit(1)
 
 
 if __name__ == "__main__":
+    test_idrac_creds()
     if args["g"]:
         get_current_power_state()
     elif args["r"]:
         set_power_state()
     elif args["script_examples"]:
-        print('SetPowerStateREDFISH.py -ip 192.168.0.120 -u root -p calvin -g, this example will '
+        print('\nSetPowerStateREDFISH.py -ip 192.168.0.120 -u root -p calvin -g, this example will '
               'return the current power state of the server and supported values for changing the '
-              'server power state. SetPowerStateREDFISH.py -ip 100.65.205.66 -u root -p calvin -r On,'
-              ' this example will power on the server')
+              'server power state. \n\nSetPowerStateREDFISH.py -ip 192.168.0.120 -u root -p calvin -r On,'
+              ' this example will power on the server.')
     else:
         print("- FAIL, incorrect parameter(s) passed in or missing required parameters")
