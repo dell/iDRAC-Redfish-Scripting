@@ -4,7 +4,7 @@
 # 
 #
 # _author_ = Texas Roemer <Texas_Roemer@Dell.com>
-# _version_ = 17.0
+# _version_ = 18.0
 #
 # Copyright (c) 2017, Dell, Inc.
 #
@@ -174,6 +174,21 @@ def loop_job_status():
         else:
             print("Query job ID command failed, error code is: %s" % statusCode)
             sys.exit()
+        if "not compliant with configuration schema" in data['Oem']['Dell']['Message'].lower():
+            print("- FAIL, schema validation error detected for SCP file, checking config results for more details if available.\n")
+            req = requests.get('https://%s/redfish/v1/TaskService/Tasks/%s' % (idrac_ip, job_id), auth=(idrac_username, idrac_password), verify=False)
+            data = req.json()
+            for i in data["Messages"]:
+                for ii in i.items():
+                    if ii[0] == "Message":
+                        print("%s: %s" % (ii[0], ii[1]))
+                    else:
+                        pass
+            
+            sys.exit(1)
+        else:
+            pass
+            
         if data['Oem']['Dell']['JobState'] == "Completed":
             if "fail" in data['Oem']['Dell']['Message'].lower() or "error" in data['Oem']['Dell']['Message'].lower() or "not" in data['Oem']['Dell']['Message'].lower() or "unable" in data['Oem']['Dell']['Message'].lower() or "no device configuration" in data['Oem']['Dell']['Message'].lower() or "time" in data['Oem']['Dell']['Message'].lower():
                 print("- FAIL, Job ID %s marked as %s but detected issue(s). See detailed job results below for more information on failure\n" % (job_id, data['Oem']['Dell']['JobState']))
