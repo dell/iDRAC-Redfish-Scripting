@@ -2,7 +2,7 @@
 # GetRemoteServicesAPIStatusREDFISH. Python script using Redfish API with OEM extension to get the server remote services status
 #
 # _author_ = Texas Roemer <Texas_Roemer@Dell.com>
-# _version_ = 1.0
+# _version_ = 2.0
 #
 # Copyright (c) 2019, Dell, Inc.
 #
@@ -42,6 +42,9 @@ def check_supported_idrac_version():
         data = response.json()
     except:
         print("\n- FAIL, either incorrect iDRAC username / password passed in or iDRAC user doesn't have correct privileges")
+        sys.exit()
+    if response.status_code == 401:
+        print("\n- WARNING, status code 401 detected, check iDRAC username / password credentials")
         sys.exit()
     if response.status_code != 200:
         print("\n- WARNING, iDRAC version installed does not support this feature using Redfish API")
