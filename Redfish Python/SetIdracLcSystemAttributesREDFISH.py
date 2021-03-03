@@ -6,7 +6,7 @@
 # NOTE: Possible supported values for attribute_group parameter are: idrac, lc and system.
 #
 # _author_ = Texas Roemer <Texas_Roemer@Dell.com>
-# _version_ = 9.0
+# _version_ = 10.0
 #
 # Copyright (c) 2017, Dell, Inc.
 #
@@ -66,7 +66,7 @@ def get_attribute_registry():
     f=open("idrac_attribute_registry.txt","a")
     response = requests.get('https://%s/redfish/v1/Registries/ManagerAttributeRegistry/ManagerAttributeRegistry.v1_0_0.json' % idrac_ip,verify=False,auth=(idrac_username, idrac_password))
     data = response.json()
-    for i in data[u'RegistryEntries']['Attributes']:
+    for i in data['RegistryEntries']['Attributes']:
         for ii in i.items():
             message = "%s: %s" % (ii[0], ii[1])
             f.writelines(message)
@@ -85,7 +85,7 @@ def attribute_registry_get_specific_attribute():
     response = requests.get('https://%s/redfish/v1/Registries/ManagerAttributeRegistry/ManagerAttributeRegistry.v1_0_0.json' % idrac_ip,verify=False,auth=(idrac_username,idrac_password))
     data = response.json()
     found = ""
-    for i in data[u'RegistryEntries']['Attributes']:
+    for i in data['RegistryEntries']['Attributes']:
         if args["ars"] in i.values():
             print("\n- Attribute Registry information for attribute \"%s\" -\n" % args["ars"])
             found = "yes"
@@ -98,6 +98,10 @@ def attribute_registry_get_specific_attribute():
 def set_attributes():
     global url
     global payload
+    global static_ip_set
+    global static_ip_value
+    static_ip_value = ""
+    static_ip_set = "no"
     if args["s"] == "idrac":
         url = 'https://%s/redfish/v1/Managers/iDRAC.Embedded.1/Attributes' % idrac_ip
     elif args["s"] == "lc":
@@ -127,7 +131,11 @@ def set_attributes():
                             payload["Attributes"][i[0]] = int(i[1])
     for i in payload["Attributes"].items():
         print(" Attribute Name: %s, setting new value to: %s" % (i[0], i[1]))
-   
+        if i[0].lower() == "IPv4Static.1.Address".lower():
+            static_ip_set = "yes"
+            static_ip_value = i[1]
+        else:
+            pass
     headers = {'content-type': 'application/json'}
     response = requests.patch(url, data=json.dumps(payload), headers=headers, verify=False,auth=(idrac_username, idrac_password))
     statusCode = response.status_code
@@ -148,9 +156,14 @@ def set_attributes():
 def get_new_attribute_values():
     print("- INFO, getting new attribute current values \n")
     time.sleep(30)
+    if static_ip_set == "yes":
+        print("- INFO, static IP changed detected, will use new IP to validate attribute changes\n")
+        url = 'https://%s/redfish/v1/Managers/iDRAC.Embedded.1/Attributes' % static_ip_value
+    else:
+        pass
     response = requests.get('%s' % (url),verify=False,auth=(idrac_username, idrac_password))
     data = response.json()
-    attributes_dict=data[u'Attributes']
+    attributes_dict=data['Attributes']
     for i in payload["Attributes"].items():
         for ii in attributes_dict:
             if ii == i[0]:
