@@ -4,7 +4,7 @@
 # NOTE: Recommended to run "GetStorageInventoryREDFISH -h" first to get help text, display supported parameter options and get examples. 
 #
 # _author_ = Texas Roemer <Texas_Roemer@Dell.com>
-# _version_ = 3.0
+# _version_ = 5.0
 #
 # Copyright (c) 2017, Dell, Inc.
 #
@@ -41,6 +41,17 @@ idrac_username=args["u"]
 idrac_password=args["p"]
 
 
+def check_supported_idrac_version():
+    response = requests.get('https://%s/redfish/v1/Systems/System.Embedded.1/Storage' % idrac_ip,verify=False,auth=(idrac_username, idrac_password))
+    data = response.json()
+    if response.status_code == 401:
+        print("\n- WARNING, unable to access iDRAC, check to make sure you are passing in valid iDRAC credentials")
+        sys.exit()
+    if response.status_code == 200 or response.status_code == 202:
+        pass
+    else:
+        print("\n- FAIL, iDRAC version detected does not support this feature, status code %s returned" % response.status_code)
+        sys.exit()
     
 
 def get_storage_controllers():
@@ -48,16 +59,25 @@ def get_storage_controllers():
     data = response.json()
     print("\n- Server controller(s) detected -\n")
     controller_list=[]
-    for i in data[u'Members']:
-        controller_list.append(i[u'@odata.id'][46:])
-        print(i[u'@odata.id'][46:])
+    for i in data['Members']:
+        controller_list.append(i['@odata.id'][46:])
+        print(i['@odata.id'][46:])
     if args["c"] == "yy":
         for i in controller_list:
             response = requests.get('https://%s/redfish/v1/Systems/System.Embedded.1/Storage/%s' % (idrac_ip, i),verify=False,auth=(idrac_username, idrac_password))
             data = response.json()
-            print("\n - Detailed controller information for %s -\n" % i)
+            print("\n### Overall detailed controller information for %s ###\n" % i)
             for i in data.items():
-                print("%s: %s" % (i[0], i[1]))
+                if i[0] == "Oem":
+                    print("\n- Dell OEM property details - \n")
+                    for ii in i[1]["Dell"]["DellController"].items():
+                        print("%s: %s" % (ii[0], ii[1]))
+                elif i[0] == "StorageControllers":
+                    print("\n- Storage controller property details - \n")
+                    for ii in i[1][0].items():
+                        print("%s: %s" % (ii[0], ii[1]))   
+                else:
+                    print("%s: %s" % (i[0], i[1]))
 
     
 def get_storage_disks():
@@ -69,23 +89,28 @@ def get_storage_disks():
     else:
         print("- FAIL, GET command failed, detailed error information: %s" % data)
         sys.exit()
-    if data[u'Drives'] == []:
+    if data['Drives'] == []:
         print("\n- WARNING, no drives detected for %s" % controller)
         sys.exit()
     else:
         print("\n- Drive(s) detected for %s -\n" % controller)
-        for i in data[u'Drives']:
-            drive_list.append(i[u'@odata.id'].split("/")[-1])
-            response = requests.get('https://%s/redfish/v1/Systems/System.Embedded.1/Storage/Drives/%s' % (idrac_ip, i[u'@odata.id'].split("/")[-1]),verify=False,auth=(idrac_username, idrac_password))
+        for i in data['Drives']:
+            drive_list.append(i['@odata.id'].split("/")[-1])
+            response = requests.get('https://%s/redfish/v1/Systems/System.Embedded.1/Storage/Drives/%s' % (idrac_ip, i['@odata.id'].split("/")[-1]),verify=False,auth=(idrac_username, idrac_password))
             data = response.json()
-            print(i[u'@odata.id'].split("/")[-1])
+            print(i['@odata.id'].split("/")[-1])
     if args["dd"]:
       for i in drive_list:
           response = requests.get('https://%s/redfish/v1/Systems/System.Embedded.1/Storage/Drives/%s' % (idrac_ip, i),verify=False,auth=(idrac_username, idrac_password))
           data = response.json()
-          print("\n - Detailed drive information for %s -\n" % i)
+          print("\n### Detailed drive information for %s ###\n" % i)
           for ii in data.items():
-              print("%s: %s" % (ii[0],ii[1]))
+              if ii[0] == "Oem":
+                  print("\n- Dell OEM property details - \n")
+                  for iii in ii[1]["Dell"]["DellPhysicalDisk"].items():
+                      print("%s: %s" % (iii[0], iii[1]))
+              else:
+                  print("%s: %s" % (ii[0],ii[1]))
                 
 
 def get_backplanes():
@@ -93,7 +118,7 @@ def get_backplanes():
     data = response.json()
     backplane_dict = {}
     try:
-        for i in data[u'Devices']:
+        for i in data['Devices']:
             for ii in i.items():
                 if ii[0] == "Name":
                     if "plane" in ii[1]:
@@ -117,6 +142,7 @@ def get_backplanes():
 
 
 if __name__ == "__main__":
+    check_supported_idrac_version()
     if args["c"]:
         get_storage_controllers()
     elif args["d"] or args["dd"]:
