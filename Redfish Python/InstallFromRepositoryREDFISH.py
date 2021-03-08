@@ -2,7 +2,7 @@
 # InstallFromRepositoryREDFISH. Python script using Redfish API with OEM extension to either get firmware version for all devices, get repository update list or install firmware from a repository on a network share.
 #
 # _author_ = Texas Roemer <Texas_Roemer@Dell.com>
-# _version_ = 10.0
+# _version_ = 11.0
 #
 # Copyright (c) 2019, Dell, Inc.
 #
@@ -53,11 +53,14 @@ idrac_password=args["p"]
 def check_supported_idrac_version():
     response = requests.get('https://%s/redfish/v1/Dell/Systems/System.Embedded.1/DellSoftwareInstallationService' % idrac_ip,verify=False,auth=(idrac_username, idrac_password))
     data = response.json()
-    if response.status_code != 200:
-        print("\n- WARNING, iDRAC version installed does not support this feature using Redfish API")
+    if response.status_code == 401:
+        print("\n- WARNING, unable to access iDRAC, check to make sure you are passing in valid iDRAC credentials")
         sys.exit()
-    else:
+    if response.status_code == 200 or response.status_code == 202:
         pass
+    else:
+        print("\n- FAIL, iDRAC version detected does not support this feature, status code %s returned" % response.status_code)
+        sys.exit()
 
 def get_job_queue_job_ids():
     req = requests.get('https://%s/redfish/v1/Managers/iDRAC.Embedded.1/Jobs' % (idrac_ip), auth=(idrac_username, idrac_password), verify=False)
@@ -66,7 +69,7 @@ def get_job_queue_job_ids():
     data = str(data)
     jobid_search=re.findall("JID_.+?'",data)
     if jobid_search == []:
-        print("\n- WARNING, job queue empty, no current job IDs detected for iDRAC %s" % idrac_ip)
+        print("\n- INFO, job queue empty, no current job IDs detected for iDRAC %s" % idrac_ip)
         sys.exit()
     jobstore=[]
     for i in jobid_search:
@@ -80,7 +83,7 @@ def get_job_queue_job_ids():
         print("Job ID: %s\nJob Type: %s\nJob Message: %s\n" % (i,data['Name'], data['Message']))
 
 def get_FW_inventory():
-    print("\n- WARNING, current devices detected with firmware version and updateable status -\n")
+    print("\n- INFO, current devices detected with firmware version and updateable status -\n")
     req = requests.get('https://%s/redfish/v1/UpdateService/FirmwareInventory/' % (idrac_ip), auth=(idrac_username, idrac_password), verify=False)
     statusCode = req.status_code
     data = req.json()
@@ -125,7 +128,7 @@ def get_repo_based_update_list():
     print(data['PackageList'])
     f.writelines(data['PackageList'])
     f.close()
-    print("\n- WARNING, get repo based update list data is also copied to file \"repo_based_update_list.xml\"")
+    print("\n- INFO, get repo based update list data is also copied to file \"repo_based_update_list.xml\"")
     sys.exit()
 
 def get_device_name_criticality_info():
@@ -239,7 +242,7 @@ def get_update_job_ids():
         pass
     else:
         if data['error']['@Message.ExtendedInfo'][0]['Message'] == 'Firmware versions on server match catalog, applicable updates are not present in the repository.':
-            print("\n- WARNING, %s" % data['error']['@Message.ExtendedInfo'][0]['Message'])
+            print("\n- INFO, %s" % data['error']['@Message.ExtendedInfo'][0]['Message'])
             sys.exit()
         else:
             print("\n-FAIL, POST command failed to get repo update list, status code is %s" % (response.status_code))
@@ -252,7 +255,7 @@ def get_update_job_ids():
     data = str(data)
     jobid_search=re.findall("JID_.+?'",data)
     if jobid_search == []:
-        print("\n- WARNING, job queue empty, no current job IDs detected for iDRAC %s" % idrac_ip)
+        print("\n- INFO, job queue empty, no current job IDs detected for iDRAC %s" % idrac_ip)
         sys.exit()
     jobstore=[]
     for i in jobid_search:
@@ -281,7 +284,7 @@ def loop_job_status(x):
             except requests.ConnectionError as error_message:
                 print("- FAIL, requests command failed to GET job status, detailed error information: \n%s" % error_message)
                 count+=1
-                print("- WARNING, Script will wait 10 seconds and try to check job status again")
+                print("- INFO, Script will wait 10 seconds and try to check job status again")
                 time.sleep(10)
                 continue
         if count == 5:
@@ -307,11 +310,11 @@ def loop_job_status(x):
         elif data['Message'] == "Job for this device is already present.":
             break
         elif "Package successfully downloaded" in data['Message'] and args["rebootneeded"] == "False":
-            print("\n- WARNING, repository package successfully downloaded, \"RebootNeeded = False\" detected. Check the overall Job Queue for Scheduled Update Jobs using -q argument. Next server manual reboot, these scheduled update jobs will execute and also mark the Repository Update Job as Completed.\n")
+            print("\n- INFO, repository package successfully downloaded, \"RebootNeeded = False\" detected. Check the overall Job Queue for Scheduled Update Jobs using -q argument. Next server manual reboot, these scheduled update jobs will execute and also mark the Repository Update Job as Completed.\n")
             sys.exit()
 
         elif "Package successfully downloaded" in data['Message'] and print_message_count == 1:
-            print("\n- WARNING, repository package successfully downloaded. If version changed detected for any device, update job ID will get created and execute for that device\n")
+            print("\n- INFO, repository package successfully downloaded. If version changed detected for any device, update job ID will get created and execute for that device\n")
             time.sleep(5)
             print_message_count = 2
             
@@ -323,15 +326,15 @@ def loop_job_status(x):
             print("\n")
             if data['JobType'] == "RepositoryUpdate":
                 if args["applyupdate"] == "False":
-                    print("\n- WARNING, \"ApplyUpdate = False\" selected, execute script with -r agrument to view the repo update list which will report devices detected for firmware updates")
+                    print("\n- INFO, \"ApplyUpdate = False\" selected, execute script with -r agrument to view the repo update list which will report devices detected for firmware updates")
                     sys.exit()
                 else:
-                    print("\n- WARNING, repository update job marked completed. Script will now check to see if any update job(s) were created due to different firmware version change detected")
+                    print("\n- INFO, repository update job marked completed. Script will now check to see if any update job(s) were created due to different firmware version change detected")
                     break
             else:
                 break
         else:
-            print("- WARNING, job ID %s not marked completed, current job information:\n" % (x))
+            print("- INFO, job ID %s not marked completed, current job information:\n" % (x))
             print("* Name: %s" % data['Name'])
             print("* Job Status: %s" % data['Message'])
             print("* Current job execution time: %s\n" % str(current_time)[0:7])
@@ -352,10 +355,11 @@ def check_schedule_update_job():
         if data['Message'] == "Task successfully scheduled.":
             count+=1
     if count >= 1 and args["rebootneeded"].title() == "True":
-        print("\n- WARNING, scheduled update job ID detected, server rebooting to apply the update(s)")
+        print("\n- INFO, scheduled update job ID detected, server rebooting to apply the update(s)")
         time.sleep(5)
     elif count >= 1 and args["rebootneeded"].title() == "False" or args["rebootneeded"] == "":
-        print("\n- WARNING, scheduled update job ID detected but \"RebootNeeded\" = False or RebootNeeded argument not passed in. Scheduled update jobs will not be applied until next manual server reboot")
+        print("\n- INFO, scheduled update job ID detected but \"RebootNeeded\" = False or RebootNeeded argument not passed in. Scheduled update jobs will not be applied until next manual server reboot")
+        time.sleep(15)
         print("\n- Current update jobs created for repo update -\n")
         for x in new_job_ids:
             req = requests.get('https://%s/redfish/v1/Managers/iDRAC.Embedded.1/Jobs/%s' % (idrac_ip, x), auth=(idrac_username, idrac_password), verify=False)
