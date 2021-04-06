@@ -2,7 +2,7 @@
 # LCWipeREDFISH. Python script using Redfish API with OEM extension to delete all configurations from the iDRAC LifecycleController.
 #
 # _author_ = Texas Roemer <Texas_Roemer@Dell.com>
-# _version_ = 2.0
+# _version_ = 3.0
 #
 # Copyright (c) 2019, Dell, Inc.
 #
@@ -15,7 +15,7 @@
 #
 
 
-import requests, json, sys, re, time, warnings, argparse, subprocess
+import requests, json, sys, re, time, warnings, argparse, subprocess, platform
 
 from datetime import datetime
 
@@ -79,80 +79,122 @@ def lc_wipe():
 
     
 def check_idrac_connection():
-    while True:
-        try:
-            ping_command = "ping %s" % idrac_ip
-            ping_output = subprocess.Popen(ping_command, stdout = subprocess.PIPE, shell=True).communicate()[0]
-            ping_results = re.search("Lost = .", ping_output).group()
-            if ping_results == "Lost = 0" or ping_results == "Lost = 1":
-                print("- PASS, success ping response to iDRAC IP %s" % idrac_ip)
+    run_network_connection_function = ""
+    if platform.system().lower() == "windows":
+        ping_command = "ping -n 3 %s" % idrac_ip
+    elif platform.system().lower() == "linux":
+        ping_command = "ping -c 3 %s" % idrac_ip
+    else:
+        print("- FAIL, unable to determine OS type, check iDRAC connection function will not execute")
+        run_network_connection_function = "fail"
+    execute_command = subprocess.call(ping_command, stdout=subprocess.PIPE, shell=True)
+    if execute_command != 0:
+        ping_status = "lost"
+    else:
+        ping_status = "good"
+        pass
+    if ping_status == "lost":
+            print("- INFO, iDRAC network connection lost due to slow network response, waiting 1 minute to access iDRAC again")
+            time.sleep(60)
+            while True:
+                if run_network_connection_function == "fail":
+                    break
+                execute_command=subprocess.call(ping_command, stdout=subprocess.PIPE, shell=True)
+                if execute_command != 0:
+                    ping_status = "lost"
+                else:
+                    ping_status = "good"
+                if ping_status == "lost":
+                    print("- INFO, unable to ping iDRAC IP, script will wait 1 minute and try again")
+                    time.sleep(60)
+                    continue
+                else:
+                    pass
+                    break
+            while True:
+                try:
+                    req = requests.get('https://%s/redfish/v1/TaskService/Tasks/%s' % (idrac_ip, job_id), auth=(idrac_username, idrac_password), verify=False)
+                except requests.ConnectionError as error_message:
+                    print("- INFO, GET request failed due to connection error, retry")
+                    time.sleep(10)
+                    continue
                 break
-            else:
-                print("\n- WARNING, iDRAC connection lost due to slow network connection or component being updated requires iDRAC reset. Script will recheck iDRAC connection in 3 minutes")
-                time.sleep(180)
-        except:
-            ping_output = subprocess.run(ping_command,universal_newlines=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-            if "Lost = 0" in ping_output.stdout or "Lost = 1" in ping_output.stdout:
-                print("- PASS, success ping response to iDRAC IP %s" % idrac_ip)
-                break
-            else:
-                print("\n- WARNING, iDRAC connection lost due to slow network connection or component being updated requires iDRAC reset. Script will recheck iDRAC connection in 3 minutes")
-                time.sleep(180)
+    else:
+        pass
         
         
 
 def reboot_server():
-    global idrac_username
-    global idrac_password
     response = requests.get('https://%s/redfish/v1/Systems/System.Embedded.1/' % idrac_ip,verify=False,auth=(idrac_username, idrac_password))
-    if response.status_code == 401:
-        print("\n- WARNING, status code %s returned for invalid credentials detected, will attempt to use default root/calvin to continue script workflow" % response.status_code)
-        idrac_username = "root"
-        idrac_password = "calvin"
-        response = requests.get('https://%s/redfish/v1/Systems/System.Embedded.1/' % idrac_ip,verify=False,auth=(idrac_username, idrac_password))
-        if response.status_code == 401:
-            print("- WARNING, root/calvin fails to communicate with iDRAC. Manually reboot the server to complete the LC process")
-            sys.exit()
     data = response.json()
-    current_power_state = data[u'PowerState']
-    if current_power_state == "On":
-        print("\n- INFO, server will now reboot and power OFF after POST to complete the LCWipe operation")
+    print("\n- INFO, rebooting server to execute update job, current server power state is: %s" % data['PowerState'])
+    if data['PowerState'] == "On":
         url = 'https://%s/redfish/v1/Systems/System.Embedded.1/Actions/ComputerSystem.Reset' % idrac_ip
-        payload = {'ResetType': 'ForceOff'}
+        payload = {'ResetType': 'GracefulShutdown'}
         headers = {'content-type': 'application/json'}
         response = requests.post(url, data=json.dumps(payload), headers=headers, verify=False, auth=(idrac_username,idrac_password))
         statusCode = response.status_code
         if statusCode == 204:
-            print("- PASS, Command passed to power OFF server, code return is %s" % statusCode)
+            print("- PASS, Command passed to gracefully power OFF server, code return is %s" % statusCode)
+            time.sleep(10)
         else:
-            print("\n- FAIL, Command failed to power OFF server, status code is: %s" % statusCode)
+            print("\n- FAIL, Command failed to gracefully power OFF server, status code is: %s\n" % statusCode)
             print("Extended Info Message: {0}".format(response.json()))
             sys.exit()
-        time.sleep(10)
+        count = 0
+        while True:
+            response = requests.get('https://%s/redfish/v1/Systems/System.Embedded.1/' % idrac_ip,verify=False,auth=(idrac_username, idrac_password))
+            data = response.json()
+            if data['PowerState'] == "Off":
+                print("- PASS, GET command passed to verify server is in OFF state")
+                break
+            elif count == 20:
+                print("- WARNING, unable to graceful shutdown the server, will perform forced shutdown now")
+                url = 'https://%s/redfish/v1/Systems/System.Embedded.1/Actions/ComputerSystem.Reset' % idrac_ip
+                payload = {'ResetType': 'ForceOff'}
+                headers = {'content-type': 'application/json'}
+                response = requests.post(url, data=json.dumps(payload), headers=headers, verify=False, auth=(idrac_username,idrac_password))
+                statusCode = response.status_code
+                if statusCode == 204:
+                    print("- PASS, Command passed to forcefully power OFF server, code return is %s" % statusCode)
+                    time.sleep(15)
+                    break
+                else:
+                    print("\n- FAIL, Command failed to gracefully power OFF server, status code is: %s\n" % statusCode)
+                    print("Extended Info Message: {0}".format(response.json()))
+                    sys.exit()
+                
+            else:
+                time.sleep(2)
+                count+=1
+                continue
+            
         payload = {'ResetType': 'On'}
         headers = {'content-type': 'application/json'}
         response = requests.post(url, data=json.dumps(payload), headers=headers, verify=False, auth=(idrac_username,idrac_password))
         statusCode = response.status_code
         if statusCode == 204:
-            print("- PASS, Command passed to power ON server, status code %s returned" % statusCode)
-            time.sleep(60)
+            print("- PASS, Command passed to power ON server, code return is %s" % statusCode)
         else:
-            print("\n- FAIL, Command failed to power ON server, status code %s returned" % statusCode)
+            print("\n- FAIL, Command failed to power ON server, status code is: %s\n" % statusCode)
             print("Extended Info Message: {0}".format(response.json()))
             sys.exit()
-    if current_power_state == "Off":
-        print("\n- INFO, server will now power ON and OFF after POST to complete the LCWipe operation")
+    elif data['PowerState'] == "Off":
+        url = 'https://%s/redfish/v1/Systems/System.Embedded.1/Actions/ComputerSystem.Reset' % idrac_ip
         payload = {'ResetType': 'On'}
         headers = {'content-type': 'application/json'}
         response = requests.post(url, data=json.dumps(payload), headers=headers, verify=False, auth=(idrac_username,idrac_password))
         statusCode = response.status_code
         if statusCode == 204:
-            print("- PASS, Command passed to power ON server, status code %s returned" % statusCode)
-            time.sleep(60)
+            print("- PASS, Command passed to power ON server, code return is %s" % statusCode)
+            time.sleep(30)
         else:
-            print("\n- FAIL, Command failed to power ON server, status code %s returned" % statusCode)
+            print("\n- FAIL, Command failed to power ON server, status code is: %s\n" % statusCode)
             print("Extended Info Message: {0}".format(response.json()))
             sys.exit()
+    else:
+        print("- FAIL, unable to get current server power state to perform either reboot or power on")
+        sys.exit()
 
 def get_remote_service_api_status():
     while True:
