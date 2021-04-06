@@ -27,7 +27,7 @@ parser.add_argument('-ip',help='iDRAC IP address', required=True)
 parser.add_argument('-u', help='iDRAC username', required=True)
 parser.add_argument('-p', help='iDRAC password', required=True)
 parser.add_argument('script_examples',action="store_true",help='BiosChangePasswordREDFISH.py -ip 192.168.0.120 -u root -p calvin -c 1 -o "" -n "p@ssw0rd", this example is setting the BIOS system password. BiosChangePasswordREDFISH.py -ip 192.168.0.120 -u root -p calvin -c 1 -o "p@ssw0rd" -n "newpwd", this example is changing the BIOS system password. BiosChangePasswordREDFISH.py -ip 192.168.0.120 -u root -p calvin -c 2 -o "p@ssw0rd" -n "", this example is clearing the BIOS setup password.')
-parser.add_argument('-c', help='Set, Change or Delete BIOS password, pass in the type of password you want to change. Pass in \"1\" for System password or \"2" for Setup password', required=False)
+parser.add_argument('-c', help='Set, Change or Delete BIOS password, pass in the type of password you want to change. Pass in \"1\" for System password, \"2" for Setup password, \"3\" for PersistentMemPassphrase', required=False)
 parser.add_argument('-o', help='Change BIOS password, pass in the old password. If you are setting new password, pass in \"\" for -o argument', required=False)
 parser.add_argument('-n', help='Change BIOS password, pass in the new password. If you are clearing the password, pass in \"\" for -n argument', required=False)
 args=vars(parser.parse_args())
@@ -39,6 +39,9 @@ idrac_password=args["p"]
 def check_supported_idrac_version():
     response = requests.get('https://%s/redfish/v1/Systems/System.Embedded.1/Bios' % idrac_ip,verify=False,auth=(idrac_username, idrac_password))
     data = response.json()
+    if response.status_code == 401:
+        print("\n- WARNING, status code %s returned. Incorrect iDRAC username/password or invalid privilege detected." % response.status_code)
+        sys.exit()
     if response.status_code != 200:
         print("\n- WARNING, iDRAC version installed does not support this feature using Redfish API")
         sys.exit()
@@ -51,27 +54,29 @@ def change_bios_password():
         password_name = "SysPassword"
     elif args["c"] == "2":
         password_name = "SetupPassword"
+    elif args["c"] == "3":
+        password_name = "PersistentMemPassphrase"
     else:
-        print("- FAIL, invalid value passed in for -c option")
+        print("\n- FAIL, invalid value passed in for -c option")
         sys.exit()
     url = "https://%s/redfish/v1/Systems/System.Embedded.1/Bios/Actions/Bios.ChangePassword" % idrac_ip
     if args["n"] == "":
         payload = {"PasswordName":password_name,"OldPassword":args["o"],"NewPassword":""}
-        print("- WARNING, clearing BIOS %s" % password_name)
+        print("\n- INFO, clearing BIOS %s" % password_name)
     elif args["o"] == "":
         payload = {"PasswordName":password_name,"":args["o"],"NewPassword":args["n"]}
-        print("- WARNING, setting new BIOS %s" % password_name)
+        print("\n- INFO, setting new BIOS %s" % password_name)
     else:
         payload = {"PasswordName":password_name,"OldPassword":args["o"],"NewPassword":args["n"]}
-        print("- WARNING, changing BIOS %s" % password_name)
+        print("- INFO, changing BIOS %s" % password_name)
     headers = {'content-type': 'application/json'}
     response = requests.post(url, data=json.dumps(payload), headers=headers, verify=False,auth=(idrac_username,idrac_password))
     data = response.__dict__
     statusCode = response.status_code
     if statusCode == 200:
-        print("\n- PASS: status code %s returned for POST command to change password" % statusCode)
+        print("\n- PASS: status code %s returned for POST action Bios.ChangePassword" % statusCode)
     else:
-        print("\n- FAIL, Command failed, error code is %s" % statusCode)
+        print("\n- FAIL, Command failed, errror code is %s" % statusCode)
         detail_message=str(response.__dict__)
         print(detail_message)
         sys.exit()
@@ -94,7 +99,7 @@ def create_bios_config_job():
     d=str(response.__dict__)
     z=re.search("JID_.+?,",d).group()
     job_id=re.sub("[,']","",z)
-    print("- WARNING: %s job ID successfully created" % job_id)
+    print("- INFO: %s job ID successfully created" % job_id)
     start_time=datetime.now()
 
 def check_schedule_job_status():
@@ -109,7 +114,7 @@ def check_schedule_job_status():
             print("Extended Info Message: {0}".format(req.json()))
             sys.exit()
         data = req.json()
-        if data[u'Message'] == "Task successfully scheduled.":
+        if data['Message'] == "Task successfully scheduled.":
             print("- PASS, %s job id successfully scheduled, rebooting the server to apply config changes" % job_id)
             break
         else:
@@ -119,8 +124,8 @@ def check_schedule_job_status():
 def reboot_server():
     response = requests.get('https://%s/redfish/v1/Systems/System.Embedded.1/' % idrac_ip,verify=False,auth=(idrac_username, idrac_password))
     data = response.json()
-    print("\n- WARNING, Current server power state is: %s" % data[u'PowerState'])
-    if data[u'PowerState'] == "On":
+    print("\n- INFO, Current server power state is: %s" % data[u'PowerState'])
+    if data['PowerState'] == "On":
         url = 'https://%s/redfish/v1/Systems/System.Embedded.1/Actions/ComputerSystem.Reset' % idrac_ip
         payload = {'ResetType': 'GracefulShutdown'}
         headers = {'content-type': 'application/json'}
@@ -136,7 +141,7 @@ def reboot_server():
         while True:
             response = requests.get('https://%s/redfish/v1/Systems/System.Embedded.1/' % idrac_ip,verify=False,auth=(idrac_username, idrac_password))
             data = response.json()
-            if data[u'PowerState'] == "Off":
+            if data['PowerState'] == "Off":
                 print("- PASS, GET command passed to verify server is in OFF state")
                 break
             else:
@@ -152,7 +157,7 @@ def reboot_server():
             print("\n- FAIL, Command failed to power ON server, status code is: %s\n" % statusCode)
             print("Extended Info Message: {0}".format(response.json()))
             sys.exit()
-    elif data[u'PowerState'] == "Off":
+    elif data['PowerState'] == "Off":
         url = 'https://%s/redfish/v1/Systems/System.Embedded.1/Actions/ComputerSystem.Reset' % idrac_ip
         payload = {'ResetType': 'On'}
         headers = {'content-type': 'application/json'}
@@ -195,7 +200,7 @@ def check_job_status_final():
             print(" PercentComplete = "+str(data[u'PercentComplete'])+"\n")
             break
         else:
-            print("- WARNING, JobStatus not completed, current status is: \"%s\"" % data[u'Message'])
+            print("- INFO, JobStatus not completed, current status is: \"%s\"" % data[u'Message'])
             time.sleep(30)
 
 
