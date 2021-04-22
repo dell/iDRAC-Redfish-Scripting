@@ -3,7 +3,7 @@
 #
 #
 # _author_ = Texas Roemer <Texas_Roemer@Dell.com>
-# _version_ = 2.0
+# _version_ = 3.0
 #
 # Copyright (c) 2020, Dell, Inc.
 #
@@ -38,12 +38,32 @@ idrac_ip=args["ip"]
 idrac_username=args["u"]
 idrac_password=args["p"]
 
+def get_redfish_version():
+    global redfish_version
+    response = requests.get('https://%s/redfish/v1' % idrac_ip,verify=False,auth=(idrac_username, idrac_password))
+    data = response.json()
+    if response.status_code == 401:
+        print("\n- WARNING, status code %s returned. Incorrect iDRAC username/password or invalid privilege detected." % response.status_code)
+        sys.exit(1)
+    elif response.status_code != 200:
+        print("\n- WARNING, GET request failed to get Redfish version, status code %s returned" % response.status_code)
+        sys.exit(1)
+    else:
+        pass
+    redfish_version = int(data["RedfishVersion"].replace(".",""))
 
 def create_x_auth_session():
-    url = 'https://%s/redfish/v1/SessionService/Sessions' % idrac_ip
+    if redfish_version >= 160:
+        url = 'https://%s/redfish/v1/SessionService/Sessions' % idrac_ip
+    elif redfish_version < 160:
+        url = 'https://%s/redfish/v1/Sessions' % idrac_ip
+    else:
+        print("- INFO, unable to select URI based off Redfish version")
+        sys.exit()
     payload = {"UserName":args["u"],"Password":args["p"]}
     headers = {'content-type': 'application/json'}
     response = requests.post(url, data=json.dumps(payload), headers=headers, verify=False)
+    data = response.json()
     if response.status_code == 201:
         print("\n- PASS, successfuly created X auth session")
     else:
@@ -145,6 +165,7 @@ def delete_x_auth_session():
 
 
 if __name__ == "__main__":
+    get_redfish_version()
     if args["c"]:
         create_x_auth_session()
     elif args["g"] and args["t"]:
