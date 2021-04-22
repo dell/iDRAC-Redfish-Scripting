@@ -3,7 +3,7 @@
 #
 #
 # _author_ = Texas Roemer <Texas_Roemer@Dell.com>
-# _version_ = 3.0
+# _version_ = 4.0
 #
 # Copyright (c) 2020, Dell, Inc.
 #
@@ -39,27 +39,36 @@ idrac_username=args["u"]
 idrac_password=args["p"]
 
 def get_redfish_version():
-    global redfish_version
+    global session_uri
     response = requests.get('https://%s/redfish/v1' % idrac_ip,verify=False,auth=(idrac_username, idrac_password))
     data = response.json()
     if response.status_code == 401:
-        print("\n- WARNING, status code %s returned. Incorrect iDRAC username/password or invalid privilege detected." % response.status_code)
-        sys.exit(1)
+        try:
+            response = requests.get('https://%s/redfish/v1' % (idrac_ip),verify=False, headers={'X-Auth-Token': args["t"]})
+            if response.status_code == 401:
+                print("\n- FAIL, GET request failed, status code %s returned, check login credentials" % (response.status_code))
+                sys.exit()
+            else:
+                data = response.json()
+        except:
+            print("\n- WARNING, status code %s returned. Incorrect iDRAC username/password or invalid privilege detected." % response.status_code)
+            sys.exit(1)
     elif response.status_code != 200:
         print("\n- WARNING, GET request failed to get Redfish version, status code %s returned" % response.status_code)
         sys.exit(1)
     else:
         pass
     redfish_version = int(data["RedfishVersion"].replace(".",""))
-
-def create_x_auth_session():
     if redfish_version >= 160:
-        url = 'https://%s/redfish/v1/SessionService/Sessions' % idrac_ip
+        session_uri = "redfish/v1/SessionService/Sessions"
     elif redfish_version < 160:
-        url = 'https://%s/redfish/v1/Sessions' % idrac_ip
+        session_uri = "redfish/v1/Sessions"
     else:
         print("- INFO, unable to select URI based off Redfish version")
         sys.exit()
+
+def create_x_auth_session():
+    url = 'https://%s/%s' % (idrac_ip, session_uri)
     payload = {"UserName":args["u"],"Password":args["p"]}
     headers = {'content-type': 'application/json'}
     response = requests.post(url, data=json.dumps(payload), headers=headers, verify=False)
@@ -78,7 +87,7 @@ def create_x_auth_session():
     
 
 def test_x_auth_session_get():
-    response = requests.get('https://%s/redfish/v1/SessionService/Sessions' % (idrac_ip),verify=False, headers={'X-Auth-Token': args["t"]})
+    response = requests.get('https://%s/%s' % (idrac_ip, session_uri),verify=False, headers={'X-Auth-Token': args["t"]})
     if response.status_code == 401:
         print("\n- FAIL, GET request failed, status code %s returned, check login credentials" % (response.status_code))
         sys.exit()
@@ -90,7 +99,7 @@ def test_x_auth_session_get():
         sys.exit()
 
 def get_session_info_using_username_password():
-    response = requests.get('https://%s/redfish/v1/SessionService/Sessions' % (idrac_ip), auth=(idrac_username, idrac_password), verify=False)
+    response = requests.get('https://%s/%s' % (idrac_ip, session_uri), auth=(idrac_username, idrac_password), verify=False)
     if response.status_code == 401:
         print("\n- FAIL, GET request failed, status code %s returned, check login credentials" % (response.status_code))
         sys.exit()
@@ -120,7 +129,7 @@ def get_session_info_using_username_password():
             print("%s: %s" % (i[0],i[1]))    
 
 def get_session_info_using_token():
-    response = requests.get('https://%s/redfish/v1/SessionService/Sessions' % (idrac_ip),verify=False, headers={'X-Auth-Token': args["t"]})
+    response = requests.get('https://%s/%s' % (idrac_ip, session_uri),verify=False, headers={'X-Auth-Token': args["t"]})
     if response.status_code == 401:
         print("\n- FAIL, GET request failed, status code %s returned, check login credentials" % (response.status_code))
         sys.exit()
@@ -146,7 +155,7 @@ def get_session_info_using_token():
             print("%s: %s" % (i[0],i[1]))
 
 def delete_x_auth_session():
-    url = 'https://%s/redfish/v1/SessionService/Sessions/%s' % (idrac_ip, args["d"])
+    url = 'https://%s/%s/%s' % (idrac_ip, session_uri, args["d"])
     headers = {'content-type': 'application/json','X-Auth-Token': args["t"]}
     try:
         response = requests.delete(url, headers=headers, verify=False)
