@@ -2,7 +2,7 @@
 # SupportAssistCollectionNetworkShareREDFISH. Python script using Redfish API with OEM extension to export Support Assist collection to a network share
 #
 # _author_ = Texas Roemer <Texas_Roemer@Dell.com>
-# _version_ = 4.0
+# _version_ = 5.0
 #
 # Copyright (c) 2020, Dell, Inc.
 #
@@ -190,7 +190,7 @@ def export_support_assist_colection_network_share():
                 data_selector_values.append("OSAppData")
             if args["dataselectorarrayin"] == "3":
                 data_selector_values.append("TTYLogs")
-            if "4" in data_selector:
+            if args["dataselectorarrayin"] == "4":
                 data_selector_values.append("TelemetryReports")
             payload["DataSelectorArrayIn"] = data_selector_values
     print("\n- WARNING, arguments and values for %s method\n" % method)
