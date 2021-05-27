@@ -84,7 +84,7 @@ def get_specific_bios_attribute():
 if __name__ == "__main__":
     check_supported_idrac_version()
     if args["a"]:
-       get_specific_bios_attribute()
+        get_specific_bios_attribute()
     else:
         get_bios_attributes()
     
