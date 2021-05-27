@@ -4,7 +4,7 @@
 # NOTE: Recommended to run this script first to get attributes and current values before executing BiosSetAttributeREDFISH script.
 #
 # _author_ = Texas Roemer <Texas_Roemer@Dell.com>
-# _version_ = 3.0
+# _version_ = 4.0
 #
 # Copyright (c) 2017, Dell, Inc.
 #
@@ -26,7 +26,7 @@ parser=argparse.ArgumentParser(description="Python script using Redfish API to g
 parser.add_argument('-ip',help='iDRAC IP address', required=True)
 parser.add_argument('-u', help='iDRAC username', required=True)
 parser.add_argument('-p', help='iDRAC password', required=True)
-parser.add_argument('-a', help='Pass in the attribute name you want to get the current value, Note: make sure to type the attribute name exactly due to case sensitive. Example: MemTest will work but memtest will fail', required=False)
+parser.add_argument('-a', help='Pass in the attribute name you want to get the current value, Note: make sure to type the attribute name exactly due to case senstive. Example: MemTest will work but memtest will fail', required=False)
 
 args=vars(parser.parse_args())
 
@@ -42,7 +42,10 @@ except:
 def check_supported_idrac_version():
     response = requests.get('https://%s/redfish/v1/Systems/System.Embedded.1/Bios' % idrac_ip,verify=False,auth=(idrac_username, idrac_password))
     data = response.json()
-    if response.status_code != 200:
+    if response.status_code == 401:
+        print("\n- WARNING, status code %s returned. Incorrect iDRAC username/password or invalid privilege detected." % response.status_code)
+        sys.exit()
+    elif response.status_code != 200:
         print("\n- WARNING, iDRAC version installed does not support this feature using Redfish API")
         sys.exit()
     else:
