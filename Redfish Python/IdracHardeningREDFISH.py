@@ -1,6 +1,6 @@
 #
 # _author_ = Texas Roemer <Texas_Roemer@Dell.com>
-# _version_ = 1.0
+# _version_ = 2.0
 #
 # Copyright (c) 2021, Dell, Inc.
 #
@@ -19,7 +19,7 @@ from datetime import datetime
 
 warnings.filterwarnings("ignore")
 
-parser=argparse.ArgumentParser(description="Python script using Redfish API to configure server for iDRAC hardening (recommended server iDRAC settings for providing additional server security). Script workflow: (1) prompt for current iDRAC user ID 2 password. (2) Change iDRAC user ID 2 password. NOTE: Script will complete rest of the workflow using new password. (3) Check for any iDRAC users configured. If configured, script will prompt for password change. (4) Disable iDRAC Telnet. (5) Disable iDRAC IPMI. (6) Enable iDRAC webserver, configure TLS protocol to 1.2 only. (7) Check if iDRAC SNMP is configured. (8) Disable iDRAC VNC server. (8) Disable iDRAC USB config XML. (9) Check if iDRAC remote syslog is configured. (10) Check if iDRAC NTP is configured. (11) Disable iDRAC SOL. (12) Disable iDRAC local configuration using Settings. (13) Disable local iDRAC configuration using RACADM. (14) Set iDRAC virtual console plugin to eHTML5(if supported) or HTML5. (15) Disable iDRAC attached virtual media. (16) Set iDRAC SNMP settings to SNMPv3. (17) Disable iDRAC OS pass-through. (18) Disable iDRAC RAC serial. (19) Disable BIOS internal USB. NOTE: This will reboot the server to apply the change. (20) Prompt to enable iDRAC System Lockdown if disabled. NOTE: For each step in the workflow, if the recommended value is already set for that attribute, script will skip PATCH operation.")
+parser=argparse.ArgumentParser(description="Python script using Redfish API to configure server for iDRAC hardening (recommended server iDRAC settings for providing additional server security). Script workflow: (1) prompt for current iDRAC user ID 2 password. (2) Change iDRAC user ID 2 password. NOTE: Script will complete rest of the workflow using new password. (3) Check for any iDRAC users configured. If configured, script will prompt for password change. (4) Disable iDRAC Telnet. (5) Disable iDRAC IPMI. (6) Enable iDRAC webserver, configure TLS protocol to 1.2 only. (7) Check if iDRAC SNMP is configured. (8) Disable iDRAC VNC server. (8) Disable iDRAC USB config XML. (9) Check if iDRAC remote syslog is configured. (10) Check if iDRAC NTP is configured. (11) Disable iDRAC SOL. (12) Disable iDRAC local configuration using Settings. (13) Disable local iDRAC configuration using RACADM. (14) Set iDRAC virtual console plugin to eHTML5(if supported) or HTML5. (15) Disable iDRAC attached virtual media. (16) Set iDRAC SNMP settings to SNMPv3. (17) Disable iDRAC OS pass-through. (18) Disable iDRAC RAC serial. (19) Disable iDRAC Service Module. (20) Disable BIOS internal USB. NOTE: This will reboot the server to apply the change. (21) Prompt to enable iDRAC System Lockdown if disabled. NOTE: For each step in the workflow, if the recommended value is already set for that attribute, script will skip PATCH operation.")
 parser.add_argument('-ip',help='iDRAC IP address', required=True)
 parser.add_argument('-u', help='Pass in iDRAC username for account id 2', required=True)
 parser.add_argument('script_examples',action="store_true",help='IdracHardeningREDFISH.py -ip 192.168.0.120 -u root') 
@@ -686,6 +686,15 @@ if __name__ == "__main__":
             pass
         else:
             print("- INFO, either iDRAC attribute \"Serial.1.Enable\" already set to Disabled, skipping PATCH command")
+    get_specific_attribute(new_idrac_root_password,"ServiceModule.1.ServiceModuleEnable")
+    if set_flag == "yes":
+        set_attribute_disabled(new_idrac_root_password,"ServiceModule.1.ServiceModuleEnable")
+    else:
+        if supported_idrac_version == "no":
+            pass
+        else:
+            print("- INFO, iDRAC attribute \"ServiceModule.1.ServiceModuleEnable\" already set to Disabled, skipping PATCH command")
+            
             
     get_internal_USB_bios_attribute(new_idrac_root_password)
     if set_flag_bios_attribute == "yes":
