@@ -2,7 +2,7 @@
 # CreateVirtualDiskREDFISH. Python script using Redfish API to either get controllers / disks / virtual disks / supported RAID levels or create virtual disk.
 #
 # _author_ = Texas Roemer <Texas_Roemer@Dell.com>
-# _version_ = 14.0
+# _version_ = 15.0
 #
 # Copyright (c) 2018, Dell, Inc.
 #
@@ -102,7 +102,10 @@ else:
 def check_supported_idrac_version():
     response = requests.get('https://%s/redfish/v1/Systems/System.Embedded.1/Storage' % idrac_ip,verify=False,auth=(idrac_username, idrac_password))
     data = response.json()
-    if response.status_code != 200:
+    if response.status_code == 401:
+        print("\n- WARNING, status code 401 returned, check to make sure you are passing in correct iDRAC username or password")
+        sys.exit()
+    elif response.status_code != 200:
         print("\n- WARNING, iDRAC version installed does not support this feature using Redfish API")
         sys.exit()
     else:
@@ -240,12 +243,9 @@ def get_pdisks():
               if ii[0] == 'Oem':
                   for iii in ii[1]['Dell']['DellPhysicalDisk'].items():
                       print("%s: %s" % (iii[0],iii[1]))
-                  #sys.exit()
               elif ii[0] == 'Status':
                   for iii in ii[1].items():
                       print("%s: %s" % (iii[0],iii[1]))
-              #else:
-              #    print("%s: %s" % (ii[0],ii[1]))
               elif ii[0] == "Links":
                   if ii[1]["Volumes"] != []:
                       disk_used_created_vds.append(i)
@@ -342,7 +342,6 @@ def create_raid_vd():
         payload["Name"]=vd_name
     except:
         pass
-    
     headers = {'Content-type': 'application/json'}
     response = requests.post(url, data=json.dumps(payload), headers=headers, verify=False,auth=(idrac_username,idrac_password))
     if response.status_code == 202:
@@ -370,7 +369,6 @@ def create_raid_vd():
 start_time=datetime.now()
 
 def loop_job_status():
-    count_number = 0
     start_time=datetime.now()
     try:
         req = requests.get('https://%s/redfish/v1/Managers/iDRAC.Embedded.1/Jobs/%s' % (idrac_ip, job_id), auth=(idrac_username, idrac_password), verify=False)
@@ -379,10 +377,9 @@ def loop_job_status():
         sys.exit()
     data = req.json()
     if data['JobType'] == "RAIDConfiguration":
-        print("- PASS, staged job \"%s\" successfully created. Server will now reboot to apply the configuration changes" % job_id)
+        print("- PASS, staged jid \"%s\" successfully created. Server will now reboot to apply the configuration changes" % job_id)
     elif data['JobType'] == "RealTimeNoRebootConfiguration":
-        print("- PASS, realtime job \"%s\" successfully created. Server will apply the configuration changes in real time, no server reboot needed" % job_id)
-    print("\n- WARNING, script will now loop polling the job status until marked completed\n")
+        print("- PASS, realtime jid \"%s\" successfully created. Server will apply the configuration changes in real time, no server reboot needed" % job_id)
     while True:
         req = requests.get('https://%s/redfish/v1/Managers/iDRAC.Embedded.1/Jobs/%s' % (idrac_ip, job_id), auth=(idrac_username, idrac_password), verify=False)
         current_time=(datetime.now()-start_time)
@@ -398,7 +395,7 @@ def loop_job_status():
             print("\n- FAIL: Timeout of 2 hours has been hit, script stopped\n")
             sys.exit()
         elif "Fail" in data['Message'] or "fail" in data['Message'] or data['JobState'] == "Failed":
-            print("\n- FAIL: job ID %s failed, detail error results: %s" % (job_id, data))
+            print("- FAIL: job ID %s failed, failed message is: %s" % (job_id, data[u'Message']))
             sys.exit()
         elif data['JobState'] == "Completed":
             print("\n--- PASS, Final Detailed Job Status Results ---\n")
@@ -409,23 +406,21 @@ def loop_job_status():
                     print("%s: %s" % (i[0],i[1]))
             break
         else:
-            count_number_now = data['PercentComplete']
-            if count_number_now > count_number:
-                try:
-                    print("- WARNING, JobStatus not completed, current status: \"%s\", percent complete: \"%s\"" % (data['Message'],data['PercentComplete']))
-                except:
-                    print("- WARNING, JobStatus not completed, current status: \"%s\"" % (data['Message']))
-                count_number = count_number_now
-                time.sleep(3)
-            else:
-                time.sleep(3)
+            try:
+                print("- INFO, JobStatus not completed, current status: \"%s\", percent complete: \"%s\"" % (data['Message'],data['PercentComplete']))
+            except:
+                print("- INFO, JobStatus not completed, current status: \"%s\"" % (data['Message']))
+            time.sleep(3)
 
 def get_job_status():
     while True:
-        req = requests.get('https://%s/redfish/v1/Managers/iDRAC.Embedded.1/Jobs/%s' % (idrac_ip, job_id), auth=(idrac_username, idrac_password), verify=False)
+        try:
+            req = requests.get('https://%s/redfish/v1/Managers/iDRAC.Embedded.1/Jobs/%s' % (idrac_ip, job_id), auth=(idrac_username, idrac_password), verify=False)
+        except requests.ConnectionError as error_message:
+            print(error_message)
+            sys.exit()
         statusCode = req.status_code
         if statusCode == 200:
-            #print("\n- PASS, Command passed to check job status, code 200 returned")
             time.sleep(5)
             pass
         else:
@@ -434,16 +429,16 @@ def get_job_status():
             sys.exit()
         data = req.json()
         if data['Message'] == "Task successfully scheduled.":
-            print("\n- WARNING, staged config job marked as scheduled, rebooting the system\n")
+            print("- INFO, staged config job marked as scheduled, rebooting the system")
             break
         else:
-            print("\n- WARNING: JobStatus not scheduled, current status is: %s\n" % data['Message'])
+            print("- INFO: JobStatus not scheduled, current status: %s\n" % data['Message'])
 
 
 def reboot_server():
     response = requests.get('https://%s/redfish/v1/Systems/System.Embedded.1/' % idrac_ip,verify=False,auth=(idrac_username, idrac_password))
     data = response.json()
-    print("\n- WARNING, Current server power state is: %s" % data['PowerState'])
+    print("\n- INFO, Current server power state is: %s" % data['PowerState'])
     if data['PowerState'] == "On":
         url = 'https://%s/redfish/v1/Systems/System.Embedded.1/Actions/ComputerSystem.Reset' % idrac_ip
         payload = {'ResetType': 'GracefulShutdown'}
@@ -451,7 +446,7 @@ def reboot_server():
         response = requests.post(url, data=json.dumps(payload), headers=headers, verify=False, auth=(idrac_username,idrac_password))
         statusCode = response.status_code
         if statusCode == 204:
-            print("- PASS, Command passed to gracefully power OFF server, code return is %s" % statusCode)
+            print("- PASS, POST action passed to gracefully power OFF server")
             time.sleep(10)
         else:
             print("\n- FAIL, Command failed to gracefully power OFF server, status code is: %s\n" % statusCode)
@@ -465,18 +460,18 @@ def reboot_server():
                 print("- PASS, GET command passed to verify server is in OFF state")
                 break
             elif count == 20:
-                print("- WARNING, unable to graceful shutdown the server, will perform forced shutdown now")
+                print("- INFO, unable to graceful shutdown the server, will perform forced shutdown now")
                 url = 'https://%s/redfish/v1/Systems/System.Embedded.1/Actions/ComputerSystem.Reset' % idrac_ip
                 payload = {'ResetType': 'ForceOff'}
                 headers = {'content-type': 'application/json'}
                 response = requests.post(url, data=json.dumps(payload), headers=headers, verify=False, auth=(idrac_username,idrac_password))
                 statusCode = response.status_code
                 if statusCode == 204:
-                    print("- PASS, Command passed to forcefully power OFF server, code return is %s" % statusCode)
+                    print("- PASS, POST action passed to forcefully power OFF server")
                     time.sleep(15)
                     break
                 else:
-                    print("\n- FAIL, Command failed to gracefully power OFF server, status code is: %s\n" % statusCode)
+                    print("\n- FAIL, Command failed to gracefully power OFF server, status code: %s\n" % statusCode)
                     print("Extended Info Message: {0}".format(response.json()))
                     sys.exit()
                 
@@ -502,9 +497,9 @@ def reboot_server():
         response = requests.post(url, data=json.dumps(payload), headers=headers, verify=False, auth=(idrac_username,idrac_password))
         statusCode = response.status_code
         if statusCode == 204:
-            print("- PASS, Command passed to power ON server, code return is %s" % statusCode)
+            print("- PASS, POST action passed to power ON server")
         else:
-            print("\n- FAIL, Command failed to power ON server, status code is: %s\n" % statusCode)
+            print("\n- FAIL, Command failed to power ON server, status code: %s\n" % statusCode)
             print("Extended Info Message: {0}".format(response.json()))
             sys.exit()
     else:

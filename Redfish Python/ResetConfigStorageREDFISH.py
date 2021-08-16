@@ -2,7 +2,7 @@
 # ResetConfigStorageREDFISH. Python script using Redfish API with OEM extension to reset the storage controller
 #
 # _author_ = Texas Roemer <Texas_Roemer@Dell.com>
-# _version_ = 4.0
+# _version_ = 5.0
 #
 # Copyright (c) 2019, Dell, Inc.
 #
@@ -130,9 +130,9 @@ def loop_job_status():
     start_time=datetime.now()
     req = requests.get('https://%s/redfish/v1/Managers/iDRAC.Embedded.1/Jobs/%s' % (idrac_ip, job_id), auth=(idrac_username, idrac_password), verify=False)
     data = req.json()
-    if data[u'JobType'] == "RAIDConfiguration":
+    if data['JobType'] == "RAIDConfiguration":
         print("- PASS, staged jid \"%s\" successfully created. Server will now reboot to apply the configuration changes" % job_id)
-    elif data[u'JobType'] == "RealTimeNoRebootConfiguration":
+    elif data['JobType'] == "RealTimeNoRebootConfiguration":
         print("- PASS, realtime jid \"%s\" successfully created. Server will apply the configuration changes in real time, no server reboot needed" % job_id)
     while True:
         req = requests.get('https://%s/redfish/v1/Managers/iDRAC.Embedded.1/Jobs/%s' % (idrac_ip, job_id), auth=(idrac_username, idrac_password), verify=False)
@@ -148,10 +148,10 @@ def loop_job_status():
         if str(current_time)[0:7] >= "2:00:00":
             print("\n- FAIL: Timeout of 2 hours has been hit, script stopped\n")
             sys.exit()
-        elif "Fail" in data[u'Message'] or "fail" in data[u'Message'] or data[u'JobState'] == "Failed":
+        elif "Fail" in data['Message'] or "fail" in data['Message'] or data['JobState'] == "Failed":
             print("- FAIL: job ID %s failed, failed message is: %s" % (job_id, data[u'Message']))
             sys.exit()
-        elif data[u'JobState'] == "Completed":
+        elif data['JobState'] == "Completed":
             print("\n--- PASS, Final Detailed Job Status Results ---\n")
             for i in data.items():
                 if "odata" in i[0] or "MessageArgs" in i[0] or "TargetSettingsURI" in i[0]:
@@ -160,7 +160,10 @@ def loop_job_status():
                     print("%s: %s" % (i[0],i[1]))
             break
         else:
-            print("- WARNING, JobStatus not completed, current status: \"%s\", percent complete: \"%s\"" % (data[u'Message'],data[u'PercentComplete']))
+            try:
+                print("- WARNING, JobStatus not completed, current status: \"%s\", percent complete: \"%s\"" % (data['Message'],data['PercentComplete']))
+            except:
+                print("- WARNING, JobStatus not completed, current status: \"%s\"" % (data['Message']))
             time.sleep(3)
             
 
