@@ -131,7 +131,7 @@ def check_job_status():
             continue
         statusCode = req.status_code
         data = req.json()
-        if data["TaskState"] == "Completed" and data["JobState"] == "Failed":
+        if data["TaskState"] == "Completed" and data["Oem"]["Dell"]["JobState"]:
             print("- WARNING, job completed but failure detected, detailed final job status results:\n%s" % data["Id"])
             for i in data['Oem']['Dell'].items():
                 print("%s: %s" % (i[0],i[1]))

@@ -2,7 +2,7 @@
 # InstallFromRepositoryREDFISH. Python script using Redfish API with OEM extension to either get firmware version for all devices, get repository update list or install firmware from a repository on a network share.
 #
 # _author_ = Texas Roemer <Texas_Roemer@Dell.com>
-# _version_ = 11.0
+# _version_ = 14.0
 #
 # Copyright (c) 2019, Dell, Inc.
 #
@@ -25,7 +25,7 @@ parser=argparse.ArgumentParser(description="Python script using Redfish API with
 parser.add_argument('-ip',help='iDRAC IP address', required=True)
 parser.add_argument('-u', help='iDRAC username', required=True)
 parser.add_argument('-p', help='iDRAC password', required=True)
-parser.add_argument('script_examples',action="store_true",help='InstallFromRepositoryREDFISH.py -ip 192.168.0.120 -u root -p calvin -i y --ipaddress 192.168.0.130 --sharename cifs_share_vm\R740xd_repo --username administrator --password password --applyupdate False --sharetype CIFS, this example to going to download the catalog file from the CIFS share repostiory but not install any updates. It\'s recommmended now to execute the script with -r argument to verify the repo update list. InstallFromRepositoryREDFISH.py -ip 192.168.0.120 -u root -p calvin -i y --ipaddress 192.168.0.130 --sharename cifs_share_vm\R740xd_repo --username administrator --password password --applyupdate True --sharetype CIFS --rebootneeded True, this example is going to install updates from the CIFS share repository and apply them. If updates need a server reboot to apply, it will also reboot the server. InstallFromRepositoryREDFISH.py -ip 192.168.0.120 -u root -p calvin -i y --ipaddress 143.166.147.76 --sharetype HTTP --applyupdate True --rebootneeded True, this example shows using Dell HTTP downloads repository which is recommended to use. This repository is updated with the latest firmware versions for all devices iDRAC supports for updates.')
+parser.add_argument('script_examples',action="store_true",help='InstallFromRepositoryREDFISH.py -ip 192.168.0.120 -u root -p calvin -i y --ipaddress 192.168.0.130 --sharename cifs_share_vm\R740xd_repo --username administrator --password password --applyupdate False --sharetype CIFS, this example to going to download the catalog file from the CIFS share repostiory but not install any updates. It\'s recommmended now to execute the script with -r argument to verify the repo update list. InstallFromRepositoryREDFISH.py -ip 192.168.0.120 -u root -p calvin -i y --ipaddress 192.168.0.130 --sharename cifs_share_vm\R740xd_repo --username administrator --password password --applyupdate True --sharetype CIFS --rebootneeded True, this example is going to install updates from the CIFS share repository and apply them. If updates need a server reboot to apply, it will also reboot the server. InstallFromRepositoryREDFISH.py -ip 192.168.0.120 -u root -p calvin -i y --ipaddress downloads.dell.com --sharetype HTTPS --applyupdate True --rebootneeded True, this example shows using Dell HTTPS downloads repository which is recommended to use. This repository is updated with the latest firmware versions for all devices iDRAC supports for updates.')
 parser.add_argument('-g', help='Get current supported devices for firmware updates and their current firmware version, pass in \"y\"', required=False)
 parser.add_argument('-r', help='Get repository update list, pass in \"y\". Output will be returned in XML format. You must first execute install from repository but don\'t apply updates to get the repository update list', required=False)
 parser.add_argument('-i', help='Install from repository, pass in \"y\"', required=False)
@@ -241,7 +241,7 @@ def get_update_job_ids():
     if response.status_code == 200:
         pass
     else:
-        if data['error']['@Message.ExtendedInfo'][0]['Message'] == 'Firmware versions on server match catalog, applicable updates are not present in the repository.':
+        if data['error']['@Message.ExtendedInfo'][0]['Message'] == 'Firmware versions on server match catalog, applicable updates are not present in the repository.' or "not found" in data['error']['@Message.ExtendedInfo'][0]['Message']:
             print("\n- INFO, %s" % data['error']['@Message.ExtendedInfo'][0]['Message'])
             sys.exit()
         else:
@@ -310,7 +310,7 @@ def loop_job_status(x):
         elif data['Message'] == "Job for this device is already present.":
             break
         elif "Package successfully downloaded" in data['Message'] and args["rebootneeded"] == "False":
-            print("\n- INFO, repository package successfully downloaded, \"RebootNeeded = False\" detected. Check the overall Job Queue for Scheduled Update Jobs using -q argument. Next server manual reboot, these scheduled update jobs will execute and also mark the Repository Update Job as Completed.\n")
+            print("\n- INFO, repository package successfully downloaded, \"RebootNeeded = False\" detected. Check the overall Job Queue for Update Jobs using -q argument. Next server manual reboot, any scheduled update job(s) will execute.\n")
             sys.exit()
 
         elif "Package successfully downloaded" in data['Message'] and print_message_count == 1:
@@ -358,8 +358,11 @@ def check_schedule_update_job():
         print("\n- INFO, scheduled update job ID detected, server rebooting to apply the update(s)")
         time.sleep(5)
     elif count >= 1 and args["rebootneeded"].title() == "False" or args["rebootneeded"] == "":
-        print("\n- INFO, scheduled update job ID detected but \"RebootNeeded\" = False or RebootNeeded argument not passed in. Scheduled update jobs will not be applied until next manual server reboot")
+        print("\n- INFO, scheduled update job ID detected but \"RebootNeeded\" = False or RebootNeeded argument not passed in. Check the overall Job Queue for Update Jobs using -q argument. Next server manual reboot, any scheduled update job(s) will execute.")
         time.sleep(15)
+        if new_job_ids == []:
+            print("- INFO, no update job IDs detected, check iDRAC Lifecycle Logs for more details")
+            sys.exit()
         print("\n- Current update jobs created for repo update -\n")
         for x in new_job_ids:
             req = requests.get('https://%s/redfish/v1/Managers/iDRAC.Embedded.1/Jobs/%s' % (idrac_ip, x), auth=(idrac_username, idrac_password), verify=False)
