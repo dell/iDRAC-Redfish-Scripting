@@ -2,7 +2,7 @@
 # InitializeVirtualDiskREDFISH. Python script using Redfish API to either get controllers / current virtual disks or initialize virtual disk.
 #
 # _author_ = Texas Roemer <Texas_Roemer@Dell.com>
-# _version_ = 4.0
+# _version_ = 5.0
 #
 # Copyright (c) 2018, Dell, Inc.
 #
@@ -44,16 +44,26 @@ if args["V"] and args["init"]:
     controller=re.search(":.+",virtual_disk).group().strip(":")
     init_type=args["init"]
 
-
+def check_supported_idrac_version():
+    response = requests.get('https://%s/redfish/v1/Systems/System.Embedded.1/Storage' % idrac_ip,verify=False,auth=(idrac_username, idrac_password))
+    data = response.json()
+    if response.status_code == 401:
+        print("\n- WARNING, unable to access iDRAC, check to make sure you are passing in valid iDRAC credentials")
+        sys.exit()
+    if response.status_code == 200 or response.status_code == 202:
+        pass
+    else:
+        print("\n- FAIL, iDRAC version detected does not support this feature, status code %s returned" % response.status_code)
+        sys.exit()
 
 def get_storage_controllers():
     response = requests.get('https://%s/redfish/v1/Systems/System.Embedded.1/Storage' % idrac_ip,verify=False,auth=(idrac_username, idrac_password))
     data = response.json()
     print("\n- Server controller(s) detected -\n")
     controller_list=[]
-    for i in data[u'Members']:
-        controller_list.append(i[u'@odata.id'].split("/")[-1])
-        print(i[u'@odata.id'].split("/")[-1])
+    for i in data['Members']:
+        controller_list.append(i['@odata.id'].split("/")[-1])
+        print(i['@odata.id'].split("/")[-1])
     if args["c"] == "yy":
         for i in controller_list:
             response = requests.get('https://%s/redfish/v1/Systems/System.Embedded.1/Storage/%s' % (idrac_ip, i),verify=False,auth=(idrac_username, idrac_password))
@@ -70,7 +80,7 @@ def get_virtual_disks():
         print("- FAIL, GET command failed, error is: %s" % data)
         sys.exit()
     vd_list=[]
-    if data[u'Members'] == []:
+    if data['Members'] == []:
         print("\n- WARNING, no volumes detected for %s" % controller)
         sys.exit()
     else:
@@ -137,7 +147,7 @@ def get_config_job_type():
     for i in data[u'StorageControllers']:
         for ii in i.items():
             if ii[0] == "Model":
-                if "BOSS" in ii[1] or "S1" in ii[1]:
+                if "BOSS" in ii[1] or "S1" in ii[1] or "S2" in ii[1]:
                     job_type="staged"
                 elif "H3" in ii[1] or "H7" in ii[1] or "H8" in ii[1]:
                     job_type="realtime"
@@ -174,9 +184,9 @@ def init_vd():
 
     req = requests.get('https://%s/redfish/v1/Managers/iDRAC.Embedded.1/Jobs/%s' % (idrac_ip, job_id), auth=(idrac_username, idrac_password), verify=False)
     data = req.json()
-    if data[u'JobType'] == "RAIDConfiguration":
+    if data['JobType'] == "RAIDConfiguration":
         job_type="staged"
-    elif data[u'JobType'] == "RealTimeNoRebootConfiguration":
+    elif data['JobType'] == "RealTimeNoRebootConfiguration":
         job_type="realtime"
     print("\n- PASS, \"%s\" %s jid successfully created for initialize virtual disk\n" % (job_type, job_id))
 
@@ -184,11 +194,11 @@ def init_vd():
 start_time=datetime.now()
 
 def loop_job_status():
-    count = 1
+    retry_count = 1
     while True:
         while True:
-            if count == 5:
-                print("- FAIL, unable to get job status after 5 attempts, script will exit")
+            if retry_count == 10:
+                print("- FAIL, unable to get job status after 10 attempts, script will exit")
                 sys.exit()
             try:
                 req = requests.get('https://%s/redfish/v1/Managers/iDRAC.Embedded.1/Jobs/%s' % (idrac_ip, job_id), auth=(idrac_username, idrac_password), verify=False)
@@ -196,8 +206,8 @@ def loop_job_status():
             except requests.ConnectionError as error_message:
                 print("- FAIL, requests command failed to GET job status, detailed error information: \n%s" % error_message)
                 time.sleep(10)
-                print("- WARNING, script will now attempt to get job status again")
-                count+=1
+                print("- INFO, script will now attempt to get job status again")
+                retry_count+=1
                 continue
         current_time=(datetime.now()-start_time)
         statusCode = req.status_code
@@ -211,10 +221,10 @@ def loop_job_status():
         if str(current_time)[0:7] >= "0:30:00":
             print("\n- FAIL: Timeout of 30 minutes has been hit, script stopped\n")
             sys.exit()
-        elif "Fail" in data[u'Message'] or "fail" in data[u'Message']:
+        elif "Fail" in data['Message'] or "fail" in data['Message']:
             print("- FAIL: %s failed" % job_id)
             sys.exit()
-        elif data[u'Message'] == "Job completed successfully.":
+        elif data['Message'] == "Job completed successfully.":
             print("\n--- PASS, Final Detailed Job Status Results ---\n")
             for i in data.items():
                 if "odata" in i[0] or "MessageArgs" in i[0] or "TargetSettingsURI" in i[0]:
@@ -223,7 +233,7 @@ def loop_job_status():
                     print("%s: %s" % (i[0],i[1]))
             break
         else:
-            print("- WARNING, JobStatus not completed, current status is: \"%s\"" % (data[u'Message']))
+            print("- INFO, JobStatus not completed, current status: \"%s\"" % (data['Message']))
             if job_type == "realtime":
                 time.sleep(3)
             elif job_type == "staged":
@@ -231,8 +241,19 @@ def loop_job_status():
                 
 
 def get_job_status():
+    retry_count = 1
     while True:
-        req = requests.get('https://%s/redfish/v1/Managers/iDRAC.Embedded.1/Jobs/%s' % (idrac_ip, job_id), auth=(idrac_username, idrac_password), verify=False)
+        if retry_count == 10:
+            print("- INFO, retry count of 10 has been reached for GET request, script will exit")
+            sys.exit()
+        try:
+            req = requests.get('https://%s/redfish/v1/Managers/iDRAC.Embedded.1/Jobs/%s' % (idrac_ip, job_id), auth=(idrac_username, idrac_password), verify=False)
+        except requests.ConnectionError as error_message:
+            print(error_message)
+            print("- INFO, get command will retry")
+            time.sleep(5)
+            retry_count+=1
+            continue
         statusCode = req.status_code
         if statusCode == 200:
             time.sleep(5)
@@ -242,11 +263,11 @@ def get_job_status():
             print("Extended Info Message: {0}".format(req.json()))
             sys.exit()
         data = req.json()
-        if data[u'Message'] == "Task successfully scheduled.":
-            print("\n- WARNING, staged config job marked as scheduled, rebooting the system\n")
+        if data['Message'] == "Task successfully scheduled.":
+            print("\n- INFO, staged config job marked as scheduled, rebooting the system\n")
             break
         else:
-            print("- WARNING, JobStatus not completed, current status is: \"%s\"" % (data[u'Message']))
+            print("- INFO, JobStatus not completed, current status: \"%s\"" % (data['Message']))
             time.sleep(5)
 
 
@@ -254,7 +275,7 @@ def get_job_status():
 def reboot_server():
     response = requests.get('https://%s/redfish/v1/Systems/System.Embedded.1/' % idrac_ip,verify=False,auth=(idrac_username, idrac_password))
     data = response.json()
-    print("\n- WARNING, Current server power state is: %s" % data['PowerState'])
+    print("\n- INFO, Current server power state is: %s" % data['PowerState'])
     if data['PowerState'] == "On":
         url = 'https://%s/redfish/v1/Systems/System.Embedded.1/Actions/ComputerSystem.Reset' % idrac_ip
         payload = {'ResetType': 'GracefulShutdown'}
@@ -263,7 +284,7 @@ def reboot_server():
         statusCode = response.status_code
         if statusCode == 204:
             print("- PASS, POST command passed to gracefully power OFF server, status code return is %s" % statusCode)
-            print("- WARNING, script will now verify the server was able to perform a graceful shutdown. If the server was unable to perform a graceful shutdown, forced shutdown will be invoked in 5 minutes")
+            print("- INFO, script will now verify the server was able to perform a graceful shutdown. If the server was unable to perform a graceful shutdown, forced shutdown will be invoked in 5 minutes")
             time.sleep(15)
             start_time = datetime.now()
         else:
@@ -278,7 +299,7 @@ def reboot_server():
                 print("- PASS, GET command passed to verify graceful shutdown was successful and server is in OFF state")
                 break
             elif current_time == "0:05:00":
-                print("- WARNING, unable to perform graceful shutdown, server will now perform forced shutdown")
+                print("- INFO, unable to perform graceful shutdown, server will now perform forced shutdown")
                 payload = {'ResetType': 'ForceOff'}
                 headers = {'content-type': 'application/json'}
                 response = requests.post(url, data=json.dumps(payload), headers=headers, verify=False, auth=(idrac_username,idrac_password))
@@ -324,6 +345,7 @@ def reboot_server():
         sys.exit()
 
 if __name__ == "__main__":
+    check_supported_idrac_version()
     if args["c"]:
         get_storage_controllers()  
     elif args["v"]:
