@@ -4,7 +4,7 @@
 # NOTE: iSM (iDRAC Service Module) must be installed and running in the OS for Redfish to be able to get this data. iSM is available on Dell support site under Drivers / Downloads, System Management section for your server model.
 #
 # _author_ = Texas Roemer <Texas_Roemer@Dell.com>
-# _version_ = 1.0
+# _version_ = 2.0
 #
 # Copyright (c) 2018, Dell, Inc.
 #
