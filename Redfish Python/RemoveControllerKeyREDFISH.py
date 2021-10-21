@@ -2,7 +2,7 @@
 # RemoveControllerKeyREDFISH. Python script using Redfish API with OEM extension to remove the storage controller key (remove encryption)
 #
 # _author_ = Texas Roemer <Texas_Roemer@Dell.com>
-# _version_ = 2.0
+# _version_ = 4.0
 #
 # Copyright (c) 2019, Dell, Inc.
 #
@@ -21,7 +21,7 @@ from datetime import datetime
 
 warnings.filterwarnings("ignore")
 
-parser=argparse.ArgumentParser(description="Python script using Redfish API with OEM extension to remove the storage controller key (remove encryption)")
+parser=argparse.ArgumentParser(description="Python script using Redfish API with OEM extenstion to remove the storage controller key (remove encryption)")
 parser.add_argument('-ip',help='iDRAC IP address', required=True)
 parser.add_argument('-u', help='iDRAC username', required=True)
 parser.add_argument('-p', help='iDRAC password', required=True)
@@ -56,9 +56,9 @@ def get_storage_controllers():
     data = response.json()
     print("\n- Server controller(s) detected -\n")
     controller_list=[]
-    for i in data[u'Members']:
-        controller_list.append(i[u'@odata.id'].split("/")[-1])
-        print(i[u'@odata.id'].split("/")[-1])
+    for i in data['Members']:
+        controller_list.append(i['@odata.id'].split("/")[-1])
+        print(i['@odata.id'].split("/")[-1])
     
 
 def get_virtual_disks():
@@ -66,12 +66,12 @@ def get_virtual_disks():
     response = requests.get('https://%s/redfish/v1/Systems/System.Embedded.1/Storage/%s/Volumes' % (idrac_ip, args["v"]),verify=False,auth=(idrac_username, idrac_password))
     data = response.json()
     vd_list=[]
-    if data[u'Members'] == []:
+    if data['Members'] == []:
         print("\n- WARNING, no volume(s) detected for %s" % args["v"])
         sys.exit()
     else:
-        for i in data[u'Members']:
-            vd_list.append(i[u'@odata.id'].split("/")[-1])
+        for i in data['Members']:
+            vd_list.append(i['@odata.id'].split("/")[-1])
     print("\n- Volume(s) detected for %s controller -" % args["v"])
     print("\n")
     for ii in vd_list:
@@ -88,14 +88,14 @@ def get_virtual_disk_details():
     response = requests.get('https://%s/redfish/v1/Systems/System.Embedded.1/Storage/%s/Volumes' % (idrac_ip, args["vv"]),verify=False,auth=(idrac_username, idrac_password))
     data = response.json()
     vd_list=[]
-    if data[u'Members'] == []:
+    if data['Members'] == []:
         print("\n- WARNING, no volume(s) detected for %s" % args["vv"])
         sys.exit()
     else:
         print("\n- Volume(s) detected for %s controller -\n" % args["vv"])
-        for i in data[u'Members']:
-            vd_list.append(i[u'@odata.id'].split("/")[-1])
-            print(i[u'@odata.id'].split("/")[-1])
+        for i in data['Members']:
+            vd_list.append(i['@odata.id'].split("/")[-1])
+            print(i['@odata.id'].split("/")[-1])
     for ii in vd_list:
         response = requests.get('https://%s/redfish/v1/Systems/System.Embedded.1/Storage/Volumes/%s' % (idrac_ip, ii),verify=False,auth=(idrac_username, idrac_password))
         data = response.json()
@@ -111,9 +111,9 @@ def get_controller_encryption_setting():
     data = response.json()
     try:
         print("\n- Encryption Mode Settings for controller %s -\n" % args["g"])
-        print("EncryptionMode: %s" % data[u'Oem'][u'Dell'][u'DellController'][u'EncryptionMode'])
-        print("EncryptionCapability: %s" % data[u'Oem'][u'Dell'][u'DellController'][u'EncryptionCapability'])
-        print("SecurityStatus: %s" % data[u'Oem'][u'Dell'][u'DellController'][u'SecurityStatus'])
+        print("EncryptionMode: %s" % data['Oem']['Dell']['DellController']['EncryptionMode'])
+        print("EncryptionCapability: %s" % data['Oem']['Dell']['DellController']['EncryptionCapability'])
+        print("SecurityStatus: %s" % data['Oem']['Dell']['DellController']['SecurityStatus'])
     except:
         print("- FAIL, invalid controller FQDD string passed in")
         
@@ -122,12 +122,12 @@ def check_lock_VDs():
     response = requests.get('https://%s/redfish/v1/Systems/System.Embedded.1/Storage/%s/Volumes' % (idrac_ip, args["cl"]),verify=False,auth=(idrac_username, idrac_password))
     data = response.json()
     vd_list=[]
-    if data[u'Members'] == []:
+    if data['Members'] == []:
         print("\n- WARNING, no volume(s) detected for %s" % args["cl"])
         sys.exit()
     else:
-        for i in data[u'Members']:
-            vd_list.append(i[u'@odata.id'][54:])
+        for i in data['Members']:
+            vd_list.append(i['@odata.id'][54:])
     print("\n- Volume(s) detected for %s controller -\n" % args["cl"])
     for ii in vd_list:
         response = requests.get('https://%s/redfish/v1/Systems/System.Embedded.1/Storage/Volumes/%s' % (idrac_ip, ii),verify=False,auth=(idrac_username, idrac_password))
@@ -176,10 +176,10 @@ def loop_job_status():
         if str(current_time)[0:7] >= "2:00:00":
             print("\n- FAIL: Timeout of 2 hours has been hit, script stopped\n")
             sys.exit()
-        elif "Fail" in data[u'Message'] or "fail" in data[u'Message'] or data[u'JobState'] == "Failed":
-            print("- FAIL: job ID %s failed, failed message is: %s" % (job_id, data[u'Message']))
+        elif "Fail" in data['Message'] or "fail" in data['Message'] or data['JobState'] == "Failed":
+            print("- FAIL: job ID %s failed, failed message is: %s" % (job_id, data['Message']))
             sys.exit()
-        elif data[u'JobState'] == "Completed":
+        elif data['JobState'] == "Completed":
             print("\n--- PASS, Final Detailed Job Status Results ---\n")
             for i in data.items():
                 if "odata" in i[0] or "MessageArgs" in i[0] or "TargetSettingsURI" in i[0]:
@@ -188,16 +188,16 @@ def loop_job_status():
                     print("%s: %s" % (i[0],i[1]))
             break
         else:
-            print("- WARNING, JobStatus not completed, current status: \"%s\", percent complete: \"%s\"" % (data[u'Message'],data[u'PercentComplete']))
+            print("- INFO, job status not completed, current status: \"%s\"" % (data['Message']))
             time.sleep(3)
 
 def get_controller_encryption_setting_final_check():
     response = requests.get('https://%s/redfish/v1/Systems/System.Embedded.1/Storage/%s' % (idrac_ip, args["r"]),verify=False,auth=(idrac_username, idrac_password))
     data = response.json()
-    if data[u'Oem'][u'Dell'][u'DellController'][u'EncryptionMode'] == "None":
+    if data['Oem']['Dell']['DellController']['EncryptionMode'] == "None":
         print("\n- PASS, encryption NOT enabled for storage controller %s" % args["r"])
     else:
-        print("- FAIL, encryption mode still enabled, current setting is %s" % data[u'Oem'][u'Dell'][u'DellController'][u'EncryptionMode'])
+        print("- FAIL, encryption mode still enabled, current setting is %s" % data['Oem']['Dell']['DellController']['EncryptionMode'])
         sys.exit()
 
 def test_valid_controller_FQDD_string(x):

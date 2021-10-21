@@ -2,7 +2,7 @@
 # RekeyREDFISH. Python script using Redfish API with OEM extension to rekey or change the controller encryption key
 #
 # _author_ = Texas Roemer <Texas_Roemer@Dell.com>
-# _version_ = 6.0
+# _version_ = 7.0
 #
 # Copyright (c) 2018, Dell, Inc.
 #
@@ -159,7 +159,7 @@ def loop_job_status():
                     print("%s: %s" % (i[0],i[1]))
             break
         else:
-            print("- WARNING, JobStatus not completed, current status: \"%s\", percent complete: \"%s\"" % (data['Message'],data['PercentComplete']))
+            print("- INFO, job status not completed, current status: \"%s\"" % (data['Message']))    
             time.sleep(3)
 
 def test_valid_controller_FQDD_string(x):
