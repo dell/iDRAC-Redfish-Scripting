@@ -6,7 +6,7 @@
 # NOTE: Possible supported values for attribute_group parameter are: idrac, lc and system.
 #
 # _author_ = Texas Roemer <Texas_Roemer@Dell.com>
-# _version_ = 11.0
+# _version_ = 12.0
 #
 # Copyright (c) 2017, Dell, Inc.
 #
@@ -100,6 +100,7 @@ def set_attributes():
     global payload
     global static_ip_set
     global static_ip_value
+    global attribute_names
     static_ip_value = ""
     static_ip_set = "no"
     if args["s"] == "idrac":
@@ -154,32 +155,42 @@ def set_attributes():
 
 
 def get_new_attribute_values():
-    print("- INFO, getting new attribute current values \n")
+    print("- INFO, getting new attribute current values")
     time.sleep(30)
-    if static_ip_set == "no":
-        response = requests.get('%s' % (url),verify=False,auth=(idrac_username, idrac_password))
+    if "IPv4.1.Address" in attribute_names:
+        print("- INFO, static IP address change detected, script will validate changes using new IP address\n")
+        url_new = 'https://%s/redfish/v1/Managers/iDRAC.Embedded.1/Attributes' % payload["Attributes"]["IPv4.1.Address"]
+        response = requests.get('%s' % (url_new),verify=False,auth=(idrac_username, idrac_password))
         data = response.json()
         attributes_dict=data['Attributes']
         for i in payload["Attributes"].items():
-            for ii in attributes_dict:
-                if ii == i[0]:
-                    if "Pass" in i[0]:
-                        print("Password successfully set for attribute \"%s\"" % i[0])
-                    else:
-                        print("Attribute Name: %s, Attribute Value: %s" % (i[0], attributes_dict[ii]))
+            if i[1] == attributes_dict[i[0]]:
+                print("- Attribute Name: %s, Attribute Value: %s" % (i[0], attributes_dict[i[0]]))
+            else:
+                print("- INFO, attribute %s current value is not set to %s, current value: %s" % (i[0], i[1], attributes_dict[i[0]]))
+    elif static_ip_set == "no":
+        response = requests.get('%s' % (url),verify=False,auth=(idrac_username, idrac_password))
+        data = response.json()
+        attributes_dict=data['Attributes']
+        print("\n")
+        for i in payload["Attributes"].items():
+            if i[1] == attributes_dict[i[0]]:
+                print("- Attribute Name: %s, Attribute Value: %s" % (i[0], attributes_dict[i[0]]))
+            else:
+                print("- INFO, attribute %s current value is not set to %s, current value: %s" % (i[0], i[1], attributes_dict[i[0]]))
+            
     elif static_ip_set == "yes":
-        print("- INFO, static IP changed detected, will use new IP to validate attribute changes\n")
+        print("- INFO, DHCP to static IP change detected, will use new IP to validate attribute changes\n")
         url_new = 'https://%s/redfish/v1/Managers/iDRAC.Embedded.1/Attributes' % static_ip_value
         response = requests.get('%s' % (url_new),verify=False,auth=(idrac_username, idrac_password))
         data = response.json()
         attributes_dict=data['Attributes']
         for i in payload["Attributes"].items():
-            for ii in attributes_dict:
-                if ii == i[0]:
-                    if "Pass" in i[0]:
-                        print("Password successfully set for attribute \"%s\"" % i[0])
-                    else:
-                        print("Attribute Name: %s, Attribute Value: %s" % (i[0], attributes_dict[ii]))
+            if i[1] == attributes_dict[i[0]]:
+                 print("- Attribute Name: %s, Attribute Value: %s" % (i[0], attributes_dict[i[0]]))
+            else:
+                print("- INFO, attribute %s current value is not set to %s, current value: %s" % (i[0], i[1], attributes_dict[i[0]]))
+        
     else:
         pass
             
