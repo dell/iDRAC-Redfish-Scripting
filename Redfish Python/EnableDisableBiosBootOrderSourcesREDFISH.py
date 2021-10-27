@@ -19,14 +19,14 @@ from datetime import datetime
 
 warnings.filterwarnings("ignore")
 
-parser=argparse.ArgumentParser(description="Python script using Redfish API to either get current BIOS boot mode and boot order or change BIOS boot order")
+parser=argparse.ArgumentParser(description="Python script using Redfish API to either get current BIOS boot mode/boot order or disable/enable boot order devices")
 parser.add_argument('-ip',help='iDRAC IP address', required=True)
 parser.add_argument('-u', help='iDRAC username', required=True)
 parser.add_argument('-p', help='iDRAC password', required=True)
 parser.add_argument('script_examples',action="store_true",help='EnableDisableBiosBootOrderSourcesREDFISH.py -ip 192.168.0.120 -u root -p calvin -r y, this example will get current BIOS boot mode and the boot order. EnableDisableBiosBootOrderSourcesREDFISH.py -ip 192.168.0.120 -u root -p calvin -r y -s BIOS.Setup.1-1#UefiBootSeq#NIC.PxeDevice.1-1#9d0c81c0539f5ccc019510686dd6f525 -b false, this example will reboot the server now to disable boot order device NIC.PXeDevice.1-1. EnableDisableBiosBootOrderSourcesREDFISH.py -ip 192.168.0.120 -u root -p calvin -r y -s BIOS.Setup.1-1#UefiBootSeq#NIC.PxeDevice.1-1#9d0c81c0539f5ccc019510686dd6f525,BIOS.Setup.1-1#UefiBootSeq#Disk.SDInternal.1-1#e7a82d497a82880f7000a631ed48e5ec -b true,true, this example shows rebooting the server now to enable BIOS boot order devices PXE Device 1-1 and SD card.')
 parser.add_argument('-g', help='Get current BIOS boot mode and boot order, pass in \"y\"', required=False)
 parser.add_argument('-s', help='Enable or disable boot order device(s), pass in the ID string of the device. If passing in multiple boot order devices to either enable or disable, use comma separator between each device. Example of valid string ID to pass in: BIOS.Setup.1-1#UefiBootSeq#NIC.PxeDevice.1-1#9d0c81c0539f5ccc019510686dd6f525', required=False)
-parser.add_argument('-b', help='Enable or disable boot order device(s), pass in True to enable or False to Disable. If you are passing in multiple devices for argument -s, pass in the values using comma separator. This argument is required with -s, see examples for changing multiple boot devices.', required=False)
+parser.add_argument('-b', help='Enable or disable boot order device(s), pass in \"true\" to enable or \"false\" to disable. If you are passing in multiple devices for argument -s, pass in the values using comma separator. This argument is required with -s, see examples for changing multiple boot devices.', required=False)
 parser.add_argument('-r', help='Reboot the server to execute BIOS config job. Pass in \"y\" to reboot the server now or \"n\" not to reboot the server. If you select to not reboot the server now, config job is still marked as scheduled and will execute on next server manual reboot', required=False)
 
 args=vars(parser.parse_args())
@@ -83,7 +83,6 @@ def get_bios_boot_source_state():
 
 def enable_disable_boot_devices():
     url = 'https://%s/redfish/v1/Systems/System.Embedded.1/BootSources/Settings' % idrac_ip
-    #payload = {'Attributes': {boot_seq:boot_device_list_from_file}}
     headers = {'content-type': 'application/json'}
     if "," in args["s"]:
         boot_devices = args["s"].split(",")
@@ -95,9 +94,7 @@ def enable_disable_boot_devices():
     else:
         enable_disable_state = []
         enable_disable_state.append(args["b"])
-    #payload = {'Attributes':{'UefiBootSeq': [{'Enabled': True, 'Id': 'BIOS.Setup.1-1#UefiBootSeq#Disk.SATAEmbedded.C-1#d3baa28d14ae28d4b1a6a2115fef8bfe', 'Index': 0, 'Name': 'Disk.SATAEmbedded.C-1'},{'Enabled': True, 'Id': 'BIOS.Setup.1-1#UefiBootSeq#Disk.SDInternal.1-1#e7a82d497a82880f7000a631ed48e5ec', 'Index': 1, 'Name': 'Disk.SDInternal.1-1'},{'Enabled': True, 'Id': 'BIOS.Setup.1-1#UefiBootSeq#NIC.PxeDevice.1-1#9d0c81c0539f5ccc019510686dd6f525', 'Index': 2, 'Name': 'NIC.PxeDevice.1-1'}]}}
     if current_boot_mode == "Uefi":
-        #payload = {'Attributes':{'UefiBootSeq': [{'Index': 0, 'Id': 'BIOS.Setup.1-1#UefiBootSeq#Disk.SATAEmbedded.C-1#d3baa28d14ae28d4b1a6a2115fef8bfe'}]}}
         payload = {'Attributes':{'UefiBootSeq': []}}
         index_count = 0
         for i,ii in zip(boot_devices, enable_disable_state):
@@ -108,7 +105,6 @@ def enable_disable_boot_devices():
             payload["Attributes"]["UefiBootSeq"].append({"Index": index_count, "Id": i,"Enabled":boolean_value})
             index_count+=1
     elif current_boot_mode == "Bios":
-        #payload = {'Attributes':{'BootSeq': [{'Index': 0, 'Id': 'BIOS.Setup.1-1#UefiBootSeq#Disk.SATAEmbedded.C-1#d3baa28d14ae28d4b1a6a2115fef8bfe'}]}}
         payload = {'Attributes':{'BootSeq': []}}
         index_count = 0
         for i,ii in zip(boot_devices, enable_disable_state):
