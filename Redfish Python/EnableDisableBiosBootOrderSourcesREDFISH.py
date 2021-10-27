@@ -1,6 +1,6 @@
 #
 # _author_ = Texas Roemer <Texas_Roemer@Dell.com>
-# _version_ = 1.0
+# _version_ = 2.0
 #
 # Copyright (c) 2021, Dell, Inc.
 #
@@ -13,7 +13,7 @@
 #
 
 
-import requests, json, sys, re, time, warnings, subprocess, argparse
+import requests, json, sys, re, time, warnings, subprocess, argparse, pickle
 
 from datetime import datetime
 
@@ -23,11 +23,11 @@ parser=argparse.ArgumentParser(description="Python script using Redfish API to e
 parser.add_argument('-ip',help='iDRAC IP address', required=True)
 parser.add_argument('-u', help='iDRAC username', required=True)
 parser.add_argument('-p', help='iDRAC password', required=True)
-parser.add_argument('script_examples',action="store_true",help='EnableDisableBiosBootOrderSourcesREDFISH.py -ip 192.168.0.120 -u root -p calvin -r y, this example will get current BIOS boot mode and the boot order. EnableDisableBiosBootOrderSourcesREDFISH.py -ip 192.168.0.120 -u root -p calvin -r y -s BIOS.Setup.1-1#UefiBootSeq#NIC.PxeDevice.1-1#9d0c81c0539f5ccc019510686dd6f525 -b false, this example will reboot the server now to disable boot order device NIC.PXeDevice.1-1. EnableDisableBiosBootOrderSourcesREDFISH.py -ip 192.168.0.120 -u root -p calvin -r y -s BIOS.Setup.1-1#UefiBootSeq#NIC.PxeDevice.1-1#9d0c81c0539f5ccc019510686dd6f525,BIOS.Setup.1-1#UefiBootSeq#Disk.SDInternal.1-1#e7a82d497a82880f7000a631ed48e5ec -b true,true, this example shows rebooting the server now to enable BIOS boot order devices PXE Device 1-1 and SD card.')
+parser.add_argument('script_examples',action="store_true",help='EnableDisableBiosBootOrderSourcesREDFISH.py -ip 192.168.0.120 -u root -p calvin -g y, this example will get current BIOS boot mode and the boot order. EnableDisableBiosBootOrderSourcesREDFISH.py -ip 192.168.0.120 -u root -p calvin -g y -f C:\\Users\\administrator\\Downloads\\bios_boot_order.txt, this example will get current BIOS boot mode/boot order and generate the file needed for enabling/disabling boot order devices. EnableDisableBiosBootOrderSourcesREDFISH.py -ip 192.168.0.120 -u root -p calvin -r y -s y -f C:\\Users\\administrator\\Downloads\\bios_boot_order.txt, this example will reboot the server now to execute the BIOS config job to enable/disable boot order devices based off the settings in the file for each boot order device.')
 parser.add_argument('-g', help='Get current BIOS boot mode and boot order, pass in \"y\"', required=False)
-parser.add_argument('-s', help='Enable or disable boot order device(s), pass in the ID string of the device. If passing in multiple boot order devices to either enable or disable, use comma separator between each device. Example of valid string ID to pass in: BIOS.Setup.1-1#UefiBootSeq#NIC.PxeDevice.1-1#9d0c81c0539f5ccc019510686dd6f525', required=False)
-parser.add_argument('-b', help='Enable or disable boot order device(s), pass in \"true\" to enable or \"false\" to disable. If you are passing in multiple devices for argument -s, pass in the values using comma separator. This argument is required with -s, see examples for changing multiple boot devices.', required=False)
+parser.add_argument('-s', help='Pass in "y" to enable or disable boot devices. Argument -f is also required when enabling/disabling boot devices. Before running the script, make sure to modify the file you generated containing the boot order. To enable a boot order device, set \"Enabled\" as true. To disable a boot order device, set \"Enabled\" to false.', required=False)
 parser.add_argument('-r', help='Reboot the server to execute BIOS config job. Pass in \"y\" to reboot the server now or \"n\" not to reboot the server. If you select to not reboot the server now, config job is still marked as scheduled and will execute on next server manual reboot', required=False)
+parser.add_argument('-f', help='Pass in the complete filepath including the name of the file containing the boot order. To generate this file, pass in this argument along with -g argument. NOTE: This file is needed to enable/disable boot order devices and when generating the file, pass in any string value', required=False)
 
 args=vars(parser.parse_args())
 
@@ -66,16 +66,24 @@ def get_bios_boot_source_state():
     data = response.json()
     if current_boot_mode == "Uefi":
         print("\n- Current %s boot order \n" % current_boot_mode)
+        create_dict = {"Attributes":{"UefiBootSeq": data["Attributes"]["UefiBootSeq"]}}
         for i in data["Attributes"]["UefiBootSeq"]:
             for ii in i.items():
                 print("%s: %s" % (ii[0], ii[1]))
             print("\n")
+        if args["f"]:
+            with open(args["f"], 'w') as x:
+                json.dump(create_dict, x)
     elif current_boot_mode == "Bios":
         print("\n- Current %s boot order \n" % current_boot_mode)
+        create_dict = {"Attributes":{"BootSeq": data["Attributes"]["BootSeq"]}}
         for i in data["Attributes"]["BootSeq"]:
             for ii in i.items():
                 print("%s: %s" % (ii[0], ii[1]))
             print("\n")
+        if args["f"]:
+            with open(args["f"], 'w') as x:
+                json.dump(create_dict, x)
     sys.exit()
 
 
@@ -84,36 +92,41 @@ def get_bios_boot_source_state():
 def enable_disable_boot_devices():
     url = 'https://%s/redfish/v1/Systems/System.Embedded.1/BootSources/Settings' % idrac_ip
     headers = {'content-type': 'application/json'}
-    if "," in args["s"]:
-        boot_devices = args["s"].split(",")
-    else:
-        boot_devices = []
-        boot_devices.append(args["s"])
-    if "," in args["b"]:
-        enable_disable_state = args["b"].split(",")
-    else:
-        enable_disable_state = []
-        enable_disable_state.append(args["b"])
-    if current_boot_mode == "Uefi":
-        payload = {'Attributes':{'UefiBootSeq': []}}
-        index_count = 0
-        for i,ii in zip(boot_devices, enable_disable_state):
-            if ii == "true":
-                boolean_value = True
-            if ii == "false":
-                boolean_value = False
-            payload["Attributes"]["UefiBootSeq"].append({"Index": index_count, "Id": i,"Enabled":boolean_value})
-            index_count+=1
-    elif current_boot_mode == "Bios":
-        payload = {'Attributes':{'BootSeq': []}}
-        index_count = 0
-        for i,ii in zip(boot_devices, enable_disable_state):
-            if ii == "true":
-                boolean_value = True
-            if ii == "false":
-                boolean_value = False
-            payload["Attributes"]["UefiBootSeq"].append({"Index": index_count, "Id": i,"Enabled":boolean_value})
-            index_count+=1
+    with open(args["f"],"r") as x:
+        payload = json.load(x)
+    #print(get_json_from_file)
+    #sys.exit()
+##    if "," in args["s"]:
+##        boot_devices = args["s"].split(",")
+##    else:
+##        boot_devices = []
+##        boot_devices.append(args["s"])
+##    if "," in args["b"]:
+##        enable_disable_state = args["b"].split(",")
+##    else:
+##        enable_disable_state = []
+##        enable_disable_state.append(args["b"])
+##    if current_boot_mode == "Uefi":
+##        payload = {'Attributes':{'UefiBootSeq': []}}
+##        #index_count = 0
+##        for i,ii in zip(boot_devices, enable_disable_state):
+##            if ii == "true":
+##                boolean_value = True
+##            if ii == "false":
+##                boolean_value = False
+##            split_boot_device_string = i.split(":")
+##            payload["Attributes"]["UefiBootSeq"].append({"Index": int(split_boot_device_string[1]), "Id": split_boot_device_string[0],"Enabled":boolean_value})
+##            #index_count+=1
+##    elif current_boot_mode == "Bios":
+##        payload = {'Attributes':{'BootSeq': []}}
+##        #index_count = 0
+##        for i,ii in zip(boot_devices, enable_disable_state):
+##            if ii == "true":
+##                boolean_value = True
+##            if ii == "false":
+##                boolean_value = False
+##            payload["Attributes"]["UefiBootSeq"].append({"Index": index_count, "Id": i,"Enabled":boolean_value})
+##            #index_count+=1
     response = requests.patch(url, data=json.dumps(payload), headers=headers, verify=False,auth=(idrac_username, idrac_password))
     data=response.json()
     statusCode = response.status_code
@@ -306,7 +319,7 @@ if __name__ == "__main__":
         get_bios_boot_mode()
         get_bios_boot_source_state()
     elif args["s"]:
-        get_bios_boot_mode()
+        #get_bios_boot_mode()
         enable_disable_boot_devices()
         create_bios_config_job()
         check_job_status_schedule()
