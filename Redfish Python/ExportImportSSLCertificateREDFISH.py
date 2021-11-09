@@ -2,7 +2,7 @@
 # ExportImportSSLCertificateREDFISH.py   Python script using Redfish API with OEM extension to either export or import SSL certificate.
 #
 # _author_ = Texas Roemer <Texas_Roemer@Dell.com>
-# _version_ = 2.0
+# _version_ = 3.0
 #
 # Copyright (c) 2019, Dell, Inc.
 #
@@ -28,10 +28,10 @@ parser.add_argument('-p', help='iDRAC password', required=True)
 parser.add_argument('script_examples',action="store_true",help='ExportImportSSLCertificateREDFISH.py -ip 192.168.0.120 -u root -p calvin -e y -sct 1\", this example will export Web Server Certificate locally\n- \"ExportImportSSLCertificateREDFISH.py -ip 192.168.0.120 -u root -p calvin -i y -ct 4 -scf ssl_cert.pem\", this example will import client trust certificate')
 parser.add_argument('-e', help='Export SSL cert, pass in \"y\". Argument -sct is also required for export SSL cert', required=False)
 parser.add_argument('-i', help='Import SSL cert, pass in \"y\". Argument -ct and -scf is also required for import SSL cert', required=False)
-parser.add_argument('-sct', help='Pass in SSL cert type for export. Supported values are: 1 for \"Server\"(Web Server Certificate), 2 for \"CSC\"(Custom Signing Certificate), 3 for \"CA\"(CA certificate for Directory Service:), 4 for \"ClientTrustCertificate\"', required=False)
+parser.add_argument('-sct', help='Pass in SSL cert type for export. Supported values are: 1 for \"Server\"(Web Server Certificate), 2 for \"CSC\"(Custom Signing Certificate), 3 for \"CA\"(CA certificate for Directory Service), 4 for \"ClientTrustCertificate\"', required=False)
 parser.add_argument('-ct', help='Pass in cert type for import. Supported values are: 1 for \"Server\"(Web Server Certificate), 2 for \"CSC\"(Custom Signing Certificate), 3 for \"CA\"(CA certificate for Directory Service:), 4 for \"ClientTrustCertificate\"', required=False)
-parser.add_argument('-scf', help='Pass in the file name which contains the certificate to import. Cert file contents should start with open tag \"-----BEGIN CERTIFICATE-----" and end tag \"-----END CERTIFICATE-----\"', required=False)
-
+parser.add_argument('-scf', help='Pass in the file name which contains tae certificate to import. Cert file should be a base64 encoded string of the XML Certificate file. For importing CSC certificate, convert PKCS file to base64 format. The CTC file content has to be in PEM format (base64 encoded).', required=False)
+parser.add_argument('-s', help='Pass in passphrase string if the cert you are importing has one assigned', required=False)
 
 
 args=vars(parser.parse_args())
@@ -81,13 +81,13 @@ def export_SSL_cert():
         print("\n- POST command failure results:\n %s" % data)
         sys.exit()
     print("\n- Detailed SSL certificate information for certificate type \"%s\"\n" % cert_type)
-    print(data[u'CertificateFile'])
+    print(data['CertificateFile'])
     try:
         os.remove("ssl_certificate.txt")
     except:
         pass
     f = open("ssl_certificate.txt","w")
-    f.writelines(data[u'CertificateFile'])
+    f.writelines(data['CertificateFile'])
     f.close()
     print("\n - SSL certificate information also copied to \"%s\ssl_certificate.txt\" file" % os.getcwd())
     
@@ -113,6 +113,8 @@ def import_SSL_cert():
     read_file = f.read()
     f.close()
     payload={"CertificateType":cert_type,"SSLCertificateFile":read_file}
+    if args["s"]:
+        payload["Passphrase"] = args["s"]
     response = requests.post(url, data=json.dumps(payload), headers=headers, verify=False,auth=(idrac_username,idrac_password))
     data = response.json()
     if response.status_code == 200:
