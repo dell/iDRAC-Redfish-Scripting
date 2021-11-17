@@ -1,6 +1,6 @@
 <#
 _author_ = Texas Roemer <Texas_Roemer@Dell.com>
-_version_ = 1.0
+_version_ = 2.0
 
 Copyright (c) 2020, Dell, Inc.
 
@@ -17,27 +17,34 @@ http://www.gnu.org/licenses/old-licenses/gpl-2.0.txt
 
 <#
 .Synopsis
-   Cmdlet used for iDRAC job queue management
+   iDRAC cmdlet using Redfish API to manage iDRAC job queue.
 .DESCRIPTION
-   Cmdlet using Redfish API with OEM extension to manage iDRAC job queue. Supported operations are get current job queue, delete single job ID, clear complete job queue or clear complete job queue/restart Lifecycle Controller services. 
+   iDRAC cmdlet using Redfish API with OEM extension to manage iDRAC job queue. Supported operations are get current job queue, delete single job ID, clear complete job queue or clear complete job queue/restart Lifecycle Controller services. 
    - idrac_ip: Pass in iDRAC IP address
    - idrac_username: Pass in iDRAC username
    - idrac_password: Pass in iDRAC username password
+   - x_auth_token: Pass in iDRAC X-Auth token session to execute cmdlet instead of username / password (recommended)
    - get_job_queue: Pass in 'y' to get current job queue
    - delete_job_id: Delete one job ID, pass in the job ID
    - delete_job_queue: Clear the complete job queue, pass in value 'y'
-   - delete_job_queue_restart_LC_services: Clear the complete job queue and restart Lifecycle Controller services, pass in value 'y'. Note: By selecting this option, it will take a few minutes for the Lifecycle Controller to be back in Ready state Note: Recommended to use this option when iDRAC is in a bad state where you are not allowed to set pending or create new jobs.
+   - delete_job_queue_restart_LC_services: Clear the complete job queue and restart Lifecycle Controller services, pass in value 'y'. Note: By selecting this option, it will take a few minutes for the Lifecycle Controller to be back in Ready state Note: Use this option as a last resort when iDRAC is in a bad state where you are not allowed to set pending or create new jobs. Note: Also recommended once iDRAC is back up is to reboot the iDRAC, put it back into a known good state.
 .EXAMPLE
-   .\Invoke-IdracJobQueueManagementREDFISH -idrac_ip 192.168.0.120 -username root -password calvin -get_job_queue y
+   Invoke-IdracJobQueueManagementREDFISH -idrac_ip 192.168.0.120 -username root -password calvin -get_job_queue y
    This example will get current iDRAC job queue.
 .EXAMPLE
-   .\Invoke-IdracJobQueueManagementREDFISH -idrac_ip 192.168.0.120 -username root -password calvin -delete_job_id JID_735345376228
+   Invoke-IdracJobQueueManagementREDFISH -idrac_ip 192.168.0.120 -get_job_queue y
+   This example will first prompt to enter iDRAC username/password using Get-Credential, then get current iDRAC job queue.
+.EXAMPLE
+   Invoke-IdracJobQueueManagementREDFISH -idrac_ip 192.168.0.120 -get_job_queue y -x_auth_token 7bd9bb9a8727ec366a9cef5bc83b2708
+   This example will get current iDRAC job queue using iDRAC X-auth token session. 
+.EXAMPLE
+   Invoke-IdracJobQueueManagementREDFISH -idrac_ip 192.168.0.120 -username root -password calvin -delete_job_id JID_735345376228
    This example will delete job id JID_735345376228 from the job queue
 .EXAMPLE
-   .\Invoke-IdracJobQueueManagementREDFISH -idrac_ip 192.168.0.120 -username root -password calvin -delete_job_queue y 
+   Invoke-IdracJobQueueManagementREDFISH -idrac_ip 192.168.0.120 -username root -password calvin -delete_job_queue y 
    This example will clear the complete iDRAC job queue.
 .EXAMPLE
-   .\Invoke-IdracJobQueueManagementREDFISH -idrac_ip 192.168.0.120 -username root -password calvin -delete_job_queue_restart_LC_services y 
+   Invoke-IdracJobQueueManagementREDFISH -idrac_ip 192.168.0.120 -username root -password calvin -delete_job_queue_restart_LC_services y 
    This example will clear the complete iDRAC job queue and restart Lifecycle Controller services.
 #>
 
@@ -53,10 +60,12 @@ function Invoke-IdracJobQueueManagementREDFISH {
 param(
     [Parameter(Mandatory=$True)]
     [string]$idrac_ip,
-    [Parameter(Mandatory=$True)]
+    [Parameter(Mandatory=$False)]
     [string]$idrac_username,
-    [Parameter(Mandatory=$True)]
+    [Parameter(Mandatory=$False)]
     [string]$idrac_password,
+    [Parameter(Mandatory=$False)]
+    [string]$x_auth_token,
     [Parameter(Mandatory=$False)]
     [string]$get_job_queue,
     [Parameter(Mandatory=$False)]
@@ -106,34 +115,72 @@ $global:get_powershell_version = $major_number
 }
 
 
-[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::TLS12
+function setup_idrac_creds
+{
+[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::TLS12,[Net.SecurityProtocolType]::TLS13
+if ($x_auth_token)
+{
+$global:x_auth_token = $x_auth_token
+}
+elseif ($idrac_username -and $idrac_password)
+{
 $user = $idrac_username
 $pass= $idrac_password
 $secpasswd = ConvertTo-SecureString $pass -AsPlainText -Force
-$credential = New-Object System.Management.Automation.PSCredential($user, $secpasswd)
+$global:credential = New-Object System.Management.Automation.PSCredential($user, $secpasswd)
+}
+else
+{
+$get_creds = Get-Credential
+$global:credential = New-Object System.Management.Automation.PSCredential($get_creds.UserName, $get_creds.Password)
+}
+}
 
 
 function get_job_queue
 {
 $uri = "https://$idrac_ip/redfish/v1/Managers/iDRAC.Embedded.1/Jobs"
-try
+if ($x_auth_token)
+{
+ try
     {
     if ($global:get_powershell_version -gt 5)
     {
-    $result = Invoke-WebRequest -UseBasicParsing -SkipCertificateCheck -SkipHeaderValidation -Uri $uri -Credential $credential -Method Get -ErrorVariable RespErr -Headers @{"Accept"="application/json"}
+    $result = Invoke-WebRequest -SkipCertificateCheck -SkipHeaderValidation -Uri $uri -Method Get -UseBasicParsing -ErrorVariable RespErr -Headers @{"Accept" = "application/json"; "X-Auth-Token" = $x_auth_token}
     }
     else
     {
     Ignore-SSLCertificates
-    $result = Invoke-WebRequest -UseBasicParsing -Uri $uri -Credential $credential -Method Get -ErrorVariable RespErr -Headers @{"Accept"="application/json"}
+    $result = Invoke-WebRequest -Uri $uri -Method Get -UseBasicParsing -ErrorVariable RespErr -Headers @{"Accept"="application/json"; "X-Auth-Token" = $x_auth_token}
     }
     }
     catch
     {
-    Write-Host
     $RespErr
     return
     }
+}
+
+else
+{
+    try
+    {
+    if ($global:get_powershell_version -gt 5)
+    {
+    $result = Invoke-WebRequest -SkipCertificateCheck -SkipHeaderValidation -Uri $uri -Credential $credential -Method Get -UseBasicParsing -ErrorVariable RespErr -Headers @{"Accept"="application/json"}
+    }
+    else
+    {
+    Ignore-SSLCertificates
+    $result = Invoke-WebRequest -Uri $uri -Credential $credential -Method Get -UseBasicParsing -ErrorVariable RespErr -Headers @{"Accept"="application/json"}
+    }
+    }
+    catch
+    {
+    $RespErr
+    return
+    }
+}
 
 if ($result.StatusCode -eq 200)
 {
@@ -155,7 +202,7 @@ Start-Sleep 5
 }
 else
 {
-Write-Host "`n- WARNING, current iDRAC job queue is already cleared, no existing job IDs`n"
+Write-Host "`n- INFO, current iDRAC job queue is already cleared, no existing job IDs`n"
 return
 }
 
@@ -166,24 +213,47 @@ foreach ($i in $get_result.Members)
 $odata="@odata.id"
 $job_id_uri = $i.$odata
 $uri = "https://$idrac_ip$job_id_uri"
-    try
+    if ($x_auth_token)
+{
+ try
     {
     if ($global:get_powershell_version -gt 5)
     {
-    $result = Invoke-WebRequest -UseBasicParsing -SkipCertificateCheck -SkipHeaderValidation -Uri $uri -Credential $credential -Method Get -ErrorVariable RespErr -Headers @{"Accept"="application/json"}
+    $result = Invoke-WebRequest -SkipCertificateCheck -SkipHeaderValidation -Uri $uri -Method Get -UseBasicParsing -ErrorVariable RespErr -Headers @{"Accept" = "application/json"; "X-Auth-Token" = $x_auth_token}
     }
     else
     {
     Ignore-SSLCertificates
-    $result = Invoke-WebRequest -UseBasicParsing -Uri $uri -Credential $credential -Method Get -ErrorVariable RespErr -Headers @{"Accept"="application/json"}
+    $result = Invoke-WebRequest -Uri $uri -Method Get -UseBasicParsing -ErrorVariable RespErr -Headers @{"Accept"="application/json"; "X-Auth-Token" = $x_auth_token}
     }
     }
     catch
     {
-    Write-Host
     $RespErr
     return
     }
+}
+
+else
+{
+    try
+    {
+    if ($global:get_powershell_version -gt 5)
+    {
+    $result = Invoke-WebRequest -SkipCertificateCheck -SkipHeaderValidation -Uri $uri -Credential $credential -Method Get -UseBasicParsing -ErrorVariable RespErr -Headers @{"Accept"="application/json"}
+    }
+    else
+    {
+    Ignore-SSLCertificates
+    $result = Invoke-WebRequest -Uri $uri -Credential $credential -Method Get -UseBasicParsing -ErrorVariable RespErr -Headers @{"Accept"="application/json"}
+    }
+    }
+    catch
+    {
+    $RespErr
+    return
+    }
+}
 
 $get_result=$result.Content | ConvertFrom-Json
 $get_result
@@ -199,25 +269,52 @@ function delete_job_id
 $JsonBody = @{"JobID"=$delete_job_id} | ConvertTo-Json -Compress
 $uri = "https://$idrac_ip/redfish/v1/Dell/Managers/iDRAC.Embedded.1/DellJobService/Actions/DellJobService.DeleteJobQueue"
 
-try
+if ($x_auth_token)
 {
+try
+    {
     if ($global:get_powershell_version -gt 5)
     {
     
-    $post_result = Invoke-WebRequest -UseBasicParsing -SkipHeaderValidation -SkipCertificateCheck -Uri $uri -Credential $credential -Body $JsonBody -Method Post -ContentType 'application/json' -Headers @{"Accept"="application/json"} -ErrorVariable RespErr
+    $post_result = Invoke-WebRequest -UseBasicParsing SkipHeaderValidation -SkipCertificateCheck -Uri $uri -Method Post -Body $JsonBody -ContentType 'application/json' -Headers @{"Accept" = "application/json"; "X-Auth-Token" = $x_auth_token} -ErrorVariable RespErr
     }
     else
     {
     Ignore-SSLCertificates
-    $post_result = Invoke-WebRequest -UseBasicParsing -Uri $uri -Credential $credential -Method Post -ContentType 'application/json' -Headers @{"Accept"="application/json"} -Body $JsonBody -ErrorVariable RespErr
+    $post_result = Invoke-WebRequest -UseBasicParsing -Uri $uri -Method Post -Body $JsonBody -ContentType 'application/json' -Headers @{"Accept" = "application/json"; "X-Auth-Token" = $x_auth_token} -ErrorVariable RespErr
     }
+    }
+    catch
+    {
+    Write-Host
+    $RespErr
+    return
+    } 
 }
-catch
+
+
+else
 {
-Write-Host
-$RespErr
-return
-} 
+try
+    {
+    if ($global:get_powershell_version -gt 5)
+    {
+    
+    $post_result = Invoke-WebRequest -UseBasicParsing SkipHeaderValidation -SkipCertificateCheck -Uri $uri -Credential $credential -Method Post -Body $JsonBody -ContentType 'application/json' -Headers @{"Accept"="application/json"} -ErrorVariable RespErr
+    }
+    else
+    {
+    Ignore-SSLCertificates
+    $post_result = Invoke-WebRequest -UseBasicParsing -Uri $uri -Credential $credential -Method Post -Body $JsonBody -ContentType 'application/json' -Headers @{"Accept"="application/json"} -ErrorVariable RespErr
+    }
+    }
+    catch
+    {
+    Write-Host
+    $RespErr
+    return
+    } 
+}
 
 if ($post_result.StatusCode -eq 200 -or $post_result.StatusCode -eq 200)
 {
@@ -233,30 +330,57 @@ return
 function delete_job_queue_restart_LC_services
 {
 
-Write-Host "`n- WARNING, clearing job queue and restarting LC services for iDRAC $idrac_ip, this may take a few minutes for LC services to be back in ready state`n"
+Write-Host "`n- INFO, clearing job queue and restarting LC services for iDRAC $idrac_ip, this may take a few minutes for LC services to be back in ready state`n"
 Start-Sleep 5
 $JsonBody = @{"JobID"="JID_CLEARALL_FORCE"} | ConvertTo-Json -Compress
 $uri = "https://$idrac_ip/redfish/v1/Dell/Managers/iDRAC.Embedded.1/DellJobService/Actions/DellJobService.DeleteJobQueue"
 
-try
+if ($x_auth_token)
 {
+try
+    {
     if ($global:get_powershell_version -gt 5)
     {
     
-    $post_result = Invoke-WebRequest -UseBasicParsing -SkipHeaderValidation -SkipCertificateCheck -Uri $uri -Credential $credential -Body $JsonBody -Method Post -ContentType 'application/json' -Headers @{"Accept"="application/json"} -ErrorVariable RespErr
+    $post_result = Invoke-WebRequest -UseBasicParsing SkipHeaderValidation -SkipCertificateCheck -Uri $uri -Method Post -Body $JsonBody -ContentType 'application/json' -Headers @{"Accept" = "application/json"; "X-Auth-Token" = $x_auth_token} -ErrorVariable RespErr
     }
     else
     {
     Ignore-SSLCertificates
-    $post_result = Invoke-WebRequest -UseBasicParsing -Uri $uri -Credential $credential -Method Post -ContentType 'application/json' -Headers @{"Accept"="application/json"} -Body $JsonBody -ErrorVariable RespErr
+    $post_result = Invoke-WebRequest -UseBasicParsing -Uri $uri -Method Post -Body $JsonBody -ContentType 'application/json' -Headers @{"Accept" = "application/json"; "X-Auth-Token" = $x_auth_token} -ErrorVariable RespErr
     }
+    }
+    catch
+    {
+    Write-Host
+    $RespErr
+    return
+    } 
 }
-catch
+
+
+else
 {
-Write-Host
-$RespErr
-return
-} 
+try
+    {
+    if ($global:get_powershell_version -gt 5)
+    {
+    
+    $post_result = Invoke-WebRequest -UseBasicParsing SkipHeaderValidation -SkipCertificateCheck -Uri $uri -Credential $credential -Method Post -Body $JsonBody -ContentType 'application/json' -Headers @{"Accept"="application/json"} -ErrorVariable RespErr
+    }
+    else
+    {
+    Ignore-SSLCertificates
+    $post_result = Invoke-WebRequest -UseBasicParsing -Uri $uri -Credential $credential -Method Post -Body $JsonBody -ContentType 'application/json' -Headers @{"Accept"="application/json"} -ErrorVariable RespErr
+    }
+    }
+    catch
+    {
+    Write-Host
+    $RespErr
+    return
+    } 
+}
 
 if ($post_result.StatusCode -eq 200 -or $post_result.StatusCode -eq 200)
 {
@@ -269,7 +393,7 @@ return
 }
 
 Start-Sleep 10
-Write-Host "- WARNING, script will now loop checking LC status until its back in Ready state`n"
+Write-Host "- INFO, script will now loop checking LC status until its back in Ready state`n"
 $count = 0
 while ($lc_status -ne "Ready")
 {
@@ -282,25 +406,52 @@ return
 $JsonBody = @{} | ConvertTo-Json -Compress
 $uri = "https://$idrac_ip/redfish/v1/Dell/Managers/iDRAC.Embedded.1/DellLCService/Actions/DellLCService.GetRemoteServicesAPIStatus"
 
-try
+if ($x_auth_token)
 {
+try
+    {
     if ($global:get_powershell_version -gt 5)
     {
     
-    $post_result = Invoke-WebRequest -UseBasicParsing -SkipHeaderValidation -SkipCertificateCheck -Uri $uri -Credential $credential -Body $JsonBody -Method Post -ContentType 'application/json' -Headers @{"Accept"="application/json"} -ErrorVariable RespErr
+    $post_result = Invoke-WebRequest -UseBasicParsing SkipHeaderValidation -SkipCertificateCheck -Uri $uri -Method Post -Body $JsonBody -ContentType 'application/json' -Headers @{"Accept" = "application/json"; "X-Auth-Token" = $x_auth_token} -ErrorVariable RespErr
     }
     else
     {
     Ignore-SSLCertificates
-    $post_result = Invoke-WebRequest -UseBasicParsing -Uri $uri -Credential $credential -Method Post -ContentType 'application/json' -Headers @{"Accept"="application/json"} -Body $JsonBody -ErrorVariable RespErr
+    $post_result = Invoke-WebRequest -UseBasicParsing -Uri $uri -Method Post -Body $JsonBody -ContentType 'application/json' -Headers @{"Accept" = "application/json"; "X-Auth-Token" = $x_auth_token} -ErrorVariable RespErr
     }
+    }
+    catch
+    {
+    Write-Host
+    $RespErr
+    return
+    } 
 }
-catch
+
+
+else
 {
-Write-Host
-$RespErr
-return
-} 
+try
+    {
+    if ($global:get_powershell_version -gt 5)
+    {
+    
+    $post_result = Invoke-WebRequest -UseBasicParsing SkipHeaderValidation -SkipCertificateCheck -Uri $uri -Credential $credential -Method Post -Body $JsonBody -ContentType 'application/json' -Headers @{"Accept"="application/json"} -ErrorVariable RespErr
+    }
+    else
+    {
+    Ignore-SSLCertificates
+    $post_result = Invoke-WebRequest -UseBasicParsing -Uri $uri -Credential $credential -Method Post -Body $JsonBody -ContentType 'application/json' -Headers @{"Accept"="application/json"} -ErrorVariable RespErr
+    }
+    }
+    catch
+    {
+    Write-Host
+    $RespErr
+    return
+    } 
+}
 
 if ($post_result.StatusCode -eq 200 -or $post_result.StatusCode -eq 200)
 {
@@ -315,31 +466,54 @@ return
 $get_post_result = $post_result.Content | ConvertFrom-Json
 $lc_status = $get_post_result.LCStatus
 
-Write-Host "- WARNING, LC status not in ready state, checking status again"
+Write-Host "- INFO, LC status not in ready state, checking status again"
 $count++
 Start-Sleep 10
 }
 
 
 $uri = "https://$idrac_ip/redfish/v1/Managers/iDRAC.Embedded.1/Jobs"
-try
+if ($x_auth_token)
+{
+ try
     {
     if ($global:get_powershell_version -gt 5)
     {
-    $result = Invoke-WebRequest -UseBasicParsing -SkipCertificateCheck -SkipHeaderValidation -Uri $uri -Credential $credential -Method Get -ErrorVariable RespErr -Headers @{"Accept"="application/json"}
+    $result = Invoke-WebRequest -SkipCertificateCheck -SkipHeaderValidation -Uri $uri -Method Get -UseBasicParsing -ErrorVariable RespErr -Headers @{"Accept" = "application/json"; "X-Auth-Token" = $x_auth_token}
     }
     else
     {
     Ignore-SSLCertificates
-    $result = Invoke-WebRequest -UseBasicParsing -Uri $uri -Credential $credential -Method Get -ErrorVariable RespErr -Headers @{"Accept"="application/json"}
+    $result = Invoke-WebRequest -Uri $uri -Method Get -UseBasicParsing -ErrorVariable RespErr -Headers @{"Accept"="application/json"; "X-Auth-Token" = $x_auth_token}
     }
     }
     catch
     {
-    Write-Host
     $RespErr
     return
     }
+}
+
+else
+{
+    try
+    {
+    if ($global:get_powershell_version -gt 5)
+    {
+    $result = Invoke-WebRequest -SkipCertificateCheck -SkipHeaderValidation -Uri $uri -Credential $credential -Method Get -UseBasicParsing -ErrorVariable RespErr -Headers @{"Accept"="application/json"}
+    }
+    else
+    {
+    Ignore-SSLCertificates
+    $result = Invoke-WebRequest -Uri $uri -Credential $credential -Method Get -UseBasicParsing -ErrorVariable RespErr -Headers @{"Accept"="application/json"}
+    }
+    }
+    catch
+    {
+    $RespErr
+    return
+    }
+}
 
 if ($result.StatusCode -eq 200)
 {
@@ -371,30 +545,57 @@ return
 function delete_job_queue 
 {
 
-Write-Host "`n- WARNING, clearing job queue for iDRAC $idrac_ip, this may take up to minute to complete depending on how many jobs are in the job queue`n"
+Write-Host "`n- INFO, clearing job queue for iDRAC $idrac_ip, this may take up to minute to complete depending on how many jobs are in the job queue`n"
 Start-Sleep 5
 $JsonBody = @{"JobID"="JID_CLEARALL"} | ConvertTo-Json -Compress
 $uri = "https://$idrac_ip/redfish/v1/Dell/Managers/iDRAC.Embedded.1/DellJobService/Actions/DellJobService.DeleteJobQueue"
 
-try
+if ($x_auth_token)
 {
+try
+    {
     if ($global:get_powershell_version -gt 5)
     {
     
-    $post_result = Invoke-WebRequest -UseBasicParsing -SkipHeaderValidation -SkipCertificateCheck -Uri $uri -Credential $credential -Body $JsonBody -Method Post -ContentType 'application/json' -Headers @{"Accept"="application/json"} -ErrorVariable RespErr
+    $post_result = Invoke-WebRequest -UseBasicParsing SkipHeaderValidation -SkipCertificateCheck -Uri $uri -Method Post -Body $JsonBody -ContentType 'application/json' -Headers @{"Accept" = "application/json"; "X-Auth-Token" = $x_auth_token} -ErrorVariable RespErr
     }
     else
     {
     Ignore-SSLCertificates
-    $post_result = Invoke-WebRequest -UseBasicParsing -Uri $uri -Credential $credential -Method Post -ContentType 'application/json' -Headers @{"Accept"="application/json"} -Body $JsonBody -ErrorVariable RespErr
+    $post_result = Invoke-WebRequest -UseBasicParsing -Uri $uri -Method Post -Body $JsonBody -ContentType 'application/json' -Headers @{"Accept" = "application/json"; "X-Auth-Token" = $x_auth_token} -ErrorVariable RespErr
     }
+    }
+    catch
+    {
+    Write-Host
+    $RespErr
+    return
+    } 
 }
-catch
+
+
+else
 {
-Write-Host
-$RespErr
-return
-} 
+try
+    {
+    if ($global:get_powershell_version -gt 5)
+    {
+    
+    $post_result = Invoke-WebRequest -UseBasicParsing SkipHeaderValidation -SkipCertificateCheck -Uri $uri -Credential $credential -Method Post -Body $JsonBody -ContentType 'application/json' -Headers @{"Accept"="application/json"} -ErrorVariable RespErr
+    }
+    else
+    {
+    Ignore-SSLCertificates
+    $post_result = Invoke-WebRequest -UseBasicParsing -Uri $uri -Credential $credential -Method Post -Body $JsonBody -ContentType 'application/json' -Headers @{"Accept"="application/json"} -ErrorVariable RespErr
+    }
+    }
+    catch
+    {
+    Write-Host
+    $RespErr
+    return
+    } 
+}
 
 if ($post_result.StatusCode -eq 200 -or $post_result.StatusCode -eq 200)
 {
@@ -408,24 +609,47 @@ return
 
 Start-Sleep 10
 $uri = "https://$idrac_ip/redfish/v1/Managers/iDRAC.Embedded.1/Jobs"
-try
+if ($x_auth_token)
+{
+ try
     {
     if ($global:get_powershell_version -gt 5)
     {
-    $result = Invoke-WebRequest -UseBasicParsing -SkipCertificateCheck -SkipHeaderValidation -Uri $uri -Credential $credential -Method Get -ErrorVariable RespErr -Headers @{"Accept"="application/json"}
+    $result = Invoke-WebRequest -SkipCertificateCheck -SkipHeaderValidation -Uri $uri -Method Get -UseBasicParsing -ErrorVariable RespErr -Headers @{"Accept" = "application/json"; "X-Auth-Token" = $x_auth_token}
     }
     else
     {
     Ignore-SSLCertificates
-    $result = Invoke-WebRequest -UseBasicParsing -Uri $uri -Credential $credential -Method Get -ErrorVariable RespErr -Headers @{"Accept"="application/json"}
+    $result = Invoke-WebRequest -Uri $uri -Method Get -UseBasicParsing -ErrorVariable RespErr -Headers @{"Accept"="application/json"; "X-Auth-Token" = $x_auth_token}
     }
     }
     catch
     {
-    Write-Host
     $RespErr
     return
     }
+}
+
+else
+{
+    try
+    {
+    if ($global:get_powershell_version -gt 5)
+    {
+    $result = Invoke-WebRequest -SkipCertificateCheck -SkipHeaderValidation -Uri $uri -Credential $credential -Method Get -UseBasicParsing -ErrorVariable RespErr -Headers @{"Accept"="application/json"}
+    }
+    else
+    {
+    Ignore-SSLCertificates
+    $result = Invoke-WebRequest -Uri $uri -Credential $credential -Method Get -UseBasicParsing -ErrorVariable RespErr -Headers @{"Accept"="application/json"}
+    }
+    }
+    catch
+    {
+    $RespErr
+    return
+    }
+}
 
 if ($result.StatusCode -eq 200)
 {
@@ -457,6 +681,7 @@ return
 # Run code
 
 get_powershell_version
+setup_idrac_creds
 
 
 if ($get_job_queue.ToLower() -eq 'y')

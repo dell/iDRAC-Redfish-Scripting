@@ -1,1 +1,1 @@
-LCAttributes.1.AutoBackup:Enabled|LCAttributes.1.AutoUpdate:Enabled
+IPv4.1.DHCPEnable:Disabled|IPv4Static.1.Address:100.65.84.49|IPv4Static.1.Gateway:100.65.84.254|IPv4Static.1.Netmask:255.255.255.0
