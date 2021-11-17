@@ -4,6 +4,8 @@ Python and PowerShell scripting for  Dell EMC PowerEdge iDRAC REST API with DMTF
 
 Sample scripts written in Python and PowerShell that illustrate using the integrated Dell Remote Access Controller (iDRAC) REST API with Redfish to manage Dell EMC PowerEdge servers. 
 
+Powershell cmdlets can also be installed from Powershell gallery using Install-Module. Recommended to install IdracRedfishSupport module which will import all iDRAC cmdlets. 
+
 ## Redfish Overview
 
 There are various Out-of-Band (OOB) systems management standards available in the industry today. However, there is no single standard that can be easily used within emerging programming standards, can be readily implemented within embedded systems, and can meet the demands of today’s evolving IT solution models.  New IT solutions models have placed new demands on systems management solutions to support expanded scale, higher security, and multi-vendor openness, while also aligning with modern DevOps tools and processes. 
@@ -72,9 +74,9 @@ Server operations
 *	Get server storage inventory
 
 Prerequisites
-*	PowerEdge 12G/13G/14G servers
+*	PowerEdge 12G/13G/14G/15G servers
 *	Minimum iDRAC 7/8 FW 2.40.40.40, iDRAC9 FW 3.00.00.00
-*	Python 2.x or later
+*	Python 3.x
 *	PowerShell 5.0 or later
 
 ## Support
