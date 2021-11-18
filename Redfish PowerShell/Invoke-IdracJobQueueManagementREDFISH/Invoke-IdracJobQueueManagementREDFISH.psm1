@@ -1,6 +1,6 @@
 <#
 _author_ = Texas Roemer <Texas_Roemer@Dell.com>
-_version_ = 2.0
+_version_ = 3.0
 
 Copyright (c) 2020, Dell, Inc.
 
@@ -117,7 +117,16 @@ $global:get_powershell_version = $major_number
 
 function setup_idrac_creds
 {
+if ($global:get_powershell_version -ge 7)
+{
 [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::TLS12,[Net.SecurityProtocolType]::TLS13
+}
+else
+{
+[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::TLS12
+}
+
+
 if ($x_auth_token)
 {
 $global:x_auth_token = $x_auth_token
