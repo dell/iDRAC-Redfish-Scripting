@@ -93,16 +93,7 @@ $global:get_powershell_version = $major_number
 get_powershell_version
 
 
-if ($global:get_powershell_version -ge 7)
-{
-[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::TLS12,[Net.SecurityProtocolType]::TLS13
-}
-else
-{
 [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::TLS12
-}
-
-
 if ($idrac_username -and $idrac_password)
 {
 $user = $idrac_username
