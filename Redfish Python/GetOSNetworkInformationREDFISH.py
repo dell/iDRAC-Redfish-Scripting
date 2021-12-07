@@ -73,7 +73,7 @@ def get_OS_network_devices():
         for i in valid_network_devices:
             response = requests.get('https://%s/redfish/v1/Systems/System.Embedded.1/EthernetInterfaces/%s' % (idrac_ip, i),verify=False,auth=(idrac_username,idrac_password))
             data = response.json()
-            print("\n- Detailed information for network device %s -\n") % i
+            print("\n- Detailed information for network device %s -\n" % i)
             for ii in data.items():
                 print("%s: %s" % (ii[0], ii[1]))
             
@@ -82,7 +82,7 @@ def get_OS_network_devices():
 def get_individual_network_device_info():
     response = requests.get('https://%s/redfish/v1/Systems/System.Embedded.1/EthernetInterfaces/%s' % (idrac_ip, args["n"]),verify=False,auth=(idrac_username,idrac_password))
     data = response.json()
-    print("\n- Detailed information for network device %s -\n") % args["n"]
+    print("\n- Detailed information for network device %s -\n" % args["n"])
     for ii in data.items():
         print("%s: %s" % (ii[0], ii[1]))
 
@@ -92,7 +92,7 @@ def get_property_value_only():
     count=0
     for i in data.items():
         if i[0] == property_value:
-            print("\n- Property \"%s\" information for network device %s -\n") % (property_value, args["i"])
+            print("\n- Property \"%s\" information for network device %s -\n" % (property_value, args["i"]))
             print("%s: %s" % (i[0], i[1]))
             count+=1
     if count == 0:
