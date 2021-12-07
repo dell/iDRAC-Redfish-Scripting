@@ -96,14 +96,14 @@ def create_idrac_user_password():
     if statusCode == 200:
         print("\n- PASS, status code %s returned for PATCH command to create iDRAC user \"%s\"" % (statusCode, args["un"]))
     else:
-        print("\n- FAIL, status code %s returned, password was not changed") % statusCode
+        print("\n- FAIL, status code %s returned, password was not changed" % statusCode)
         sys.exit()
 
 def verify_idrac_user_created():
     response = requests.get('https://%s/redfish/v1/Managers/iDRAC.Embedded.1/Accounts/%s' % (idrac_ip, args["id"]),verify=False,auth=(idrac_username, idrac_password))
     statusCode = response.status_code
     if statusCode != 200:
-        print("\n- FAIL, status code %s returned for GET command") % statusCode
+        print("\n- FAIL, status code %s returned for GET command" % statusCode)
         sys.exit()
     else:
         pass
@@ -138,7 +138,7 @@ def delete_idrac_user():
     response = requests.get('https://%s/redfish/v1/Managers/iDRAC.Embedded.1/Accounts/%s' % (idrac_ip, args["d"]),verify=False,auth=(idrac_username, idrac_password))
     statusCode = response.status_code
     if statusCode != 200:
-        print("\n- FAIL, status code %s returned for GET command") % statusCode
+        print("\n- FAIL, status code %s returned for GET command" % statusCode)
         sys.exit()
     else:
         pass
@@ -155,7 +155,7 @@ def get_current_iDRAC_user_information():
         response = requests.get('https://%s/redfish/v1/Managers/iDRAC.Embedded.1/Accounts/%s' % (idrac_ip, args["id"]),verify=False,auth=(idrac_username, idrac_password))
         statusCode = response.status_code
         if statusCode != 200:
-            print("\n- FAIL, status code %s returned for GET command") % statusCode
+            print("\n- FAIL, status code %s returned for GET command" % statusCode)
             sys.exit()
         else:
             pass
@@ -173,7 +173,7 @@ def get_current_iDRAC_user_information():
             response = requests.get('https://%s/redfish/v1/Managers/iDRAC.Embedded.1/Accounts/%s' % (idrac_ip, i),verify=False,auth=(idrac_username, idrac_password))
             statusCode = response.status_code
             if statusCode != 200:
-                print("\n- FAIL, status code %s returned for GET command") % statusCode
+                print("\n- FAIL, status code %s returned for GET command" % statusCode)
                 sys.exit()
             else:
                 pass
