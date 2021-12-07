@@ -70,7 +70,7 @@ def set_idrac_default_settings():
     if statusCode == 200:
         print("\n- PASS, status code %s returned for POST command to reset iDRAC to default settings using reset type \"%s\"" % (statusCode, args["r"]))
     else:
-        print("\n- FAIL, status code %s returned, unable to reset iDRAC to default settings") % statusCode
+        print("\n- FAIL, status code %s returned, unable to reset iDRAC to default settings" % statusCode)
         sys.exit()
     time.sleep(15)
     print("\n- iDRAC will now reset to default settings and restart the iDRAC. iDRAC should be back up within a few minutes.")

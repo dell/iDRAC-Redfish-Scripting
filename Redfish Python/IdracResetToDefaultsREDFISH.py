@@ -60,7 +60,7 @@ def reset_idrac_to_default_settings():
         print("\n- PASS, status code %s returned for POST command to reset iDRAC to \"%s\" setting\n" % (statusCode, reset_type))
     else:
         data=response.json()
-        print("\n- FAIL, status code %s returned, error is: \n%s") % (statusCode, data)
+        print("\n- FAIL, status code %s returned, error is: \n%s" % (statusCode, data))
         sys.exit()
     time.sleep(15)
     print("- WARNING, iDRAC will now reset and be back online within a few minutes.")
