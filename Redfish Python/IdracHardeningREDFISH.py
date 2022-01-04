@@ -1,6 +1,6 @@
 #
 # _author_ = Texas Roemer <Texas_Roemer@Dell.com>
-# _version_ = 2.0
+# _version_ = 3.0
 #
 # Copyright (c) 2021, Dell, Inc.
 #
@@ -19,7 +19,7 @@ from datetime import datetime
 
 warnings.filterwarnings("ignore")
 
-parser=argparse.ArgumentParser(description="Python script using Redfish API to configure server for iDRAC hardening (recommended server iDRAC settings for providing additional server security). Script workflow: (1) prompt for current iDRAC user ID 2 password. (2) Change iDRAC user ID 2 password. NOTE: Script will complete rest of the workflow using new password. (3) Check for any iDRAC users configured. If configured, script will prompt for password change. (4) Disable iDRAC Telnet. (5) Disable iDRAC IPMI. (6) Enable iDRAC webserver, configure TLS protocol to 1.2 only. (7) Check if iDRAC SNMP is configured. (8) Disable iDRAC VNC server. (8) Disable iDRAC USB config XML. (9) Check if iDRAC remote syslog is configured. (10) Check if iDRAC NTP is configured. (11) Disable iDRAC SOL. (12) Disable iDRAC local configuration using Settings. (13) Disable local iDRAC configuration using RACADM. (14) Set iDRAC virtual console plugin to eHTML5(if supported) or HTML5. (15) Disable iDRAC attached virtual media. (16) Set iDRAC SNMP settings to SNMPv3. (17) Disable iDRAC OS pass-through. (18) Disable iDRAC RAC serial. (19) Disable iDRAC Service Module. (20) Disable BIOS internal USB. NOTE: This will reboot the server to apply the change. (21) Prompt to enable iDRAC System Lockdown if disabled. NOTE: For each step in the workflow, if the recommended value is already set for that attribute, script will skip PATCH operation.")
+parser=argparse.ArgumentParser(description="Python script using Redfish API to configure server for iDRAC hardening (recommended server iDRAC settings for providing additional server security). Script workflow: (1) prompt for current iDRAC user ID 2 password. (2) Change iDRAC user ID 2 password. NOTE: Script will complete rest of the workflow using new password. (3) Check for any iDRAC users configured. If configured, script will prompt for password change. (4) Disable iDRAC Telnet. (5) Disable iDRAC IPMI. (6) Enable iDRAC webserver, configure TLS protocol to 1.3 only. (7) Check if iDRAC SNMP is configured. (8) Disable iDRAC VNC server. (8) Disable iDRAC USB config XML. (9) Check if iDRAC remote syslog is configured. (10) Check if iDRAC NTP is configured. (11) Disable iDRAC SOL. (12) Disable iDRAC local configuration using Settings. (13) Disable local iDRAC configuration using RACADM. (14) Set iDRAC virtual console plugin to eHTML5(if supported) or HTML5. (15) Disable iDRAC attached virtual media. (16) Set iDRAC SNMP settings to SNMPv3. (17) Disable iDRAC OS pass-through. (18) Disable iDRAC RAC serial. (19) Disable iDRAC Service Module. (20) Disable BIOS internal USB. NOTE: This will reboot the server to apply the change. (21) Prompt to enable iDRAC System Lockdown if disabled. NOTE: For each step in the workflow, if the recommended value is already set for that attribute, script will skip PATCH operation.")
 parser.add_argument('-ip',help='iDRAC IP address', required=True)
 parser.add_argument('-u', help='Pass in iDRAC username for account id 2', required=True)
 parser.add_argument('script_examples',action="store_true",help='IdracHardeningREDFISH.py -ip 192.168.0.120 -u root') 
@@ -122,7 +122,7 @@ def get_specific_attribute(x,xx):
             if attributes_dict[i] == "HTML5":
                 virtual_console_plugin = "HTML5"
             if xx == "WebServer.1.TLSProtocol":
-                if attributes_dict[i] == "TLS 1.0 and Higher" or attributes_dict[i] == "TLS 1.1 and Higher":
+                if attributes_dict[i] == "TLS 1.0 and Higher" or attributes_dict[i] == "TLS 1.1 and Higher" or attributes_dict[i] == "TLS 1.2 and Higher":
                     set_flag = "yes"
                     break
                 else:
@@ -249,12 +249,12 @@ def set_attribute_enabled(x,xx):
 
 def set_TLS_attribute_enabled(x,xx):
     url = 'https://%s/redfish/v1/Managers/iDRAC.Embedded.1/Attributes' % idrac_ip
-    payload = {"Attributes":{xx:"TLS 1.2 Only"}}
+    payload = {"Attributes":{xx:"TLS 1.3 Only"}}
     headers = {'content-type': 'application/json'}
     response = requests.patch(url, data=json.dumps(payload), headers=headers, verify=False,auth=(idrac_username, x))
     data = response.json()
     if response.status_code == 200 or response.status_code == 202:
-        print("- PASS, PATCH command passed to set attribute \"%s\" to TLS 1.2 Only" % xx)
+        print("- PASS, PATCH command passed to set attribute \"%s\" to TLS 1.3 Only" % xx)
     else:
         print("\n- FAIL, PATCH command failed to set attribute \"%s\", status code: %s\n" % (xx, response.status_code))
         print("Extended Info Message: {0}".format(response.json()))
@@ -266,10 +266,10 @@ def set_TLS_attribute_enabled(x,xx):
     attributes_dict=data['Attributes']
     for i in attributes_dict:
         if i == xx:
-            if attributes_dict[i] == "TLS 1.2 Only":
-                print("- PASS, iDRAC attribute \"%s\" successfully set to TLS 1.2 Only" % xx)
+            if attributes_dict[i] == "TLS 1.3 Only":
+                print("- PASS, iDRAC attribute \"%s\" successfully set to TLS 1.3 Only" % xx)
             else:
-                print("- FAIL, iDRAC attribute \"%s\" not set to TLS 1.2 Only" % xx)
+                print("- FAIL, iDRAC attribute \"%s\" not set to TLS 1.3 Only" % xx)
                 sys.exit()
 
 def set_SNMP(x,xx):
