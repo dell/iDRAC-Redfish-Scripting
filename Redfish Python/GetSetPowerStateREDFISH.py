@@ -5,7 +5,7 @@
 # _author_ = Texas Roemer <Texas_Roemer@Dell.com>
 # _version_ = 7.0
 #
-# Copyright (c) 2021, Dell, Inc.
+# Copyright (c) 2022, Dell, Inc.
 #
 # This software is licensed to you under the GNU General Public License,
 # version 2 (GPLv2). There is NO WARRANTY for this software, express or
@@ -93,7 +93,7 @@ if __name__ == "__main__":
     elif args["r"]:
         set_power_state()
     elif args["script_examples"]:
-        print('\nSetPowerStateREDFISH.py -ip 192.168.0.120 -u root -p calvin -g, this example will '
+        print('\nGetSetPowerStateREDFISH.py -ip 192.168.0.120 -u root -p calvin -g, this example will '
               'return the current power state of the server and supported values for changing the '
               'server power state. \n\nSetPowerStateREDFISH.py -ip 192.168.0.120 -u root -p calvin -r On,'
               ' this example will power on the server.')
