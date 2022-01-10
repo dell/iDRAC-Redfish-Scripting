@@ -2,7 +2,7 @@
 # DeviceFirmwareSimpleUpdateREDFISH. Python script using Redfish API to update a device firmware with DMTF action SimpleUpdate. Supported file image types are Windows DUPs, d7/d9 image or pm files.
 #
 # _author_ = Texas Roemer <Texas_Roemer@Dell.com>
-# _version_ = 15.0
+# _version_ = 16.0
 #
 # Copyright (c) 2018, Dell, Inc.
 #
@@ -30,8 +30,9 @@ parser.add_argument('script_examples',action="store_true",help='DeviceFirmwareSi
 parser.add_argument('-g', help='Get current supported devices for firmware updates and their current firmware versions, pass in \"y\"', required=False)
 parser.add_argument('-l', help='Pass in the local directory location of the firmware image', required=False)
 parser.add_argument('-f', help='Pass in the firmware image name', required=False)
+parser.add_argument('-s', help='Apply the firmware update for updates in new state, pass in \"y\"', required=False)
 parser.add_argument('-r', help='Reboot the server to apply the update if needed. Pass in \"n\" to reboot the server now to run the update or pass in \"l\" to not reboot the server (job ID will still be in scheduled state and will execute on next manual server reboot. Note: If the update gets applied with no server reboot (Example: iDRAC, DIAGs, Driver pack), you don\'t need to pass in this argument. For more details on which devices update immediately, refer to Lifecycle Controller User Guide Update section.', required=False)
-
+parser.add_argument('-S', help='Shutdown the server once the firmware update completes, pass in \"y\"', required=False)
 
 args=vars(parser.parse_args())
 
@@ -126,7 +127,7 @@ def install_image_payload():
     if args["r"] == "n":
         payload = {"ImageURI":"%s/%s" % (http_push_uri, available_entry),"@Redfish.OperationApplyTime": "Immediate"}
     elif args["r"] == "l":
-        payload = {"ImageURI":"%s/%s" % (http_push_uri, available_entry),"@Redfish.OperationApplyTime": "OnReset"}
+        payload = {"ImageURI":"%s/%s" % (http_push_uri, available_entry),"@Redfish.OperationApplyTime": "OnReset"}    
     else:
         payload = {"ImageURI":"%s/%s" % (http_push_uri, available_entry)}
     headers = {'content-type': 'application/json'}
@@ -140,6 +141,21 @@ def install_image_payload():
     job_id_location = response.headers['Location']
     job_id = re.search("JID_.+",job_id_location).group()
     print("- PASS, %s firmware update job ID successfully created" % job_id)
+
+
+def execute_start_update():
+    global job_id
+    url = 'https://%s/redfish/v1/UpdateService/Actions/UpdateService.StartUpdate' % (idrac_ip)
+    payload = {}
+    headers = {'content-type': 'application/json'}
+    response = requests.post(url, data=json.dumps(payload), headers=headers, verify=False,auth=(idrac_username,idrac_password))
+    if response.status_code == 202 or response.status_code == 200:
+            print("- PASS, StartUpdate action passed, update job in downloaded state will be applied")
+    else:
+        print("\n- FAIL, StartUpdate action failed, return code: %s" % response.status_code)
+        print("Extended Info Message: {0}".format(response.json()))
+        sys.exit(1)
+    
 
 
 def check_job_status():
@@ -166,13 +182,16 @@ def check_job_status():
             for i in data['Oem']['Dell'].items():
                 print("%s: %s" % (i[0],i[1]))
             print("\n- JOB ID %s completed in %s" % (job_id, current_time))
-            sys.exit()
         if data["TaskState"] == "Completed":
             print("\n- PASS, job ID successfuly marked completed, detailed final job status results:\n%s " % data["Id"])
             for i in data['Oem']['Dell'].items():
                 print("%s: %s" % (i[0],i[1]))
             print("\n- JOB ID %s completed in %s" % (job_id, current_time))
-            sys.exit()
+            if args["S"]:
+                shutdown_server()
+                sys.exit()
+            else:
+                sys.exit()
         current_time = str(datetime.now()-start_time)[0:7]   
         statusCode = req.status_code
         data = req.json()
@@ -206,7 +225,7 @@ def check_job_status():
             print("\n- %s completed in: %s" % (job_id, str(current_time)[0:7]))
             break
         else:
-            print("- Message: %s, execution time: %s" % (message_string[0]["Message"].rstrip("."), current_time))
+            print("- INFO, %s, execution time: %s" % (message_string[0]["Message"].rstrip("."), current_time))
             time.sleep(1)
             continue
 
@@ -247,9 +266,13 @@ def loop_check_final_job_status():
             for i in data.items():
                 print("%s: %s" % (i[0], i[1]))
             print("\n- JOB ID %s completed in %s" % (job_id, current_time))
-            sys.exit(1)
+            if args["S"]:
+                shutdown_server()
+                break
+            else:
+                break
         else:
-            print("- INFO, JobStatus not completed, current status: \"%s\", execution time: \"%s\"" % (data['Message'].rstrip("."), current_time))
+            print("- INFO, job ID not completed, current status: \"%s\", execution time: \"%s\"" % (data['Message'].rstrip("."), current_time))
             time.sleep(1)
 
 def reboot_server():
@@ -351,7 +374,7 @@ def check_idrac_connection():
                     ping_status = "good"
                 if ping_status == "lost":
                     print("- INFO, unable to ping iDRAC IP, script will wait 30 seconds and try again")
-                    time.sleep(60)
+                    time.sleep(30)
                     continue
                 else:
                     pass
@@ -367,11 +390,28 @@ def check_idrac_connection():
     else:
         pass
 
+def shutdown_server():
+    print("- INFO, argument -S detected to shutdown the server after firmware update completes")
+    url = 'https://%s/redfish/v1/Systems/System.Embedded.1/Actions/ComputerSystem.Reset' % idrac_ip
+    payload = {'ResetType': 'ForceOff'}
+    headers = {'content-type': 'application/json'}
+    response = requests.post(url, data=json.dumps(payload), headers=headers, verify=False, auth=(idrac_username,idrac_password))
+    statusCode = response.status_code
+    if statusCode == 204:
+        print("- PASS, POST action passed to power OFF server")
+    else:
+        print("\n- FAIL, POST action failed to power OFF server, status code: %s\n" % statusCode)
+        print("Extended Info Message: {0}".format(response.json()))
+        sys.exit()
+        
+
 
 if __name__ == "__main__":
     check_supported_idrac_version()
     if args["g"]:
         get_FW_inventory()
+    elif args["s"]:
+        execute_start_update()
     elif args["l"] and args["f"]:
         get_idrac_version()
         download_image_payload()
