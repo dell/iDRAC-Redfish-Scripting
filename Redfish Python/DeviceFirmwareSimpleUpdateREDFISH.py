@@ -2,7 +2,7 @@
 # DeviceFirmwareSimpleUpdateREDFISH. Python script using Redfish API to update a device firmware with DMTF action SimpleUpdate. Supported file image types are Windows DUPs, d7/d9 image or pm files.
 #
 # _author_ = Texas Roemer <Texas_Roemer@Dell.com>
-# _version_ = 16.0
+# _version_ = 17.0
 #
 # Copyright (c) 2018, Dell, Inc.
 #
@@ -30,7 +30,6 @@ parser.add_argument('script_examples',action="store_true",help='DeviceFirmwareSi
 parser.add_argument('-g', help='Get current supported devices for firmware updates and their current firmware versions, pass in \"y\"', required=False)
 parser.add_argument('-l', help='Pass in the local directory location of the firmware image', required=False)
 parser.add_argument('-f', help='Pass in the firmware image name', required=False)
-parser.add_argument('-s', help='Apply the firmware update for updates in new state, pass in \"y\"', required=False)
 parser.add_argument('-r', help='Reboot the server to apply the update if needed. Pass in \"n\" to reboot the server now to run the update or pass in \"l\" to not reboot the server (job ID will still be in scheduled state and will execute on next manual server reboot. Note: If the update gets applied with no server reboot (Example: iDRAC, DIAGs, Driver pack), you don\'t need to pass in this argument. For more details on which devices update immediately, refer to Lifecycle Controller User Guide Update section.', required=False)
 parser.add_argument('-S', help='Shutdown the server once the firmware update completes, pass in \"y\"', required=False)
 
@@ -141,21 +140,6 @@ def install_image_payload():
     job_id_location = response.headers['Location']
     job_id = re.search("JID_.+",job_id_location).group()
     print("- PASS, %s firmware update job ID successfully created" % job_id)
-
-
-def execute_start_update():
-    global job_id
-    url = 'https://%s/redfish/v1/UpdateService/Actions/UpdateService.StartUpdate' % (idrac_ip)
-    payload = {}
-    headers = {'content-type': 'application/json'}
-    response = requests.post(url, data=json.dumps(payload), headers=headers, verify=False,auth=(idrac_username,idrac_password))
-    if response.status_code == 202 or response.status_code == 200:
-            print("- PASS, StartUpdate action passed, update job in downloaded state will be applied")
-    else:
-        print("\n- FAIL, StartUpdate action failed, return code: %s" % response.status_code)
-        print("Extended Info Message: {0}".format(response.json()))
-        sys.exit(1)
-    
 
 
 def check_job_status():
@@ -410,8 +394,6 @@ if __name__ == "__main__":
     check_supported_idrac_version()
     if args["g"]:
         get_FW_inventory()
-    elif args["s"]:
-        execute_start_update()
     elif args["l"] and args["f"]:
         get_idrac_version()
         download_image_payload()
