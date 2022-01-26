@@ -4,7 +4,7 @@
 #
 # _author_ = Texas Roemer <Texas_Roemer@Dell.com>
 # _author_ = Grant Curell <grant_curell@dell.com>
-# _version_ = 5.0
+# _version_ = 6.0
 #
 # Copyright (c) 2022, Dell, Inc.
 #
@@ -73,11 +73,15 @@ def check_supported_idrac_version():
     """
     response = requests.get('https://%s/redfish/v1/Dell/Managers/iDRAC.Embedded.1/DellLCService' % idrac_ip,
                             verify=False, auth=(idrac_username, idrac_password))
+    data = response.json()
+    if response.status_code != 200:
+        print("- FAIL, GET request failed, status code %s returned" % response.status_code)
+        print(data)
+        sys.exit()
     if response.__dict__['reason'] == "Unauthorized":
         print("\n- FAIL, unauthorized to execute Redfish command. Check to make sure you are passing in correct iDRAC"
               " username/password and the IDRAC user has the correct privileges")
         sys.exit()
-    data = response.json()
     if "#DellLCService.ExportHWInventory" not in data['Actions']:
         print("\n- Error, iDRAC version installed does not seem to support the ExportHWInventory function.")
         sys.exit()
@@ -90,6 +94,10 @@ def get_supported_network_share_types():
     response = requests.get('https://%s/redfish/v1/Dell/Managers/iDRAC.Embedded.1/DellLCService' % idrac_ip,
                             verify=False, auth=(idrac_username, idrac_password))
     data = response.json()
+    if response.status_code != 200:
+        print("- FAIL, GET request failed, status code %s returned" % response.status_code)
+        print(data)
+        sys.exit()
     print("\n- Supported network share types for ExportHWInventory Action -\n")
     for action in data['Actions'].items():
         if action[0] == "#DellLCService.ExportHWInventory":
@@ -105,7 +113,6 @@ def export_hw_inventory() -> str:
     """
     url = 'https://%s/redfish/v1/Dell/Managers/iDRAC.Embedded.1/DellLCService/Actions/DellLCService.ExportHWInventory' % idrac_ip
     METHOD = "ExportHWInventory"
-
     headers = {'content-type': 'application/json'}
     payload = {}
     if args["ipaddress"]:
@@ -127,12 +134,6 @@ def export_hw_inventory() -> str:
         payload["Workgroup"] = args["workgroup"]
     if args["ignorecertwarning"]:
         payload["IgnoreCertWarning"] = args["ignorecertwarning"]
-    print("\n- WARNING, arguments and values for %s method\n" % METHOD)
-    for key in payload.items():
-        if key[0] == "Password":
-            print("Password: ********")
-        else:
-            print("%s: %s" % (key[0], key[1]))
     response = requests.post(url, data=json.dumps(payload), headers=headers, verify=False,
                              auth=(idrac_username, idrac_password))
     if response.status_code == 202:
@@ -233,7 +234,7 @@ if __name__ == "__main__":
     try:
         check_supported_idrac_version()
     except requests.exceptions.RequestException as e:
-        print("Failed to connect to the iDRAC. Are you sure it is up?")
+        print("- ERROR, failed to connect to the iDRAC %s. Confirm you passed in correct IP address and can ping it." % idrac_ip)
         raise SystemExit(e)
     if args["s"]:
         get_supported_network_share_types()
