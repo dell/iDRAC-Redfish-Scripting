@@ -2,7 +2,7 @@
 # ExportImportSSLCertificateREDFISH.py   Python script using Redfish API with OEM extension to either export or import SSL certificate.
 #
 # _author_ = Texas Roemer <Texas_Roemer@Dell.com>
-# _version_ = 3.0
+# _version_ = 5.0
 #
 # Copyright (c) 2019, Dell, Inc.
 #
@@ -14,8 +14,15 @@
 # http://www.gnu.org/licenses/old-licenses/gpl-2.0.txt.
 #
 
-
-import requests, json, sys, re, time, warnings, argparse, os
+import argparse
+import base64
+import json
+import os
+import re
+import requests
+import sys
+import time
+import warnings
 
 from datetime import datetime
 
@@ -47,11 +54,9 @@ def check_supported_idrac_version():
     if response.status_code == 401:
         print("\n- WARNING, unable to access iDRAC, check to make sure you are passing in valid iDRAC credentials")
         sys.exit()
-    if response.status_code != 200:
+    elif response.status_code != 200:
         print("\n- WARNING, iDRAC version installed does not support this feature using Redfish API")
         sys.exit()
-    else:
-        pass
 
 
 def export_SSL_cert():
@@ -106,12 +111,17 @@ def import_SSL_cert():
     elif args["ct"] == "4":
         cert_type = "ClientTrustCertificate"
     else:
-        print("- FAIL, invalid value passed in for -sct argument")
+        print("- FAIL, invalid value passed in for -ct argument")
         sys.exit()
     headers = {'content-type': 'application/json'}
-    f = open(args["scf"],"r")
-    read_file = f.read()
-    f.close()
+    if "p12" in args["scf"]:
+        with open(args["scf"], 'rb') as cert:
+            cert_content = cert.read()
+            read_file = base64.encodebytes(cert_content).decode('ascii')
+    else:
+        f = open(args["scf"],"r")
+        read_file = f.read()
+        f.close()
     payload={"CertificateType":cert_type,"SSLCertificateFile":read_file}
     if args["s"]:
         payload["Passphrase"] = args["s"]
@@ -119,6 +129,25 @@ def import_SSL_cert():
     data = response.json()
     if response.status_code == 200:
         print("\n- PASS: POST command passed for %s method, status code 202 returned\n" % method)
+        user_response = input(str("- INFO, iDRAC reboot is needed to apply the new certificate, pass in \"y\" to reboot iDRAC now or \"n\" to not reboot: "))
+        if user_response.lower() == "n":
+            sys.exit()
+        elif user_response.lower() == "y":
+            url = "https://%s/redfish/v1/Managers/iDRAC.Embedded.1/Actions/Manager.Reset/" % idrac_ip
+            payload={"ResetType":"GracefulRestart"}
+            headers = {'content-type': 'application/json'}
+            response = requests.post(url, data=json.dumps(payload), headers=headers,verify=False, auth=(idrac_username, idrac_password))
+            if response.status_code == 204:
+                print("\n- PASS, status code %s returned for POST command to reset iDRAC\n" % response.status_code)
+            else:
+                data=response.json()
+                print("\n- FAIL, status code %s returned, detailed error is: \n%s" % (response.status_code, data))
+                sys.exit()
+            time.sleep(15)
+            print("- INFO, iDRAC will now reboot and be back online within a few minutes.")
+        else:
+            print("- ERROR, invalid value entered for user response")
+                              
     else:
         print("\n- FAIL, POST command failed for %s method, status code is %s" % (method, response.status_code))
         data = response.json()
