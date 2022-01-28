@@ -4,7 +4,7 @@
 #
 # _author_ = Texas Roemer <Texas_Roemer@Dell.com>
 # _author_ = Grant Curell <grant_curell@dell.com>
-# _version_ = 6.0
+# _version_ = 7.0
 #
 # Copyright (c) 2022, Dell, Inc.
 #
@@ -222,15 +222,6 @@ def loop_job_status(job_id: str):
 
 
 if __name__ == "__main__":
-
-    if not args["s"] and args["sharetype"] != "local" and not args["ipaddress"]:
-        print("- ERROR, When not using the -s argument you must include the ipaddress of the target share.")
-        sys.exit()
-    if not args["s"] and args["sharetype"] != "local" and not args["username"]:
-        print("- ERROR, When not using the -s argument you must include the username of the target share.")
-    if not args["s"] and args["sharetype"] != "local" and not args["password"]:
-        print("- ERROR, When not using the -s argument you must include the password of the target share.")
-        sys.exit()
     try:
         check_supported_idrac_version()
     except requests.exceptions.RequestException as e:
