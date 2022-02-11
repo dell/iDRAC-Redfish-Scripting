@@ -4,7 +4,7 @@
 # 
 #
 # _author_ = Texas Roemer <Texas_Roemer@Dell.com>
-# _version_ = 2.0
+# _version_ = 3.0
 #
 # Copyright (c) 2019, Dell, Inc.
 #
@@ -16,7 +16,13 @@
 # http://www.gnu.org/licenses/old-licenses/gpl-2.0.txt.
 #
 
-import requests, json, sys, re, time, warnings, argparse
+import argparse
+import json
+import re
+import requests
+import sys
+import time
+import warnings
 
 from datetime import datetime
 
@@ -34,74 +40,55 @@ idrac_password=args["p"]
 
 url = 'https://%s/redfish/v1/Managers/iDRAC.Embedded.1/Actions/Oem/EID_674_Manager.ExportSystemConfiguration' % idrac_ip
 payload = {"ExportFormat":"XML","IncludeInExport":"IncludeReadOnly","ShareParameters":{"Target":"System"}}
-
-
 headers = {'content-type': 'application/json'}
 response = requests.post(url, data=json.dumps(payload), headers=headers, verify=False, auth=(idrac_username,idrac_password))
-
 if response.status_code != 202:
     print("- FAIL, status code not 202, code is: %s" % response.status_code)
     print("- Error details: %s" % response.__dict__)
     sys.exit()
 else:
     pass
-
 response_output=response.__dict__
-job_id=response_output["headers"]["Location"]
-
+job_id = response_output["headers"]["Location"]
 try:
-    job_id=re.search("JID_.+",job_id).group()
+    job_id = re.search("JID_.+",job_id).group()
 except:
     print("\n- FAIL: detailed error message: {0}".format(response.__dict__['_content']))
     sys.exit()
 
-print("\n- WARNING, getting Operation System information for iDRAC IP %s using Server Configuration Profile feature" % idrac_ip)
-start_time=datetime.now()
-
+print("\n- INFO, getting Operation System information using iDRAC Server Configuration Profile feature")
+start_time = datetime.now()
 while True:
-    current_time=(datetime.now()-start_time)
+    current_time = (datetime.now()-start_time)
     req = requests.get('https://%s/redfish/v1/TaskService/Tasks/%s' % (idrac_ip, job_id), auth=(idrac_username, idrac_password), verify=False)
-    d=req.__dict__
-    if "<SystemConfiguration Model" in str(d):
-        print("\n- PASS, Operation System Information for iDRAC %s -\n" % idrac_ip)
-        zz=re.search("<SystemConfiguration.+</SystemConfiguration>",str(d)).group()
-        z=re.findall("ServerOS.+?->",str(d))
-        for i in z:
-            i=i.replace("</Attribute> -->","")
+    create_dict = req.__dict__
+    if "<SystemConfiguration Model" in str(create_dict):
+        print("\n- INFO, current Operation System information for iDRAC %s -\n" % idrac_ip)
+        get_attributes = re.findall("ServerOS.+?->",str(create_dict))
+        for i in get_attributes:
+            i = i.replace("</Attribute> -->","")
             print(i.replace(">"," = "))
         break
-        req = requests.get('https://%s/redfish/v1/Managers/iDRAC.Embedded.1/Jobs/%s' % (idrac_ip, job_id), auth=(idrac_username, idrac_password), verify=False)
-        
+    else:    
+        statusCode = req.status_code
         data = req.json()
-        print("- WARNING, final detailed job status results for job ID %s -\n" % job_id)
-        for i in data.items():
-            print("%s: %s" % (i[0],i[1]))
-        print("\n Exported attributes also saved in file: %s" % filename)
-        sys.exit()
-    else:
-        pass
-        
-    statusCode = req.status_code
-    data = req.json()
-    try:
-        message_string=data[u"Messages"]
-    except:
-        print(statusCode)
-        print(data)
-        sys.exit()
-    current_time=(datetime.now()-start_time)
-
-    if statusCode == 202 or statusCode == 200:
-        time.sleep(1)
-        pass
-    else:
-        print("Execute job ID command failed, error code is: %s" % statusCode)
-        sys.exit()
-    if str(current_time)[0:7] >= "0:10:00":
-        print("\n-FAIL, Timeout of 10 minutes has been reached before marking the job completed.")
-        sys.exit()
-    else:
-        continue
+        try:
+            message_string=data[u"Messages"]
+        except:
+            print(statusCode)
+            print(data)
+            sys.exit()
+        current_time=(datetime.now()-start_time)
+        if statusCode == 202 or statusCode == 200:
+            pass
+        else:
+            print("Execute job ID command failed, error code: %s" % statusCode)
+            sys.exit()
+        if str(current_time)[0:7] >= "0:10:00":
+            print("\n-FAIL, Timeout of 10 minutes has been reached before marking the job completed.")
+            sys.exit()
+        else:
+            continue
 
 
        
