@@ -515,23 +515,43 @@ def check_final_job_status(x):
 
 
 def check_idrac_connection():
-    ping_command="ping %s -n 5" % idrac_ip
-    while True:
-        try:
-            ping_output = subprocess.Popen(ping_command, stdout = subprocess.PIPE, shell=True).communicate()[0]
-            ping_results = re.search("Lost = .", ping_output).group()
-            if ping_results == "Lost = 0":
-                break
-            else:
-                print("\n- INFO, iDRAC connection lost, script will recheck iDRAC connection in 1 minute")
-                time.sleep(60)
-        except:
-            ping_output = subprocess.run(ping_command,universal_newlines=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-            if "Lost = 0" in ping_output.stdout:
-                break
-            else:
-                print("\n- INFO, iDRAC connection lost, script will recheck iDRAC connection in 1 minute")
-                time.sleep(60)
+    if sys.platform.startswith('win'):
+        ping_command="ping %s -n 5" % idrac_ip
+        while True:
+            try:
+                ping_output = subprocess.Popen(ping_command, stdout = subprocess.PIPE, shell=True).communicate()[0]
+                ping_results = re.search("Lost = .", ping_output).group()
+                if ping_results == "Lost = 0":
+                    break
+                else:
+                    print("\n- INFO, iDRAC connection lost, script will recheck iDRAC connection in 1 minute")
+                    time.sleep(60)
+            except:
+                ping_output = subprocess.run(ping_command.split(),universal_newlines=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+                if "Lost = 0" in ping_output.stdout:
+                    break
+                else:
+                    print("\n- INFO, iDRAC connection lost, script will recheck iDRAC connection in 1 minute")
+                    time.sleep(60)
+    else:
+        ping_command="ping %s -c 5" % idrac_ip
+        while True:
+            try:
+                ping_output = subprocess.Popen(ping_command, stdout = subprocess.PIPE, shell=True).communicate()[0]
+                ping_results = re.search(".% packet loss", ping_output).group()
+                if ping_results == "0% packet loss":
+                    break
+                else:
+                    print("\n- INFO, iDRAC connection lost, script will recheck iDRAC connection in 1 minute")
+                    time.sleep(60)
+            except:
+                ping_output = subprocess.run(ping_command.split(),universal_newlines=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+                if "0% packet loss" in ping_output.stdout:
+                    break
+                else:
+                    print("\n- INFO, iDRAC connection lost, script will recheck iDRAC connection in 1 minute")
+                    time.sleep(60)
+
 
 def verify_internal_USB_bios_attribute_off(x):
     time.sleep(15)
