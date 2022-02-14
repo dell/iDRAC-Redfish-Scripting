@@ -364,24 +364,42 @@ def check_final_job_status():
 
 
 def check_idrac_connection():
-    ping_command="ping %s -n 5" % idrac_ip
-    while True:
-        try:
-            ping_output = subprocess.Popen(ping_command, stdout = subprocess.PIPE, shell=True).communicate()[0]
-            ping_results = re.search("Lost = .", ping_output).group()
-            if ping_results == "Lost = 0":
-                break
-            else:
-                print("\n- INFO, iDRAC connection lost due to slow network connection or component being updated requires iDRAC reset. Script will recheck iDRAC connection in 3 minutes")
-                time.sleep(180)
-        except:
-            ping_output = subprocess.run(ping_command,universal_newlines=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-            if "Lost = 0" in ping_output.stdout:
-                break
-            else:
-                print("\n- INFO, iDRAC connection lost due to slow network connection or component being updated requires iDRAC reset. Script will recheck iDRAC connection in 3 minutes")
-                time.sleep(180)
-
+    if sys.platform.startswith('win'):
+        ping_command="ping %s -n 5" % idrac_ip
+        while True:
+            try:
+                ping_output = subprocess.Popen(ping_command, stdout = subprocess.PIPE, shell=True).communicate()[0]
+                ping_results = re.search("Lost = .", ping_output).group()
+                if ping_results == "Lost = 0":
+                    break
+                else:
+                    print("\n- INFO, iDRAC connection lost due to slow network connection or component being updated requires iDRAC reset. Script will recheck iDRAC connection in 3 minutes")
+                    time.sleep(180)
+            except:
+                ping_output = subprocess.run(ping_command.split(),universal_newlines=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+                if "Lost = 0" in ping_output.stdout:
+                    break
+                else:
+                    print(")\n- INFO, iDRAC connection lost due to slow network connection or component being updated requires iDRAC reset. Script will recheck iDRAC connection in 3 minutes")
+                    time.sleep(180)
+    else:
+        ping_command="ping %s -c 5" % idrac_ip
+        while True:
+            try:
+                ping_output = subprocess.Popen(ping_command, stdout = subprocess.PIPE, shell=True).communicate()[0]
+                ping_results = re.search(".% packet loss", ping_output.decode('ascii')).group()
+                if ping_results == "0% packet loss":
+                    break
+                else:
+                    print("\n- INFO, iDRAC connection lost due to slow network connection or component being updated requires iDRAC reset. Script will recheck iDRAC connection in 3 minutes")
+                    time.sleep(180)
+            except:
+                ping_output = subprocess.run(ping_command.split(),universal_newlines=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+                if "% packet loss" in ping_output.stdout:
+                    break
+                else:
+                    print("\n- INFO, iDRAC connection lost due to slow network connection or component being updated requires iDRAC reset. Script will recheck iDRAC connection in 3 minutes")
+                    time.sleep(180)
 
 
 if __name__ == "__main__":
