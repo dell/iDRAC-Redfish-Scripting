@@ -4,7 +4,7 @@
 # 
 #
 # _author_ = Texas Roemer <Texas_Roemer@Dell.com>
-# _version_ = 4.0
+# _version_ = 6.0
 #
 # Copyright (c) 2019, Dell, Inc.
 #
@@ -53,11 +53,12 @@ idrac_password=args["p"]
 def check_supported_idrac_version():
     response = requests.get('https://%s/redfish/v1/Dell/Managers/iDRAC.Embedded.1/DellLicenseCollection' % idrac_ip,verify=False,auth=(idrac_username, idrac_password))
     data = response.json()
-    if response.status_code != 200:
-        print("\n- WARNING, iDRAC version installed does not support this feature using Redfish API")
+    if response.status_code == 401:
+        print("\n- FAIL, status code %s detected, incorrect iDRAC credentials detected" % response.status_code)
         sys.exit()
-    else:
-        pass
+    elif response.status_code != 200:
+        print("\n- FAIL, GET request failed to validate DellLicenseCollection is supported, status code %s returned. Error:\n%s" % (response.status_code, data))
+        sys.exit()
 
 
 def get_idrac_license_info():
