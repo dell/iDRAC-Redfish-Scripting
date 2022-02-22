@@ -1,10 +1,11 @@
-#
+#!/usr/bin/python
+#!/usr/bin/python3
 # IdracLicenseManagementREDFISH. Python script using Redfish API with OEM extension to manage iDRAC license(s).
 #
 # 
 #
 # _author_ = Texas Roemer <Texas_Roemer@Dell.com>
-# _version_ = 6.0
+# _version_ = 7.0
 #
 # Copyright (c) 2019, Dell, Inc.
 #
@@ -16,7 +17,15 @@
 # http://www.gnu.org/licenses/old-licenses/gpl-2.0.txt.
 #
 
-import requests, json, sys, re, time, os, warnings, argparse
+import argparse
+import base64
+import json
+import os
+import re
+import requests
+import sys
+import time
+import warnings
 
 from datetime import datetime
 
@@ -31,7 +40,7 @@ parser.add_argument('-g', help='Get current iDRAC license(s), pass in \"y\"', re
 parser.add_argument('-el', help='Export iDRAC license locally, pass in the license ID you want to export. Note: This will export the license in base 64 string format', required=False)
 parser.add_argument('-en', help='Export iDRAC license to network share, pass in the license ID you want to export', required=False)
 parser.add_argument('-in', help='Import iDRAC license from network share, pass in \"y\"', required=False)
-parser.add_argument('-il', help='Import iDRAC license locally, pass in the license file name which contains the license in base 64 string format.', required=False)
+parser.add_argument('-il', help='Import iDRAC license locally, pass in the license file name which contains the license in either base 64 string format or XML format.', required=False)
 parser.add_argument('-d', help='Delete iDRAC license, pass in the license ID you want to delete', required=False)
 parser.add_argument('--ipaddress', help='Pass in the IP address of the network share to export / import iDRAC license', required=False)
 parser.add_argument('--sharetype', help='Pass in the share type of the network share to export / import iDRAC license. If needed, use argument -st to get supported values for your iDRAC firmware version', required=False)
@@ -64,7 +73,7 @@ def check_supported_idrac_version():
 def get_idrac_license_info():
     response = requests.get('https://%s/redfish/v1/Dell/Managers/iDRAC.Embedded.1/DellLicenseCollection' % idrac_ip,verify=False,auth=(idrac_username,idrac_password))
     if response.status_code != 200:
-        print("\n- FAIl, GET command failed to find iDRAC license data, error is: %s" % response)
+        print("\n- FAIL, GET command failed to find iDRAC license data, error is: %s" % response)
         sys.exit()
     else:
         pass
@@ -140,16 +149,6 @@ def export_import_idrac_license_network_share():
         payload["Workgroup"] = args["workgroup"]
     if args["ignorecertwarning"]:
         payload["IgnoreCertificateWarning"] = args["ignorecertwarning"]
-    print("\n- WARNING, arguments and values for %s method\n" % method)
-    for i in payload.items():
-        if i[0] == "ShareParameters":
-            for ii in i[1].items():
-                if ii[0] == "Password":
-                    print("Password: **********")
-                else:
-                    print("%s: %s" % (ii[0],ii[1]))
-        else:
-            print("%s: %s" % (i[0],i[1]))
     response = requests.post(url, data=json.dumps(payload), headers=headers, verify=False,auth=(idrac_username,idrac_password))
     data = response.json()
     if response.status_code == 202:
@@ -188,7 +187,13 @@ def import_idrac_license_local():
     except:
         print("\n- FAIL, unable to locate filename \"%s\"" % args["il"])
         sys.exit()
-    read_file = filename_open.read()
+    name, extension = os.path.splitext(args["il"])
+    if extension.lower() == ".xml":
+        with open(args["il"].lower(), 'rb') as cert:
+            cert_content = cert.read()
+            read_file = base64.encodebytes(cert_content).decode('ascii')
+    else:
+        read_file = filename_open.read()
     filename_open.close()
     headers = {'content-type': 'application/json'}
     url = 'https://%s/redfish/v1/Dell/Managers/iDRAC.Embedded.1/DellLicenseManagementService/Actions/DellLicenseManagementService.ImportLicense' % (idrac_ip)
@@ -235,7 +240,7 @@ def loop_job_status():
                     print("%s: %s" % (i[0],i[1]))
             break
         else:
-            print("- WARNING, JobStatus not completed, current job status execution time is: \"%s\"" % (str(current_time)[0:7]))
+            print("- INFO, job status not completed, current job status execution time: \"%s\"" % (str(current_time)[0:7]))
 
 
 if __name__ == "__main__":
