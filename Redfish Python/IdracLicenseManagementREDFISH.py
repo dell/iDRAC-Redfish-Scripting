@@ -5,7 +5,7 @@
 # 
 #
 # _author_ = Texas Roemer <Texas_Roemer@Dell.com>
-# _version_ = 7.0
+# _version_ = 8.0
 #
 # Copyright (c) 2019, Dell, Inc.
 #
@@ -189,7 +189,7 @@ def import_idrac_license_local():
         sys.exit()
     name, extension = os.path.splitext(args["il"])
     if extension.lower() == ".xml":
-        with open(args["il"].lower(), 'rb') as cert:
+        with open(args["il"], 'rb') as cert:
             cert_content = cert.read()
             read_file = base64.encodebytes(cert_content).decode('ascii')
     else:
