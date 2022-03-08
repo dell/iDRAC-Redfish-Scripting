@@ -6,7 +6,7 @@
 # NOTE: Possible supported values for attribute_group parameter are: idrac, lc and system.
 #
 # _author_ = Texas Roemer <Texas_Roemer@Dell.com>
-# _version_ = 12.0
+# _version_ = 13.0
 #
 # Copyright (c) 2017, Dell, Inc.
 #
@@ -18,8 +18,13 @@
 # http://www.gnu.org/licenses/old-licenses/gpl-2.0.txt.
 #
 
-
-import requests, json, sys, re, time, warnings, argparse
+import argparse
+import json
+import re
+import requests
+import sys
+import time
+import warnings
 
 from datetime import datetime
 
@@ -49,11 +54,11 @@ def check_supported_idrac_version():
     data = response.json()
     if response.status_code == 401:
         print("\n- WARNING, status code %s returned. Incorrect iDRAC username/password or invalid privilege detected." % response.status_code)
-        sys.exit()
+        sys.exit(1)
     if response.status_code != 200:
-        print("\n- WARNING, iDRAC version installed does not support this feature using Redfish API")
+        print("\n- WARNING, status code %s returned, error results:\n%s" % (response.status_code, data))
         print("\nNote: If using iDRAC 7/8, this script is not supported. Use Server Configuration Profile feature instead with Redfish to set iDRAC / System and Lifecycle Controller attributes") 
-        sys.exit()
+        sys.exit(1)
     else:
         pass
 
@@ -63,21 +68,21 @@ def get_attribute_registry():
         os.remove("idrac_attribute_registry.txt")
     except:
         pass
-    f=open("idrac_attribute_registry.txt","a")
+    open_file = open("idrac_attribute_registry.txt","a")
     response = requests.get('https://%s/redfish/v1/Registries/ManagerAttributeRegistry/ManagerAttributeRegistry.v1_0_0.json' % idrac_ip,verify=False,auth=(idrac_username, idrac_password))
     data = response.json()
     for i in data['RegistryEntries']['Attributes']:
         for ii in i.items():
             message = "%s: %s" % (ii[0], ii[1])
-            f.writelines(message)
+            open_file.writelines(message)
             print(message)
             message = "\n"
-            f.writelines(message)
+            open_file.writelines(message)
         message = "\n"
         print(message)
-        f.writelines(message)
+        open_file.writelines(message)
     print("\n- Attribute registry is also captured in \"idrac_attribute_registry.txt\" file")
-    f.close()
+    open_file.close()
 
 
 def attribute_registry_get_specific_attribute():
@@ -111,10 +116,9 @@ def set_attributes():
         url = 'https://%s/redfish/v1/Managers/System.Embedded.1/Attributes' % idrac_ip
     else:
         print("\n- FAIL, invalid value entered for -s argument")
-        sys.exit()
+        sys.exit(1)
     response = requests.get('%s' % (url),verify=False,auth=(idrac_username, idrac_password))
     data = response.json()
-    
     payload = {"Attributes":{}}
     attribute_names = args["an"].split(",")
     attribute_values = args["av"].split(",")
@@ -151,7 +155,7 @@ def set_attributes():
     else:
         print("\n- FAIL, Command failed to set %s attributes(s), status code is: %s\n" % (args["s"].upper(),statusCode))
         print("Extended Info Message: {0}".format(response.json()))
-        sys.exit()
+        sys.exit(1)
 
 
 def get_new_attribute_values():
