@@ -2,7 +2,7 @@
 # InstallFromRepositoryREDFISH. Python script using Redfish API with OEM extension to either get firmware version for all devices, get repository update list or install firmware from a repository on a network share.
 #
 # _author_ = Texas Roemer <Texas_Roemer@Dell.com>
-# _version_ = 14.0
+# _version_ = 15.0
 #
 # Copyright (c) 2019, Dell, Inc.
 #
@@ -14,14 +14,20 @@
 # http://www.gnu.org/licenses/old-licenses/gpl-2.0.txt.
 #
 
-
-import requests, json, sys, re, time, warnings, argparse, os
+import argparse
+import json
+import os
+import re
+import requests
+import sys
+import time
+import warnings
 
 from datetime import datetime
 
 warnings.filterwarnings("ignore")
 
-parser=argparse.ArgumentParser(description="Python script using Redfish API with OEM extension to either get firmware version for all devices, get repository update list or install firmware from a repository on a network share.")
+parser=argparse.ArgumentParser(description="Python script using Redfish API with OEM extension to either get firmware version for all devices, get repository update list or install firmware from a repository on a network share. Note: Order repository update performs the updates: Immediate updates first (examples: DIAGS, Driver Pack, excluding iDRAC), staged updates second which require a server reboot to apply (examples: BIOS, NIC, RAID) and iDRAC update last.")
 parser.add_argument('-ip',help='iDRAC IP address', required=True)
 parser.add_argument('-u', help='iDRAC username', required=True)
 parser.add_argument('-p', help='iDRAC password', required=True)
@@ -220,7 +226,7 @@ def install_from_repository():
     response = requests.post(url, data=json.dumps(payload), headers=headers, verify=False,auth=(idrac_username,idrac_password))
     data = response.json()
     if response.status_code == 202:
-        print("\n- PASS: POST command passed for method \"%s\", status code %s returned" % (method, response.status_code))
+        print("\n- PASS, POST command passed for method \"%s\", status code %s returned" % (method, response.status_code))
     else:
         print("\n- FAIL, POST command failed for method %s, status code is %s" % (method, response.status_code))
         data = response.json()
@@ -245,7 +251,7 @@ def get_update_job_ids():
             print("\n- INFO, %s" % data['error']['@Message.ExtendedInfo'][0]['Message'])
             sys.exit()
         else:
-            print("\n-FAIL, POST command failed to get repo update list, status code is %s" % (response.status_code))
+            print("\n- FAIL, POST command failed to get repo update list, status code is %s" % (response.status_code))
             data = response.json()
             print("\n-POST command failure results:\n %s" % data)
             sys.exit()
@@ -294,9 +300,7 @@ def loop_job_status(x):
             pass
         current_time=str((datetime.now()-start_time))[0:7]
         statusCode = req.status_code
-        if statusCode == 200:
-            pass
-        else:
+        if statusCode != 200:
             print("\n- FAIL, Command failed to check job status, return code is %s" % statusCode)
             print("Extended Info Message: {0}".format(req.json()))
             sys.exit()
@@ -304,22 +308,8 @@ def loop_job_status(x):
         if str(current_time)[0:7] >= "2:00:00":
             print("\n- FAIL: Timeout of 2 hours has been reached, script stopped\n")
             sys.exit()
-        elif "Fail" in data['Message'] or "fail" in data['Message'] or "invalid" in data['Message'] or "unable" in data['Message'] or "Unable" in data['Message'] or "not" in data['Message'] or "cancel" in data['Message'] or "Cancel" in data['Message']:
-            print("- FAIL: Job ID %s failed, detailed error message is: %s" % (x, data['Message']))
-            break
-        elif data['Message'] == "Job for this device is already present.":
-            break
-        elif "Package successfully downloaded" in data['Message'] and args["rebootneeded"] == "False":
-            print("\n- INFO, repository package successfully downloaded, \"RebootNeeded = False\" detected. Check the overall Job Queue for Update Jobs using -q argument. Next server manual reboot, any scheduled update job(s) will execute.\n")
-            sys.exit()
-
-        elif "Package successfully downloaded" in data['Message'] and print_message_count == 1:
-            print("\n- INFO, repository package successfully downloaded. If version changed detected for any device, update job ID will get created and execute for that device\n")
-            time.sleep(5)
-            print_message_count = 2
-            
         elif "completed successfully" in data['Message']:
-            print("\n- PASS, job ID %s successfully marked completed" % x)
+            print("\n- INFO, job ID %s successfully marked completed" % x)
             print("\n- Final detailed job results -\n")
             for i in data.items():
                 print("%s: %s" % (i[0], i[1]))
@@ -327,12 +317,30 @@ def loop_job_status(x):
             if data['JobType'] == "RepositoryUpdate":
                 if args["applyupdate"] == "False":
                     print("\n- INFO, \"ApplyUpdate = False\" selected, execute script with -r agrument to view the repo update list which will report devices detected for firmware updates")
-                    sys.exit()
+                    sys.exit()   
                 else:
-                    print("\n- INFO, repository update job marked completed. Script will now check to see if any update job(s) were created due to different firmware version change detected")
-                    break
+                    if args["rebootneeded"] == "False" or not args["rebootneeded"]:
+                        print("\n- INFO, \"RebootNeeded = False\" detected or argument not passed in. Check the overall Job Queue for Update Jobs using -q argument. Next server manual reboot, any scheduled update job(s) will execute.\n")
+                        sys.exit()
+                    else:
+                        print("\n- INFO, repository update job marked completed. Script will now check to see if any update job(s) were created due to different firmware version change detected")
+                        return
             else:
                 break
+        elif "Fail" in data['Message'] or "fail" in data['Message'] or "invalid" in data['Message'] or "unable" in data['Message'] or "Unable" in data['Message'] or "not" in data['Message'] or "cancel" in data['Message'] or "Cancel" in data['Message']:
+            print("- FAIL: Job ID %s failed, detailed error message is: %s" % (x, data['Message']))
+            break
+        elif data['Message'] == "Job for this device is already present.":
+            break
+        elif "Package successfully downloaded" in data['Message'] and args["rebootneeded"] == "False" or not args["rebootneeded"]:
+            print("\n- INFO, repository package successfully downloaded, \"RebootNeeded = False\" detected or argument not passed in. Check the overall Job Queue for Update Jobs using -q argument. Next server manual reboot, any scheduled update job(s) will execute.\n")
+            print("\n- INFO, if iDRAC update is detected, this update job will not get created and execute until all scheduled update jobs have been completed")
+            sys.exit()
+
+        elif "Package successfully downloaded" in data['Message'] and print_message_count == 1:
+            print("\n- INFO, repository package successfully downloaded. If version changed detected for any device, update job ID will get created and execute for that device\n")
+            time.sleep(5)
+            print_message_count = 2
         else:
             print("- INFO, job ID %s not marked completed, current job information:\n" % (x))
             print("* Name: %s" % data['Name'])
@@ -345,19 +353,19 @@ def check_schedule_update_job():
     for x in new_job_ids:
         req = requests.get('https://%s/redfish/v1/Managers/iDRAC.Embedded.1/Jobs/%s' % (idrac_ip, x), auth=(idrac_username, idrac_password), verify=False)
         statusCode = req.status_code
-        if statusCode == 200:
-            pass
-        else:
+        if statusCode != 200:
             print("\n- FAIL, Command failed to check job status, return code is %s" % statusCode)
             print("Extended Info Message: {0}".format(req.json()))
             sys.exit()
         data = req.json()
         if data['Message'] == "Task successfully scheduled.":
             count+=1
+        elif "Fail" in data['Message'] or "fail" in data['Message'] or "invalid" in data['Message'] or "unable" in data['Message'] or "Unable" in data['Message'] or "not" in data['Message'] or "cancel" in data['Message'] or "Cancel" in data['Message'] or "already present" in data['Message'] or data['JobState'] == "Failed":
+            print("- FAIL: Job ID %s failed, detailed error message is: %s" % (x, data['Message']))
     if count >= 1 and args["rebootneeded"].title() == "True":
         print("\n- INFO, scheduled update job ID detected, server rebooting to apply the update(s)")
         time.sleep(5)
-    elif count >= 1 and args["rebootneeded"].title() == "False" or args["rebootneeded"] == "":
+    elif count >= 1 and args["rebootneeded"].title() == "False" or not args["rebootneeded"]:
         print("\n- INFO, scheduled update job ID detected but \"RebootNeeded\" = False or RebootNeeded argument not passed in. Check the overall Job Queue for Update Jobs using -q argument. Next server manual reboot, any scheduled update job(s) will execute.")
         time.sleep(15)
         if new_job_ids == []:
@@ -369,8 +377,7 @@ def check_schedule_update_job():
             data = req.json()
             print("Job ID: %s, Job Name: %s, Job Message: %s" % (x,data['Name'],data['Message']))
         sys.exit()
-    else:
-        pass
+    
 
         
    
@@ -388,6 +395,7 @@ if __name__ == "__main__":
         get_device_name_criticality_info()
     elif args["i"]:
         install_from_repository()
+        print("- INFO, script will now loop checking the repo update job status")
         loop_job_status(repo_job_id)
         get_update_job_ids()
         check_schedule_update_job()
