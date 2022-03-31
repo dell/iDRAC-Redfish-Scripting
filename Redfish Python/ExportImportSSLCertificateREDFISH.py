@@ -1,8 +1,10 @@
+#!/usr/bin/python
+#!/usr/bin/python3
 #
 # ExportImportSSLCertificateREDFISH.py   Python script using Redfish API with OEM extension to either export or import SSL certificate.
 #
 # _author_ = Texas Roemer <Texas_Roemer@Dell.com>
-# _version_ = 5.0
+# _version_ = 6.0
 #
 # Copyright (c) 2019, Dell, Inc.
 #
@@ -16,152 +18,201 @@
 
 import argparse
 import base64
+import getpass
 import json
+import logging
 import os
-import re
 import requests
 import sys
 import time
 import warnings
 
-from datetime import datetime
+from pprint import pprint
 
 warnings.filterwarnings("ignore")
 
 parser=argparse.ArgumentParser(description="Python script using Redfish API with OEM extension to either export or import SSL certificate locally")
-parser.add_argument('-ip',help='iDRAC IP address', required=True)
-parser.add_argument('-u', help='iDRAC username', required=True)
-parser.add_argument('-p', help='iDRAC password', required=True)
-parser.add_argument('script_examples',action="store_true",help='ExportImportSSLCertificateREDFISH.py -ip 192.168.0.120 -u root -p calvin -e y -sct 1\", this example will export Web Server Certificate locally\n- \"ExportImportSSLCertificateREDFISH.py -ip 192.168.0.120 -u root -p calvin -i y -ct 4 -scf ssl_cert.pem\", this example will import client trust certificate')
-parser.add_argument('-e', help='Export SSL cert, pass in \"y\". Argument -sct is also required for export SSL cert', required=False)
-parser.add_argument('-i', help='Import SSL cert, pass in \"y\". Argument -ct and -scf is also required for import SSL cert', required=False)
-parser.add_argument('-sct', help='Pass in SSL cert type for export. Supported values are: 1 for \"Server\"(Web Server Certificate), 2 for \"CSC\"(Custom Signing Certificate), 3 for \"CA\"(CA certificate for Directory Service), 4 for \"ClientTrustCertificate\"', required=False)
-parser.add_argument('-ct', help='Pass in cert type for import. Supported values are: 1 for \"Server\"(Web Server Certificate), 2 for \"CSC\"(Custom Signing Certificate), 3 for \"CA\"(CA certificate for Directory Service:), 4 for \"ClientTrustCertificate\"', required=False)
-parser.add_argument('-scf', help='Pass in the file name which contains tae certificate to import. Cert file should be a base64 encoded string of the XML Certificate file. For importing CSC certificate, convert PKCS file to base64 format. The CTC file content has to be in PEM format (base64 encoded).', required=False)
-parser.add_argument('-s', help='Pass in passphrase string if the cert you are importing has one assigned', required=False)
-
+parser.add_argument('-ip',help='iDRAC IP address', required=False)
+parser.add_argument('-u', help='iDRAC username', required=False)
+parser.add_argument('-p', help='iDRAC password', required=False)
+parser.add_argument('-v', help='Verify SSL certificate for all Redfish calls, pass in true or false', required=False)
+parser.add_argument('-x', help='Pass in iDRAC X-auth token session ID to execute all Redfish calls instead of passing in username/password', required=False)
+parser.add_argument('--script-examples', help='Get executing script examples', action="store_true", dest="script_examples", required=False)
+parser.add_argument('--export', help='Export SSL certificate. Argument --cert-type is also required for export SSL cert', action="store_true", required=False)
+parser.add_argument('--import', help='Import SSL certificate. Argument --cert-type and --filename is also required for import SSL cert. Note: Once cert is successfully imported, script will prompt to reboot iDRAC which is needed to apply the new cert.', action="store_true", required=False)
+parser.add_argument('--get-current-certs', help='Get current iDRAC certificates detected/installed', action="store_true", dest="get_current_certs", required=False)
+parser.add_argument('--get-cert-types', help='Get current cert type values supported for Export or Import certificates.', action="store_true", dest="get_cert_types", required=False)
+parser.add_argument('--cert-type', help='Pass in SSL cert type value for export or import (note: this value is case sensitive). If needed, use argument --get-cert-types to get supported values.', dest="cert_type", required=False)
+parser.add_argument('--filename', help='Pass in the file name which contains the certificate to import. Cert file should be a base64 encoded string of the XML Certificate file. For importing CSC certificate, convert PKCS file to base64 format. The CTC file content has to be in PEM format (base64 encoded).', required=False)
+parser.add_argument('--passphrase', help='Pass in passphrase string if the cert you are importing is passpharse protected.', required=False)
 
 args=vars(parser.parse_args())
+logging.basicConfig(format='%(message)s', stream=sys.stdout, level=logging.INFO) 
 
-idrac_ip=args["ip"]
-idrac_username=args["u"]
-idrac_password=args["p"]
-
+def script_examples():
+    print("""\n- ExportImportSSLCertificateREDFISH.py -ip 192.168.0.120 -u root -p calvin -v false --get-current-certs, this example will return current detected/installed certificates.
+    \n- ExportImportSSLCertificateREDFISH.py -ip 192.168.0.120 -u root -p calvin -v false --get-cert-types, this example will return current cert type supported values for export or import cert operations.
+    \n- ExportImportSSLCertificateREDFISH.py -ip 192.168.0.120 -u root -p calvin -v false --export --cert-type Server, this example will export current iDRAC Server certificate.
+    \n- ExportImportSSLCertificateREDFISH.py -ip 192.168.0.120 -u root -p calvin -v false --import --cert-type CSC --filename signed_cert_R740.pem --passphrase Test1234#, this example will import signed p12 file with a passphrase.
+    \n- ExportImportSSLCertificateREDFISH.py -ip 192.168.0.120 --export --cert-type Server -v false -x 52396c8ac35e15f7b2de4b18673b111f, this example shows exporting server cert using X-auth token session.""")
+    sys.exit(0)
 
 def check_supported_idrac_version():
-    response = requests.get('https://%s/redfish/v1/Dell/Managers/iDRAC.Embedded.1/DelliDRACCardService' % idrac_ip,verify=False,auth=(idrac_username, idrac_password))
+    if args["x"]:
+         response = requests.get('https://%s/redfish/v1/Dell/Managers/iDRAC.Embedded.1/DelliDRACCardService' % idrac_ip, verify=verify_cert, headers={'X-Auth-Token': args["x"]})
+    else:
+        response = requests.get('https://%s/redfish/v1/Dell/Managers/iDRAC.Embedded.1/DelliDRACCardService' % idrac_ip, verify=verify_cert, auth=(idrac_username, idrac_password))
     data = response.json()
     if response.status_code == 401:
-        print("\n- WARNING, unable to access iDRAC, check to make sure you are passing in valid iDRAC credentials")
-        sys.exit()
+        logging.warning("\n- WARNING, unable to access iDRAC, check to make sure you are passing in valid iDRAC credentials")
+        sys.exit(0)
     elif response.status_code != 200:
-        print("\n- WARNING, iDRAC version installed does not support this feature using Redfish API")
-        sys.exit()
+        logging.warning("\n- WARNING, iDRAC version installed does not support this feature using Redfish API")
+        sys.exit(0)
 
+def get_cert_types():
+    if args["x"]:
+         response = requests.get('https://%s/redfish/v1/Dell/Managers/iDRAC.Embedded.1/DelliDRACCardService' % idrac_ip, verify=verify_cert, headers={'X-Auth-Token': args["x"]})
+    else:
+        response = requests.get('https://%s/redfish/v1/Dell/Managers/iDRAC.Embedded.1/DelliDRACCardService' % idrac_ip, verify=verify_cert, auth=(idrac_username, idrac_password))
+    data = response.json()
+    if response.status_code != 200:
+        logging.error("\n- ERROR, GET commmand failed to get cert types supported for export/import cert operations, status code %s returned" % response.status_code)
+        logging.error("- Detailed error results: %s" % data)
+        sys.exit(0)
+    for i in data["Actions"].items():
+        if i[0] == "#DelliDRACCardService.ExportSSLCertificate":
+            logging.info("\n- Support cert type values for ExportSSLCertificate -\n")
+            for ii in i[1].items():
+                if ii[0] == "SSLCertType@Redfish.AllowableValues":
+                    print(ii[1])
+        if i[0] == "#DelliDRACCardService.ImportSSLCertificate":
+            logging.info("\n- Support cert type values for ImportSSLCertificate -\n")
+            for ii in i[1].items():
+                if ii[0] == "CertificateType@Redfish.AllowableValues":
+                    print(ii[1])
+
+def get_current_certs():
+    if args["x"]:
+         response = requests.get('https://%s/redfish/v1/CertificateService/CertificateLocations?$expand=*($levels=1)' % idrac_ip, verify=verify_cert, headers={'X-Auth-Token': args["x"]})
+    else:
+        response = requests.get('https://%s/redfish/v1/CertificateService/CertificateLocations?$expand=*($levels=1)' % idrac_ip, verify=verify_cert, auth=(idrac_username, idrac_password))
+    data = response.json()
+    if response.status_code != 200:
+        logging.error("\n- ERROR, GET commmand failed to get current cert details, status code %s returned" % response.status_code)
+        logging.error("- Detailed error results: %s" % data)
+        sys.exit(0)
+    for i in data.items():
+        pprint(i)
 
 def export_SSL_cert():
-    global job_id
     url = 'https://%s/redfish/v1/Dell/Managers/iDRAC.Embedded.1/DelliDRACCardService/Actions/DelliDRACCardService.ExportSSLCertificate' % (idrac_ip)
     method = "ExportSSLCertificate"
-    if args["sct"] == "1":
-        cert_type = "Server"
-    elif args["sct"] == "2":
-        cert_type = "CSC"
-    elif args["sct"] == "3":
-        cert_type = "CA"
-    elif args["sct"] == "4":
-        cert_type = "ClientTrustCertificate"
+    payload={"SSLCertType":args["cert_type"]}
+    if args["x"]:
+        headers = {'content-type': 'application/json', 'X-Auth-Token': args["x"]}
+        response = requests.post(url, data=json.dumps(payload), headers=headers, verify=verify_cert)
     else:
-        print("- FAIL, invalid value passed in for -sct argument")
-        sys.exit()
-    headers = {'content-type': 'application/json'}
-    payload={"SSLCertType":cert_type}
-    response = requests.post(url, data=json.dumps(payload), headers=headers, verify=False,auth=(idrac_username,idrac_password))
+        headers = {'content-type': 'application/json'}
+        response = requests.post(url, data=json.dumps(payload), headers=headers, verify=verify_cert, auth=(idrac_username, idrac_password))
     data = response.json()
     if response.status_code == 200:
-        print("\n- PASS: POST command passed for %s method, status code 202 returned\n" % method)
+        logging.info("\n- PASS: POST command passed for %s method, status code 202 returned\n" % method)
     else:
-        print("\n- FAIL, POST command failed for %s method, status code is %s" % (method, response.status_code))
+        logging.error("\n- FAIL, POST command failed for %s method, status code %s returned" % (method, response.status_code))
         data = response.json()
-        print("\n- POST command failure results:\n %s" % data)
-        sys.exit()
-    print("\n- Detailed SSL certificate information for certificate type \"%s\"\n" % cert_type)
-    print(data['CertificateFile'])
+        logging.error("\n- POST command failure results:\n %s" % data)
+        sys.exit(0)
+    logging.info("\n- Detailed SSL certificate information for certificate type \"%s\"\n" % args["cert_type"])
+    logging.info(data['CertificateFile'])
     try:
         os.remove("ssl_certificate.txt")
     except:
         pass
-    f = open("ssl_certificate.txt","w")
-    f.writelines(data['CertificateFile'])
-    f.close()
-    print("\n - SSL certificate information also copied to \"%s\ssl_certificate.txt\" file" % os.getcwd())
+    with open("ssl_certificate.txt","w") as x:
+        x.writelines(data['CertificateFile'])
+    logging.info("\n - SSL certificate information also copied to \"%s\ssl_certificate.txt\" file" % os.getcwd())
     
-
-
 def import_SSL_cert():
-    global job_id
     url = 'https://%s/redfish/v1/Dell/Managers/iDRAC.Embedded.1/DelliDRACCardService/Actions/DelliDRACCardService.ImportSSLCertificate' % (idrac_ip)
     method = "ImportSSLCertificate"
-    if args["ct"] == "1":
-        cert_type = "Server"
-    elif args["ct"] == "2":
-        cert_type = "CSC"
-    elif args["ct"] == "3":
-        cert_type = "CA"
-    elif args["ct"] == "4":
-        cert_type = "ClientTrustCertificate"
-    else:
-        print("- FAIL, invalid value passed in for -ct argument")
-        sys.exit()
-    headers = {'content-type': 'application/json'}
-    if "p12" in args["scf"]:
-        with open(args["scf"], 'rb') as cert:
+    if "p12" in args["filename"]:
+        with open(args["filename"], 'rb') as cert:
             cert_content = cert.read()
             read_file = base64.encodebytes(cert_content).decode('ascii')
     else:
-        f = open(args["scf"],"r")
-        read_file = f.read()
-        f.close()
-    payload={"CertificateType":cert_type,"SSLCertificateFile":read_file}
-    if args["s"]:
-        payload["Passphrase"] = args["s"]
-    response = requests.post(url, data=json.dumps(payload), headers=headers, verify=False,auth=(idrac_username,idrac_password))
+        with open(args["filename"],"r") as x:
+            read_file = x.read()
+    payload={"CertificateType":args["cert_type"],"SSLCertificateFile":read_file}
+    if args["passphrase"]:
+        payload["Passphrase"] = args["passphrase"]
+    if args["x"]:
+        headers = {'content-type': 'application/json', 'X-Auth-Token': args["x"]}
+        response = requests.post(url, data=json.dumps(payload), headers=headers, verify=verify_cert)
+    else:
+        headers = {'content-type': 'application/json'}
+        response = requests.post(url, data=json.dumps(payload), headers=headers, verify=verify_cert, auth=(idrac_username, idrac_password))
     data = response.json()
     if response.status_code == 200:
-        print("\n- PASS: POST command passed for %s method, status code 202 returned\n" % method)
+        logging.info("\n- PASS: POST command passed for %s method, status code 202 returned\n" % method)
         user_response = input(str("- INFO, iDRAC reboot is needed to apply the new certificate, pass in \"y\" to reboot iDRAC now or \"n\" to not reboot: "))
         if user_response.lower() == "n":
-            sys.exit()
+            sys.exit(0)
         elif user_response.lower() == "y":
             url = "https://%s/redfish/v1/Managers/iDRAC.Embedded.1/Actions/Manager.Reset/" % idrac_ip
             payload={"ResetType":"GracefulRestart"}
-            headers = {'content-type': 'application/json'}
-            response = requests.post(url, data=json.dumps(payload), headers=headers,verify=False, auth=(idrac_username, idrac_password))
-            if response.status_code == 204:
-                print("\n- PASS, status code %s returned for POST command to reset iDRAC\n" % response.status_code)
+            if args["x"]:
+                headers = {'content-type': 'application/json', 'X-Auth-Token': args["x"]}
+                response = requests.post(url, data=json.dumps(payload), headers=headers, verify=verify_cert)
             else:
-                data=response.json()
-                print("\n- FAIL, status code %s returned, detailed error is: \n%s" % (response.status_code, data))
-                sys.exit()
+                headers = {'content-type': 'application/json'}
+                response = requests.post(url, data=json.dumps(payload), headers=headers, verify=verify_cert, auth=(idrac_username, idrac_password))
+            if response.status_code == 204:
+                logging.info("\n- PASS, status code %s returned for POST command to reset iDRAC\n" % response.status_code)
+            else:
+                data = response.json()
+                logging.info("\n- FAIL, status code %s returned, detailed error is: \n%s" % (response.status_code, data))
+                sys.exit(0)
             time.sleep(15)
-            print("- INFO, iDRAC will now reboot and be back online within a few minutes.")
+            logging.info("- INFO, iDRAC will now reboot and be back online within a few minutes.")
         else:
-            print("- ERROR, invalid value entered for user response")
-                              
+            logging.error("- ERROR, invalid value entered for user response")
+            sys.exit(0)                  
     else:
-        print("\n- FAIL, POST command failed for %s method, status code is %s" % (method, response.status_code))
+        logging.error("\n- FAIL, POST command failed for %s method, status code is %s" % (method, response.status_code))
         data = response.json()
-        print("\n- POST command failure results:\n %s" % data)
-        sys.exit()
+        logging.error("\n- POST command failure results:\n %s" % data)
+        sys.exit(0)
+
 
 if __name__ == "__main__":
-    check_supported_idrac_version()
-    if args["e"] and args["sct"]:
+    if args["script_examples"]:
+        script_examples()
+    if args["ip"] and args["v"] or args["u"] or args["p"] or args["x"]:
+        idrac_ip=args["ip"]
+        idrac_username=args["u"]
+        if args["p"]:
+            idrac_password=args["p"]
+        if not args["p"] and not args["x"] and args["u"]:
+            idrac_password = getpass.getpass("\n- Argument -p not detected, pass in iDRAC user %s password: " % args["u"])
+        if args["v"].lower() == "true":
+            verify_cert = True
+        elif args["v"].lower() == "false":
+            verify_cert = False
+        check_supported_idrac_version()
+    else:
+        logging.error("\n- FAIL, invalid argument values or not all required parameters passed in. See help text or argument --script-examples for more details.")
+        sys.exit(0)
+    if args["get_cert_types"]:
+        get_cert_types()
+    elif args["get_current_certs"]:
+        get_current_certs()
+    elif args["export"] and args["cert_type"]:
         export_SSL_cert()
-    elif args["i"] and args["ct"] and args["scf"]:
+    elif args["import"] and args["cert_type"] and args["filename"]:
         import_SSL_cert()
     else:
-        print("- FAIL, invalid argument values or not all required parameters passed in")
+        logging.error("\n- FAIL, invalid argument values or not all required parameters passed in. See help text or argument --script-examples for more details.")
     
     
         
