@@ -1,0 +1,11 @@
+CHANGELOG.txt
+LICENSE.txt
+MANIFEST.in
+README.txt
+setup.py
+IdracRedfishSupport/__init__.py
+IdracRedfishSupport.egg-info/PKG-INFO
+IdracRedfishSupport.egg-info/SOURCES.txt
+IdracRedfishSupport.egg-info/dependency_links.txt
+IdracRedfishSupport.egg-info/requires.txt
+IdracRedfishSupport.egg-info/top_level.txt
