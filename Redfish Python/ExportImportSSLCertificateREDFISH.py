@@ -4,7 +4,7 @@
 # ExportImportSSLCertificateREDFISH.py   Python script using Redfish API with OEM extension to either export or import SSL certificate.
 #
 # _author_ = Texas Roemer <Texas_Roemer@Dell.com>
-# _version_ = 7.0
+# _version_ = 8.0
 #
 # Copyright (c) 2019, Dell, Inc.
 #
@@ -35,7 +35,7 @@ parser=argparse.ArgumentParser(description="Python script using Redfish API with
 parser.add_argument('-ip',help='iDRAC IP address', required=False)
 parser.add_argument('-u', help='iDRAC username', required=False)
 parser.add_argument('-p', help='iDRAC password', required=False)
-parser.add_argument('--ssl', help='Verify SSL certificate for all Redfish calls, pass in true or false', required=False)
+parser.add_argument('--ssl', help='Verify SSL certificate for all Redfish calls, pass in \"true\". This argument is optional, if you do not pass in this argument, all Redfish calls will ignore SSL cert checks.', required=False)
 parser.add_argument('-x', help='Pass in iDRAC X-auth token session ID to execute all Redfish calls instead of passing in username/password', required=False)
 parser.add_argument('--script-examples', help='Get executing script examples', action="store_true", dest="script_examples", required=False)
 parser.add_argument('--export', help='Export SSL certificate. Argument --cert-type is also required for export SSL cert', action="store_true", required=False)
@@ -50,11 +50,11 @@ args=vars(parser.parse_args())
 logging.basicConfig(format='%(message)s', stream=sys.stdout, level=logging.INFO) 
 
 def script_examples():
-    print("""\n- ExportImportSSLCertificateREDFISH.py -ip 192.168.0.120 -u root -p calvin --ssl false --get-current-certs, this example will return current detected/installed certificates.
-    \n- ExportImportSSLCertificateREDFISH.py -ip 192.168.0.120 -u root -p calvin --ssl false --get-cert-types, this example will return current cert type supported values for export or import cert operations.
-    \n- ExportImportSSLCertificateREDFISH.py -ip 192.168.0.120 -u root -p calvin -ssl false --export --cert-type Server, this example will export current iDRAC Server certificate.
-    \n- ExportImportSSLCertificateREDFISH.py -ip 192.168.0.120 -u root -p calvin -ssl false --import --cert-type CSC --filename signed_cert_R740.pem --passphrase Test1234#, this example will import signed p12 file with a passphrase.
-    \n- ExportImportSSLCertificateREDFISH.py -ip 192.168.0.120 --export --cert-type Server -ssl false -x 52396c8ac35e15f7b2de4b18673b111f, this example shows exporting server cert using X-auth token session.""")
+    print("""\n- ExportImportSSLCertificateREDFISH.py -ip 192.168.0.120 -u root -p calvin --get-current-certs, this example will return current detected/installed certificates.
+    \n- ExportImportSSLCertificateREDFISH.py -ip 192.168.0.120 -u root -p calvin --get-cert-types, this example will return current cert type supported values for export or import cert operations.
+    \n- ExportImportSSLCertificateREDFISH.py -ip 192.168.0.120 -u root -p calvin --export --cert-type Server, this example will export current iDRAC Server certificate.
+    \n- ExportImportSSLCertificateREDFISH.py -ip 192.168.0.120 -u root -p calvin --import --cert-type CSC --filename signed_cert_R740.pem --passphrase Test1234#, this example will import signed p12 file with a passphrase.
+    \n- ExportImportSSLCertificateREDFISH.py -ip 192.168.0.120 --export --cert-type Server -ssl true -x 52396c8ac35e15f7b2de4b18673b111f, this example shows validating ssl cert for all Redfish calls to export server cert using X-auth token session.""")
     sys.exit(0)
 
 def check_supported_idrac_version():
@@ -195,10 +195,15 @@ if __name__ == "__main__":
             idrac_password=args["p"]
         if not args["p"] and not args["x"] and args["u"]:
             idrac_password = getpass.getpass("\n- Argument -p not detected, pass in iDRAC user %s password: " % args["u"])
-        if args["ssl"].lower() == "true":
-            verify_cert = True
-        elif args["ssl"].lower() == "false":
-            verify_cert = False
+        if args["ssl"]:
+            if args["ssl"].lower() == "true":
+                verify_cert = True
+            elif args["ssl"].lower() == "false":
+                verify_cert = False
+            else:
+                verify_cert = False
+        else:
+                verify_cert = False
         check_supported_idrac_version()
     else:
         logging.error("\n- FAIL, invalid argument values or not all required parameters passed in. See help text or argument --script-examples for more details.")
