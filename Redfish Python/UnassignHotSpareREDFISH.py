@@ -76,7 +76,7 @@ def get_storage_controllers():
     else:
         response = requests.get('https://%s/redfish/v1/Systems/System.Embedded.1/Storage' % idrac_ip,verify=verify_cert,auth=(idrac_username, idrac_password))
     data = response.json()
-    print("\n- Server controller(s) detected -\n")
+    logging.info("\n- Server controller(s) detected -\n")
     controller_list=[]
     for i in data['Members']:
         controller_list.append(i['@odata.id'].split("/")[-1])
@@ -97,7 +97,7 @@ def get_pdisks():
         logging.warning("\n- WARNING, no drives detected for %s" % args["get_disks"])
         sys.exit(0)
     else:
-        print("\n- Drive(s) detected for %s -\n" % args["get_disks"])
+        logging.info("\n- Drive(s) detected for %s -\n" % args["get_disks"])
         for i in data['Drives']:
             drive_list.append(i['@odata.id'].split("/")[-1])
             print(i['@odata.id'].split("/")[-1])
