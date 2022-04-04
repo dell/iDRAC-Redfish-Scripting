@@ -8,6 +8,8 @@ Powershell cmdlets can also be installed from Powershell gallery using Install-M
 
 For Python, use can leverage individual python scripts or install iDRAC Python Redfish module. This module is an interactive session with an iDRAC which allows you to perform multiple workflows like firwmare updates or configuration changes to BIOS, NIC or Storage. You can install this module by running "pip3 install IdracRedfishSupport". 
 
+When executing any script or cmdlet, if your username or password has special characters, make sure to surround the argument value with double quotes. 
+
 ## Redfish Overview
 
 There are various Out-of-Band (OOB) systems management standards available in the industry today. However, there is no single standard that can be easily used within emerging programming standards, can be readily implemented within embedded systems, and can meet the demands of today’s evolving IT solution models.  New IT solutions models have placed new demands on systems management solutions to support expanded scale, higher security, and multi-vendor openness, while also aligning with modern DevOps tools and processes. 
