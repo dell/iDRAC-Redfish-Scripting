@@ -12,8 +12,8 @@ When executing any script or cmdlet, if your username or password has special ch
 
 Examples:
 
-"testdomain.i\aduser"
-"testdomain.i/aduser"
+"testdomain.i\aduser",
+"testdomain.i/aduser",
 "aduser@testdomain.i"
 
 ## Redfish Overview
