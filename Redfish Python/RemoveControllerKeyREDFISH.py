@@ -4,7 +4,7 @@
 # RemoveControllerKeyREDFISH. Python script using Redfish API with OEM extension to remove the storage controller key (remove encryption)
 #
 # _author_ = Texas Roemer <Texas_Roemer@Dell.com>
-# _version_ = 5.0
+# _version_ = 6.0
 #
 # Copyright (c) 2019, Dell, Inc.
 #
@@ -53,7 +53,7 @@ def script_examples():
     print("""\n- RemoveControllerKeyREDFISH.py -ip 192.168.0.120 -u root -p calvin -c y, this example will return storage controller FQDDs detected.
     \n- RemoveControllerKeyREDFISH.py -ip 100.65.84.70 -u root -p C@lv1n## --get-controller-encryption RAID.Mezzanine.1-1 --ssl true, this example shows checking controller encryption mode settings and all Redfish calls will perform SSL cert validation.
     \n- RemoveControllerKeyREDFISH.py -ip 192.168.0.120 -u root -p calvin --get-secured-virtualdisks RAID.Mezzanine.1-1, this example will check for any secured virtual disks for controller RAID.Mezzanine.1-1. 
-    \n- RemoveControllerKeyREDFISH.py -ip 192.168.0.120 -u root -p calvin -r RAID.Slot.6-1, this example will remove controller key for RAID.Slot.6-1 controller.""")
+    \n- RemoveControllerKeyREDFISH.py -ip 192.168.0.120 -u root -p calvin --remove RAID.Slot.6-1, this example will remove controller key for RAID.Slot.6-1 controller.""")
     sys.exit(0)
 
 def check_supported_idrac_version():
