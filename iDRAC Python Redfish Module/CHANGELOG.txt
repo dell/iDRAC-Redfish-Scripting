@@ -7,4 +7,10 @@ First release
 - 0.0.2	(04/01/2022)
 Fixed readme help, pip3 install example for the module
 
+- 0.0.3 (04/08/2022)
+Added support for DMTF actions VirtualMedia.InsertMedia and VirtualMedia.EjectMedia, function IdracRedfishSupport.insert_eject_virtual_media()
+
+- 0.0.4 (04/08/2022)
+Updated readme
+
 

@@ -248,8 +248,10 @@ Python module for iDRAC Redfish support to allow the user to perform multiple wo
 
     unpack_and_attach_driver_pack(script_examples='', get_driver_packs='', get_attach_status='', attach_driver_pack='', detach_driver_pack='')
         Function to get either supported OS driver packs, attach status, attach driver pack or detach driver pack. Supported function arguments: get_driver_packs (supported value: True), get_attach_status (supported value: True), attach_driver_pack (supported value: Pass in OS driver pack string name) and detach_driver_pack (supported_value: True).
+    
+    insert_eject_virtual_media(script_examples="", get_attach_status="", insert_virtual_media="", eject_virtual_media="", image_path="")
 
-## Executing the module
+## Executing the module example
 
 1. At the python prompt, type "import IdracRedfishSupport" to load the module.
 
@@ -353,4 +355,13 @@ Name: Configure: RAID.SL.3-1
 PercentComplete: 100
 StartTime: 2022-03-28T17:46:00
 TargetSettingsURI: None
+>>>
+>>> IdracRedfishSupport.insert_eject_virtual_media(insert_virtual_media="cd", image_path="https://3.137.219.52/centos/7/isos/x86_64/CentOS-7-live-GNOME-x86_64.iso")
+
+ - INFO, insert(attached) "CD" virtual media device "https://3.137.219.52/centos/7/isos/x86_64/CentOS-7-live-GNOME-x86_64.iso"
+
+- PASS, POST command passed to successfully insert(attached) CD media, status code 204 returned
+>>> IdracRedfishSupport.insert_eject_virtual_media(eject_virtual_media="cd")
+
+- PASS, POST command passed to successfully eject(detach) CD media, status code 204 returned
 >>>

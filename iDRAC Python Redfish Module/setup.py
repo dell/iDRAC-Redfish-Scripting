@@ -13,7 +13,7 @@ LONG_DESCRIPTION = "Python module for iDRAC Redfish support to allow the user to
 # Setting up
 setup(
         name="IdracRedfishSupport", 
-        version="0.0.2",
+        version="0.0.4",
         license='GPLv2',
         author="Texas Roemer",
         author_email="texas_roemer@dell.com",

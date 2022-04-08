@@ -5,7 +5,7 @@
 #
 #
 #_author_ = Texas Roemer <Texas_Roemer@Dell.com>
-# _version_ = 1.0
+# _version_ = 4.0
 #
 # Copyright (c) 2022, Dell, Inc.
 #
@@ -6099,7 +6099,7 @@ def install_from_repository(script_examples="", get_fw_inventory="", get_repo_up
                 response = requests.get('https://%s/redfish/v1/Managers/iDRAC.Embedded.1/Jobs/%s' % (creds["idrac_ip"], i), verify=creds["verify_cert"],auth=(creds["idrac_username"], creds["idrac_password"]))
             if response.status_code != 200:
                 logging.error("\n- ERROR, GET command failed to check job status, status code %s returned" % response.status_code)
-                logging.info("Extended Info Message: {0}".format(req.json()))
+                logging.error("Extended Info Message: {0}".format(req.json()))
                 return
             data = response.json()
             if data['JobState'] == "Failed":
@@ -6124,6 +6124,80 @@ def install_from_repository(script_examples="", get_fw_inventory="", get_repo_up
     else:
         logging.error("\n- ERROR, either incorrect argument values or missing arguments detected. Check doc help for more details or script examples")
         return
+
+def insert_eject_virtual_media(script_examples="", get_attach_status="", insert_virtual_media="", eject_virtual_media="", image_path=""):
+    """Function to either get current virtual media attach status or insert/eject virtual media. Supported arguments and possible values: get_attach_status (supported value: True), insert_virtual_media (supported values: cd and removeabledisk), eject_virtual_media (supported values: cd and removeabledisk) and image_path (pass in image path location of the virtual device to insert. Supported network share types: HTTP, HTTPS, NFS and CIFS.""" 
+    if script_examples:
+        print("""\n- IdracRedfishSupport.insert_eject_virtual_media(get_attach_status=True), this example will return current attach status details all virtual media devices.)
+        \n- IdracRedfishSupport.insert_eject_virtual_media(insert_virtual_media="cd", image_path="192.168.0.120:/nfs/ESXi7.iso"), this example will insert(attach) virtual media ISO image using NFS share.
+        \n- IdracRedfishSupport.insert_eject_virtual_media(eject_virtual_media="cd"), this example will eject(detach) virtual media CD device attached.
+        \n- IdracRedfishSupport.insert_eject_virtual_media(insert_virtual_media="cd", image_path="//administrator:Passw0rd123@192.168.0.130/cifs_share_vm/ESXi7.iso"), this example will insert(attach) virtual media ISO image using CIFS share.
+        \n- IdracRedfishSupport.insert_eject_virtual_media(insert_virtual_media="cd", image_path="https://https_user:Password123@192.168.0.130/https_share/VMware-ESXi-7.iso", this example will insert(attach) virtual media ISO image using HTTPS share with auth.
+        \n- IdracRedfishSupport.insert_eject_virtual_media(insert_virtual_media="cd", image_path="https://3.137.219.52/centos/7/isos/x86_64/CentOS-7-live-GNOME-x86_64.iso"), this example will insert(attach) virutl media ISO image using HTTPS share with no auth.
+        \n- IdracRedfishSupport.insert_eject_virtual_media(insert_virtual_media="removeabledisk", image_path="192.168.0.140:/nfs/idsdm.img"), this example will insert(attach) virtual media IMG image using NFS share.""")
+
+    elif get_attach_status:
+        virtual_media_uris = []
+        if x_auth_token == "yes":
+            response = requests.get('https://%s/redfish/v1/Managers/iDRAC.Embedded.1/VirtualMedia?$expand=*($levels=1)' % creds["idrac_ip"], verify=creds["verify_cert"],headers={'X-Auth-Token': creds["idrac_x_auth_token"]})    
+        else:
+            response = requests.get('https://%s/redfish/v1/Managers/iDRAC.Embedded.1/VirtualMedia?$expand=*($levels=1)' % creds["idrac_ip"], verify=creds["verify_cert"],auth=(creds["idrac_username"], creds["idrac_password"]))
+        data = response.json()
+        if response.status_code != 200:
+            logging.error("\n- ERROR, GET command failed to get virtual media attach status details, status code %s returned" % response.status_code)
+            logging.error(data)
+            return
+        for i in data.items():
+            pprint(i)
+
+    elif insert_virtual_media:
+        if insert_virtual_media.lower() == "cd":
+            url = "https://%s/redfish/v1/Managers/iDRAC.Embedded.1/VirtualMedia/CD/Actions/VirtualMedia.InsertMedia" % creds["idrac_ip"]
+            media_device = "CD"
+        elif insert_virtual_media.lower() == "removeabledisk":
+            url = "https://%s/redfish/v1/Managers/iDRAC.Embedded.1/VirtualMedia/RemovableDisk/Actions/VirtualMedia.InsertMedia" % creds["idrac_ip"]
+            media_device = "Removable Disk"
+        else:
+            logging.error("- FAIL, invalid value passed in for argument insert_virtual_media.")
+            return
+        logging.info("\n - INFO, insert(attached) \"%s\" virtual media device \"%s\"" % (media_device, image_path))
+        payload = {'Image': image_path, 'Inserted':True,'WriteProtected':True}
+        if x_auth_token == "yes":
+            headers = {'content-type': 'application/json', 'X-Auth-Token': creds["idrac_x_auth_token"]}
+            response = requests.post(url, data=json.dumps(payload), headers=headers, verify=creds["verify_cert"])
+        else:
+            headers = {'content-type': 'application/json'}
+            response = requests.post(url, data=json.dumps(payload), headers=headers, verify=creds["verify_cert"],auth=(creds["idrac_username"],creds["idrac_password"]))
+        data = response.__dict__
+        if response.status_code != 204:
+            logging.error("\n- FAIL, POST command InsertMedia action failed, detailed error message: %s" % response._content)
+            return
+        else:
+            logging.info("\n- PASS, POST command passed to successfully insert(attached) %s media, status code %s returned" % (media_device, response.status_code))
+
+    elif eject_virtual_media:
+        if eject_virtual_media.lower() == "cd":
+            url = "https://%s/redfish/v1/Managers/iDRAC.Embedded.1/VirtualMedia/CD/Actions/VirtualMedia.EjectMedia" % creds["idrac_ip"]
+            media_device = "CD"
+        elif eject_virtual_media.lower() == "removeabledisk":
+            url = "https://%s/redfish/v1/Managers/iDRAC.Embedded.1/VirtualMedia/RemovableDisk/Actions/VirtualMedia.EjectMedia" % creds["idrac_ip"]
+            media_device = "Removable Disk"
+        else:
+            logging.error("- FAIL, invalid value passed in for argument eject_virtual_media.")
+            return
+        payload = {}
+        if x_auth_token == "yes":
+            headers = {'content-type': 'application/json', 'X-Auth-Token': creds["idrac_x_auth_token"]}
+            response = requests.post(url, data=json.dumps(payload), headers=headers, verify=creds["verify_cert"])
+        else:
+            headers = {'content-type': 'application/json'}
+            response = requests.post(url, data=json.dumps(payload), headers=headers, verify=creds["verify_cert"],auth=(creds["idrac_username"],creds["idrac_password"]))
+        data = response.__dict__
+        if response.status_code != 204:
+            logging.error("\n- FAIL, POST command EjectMedia action failed, detailed error message: %s" % response._content)
+            return
+        else:
+            logging.info("\n- PASS, POST command passed to successfully eject(detach) %s media, status code %s returned" % (media_device, response.status_code))
 
 
 
