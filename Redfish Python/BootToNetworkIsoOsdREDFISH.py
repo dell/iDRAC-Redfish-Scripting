@@ -2,7 +2,7 @@
 # BootToNetworkIsoOsdREDFISH. Python script using Redfish API with OEM extension to either get network ISO attach status, boot to network ISO or detach network ISO
 #
 # _author_ = Texas Roemer <Texas_Roemer@Dell.com>
-# _version_ = 1.0
+# _version_ = 2.0
 #
 # Copyright (c) 2019, Dell, Inc.
 #
@@ -15,19 +15,30 @@
 #
 
 
-import requests, json, sys, re, time, warnings, argparse
+import argparse
+import getpass
+import json
+import logging
+import re
+import requests
+import sys
+import time
+import warnings
 
 from datetime import datetime
+from pprint import pprint
 
 warnings.filterwarnings("ignore")
 
 parser=argparse.ArgumentParser(description="Python script using Redfish API with OEM extension to either get network ISO attach status, boot to network ISO or detach network ISO")
-parser.add_argument('-ip',help='iDRAC IP address', required=True)
-parser.add_argument('-u', help='iDRAC username', required=True)
-parser.add_argument('-p', help='iDRAC password', required=True)
-parser.add_argument('script_examples',action="store_true",help='BootToNetworkIsoOsdREDFISH.py -ip 192.168.0.120 -u root -p calvin -a y, this example to get current network ISO attach status. BootToNetworkIsoOsdREDFISH.py -ip 192.168.0.120 -u root -p calvin -b y --ipaddress 192.168.0.130 --sharetype NFS --sharename /nfs --imagename esxi-6.0.0.iso, this example will boot to network ISO on NFS share')
-parser.add_argument('-a', help='Get attach status for network ISO, pass in \"y\"', required=False)
-parser.add_argument('-b', help='Boot to network ISO, pass in \"y\". You must also pass in network share arguments', required=False)
+parser.add_argument('-ip',help='iDRAC IP address', required=False)
+parser.add_argument('-u', help='iDRAC username', required=False)
+parser.add_argument('-p', help='iDRAC password. If you do not pass in argument -p, script will prompt to enter user password which will not be echoed to the screen.', required=False)
+parser.add_argument('-x', help='Pass in X-Auth session token for executing Redfish calls. All Redfish calls will use X-Auth token instead of username/password', required=False)
+parser.add_argument('--ssl', help='SSL cert verification for all Redfish calls, pass in value \"true\" or \"false\". By default, this argument is not required and script ignores validating SSL cert for all Redfish calls.', required=False)
+parser.add_argument('--script-examples', help='Get executing script examples', action="store_true", dest="script_examples", required=False)
+parser.add_argument('--get-attach-status', help='Get attach status for network ISO', action="store_true", dest="get_attach_status", required=False)
+parser.add_argument('--boot-iso', help='Boot to network ISO. Make sure to also pass in network share arguments, see examples for more details', action="store_true", dest="boot_iso", required=False)
 parser.add_argument('--ipaddress', help='Pass in the IP address of the network share', required=False)
 parser.add_argument('--sharetype', help='Pass in the share type of the network share. Supported values are NFS and CIFS', required=False)
 parser.add_argument('--sharename', help='Pass in the network share share name', required=False)
@@ -35,52 +46,58 @@ parser.add_argument('--username', help='Pass in the CIFS username', required=Fal
 parser.add_argument('--password', help='Pass in the CIFS username pasword', required=False)
 parser.add_argument('--workgroup', help='Pass in the workgroup of your CIFS network share. This argument is optional', required=False)
 parser.add_argument('--imagename', help='Pass in the operating system(OS) string you want to boot from on your network share', required=False)
-parser.add_argument('-d', help='Detach network ISO, pass in \"y\"', required=False)
-
-
+parser.add_argument('--detach-iso', help='Detach network ISO', action="store_true", dest="detach_iso", required=False)
 
 args=vars(parser.parse_args())
+logging.basicConfig(format='%(message)s', stream=sys.stdout, level=logging.INFO)
 
-idrac_ip=args["ip"]
-idrac_username=args["u"]
-idrac_password=args["p"]
-
-
+def script_examples():
+    print("""\n- BootToNetworkIsoOsdREDFISH.py -ip 192.168.0.120 -u root -p calvin --get-attach-status, this example to get current network ISO attach status.
+    \n- BootToNetworkIsoOsdREDFISH.py -ip 192.168.0.120 -u root -p calvin --boot-iso --ipaddress 192.168.0.130 --sharetype NFS --sharename /nfs --imagename ESXi.iso, this example will boot to network ISO on NFS share
+    \n- BootToNetworkIsoOsdREDFISH.py -ip 192.168.0.120 -u root -p calvin --detach-iso, this example will detach attached ISO.""")
+    sys.exit(0)
+    
 def check_supported_idrac_version():
-    response = requests.get('https://%s/redfish/v1/Dell/Systems/System.Embedded.1/DellOSDeploymentService' % idrac_ip,verify=False,auth=(idrac_username, idrac_password))
-    data = response.json()
-    if response.status_code != 200:
-        print("\n- WARNING, iDRAC version installed does not support this feature using Redfish API")
-        sys.exit()
+    if args["x"]:
+        response = requests.get('https://%s/redfish/v1/Dell/Systems/System.Embedded.1/DellOSDeploymentService' % idrac_ip, verify=verify_cert, headers={'X-Auth-Token': args["x"]})   
     else:
-        pass
-
-
-
-
+        response = requests.get('https://%s/redfish/v1/Dell/Systems/System.Embedded.1/DellOSDeploymentService' % idrac_ip, verify=verify_cert,auth=(idrac_username, idrac_password))
+    data = response.json()
+    if response.status_code == 401:
+        logging.warning("\n- WARNING, status code %s returned. Incorrect iDRAC username/password or invalid privilege detected." % response.status_code)
+        sys.exit(0)
+    if response.status_code != 200:
+        logging.warning("\n- WARNING, iDRAC version installed does not support this feature using Redfish API")
+        sys.exit(0)
 
 def get_attach_status():
     url = 'https://%s/redfish/v1/Dell/Systems/System.Embedded.1/DellOSDeploymentService/Actions/DellOSDeploymentService.GetAttachStatus' % (idrac_ip)
-    headers = {'content-type': 'application/json'}
     payload={}
-    response = requests.post(url, data=json.dumps(payload), headers=headers, verify=False,auth=(idrac_username,idrac_password))
+    if args["x"]:
+        headers = {'content-type': 'application/json', 'X-Auth-Token': args["x"]}
+        response = requests.post(url, data=json.dumps(payload), headers=headers, verify=verify_cert)
+    else:
+        headers = {'content-type': 'application/json'}
+        response = requests.post(url, data=json.dumps(payload), headers=headers, verify=verify_cert,auth=(idrac_username,idrac_password))
     data = response.json()
     if response.status_code == 200:
-        print("\n- PASS: POST command passed to get ISO attach status, status code 200 returned")
+        logging.info("\n- PASS: POST command passed to get ISO attach status, status code 200 returned")
     else:
-        print("\n- FAIL, POST command failed to get ISO attach status, status code is %s" % (response.status_code))
+        logging.error("\n- FAIL, POST command failed to get ISO attach status, status code is %s" % (response.status_code))
         data = response.json()
-        print("\n-POST command failure results:\n %s" % data)
+        logging.error("\n- POST command failure results:\n %s" % data)
         sys.exit()
-    print("- WARNING, Current ISO attach status: %s" % data[u'ISOAttachStatus'])
+    logging.info("- INFO, current ISO attach status: %s" % data['ISOAttachStatus'])
 
 
     
 def boot_to_network_iso():
     global concrete_job_uri
-    url = 'https://%s/redfish/v1/Dell/Systems/System.Embedded.1/DellOSDeploymentService/Actions/DellOSDeploymentService.BootToNetworkISO' % (idrac_ip)
+    global start_time
     method = "BootToNetworkISO"
-    headers = {'content-type': 'application/json'}
+    start_time = datetime.now()
+    logging.info("\n- INFO, starting %s operation which may take 5-10 seconds to create the task" % method)
+    url = 'https://%s/redfish/v1/Dell/Systems/System.Embedded.1/DellOSDeploymentService/Actions/DellOSDeploymentService.BootToNetworkISO' % (idrac_ip)
     payload={}
     if args["ipaddress"]:
         payload["IPAddress"] = args["ipaddress"]
@@ -96,126 +113,145 @@ def boot_to_network_iso():
         payload["Password"] = args["password"]
     if args["workgroup"]:
         payload["Workgroup"] = args["workgroup"]
-    print("\n- WARNING, arguments and values used to %s on network share\n" % method)
-    for i in payload.items():
-          print("%s: %s" % (i[0],i[1]))
-    response = requests.post(url, data=json.dumps(payload), headers=headers, verify=False,auth=(idrac_username,idrac_password))
+    if args["x"]:
+        headers = {'content-type': 'application/json', 'X-Auth-Token': args["x"]}
+        response = requests.post(url, data=json.dumps(payload), headers=headers, verify=verify_cert)
+    else:
+        headers = {'content-type': 'application/json'}
+        response = requests.post(url, data=json.dumps(payload), headers=headers, verify=verify_cert,auth=(idrac_username,idrac_password))
     data = response.json()
     if response.status_code == 202:
-        print("\n- PASS: POST command passed for %s method, status code %s returned" % (method, response.status_code))
-        concrete_job_uri = response.headers[u'Location']
-        print("- WARNING, concrete job URI created for method %s: %s\n" % (method, concrete_job_uri))
+        logging.info("\n- PASS: POST command passed for %s method, status code %s returned" % (method, response.status_code))
+        concrete_job_uri = response.headers['Location']
+        logging.info("- INFO, concrete job URI created for method %s: %s\n" % (method, concrete_job_uri))
     else:
-        print("\n- FAIL, POST command failed for %s method, status code is %s" % (method, response.status_code))
+        logging.error("\n- FAIL, POST command failed for %s method, status code is %s" % (method, response.status_code))
         data = response.json()
-        print("\n-POST command failure results:\n %s" % data)
-        sys.exit()
+        logging.error("\n- POST command failure results:\n %s" % data)
+        sys.exit(0)
     
-
 def detach_network_iso():
     url = 'https://%s/redfish/v1/Dell/Systems/System.Embedded.1/DellOSDeploymentService/Actions/DellOSDeploymentService.DetachISOImage' % (idrac_ip)
-    headers = {'content-type': 'application/json'}
     payload={}
-    response = requests.post(url, data=json.dumps(payload), headers=headers, verify=False,auth=(idrac_username,idrac_password))
+    if args["x"]:
+        headers = {'content-type': 'application/json', 'X-Auth-Token': args["x"]}
+        response = requests.post(url, data=json.dumps(payload), headers=headers, verify=verify_cert)
+    else:
+        headers = {'content-type': 'application/json'}
+        response = requests.post(url, data=json.dumps(payload), headers=headers, verify=verify_cert,auth=(idrac_username,idrac_password))
     data = response.json()
     if response.status_code == 200:
-        print("\n- PASS: POST command passed to detach ISO image, status code 200 returned")
+        logging.info("\n- PASS: POST command passed to detach ISO image, status code 200 returned")
     else:
-        print("\n- FAIL, POST command failed to detach ISO image, status code is %s" % (response.status_code))
+        logging.error("\n- FAIL, POST command failed to detach ISO image, status code is %s" % (response.status_code))
         data = response.json()
-        print("\n-POST command failure results:\n %s" % data)
-        sys.exit()
-
-
+        logging.error("\n- POST command failure results:\n %s" % data)
+        sys.exit(0)
     
 def check_concrete_job_status():
-    start_time=datetime.now()
     while True:
-        req = requests.get('https://%s%s' % (idrac_ip, concrete_job_uri), auth=(idrac_username, idrac_password), verify=False)
-        current_time=str((datetime.now()-start_time))[0:7]
-        statusCode = req.status_code
-        if statusCode == 200 or statusCode == 202:
-            pass
+        if args["x"]:
+            response = requests.get('https://%s%s' % (idrac_ip, concrete_job_uri), verify=verify_cert, headers={'X-Auth-Token': args["x"]})   
         else:
-            print("\n- FAIL, Command failed to check job status, return code is %s" % statusCode)
-            print("Extended Info Message: {0}".format(req.json()))
-            sys.exit()
-        data= req.json()
+            response = requests.get('https://%s%s' % (idrac_ip, concrete_job_uri), verify=verify_cert,auth=(idrac_username, idrac_password))
+        current_time = str((datetime.now()-start_time))[0:7]
+        if response.status_code == 200 or response.status_code == 202:
+            logging.info("- PASS, GET command passed to get task details")
+        else:
+            logging.error("\n- FAIL, command failed to check job status, return code %s" % response.status_code)
+            logging.error("Extended Info Message: {0}".format(response.json()))
+            sys.exit(0)
+        data= response.json()
         if str(current_time)[0:7] >= "0:30:00":
-            print("\n- FAIL: Timeout of 30 minutes has been hit, script stopped\n")
-            sys.exit()
-        elif data[u'TaskState'] == "Completed":
-            if "Fail" in data[u'Messages'][0][u'Message'] or "fail" in data[u'Messages'][0][u'Message']:
-                print("- FAIL: concrete job failed, detailed error results: %s" % data.items())
-                sys.exit()
-        
-            elif "completed successful" in data[u'Messages'][0][u'Message'] or "command was successful" in data[u'Messages'][0][u'Message']:
-                print("\n- PASS, concrete job successfully marked completed")
-                print("\n- Final detailed job results -\n")
+            logging.error("\n- FAIL: Timeout of 30 minutes has been hit, script stopped\n")
+            sys.exit(0)
+        elif data['TaskState'] == "Completed":
+            if "Fail" in data['Messages'][0]['Message'] or "fail" in data['Messages'][0]['Message']:
+                logging.error("- FAIL: concrete job failed, detailed error results: %s" % data.items())
+                sys.exit(0)
+            elif "completed successful" in data['Messages'][0]['Message'] or "command was successful" in data['Messages'][0]['Message']:
+                logging.info("\n- PASS, task successfully marked completed")
+                logging.info("\n- Final detailed task results -\n")
                 for i in data.items():
-                    if '@odata.type' in i[0]:
-                        pass
-                    elif i[0] == u'Messages':
-                        for ii in i[1][0].items():
-                            print("%s: %s" % (ii[0], ii[1]))   
-                    else:
-                        print("%s: %s" % (i[0], i[1]))
-                print("\n- concrete job completed in %s" % (current_time))
+                    pprint(i)
+                logging.info("\n- INFO, task completion time: %s" % (current_time))
                 break
             else:
-                print("- FAIL, unable to get final concrete job message string")
-                sys.exit()
-        elif data[u'TaskState'] == "Exception":
-            print("\n- FAIL, final detailed job results -\n")
+                logging.error("- FAIL, unable to get final task message string")
+                sys.exit(0)
+        elif data["TaskState"] == "Exception":
+            logging.error("\n- FAIL, final detailed task results -\n")
             for i in data.items():
-                if '@odata.type' in i[0]:
-                    pass
-                elif i[0] == u'Messages':
+                if i[0] == "Messages":
                     for ii in i[1][0].items():
                         print("%s: %s" % (ii[0], ii[1]))   
                 else:
                     print("%s: %s" % (i[0], i[1]))
             sys.exit()
         else:
-            print("- WARNING, concrete job not completed, current status is: \"%s\", job execution time is \"%s\"" % (data[u'TaskState'], current_time))
-            time.sleep(5)    
+            print("- INFO, task not completed, current status: \"%s\", job execution time: \"%s\"" % (data['TaskState'], current_time))
+            time.sleep(10)    
     
 def check_attach_status(x):
     url = 'https://%s/redfish/v1/Dell/Systems/System.Embedded.1/DellOSDeploymentService/Actions/DellOSDeploymentService.GetAttachStatus' % (idrac_ip)
-    headers = {'content-type': 'application/json'}
     payload={}
-    response = requests.post(url, data=json.dumps(payload), headers=headers, verify=False,auth=(idrac_username,idrac_password))
+    if args["x"]:
+        headers = {'content-type': 'application/json', 'X-Auth-Token': args["x"]}
+        response = requests.post(url, data=json.dumps(payload), headers=headers, verify=verify_cert)
+    else:
+        headers = {'content-type': 'application/json'}
+        response = requests.post(url, data=json.dumps(payload), headers=headers, verify=verify_cert,auth=(idrac_username,idrac_password))
     data = response.json()
-    if response.status_code == 200:
-        pass
-    else:
-        print("\n- FAIL, POST command failed to get ISO attach status, status code is %s" % (response.status_code))
+    if response.status_code != 200:
+        logging.error("\n- FAIL, POST command failed to get ISO attach status, status code is %s" % (response.status_code))
         data = response.json()
-        print("\n-POST command failure results:\n %s" % data)
-        sys.exit()
-    if data[u'ISOAttachStatus'] == x:
-        print("- PASS, ISO attach status successfully identified as \"%s\"" % x)
+        logging.error("\n- POST command failure results:\n %s" % data)
+        sys.exit(0)
+    if data['ISOAttachStatus'] == x:
+        logging.info("- PASS, ISO attach status successfully identified as \"%s\"" % x)
     else:
-        print("- FAIL, ISO attach status not successfully identified as %s" % x)
-        sys.exit()
+        logging.error("- FAIL, ISO attach status not successfully identified as %s" % x)
+        sys.exit(0)
 
 
 
     
 
 if __name__ == "__main__":
-    check_supported_idrac_version()
-    if args["a"]:
+    if args["script_examples"]:
+        script_examples()
+    if args["ip"] and args["ssl"] or args["u"] or args["p"] or args["x"]:
+        idrac_ip = args["ip"]
+        idrac_username = args["u"]
+        if args["p"]:
+            idrac_password = args["p"]
+        if not args["p"] and not args["x"] and args["u"]:
+            idrac_password = getpass.getpass("\n- Argument -p not detected, pass in iDRAC user %s password: " % args["u"])
+        if args["ssl"]:
+            if args["ssl"].lower() == "true":
+                verify_cert = True
+            elif args["ssl"].lower() == "false":
+                verify_cert = False
+            else:
+                verify_cert = False
+        else:
+                verify_cert = False
+        check_supported_idrac_version()
+    else:
+        logging.error("\n- FAIL, invalid argument values or not all required parameters passed in. See help text or argument --script-examples for more details.")
+        sys.exit(0)
+    if args["get_attach_status"]:
         get_attach_status()
-    elif args["b"] and args["b"] and args["ipaddress"] and args["sharetype"] and args["sharename"]:
+    elif args["boot_iso"] and args["ipaddress"] and args["sharetype"] and args["sharename"]:
         boot_to_network_iso()
         check_concrete_job_status()
         check_attach_status("Attached")
-    elif args["d"]:
+    elif args["detach_iso"]:
         detach_network_iso()
         check_attach_status("NotAttached")
     else:
-        print("\n- FAIL, either missing parameter(s) or invalid parameter value(s) passed in. If needed, review help text for script examples")
+        logging.error("\n- FAIL, invalid argument values or not all required parameters passed in. See help text or argument --script-examples for more details.")
+        sys.exit(0)
         
     
         
