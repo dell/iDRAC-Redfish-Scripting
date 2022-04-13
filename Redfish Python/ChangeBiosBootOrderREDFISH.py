@@ -5,7 +5,7 @@
 #
 #
 # _author_ = Texas Roemer <Texas_Roemer@Dell.com>
-# _version_ = 10.0
+# _version_ = 11.0
 #
 # Copyright (c) 2019, Dell, Inc.
 #
@@ -95,32 +95,38 @@ def get_current_boot_order():
                 
 def change_boot_order():
     global job_id
-    response = requests.get('https://%s/redfish/v1/Systems/System.Embedded.1/Bios' % idrac_ip,verify=False,auth=(idrac_username,idrac_password))
+    if args["x"]:
+        response = requests.get('https://%s/redfish/v1/Systems/System.Embedded.1/Bios' % idrac_ip, verify=verify_cert, headers={'X-Auth-Token': args["x"]})   
+    else:
+        response = requests.get('https://%s/redfish/v1/Systems/System.Embedded.1/Bios' % idrac_ip, verify=verify_cert,auth=(idrac_username, idrac_password))
     data = response.json()
-    current_boot_mode=data['Attributes']['BootMode']
+    current_boot_mode = data['Attributes']['BootMode']
     url = 'https://%s/redfish/v1/Systems/System.Embedded.1' % idrac_ip
     if "," in args["change"]:
         boot_order_ids = args["change"].split(",")
     else:
         boot_order_ids = [args["change"]]
     payload = {"Boot":{"BootOrder":boot_order_ids}}
-    headers = {'content-type': 'application/json'}
-    response = requests.patch(url, data=json.dumps(payload), headers=headers, verify=False,auth=(idrac_username, idrac_password))
-    status_code = response.status_code
-    data = response.json()
-    if status_code == 200 or status_code == 202:
-        print("\n- PASS: PATCH command passed to change %s boot order sequence" % current_boot_mode)
+    if args["x"]:
+        headers = {'content-type': 'application/json', 'X-Auth-Token': args["x"]}
+        response = requests.patch(url, data=json.dumps(payload), headers=headers, verify=verify_cert)
     else:
-        print("\n- FAIL, PATCH command failed to change %s boot order sequence, status code is %s" % (current_boot_mode, status_code))
-        detail_message=str(response.__dict__)
-        print(detail_message)
-        sys.exit()
+        headers = {'content-type': 'application/json'}
+        response = requests.patch(url, data=json.dumps(payload), headers=headers, verify=verify_cert,auth=(idrac_username,idrac_password))
+    data = response.json()
+    if response.status_code == 200 or response.status_code == 202:
+        logging.info("\n- PASS: PATCH command passed to change %s boot order sequence" % current_boot_mode)
+    else:
+        logging.error("\n- FAIL, PATCH command failed to change %s boot order sequence, status code is %s" % (current_boot_mode, response.status_code))
+        detail_message = str(response.__dict__)
+        logging.error(detail_message)
+        sys.exit(0)
     try:
         job_id = response.headers['Location'].split("/")[-1]
     except:
-        print("- FAIL, unable to find job ID in headers PATCH response, headers output is:\n%s" % response.headers)
-        sys.exit()
-    print("- PASS, job ID \"%s\" successfully created to change %s boot order sequence" % (job_id, current_boot_mode))
+        logging.error("- FAIL, unable to find job ID in headers PATCH response, headers output is:\n%s" % response.headers)
+        sys.exit(0)
+    logging.info("- PASS, job ID \"%s\" successfully created to change %s boot order sequence" % (job_id, current_boot_mode))
     
 def get_job_status_scheduled():
     count = 0
@@ -298,7 +304,7 @@ if __name__ == "__main__":
             else:
                 verify_cert = False
         else:
-                verify_cert = False
+            verify_cert = False
         check_supported_idrac_version()
     else:
         logging.error("\n- FAIL, invalid argument values or not all required parameters passed in. See help text or argument --script-examples for more details.")
