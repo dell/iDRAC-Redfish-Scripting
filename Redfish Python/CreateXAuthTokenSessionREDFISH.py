@@ -3,7 +3,7 @@
 #
 #
 # _author_ = Texas Roemer <Texas_Roemer@Dell.com>
-# _version_ = 4.0
+# _version_ = 6.0
 #
 # Copyright (c) 2020, Dell, Inc.
 #
@@ -15,178 +15,160 @@
 # http://www.gnu.org/licenses/old-licenses/gpl-2.0.txt.
 #
 
+import argparse
+import getpass
+import json
+import logging
+import requests
+import sys
+import time
+import warnings
 
-import requests, json, sys, re, time, warnings, argparse
+from pprint import pprint
 
 warnings.filterwarnings("ignore")
 
-parser=argparse.ArgumentParser(description="Python script using Redfish API to create, test or delete X-AUTH token session for iDRAC user.")
-parser.add_argument('-ip',help='iDRAC IP address', required=True)
+parser=argparse.ArgumentParser(description="Python script using Redfish API to create or delete X-AUTH token session for iDRAC user.")
+parser.add_argument('-ip',help='iDRAC IP address', required=False)
 parser.add_argument('-u', help='iDRAC username', required=False)
-parser.add_argument('-p', help='iDRAC password', required=False)
-parser.add_argument('script_examples',action="store_true",help='CreateXAuthTokenSessionREDFISH.py -ip 192.168.0.120 -u root -p calvin -c y, this example will create X auth token session for iDRAC. CreateXAuthTokenSessionREDFISH.py -ip 192.168.0.120 -g y -t 403ddd3c32df6fcbfdfec758780d2274, this example will test GET request using X auth token. CreateXAuthTokenSessionREDFISH.py -ip 192.168.0.120 -d 28 -t 403ddd3c32df6fcbfdfec758780d2274, this example will delete X auth token session for session ID 28.') 
-parser.add_argument('-c', help='Create X-auth token session, pass in \"y\". You must also use argument -u and -p', required=False)
-parser.add_argument('-t', help='Test X-auth token session using GET request, get iDRAC session information or delete X-Auth token session, pass in the token ID', required=False)
-parser.add_argument('-g', help='Test X-auth token session, pass in \"y\". You must also use argument -t to pass in the token session', required=False)
-parser.add_argument('-su', help='Get iDRAC session information, pass in \"y\". You must also use argument -u and -p', required=False)
-parser.add_argument('-st', help='Get X-auth token session information/ID, pass in \"y\". You must also use argument -t to pass in the token session', required=False)
-parser.add_argument('-d', help='Delete X-auth-token session, pass in the session ID. You must also use -t argument to pass in the token session', required=False)
+parser.add_argument('-p', help='iDRAC password. If you do not pass in argument -p, script will prompt to enter user password which will not be echoed to the screen.', required=False)
+parser.add_argument('--ssl', help='SSL cert verification for all Redfish calls, pass in value \"true\" or \"false\". By default, this argument is not required and script ignores validating SSL cert for all Redfish calls.', required=False)
+parser.add_argument('--script-examples', help='Get executing script examples', action="store_true", dest="script_examples", required=False)
+parser.add_argument('--create', help='Create X-auth token session', action="store_true", required=False)
+parser.add_argument('--get-sessions', help='Get iDRAC sessions information. You must also use argument -u and -p', dest="get_sessions", action="store_true", required=False)
+parser.add_argument('--delete', help='Delete X-auth-token session or any iDRAC session, pass in the session ID.', required=False)
 
 args=vars(parser.parse_args())
+logging.basicConfig(format='%(message)s', stream=sys.stdout, level=logging.INFO)
 
-idrac_ip=args["ip"]
-idrac_username=args["u"]
-idrac_password=args["p"]
-
+def script_examples():
+    print("""\n- CreateXAuthTokenSessionREDFISH.py -ip 192.168.0.120 -u root -p calvin --get, this example will get current iDRAC sessions information.
+    \n- CreateXAuthTokenSessionREDFISH.py -ip 192.168.0.120 -u root --create, this example will first prompt to enter user password, then create X auth token session for iDRAC.
+    \n- CreateXAuthTokenSessionREDFISH.py -ip 192.168.0.120 -u root -p calvin --delete 28, this example will delete iDRAC session ID 28.""")
+    sys.exit(0)
+    
 def get_redfish_version():
     global session_uri
-    response = requests.get('https://%s/redfish/v1' % idrac_ip,verify=False,auth=(idrac_username, idrac_password))
+    response = requests.get('https://%s/redfish/v1' % idrac_ip,verify=False, auth=(idrac_username, idrac_password))
     data = response.json()
     if response.status_code == 401:
         try:
             response = requests.get('https://%s/redfish/v1' % (idrac_ip),verify=False, headers={'X-Auth-Token': args["t"]})
             if response.status_code == 401:
-                print("\n- FAIL, GET request failed, status code %s returned, check login credentials" % (response.status_code))
-                sys.exit()
+                logging.info("\n- FAIL, GET request failed, status code %s returned, check login credentials" % (response.status_code))
+                sys.exit(0)
             else:
                 data = response.json()
         except:
-            print("\n- WARNING, status code %s returned. Incorrect iDRAC username/password or invalid privilege detected." % response.status_code)
-            sys.exit(1)
+            logging.warning("\n- WARNING, status code %s returned. Incorrect iDRAC username/password or invalid privilege detected." % response.status_code)
+            sys.exit(0)
     elif response.status_code != 200:
-        print("\n- WARNING, GET request failed to get Redfish version, status code %s returned" % response.status_code)
-        sys.exit(1)
-    else:
-        pass
+        logging.warning("\n- WARNING, GET request failed to get Redfish version, status code %s returned" % response.status_code)
+        sys.exit(0)
     redfish_version = int(data["RedfishVersion"].replace(".",""))
     if redfish_version >= 160:
         session_uri = "redfish/v1/SessionService/Sessions"
     elif redfish_version < 160:
         session_uri = "redfish/v1/Sessions"
     else:
-        print("- INFO, unable to select URI based off Redfish version")
-        sys.exit()
-
-def create_x_auth_session():
-    url = 'https://%s/%s' % (idrac_ip, session_uri)
-    payload = {"UserName":args["u"],"Password":args["p"]}
-    headers = {'content-type': 'application/json'}
-    response = requests.post(url, data=json.dumps(payload), headers=headers, verify=False)
-    data = response.json()
-    if response.status_code == 201:
-        print("\n- PASS, successfuly created X auth session")
-    else:
-        try:
-            print("\n- FAIL, unable to create X-auth_token session, status code %s returned, detailed error results:\n %s" % (response.status_code, data))
-        except:
-            print("\n- FAIL, unable to create X-auth_token session, status code %s returned" % (response.status_code))
-        sys.exit()
-    print("\n- INFO, created session details -\n")
-    for i in response.headers.items():
-        print("%s: %s" % (i[0],i[1]))
-    
-
-def test_x_auth_session_get():
-    response = requests.get('https://%s/%s' % (idrac_ip, session_uri),verify=False, headers={'X-Auth-Token': args["t"]})
-    if response.status_code == 401:
-        print("\n- FAIL, GET request failed, status code %s returned, check login credentials" % (response.status_code))
-        sys.exit()
-    elif response.status_code == 200:
-        print("\n- PASS, GET request using X-auth session passed")
-    else:
-        data=response.json()
-        print("\n- FAIL, GET request using X-auth_token session failed, status code is %s, detailed error results:\n %s" % (response.status_code, data))
-        sys.exit()
+        logging.error("- ERROR, unable to select URI based off Redfish version")
+        sys.exit(0)
 
 def get_session_info_using_username_password():
     response = requests.get('https://%s/%s' % (idrac_ip, session_uri), auth=(idrac_username, idrac_password), verify=False)
+    data = response.json()
     if response.status_code == 401:
-        print("\n- FAIL, GET request failed, status code %s returned, check login credentials" % (response.status_code))
-        sys.exit()
-    elif response.status_code == 200:
-        pass
-    else:
-        data=response.json()
-        print("- FAIL, GET request failed, status code %s returned. Detailed error results:\n %s" % (response.status_code, data))
-        sys.exit()
-    data= response.json()
+        logging.error("\n- FAIL, GET request failed, status code %s returned, check login credentials" % (response.status_code))
+        sys.exit(0)
+    elif response.status_code != 200:
+        logging.error("- FAIL, GET request failed, status code %s returned. Detailed error results:\n %s" % (response.status_code, data))
+        sys.exit(0)
     if data["Members"] == []:
-        print("\n- WARNING, no sessions detected for iDRAC %s" % idrac_ip)
-        sys.exit()
+        logging.warning("\n- WARNING, no sessions detected for iDRAC %s" % idrac_ip)
+        sys.exit(0)
     else:
         sessions_list = []
         for i in data["Members"]:
             for ii in i.items():
                 sessions_list.append(ii[1])
-    print("\n- Sessions detected for iDRAC %s\n" % idrac_ip)
+    logging.info("\n- Sessions detected for iDRAC %s\n" % idrac_ip)
     for i in sessions_list:
         print(i)
     for i in sessions_list:
-        print("\n- Detailed information for sessions URI \"%s\" -\n" % i)
-        response = requests.get('https://%s%s' % (idrac_ip,i), auth=(idrac_username, idrac_password), verify=False)
-        data=response.json()
+        logging.info("\n- Detailed information for sessions URI \"%s\" -\n" % i)
+        response = requests.get('https://%s%s' % (idrac_ip, i), auth=(idrac_username, idrac_password), verify=False)
+        data = response.json()
         for i in data.items():
-            print("%s: %s" % (i[0],i[1]))    
+            pprint(i)
 
-def get_session_info_using_token():
-    response = requests.get('https://%s/%s' % (idrac_ip, session_uri),verify=False, headers={'X-Auth-Token': args["t"]})
-    if response.status_code == 401:
-        print("\n- FAIL, GET request failed, status code %s returned, check login credentials" % (response.status_code))
-        sys.exit()
-    elif response.status_code == 200:
-        pass
+def create_x_auth_session():
+    url = 'https://%s/%s' % (idrac_ip, session_uri)
+    payload = {"UserName":idrac_username,"Password":idrac_password}
+    headers = {'content-type': 'application/json'}
+    response = requests.post(url, data=json.dumps(payload), headers=headers, verify=False)
+    data = response.json()
+    if response.status_code == 201:
+        logging.info("\n- PASS, successfuly created X auth session")
     else:
-        data=response.json()
-        print("\n- FAIL, GET request using X-auth_token session failed, status code is %s, detailed error results:\n %s" % (response.status_code, data))
-        sys.exit()
-    data=response.json()
-    sessions_list = []
-    for i in data["Members"]:
-        for ii in i.items():
-            sessions_list.append(ii[1])
-    print("\n- Sessions detected for iDRAC %s\n" % idrac_ip)
-    for i in sessions_list:
-        print(i)
-    for i in sessions_list:
-        print("\n- Detailed information for sessions URI \"%s\" -\n" % i)
-        response = requests.get('https://%s%s' % (idrac_ip,i), verify=False, headers={'X-Auth-Token': args["t"]})
-        data=response.json()
-        for i in data.items():
-            print("%s: %s" % (i[0],i[1]))
+        try:
+            logging.error("\n- FAIL, unable to create X-auth_token session, status code %s returned, detailed error results:\n %s" % (response.status_code, data))
+        except:
+            logging.error("\n- FAIL, unable to create X-auth_token session, status code %s returned" % (response.status_code))
+        sys.exit(0)
+    logging.info("\n- INFO, created session details -\n")
+    for i in response.headers.items():
+        print("%s: %s" % (i[0],i[1]))
 
 def delete_x_auth_session():
-    url = 'https://%s/%s/%s' % (idrac_ip, session_uri, args["d"])
-    headers = {'content-type': 'application/json','X-Auth-Token': args["t"]}
+    url = 'https://%s/%s/%s' % (idrac_ip, session_uri, args["delete"])
     try:
-        response = requests.delete(url, headers=headers, verify=False)
+        headers = {'content-type': 'application/json'}
+        response = requests.delete(url, headers=headers, verify=verify_cert,auth=(idrac_username,idrac_password))
     except requests.ConnectionError as error_message:
-        print("- FAIL, requests command failed to GET job status, detailed error information: \n%s" % error_message)
-        sys.exit()
+        logging.error("- FAIL, requests command failed to GET job status, detailed error information: \n%s" % error_message)
+        sys.exit(0)
     if response.status_code == 200:
-        print("\n- PASS, successfully deleted X auth session for session ID %s" % args["d"])
+        logging.info("\n- PASS, successfully deleted iDRAC session ID %s" % args["delete"])
     else:
         data = response.json()
-        print("\n- FAIL, unable to delete X-auth_token session, status code is %s, detailed error results:\n %s" % (response.status_code, data))
-        sys.exit()
+        logging.info("\n- FAIL, unable to delete iDRAC session, status code %s returned, detailed error results:\n %s" % (response.status_code, data))
+        sys.exit(0)
 
 
 
 
 
 if __name__ == "__main__":
+    if args["script_examples"]:
+        script_examples()
+    if args["ip"] and args["ssl"] or args["u"] or args["p"]:
+        idrac_ip = args["ip"]
+        idrac_username = args["u"]
+        if args["p"]:
+            idrac_password = args["p"]
+        if not args["p"] and args["u"]:
+            idrac_password = getpass.getpass("\n- Argument -p not detected, pass in iDRAC user %s password: " % args["u"])
+        if args["ssl"]:
+            if args["ssl"].lower() == "true":
+                verify_cert = True
+            elif args["ssl"].lower() == "false":
+                verify_cert = False
+            else:
+                verify_cert = False
+        else:
+            verify_cert = False
+    else:
+        logging.error("\n- FAIL, invalid argument values or not all required parameters passed in. See help text or argument --script-examples for more details.")
+        sys.exit(0)
     get_redfish_version()
-    if args["c"]:
+    if args["create"]:
         create_x_auth_session()
-    elif args["g"] and args["t"]:
-        test_x_auth_session_get()
-    elif args["st"] and args["t"]:
-        get_session_info_using_token()
-    elif args["su"]:
+    elif args["get_sessions"]:
         get_session_info_using_username_password()
-    elif args["d"]:
+    elif args["delete"]:
         delete_x_auth_session()
     else:
-        print("- FAIL, incorrect parameter(s) passed in or missing required parameters")
+        logging.error("\n- FAIL, invalid argument values or not all required parameters passed in. See help text or argument --script-examples for more details.")
         
         
 
