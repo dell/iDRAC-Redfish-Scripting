@@ -1,10 +1,10 @@
+#!/usr/bin/python
+#!/usr/bin/python3
 #
 # CreateDeleteIdracUsersREDFISH.py Python script using Redfish API to either create or delete iDRAC user account.
 #
-# 
-#
 # _author_ = Texas Roemer <Texas_Roemer@Dell.com>
-# _version_ = 2.0
+# _version_ = 5.0
 #
 # Copyright (c) 2018, Dell, Inc.
 #
@@ -16,187 +16,171 @@
 # http://www.gnu.org/licenses/old-licenses/gpl-2.0.txt.
 #
 
-import requests, json, sys, re, time, warnings, argparse
+import argparse
+import getpass
+import json
+import logging
+import re
+import requests
+import sys
+import time
+import warnings
 
 from datetime import datetime
+from pprint import pprint
 
 warnings.filterwarnings("ignore")
 
 parser = argparse.ArgumentParser(description='Python script using Redfish API to either get user account details, create or delete iDRAC user account.')
-parser.add_argument('-ip', help='iDRAC IP Address', required=True)
-parser.add_argument('-u', help='iDRAC username', required=True)
-parser.add_argument('-p', help='iDRAC username pasword', required=True)
-parser.add_argument('script_examples',action="store_true",help='CreateDeleteIdracUsersREDFISH..py -ip 192.168.0.120 -u root -p calvin -g y, this example will get all iDRAC user account details. CreateDeleteIdracUsersREDFISH..py -ip 192.168.0.120 -u root -p calvin -g y -id 7, this example will only return account details for id 7. CreateDeleteIdracUsersREDFISH..py -ip 192.168.0.120 -u root -p calvin -id 3 -un user3 -pwd test123 -pl 2 -e y, this example will create iDRAC user for id 3, enable and set privileges to operator. CreateDeleteIdracUsersREDFISH.py -ip 192.168.0.120 -u root -p calvin -d 3, this example will delete iDRAC user id 3')
-parser.add_argument('-g', help='Get current iDRAC user account information for all iDRAC ids, pass in \"y\". If you only want to get a specific iDRAC user account, pass in argument -id also with -g', required=False)
-parser.add_argument('-id', help='Pass in the iDRAC user account ID you want to configure', required=False)
-parser.add_argument('-un', help='Pass in the name of the iDRAC user you want to create', required=False)
-parser.add_argument('-pwd', help='Pass in the password of the iDRAC user you are creating', required=False)
-parser.add_argument('-pl', help='Pass in the privilege level for the user you are creating. Supported values are 1 for \"Administrator\", 2 for \"Operator\", 3 for \"ReadOnly" for 4 for \"None\"', required=False)
-parser.add_argument('-e', help='Enable the new user you are creating, pass in \"y\" to enable, \"n\" to disable', required=False)
-parser.add_argument('-d', help='Delete iDRAC user, pass in the iDRAC user account id', required=False)
+parser.add_argument('-ip',help='iDRAC IP address', required=False)
+parser.add_argument('-u', help='iDRAC username', required=False)
+parser.add_argument('-p', help='iDRAC password. If you do not pass in argument -p, script will prompt to enter user password which will not be echoed to the screen.', required=False)
+parser.add_argument('-x', help='Pass in X-Auth session token for executing Redfish calls. All Redfish calls will use X-Auth token instead of username/password', required=False)
+parser.add_argument('--ssl', help='SSL cert verification for all Redfish calls, pass in value \"true\" or \"false\". By default, this argument is not required and script ignores validating SSL cert for all Redfish calls.', required=False)
+parser.add_argument('--script-examples', help='Get executing script examples', action="store_true", dest="script_examples", required=False)
+parser.add_argument('--get', help='Get current iDRAC user account information for all iDRAC ids.', action="store_true", required=False)
+parser.add_argument('--user-id', help='Pass in the iDRAC user account ID you want to configure', dest="user_id", required=False)
+parser.add_argument('--new-user', help='Pass in the name of the iDRAC user you want to create', dest="new_user", required=False)
+parser.add_argument('--new-pwd', help='Pass in the password of the iDRAC user you are creating. If you do not pass in this argument, script will prompt you enter password.', dest="new_pwd", required=False)
+parser.add_argument('--privilege-role', help='Pass in the privilege role for the user you are creating. Supported values are 1 for \"Administrator\", 2 for \"Operator\", 3 for \"ReadOnly" for 4 for \"None\"', dest="privilege_role", required=False)
+parser.add_argument('--enable', help='Enable the new user you are creating, pass in \"y\" to enable, \"n\" to disable', required=False)
+parser.add_argument('--delete', help='Delete iDRAC user, pass in the iDRAC user account id', required=False)
 
 args=vars(parser.parse_args())
+logging.basicConfig(format='%(message)s', stream=sys.stdout, level=logging.INFO)
 
-idrac_ip=args["ip"]
-idrac_username=args["u"]
-idrac_password=args["p"]
+def script_examples():
+    print("""\n- CreateDeleteIdracUsersREDFISH..py -ip 192.168.0.120 -u root -p calvin --get, this example will get all iDRAC user account details.
+    \n- CreateDeleteIdracUsersREDFISH.py -ip 192.168.0.120 -u root --user-id 3 --new-user tester --privilege-role 1 --enable y, this example will first prompt to enter password for user root. Then prompt to enter new password for user ID 3 and create this user.
+    \n- CreateDeleteIdracUsersREDFISH..py -ip 192.168.0.120 -u root -p calvin --user-id 3 --new-user user3 --new-pwd test123 --privilege-role 2 --enable y, this example will create iDRAC user for id 3, enable and set privileges to operator.
+    \n- CreateDeleteIdracUsersREDFISH.py -ip 192.168.0.120 -u root -p calvin --delete 3, this example will delete iDRAC user id 3.
+    \n- CreateDeleteIdracUsersREDFISH.py -ip 100.65.84.70 -x c09c44e17e09372536428a6369bfa1b2 --delete 7, this example shows deleting user id 7 account using X-auth token session.""")
+    sys.exit(0)
 
 def check_supported_idrac_version():
-    response = requests.get('https://%s/redfish/v1/Managers/iDRAC.Embedded.1/Accounts' % idrac_ip,verify=False,auth=(idrac_username, idrac_password))
+    if args["x"]:
+        response = requests.get('https://%s/redfish/v1/Managers/iDRAC.Embedded.1/Accounts' % idrac_ip, verify=verify_cert, headers={'X-Auth-Token': args["x"]})   
+    else:
+        response = requests.get('https://%s/redfish/v1/Managers/iDRAC.Embedded.1/Accounts' % idrac_ip, verify=verify_cert,auth=(idrac_username, idrac_password))
     data = response.json()
     if response.status_code == 401:
-        print("\n- WARNING, status code %s returned. Incorrect iDRAC username/password or invalid privilege detected." % response.status_code)
-        sys.exit()
-    elif response.status_code != 200:
-        print("\n- WARNING, iDRAC version installed does not support this feature using Redfish API")
-        sys.exit()
-    else:
-        pass
+        logging.warning("\n- WARNING, status code %s returned. Incorrect iDRAC username/password or invalid privilege detected." % response.status_code)
+        sys.exit(0)
+    if response.status_code != 200:
+        logging.warning("\n- WARNING, iDRAC version installed does not support this feature using Redfish API")
+        sys.exit(0)
 
-### Function to change iDRAC user password and verify password was changed by executing GET command with new password
-
-def create_idrac_user_password():
-    
-    url = 'https://%s/redfish/v1/Managers/iDRAC.Embedded.1/Accounts/%s' % (idrac_ip, args["id"])
-    payload = {"UserName":args["un"], "Password":args["pwd"]}
-    if args["pl"] == "1":
+def create_idrac_user_password():    
+    url = 'https://%s/redfish/v1/Managers/iDRAC.Embedded.1/Accounts/%s' % (idrac_ip, args["user_id"])
+    if not args["new_pwd"]:
+        args["new_pwd"] = getpass.getpass("\n- Argument --new-pwd not detected, pass in password for new user: ")
+    payload = {"UserName":args["new_user"], "Password":args["new_pwd"]}
+    if args["privilege_role"] == "1":
         payload["RoleId"]="Administrator"
-    elif args["pl"] == "2":
+    elif args["privilege_role"] == "2":
         payload["RoleId"]="Operator"
-    elif args["pl"] == "3":
+    elif args["privilege_role"] == "3":
         payload["RoleId"]="ReadOnly"
-    elif args["pl"] == "4":
+    elif args["privilege_role"] == "4":
         payload["RoleId"]="None"
     else:
-        print("- FAIL, invalid value passed in for argument -pl")
+        logging.error("- FAIL, invalid value passed in for argument -pl")
         sys.exit()
-    if args["e"] == "y":
+    if args["enable"].lower() == "y":
         payload["Enabled"] = True
-    elif args["e"] == "n":
+    elif args["enable"].lower() == "n":
         payload["Enabled"] = False
     else:
-        print("- FAIL, invalid value passed in for argument -e")
-        sys.exit()
-    
-    print("\n- Parameters and values passed in for PATCH command to create iDRAC user\n")
-    for i in payload.items():
-        if i[0] == "Password":
-            print("Password: ******")
-        else:
-            print("%s: %s" % (i[0],i[1]))
-    print("Id: %s" % args["id"])
-    
-   
-    headers = {'content-type': 'application/json'}
-    response = requests.patch(url, data=json.dumps(payload), headers=headers,verify=False, auth=(idrac_username, idrac_password))
+        logging.error("- FAIL, invalid value passed in for argument -e")
+        sys.exit(0)
+    if args["x"]:
+        headers = {'content-type': 'application/json', 'X-Auth-Token': args["x"]}
+        response = requests.patch(url, data=json.dumps(payload), headers=headers, verify=verify_cert)
+    else:
+        headers = {'content-type': 'application/json'}
+        response = requests.patch(url, data=json.dumps(payload), headers=headers, verify=verify_cert,auth=(idrac_username,idrac_password))
     if "error" in response.json().keys():
-        print("- FAIL, PATCH command failed, detailed error results: \n%s" % response.json()["error"])
-        sys.exit()
-    statusCode = response.status_code
-    if statusCode == 200:
-        print("\n- PASS, status code %s returned for PATCH command to create iDRAC user \"%s\"" % (statusCode, args["un"]))
+        logging.error("- FAIL, PATCH command failed, detailed error results: \n%s" % response.json()["error"])
+        sys.exit(0)
+    if response.status_code == 200:
+        logging.info("\n- PASS, status code %s returned for PATCH command to create iDRAC user \"%s\"" % (response.status_code, args["new_user"]))
     else:
-        print("\n- FAIL, status code %s returned, password was not changed" % statusCode)
-        sys.exit()
-
-def verify_idrac_user_created():
-    response = requests.get('https://%s/redfish/v1/Managers/iDRAC.Embedded.1/Accounts/%s' % (idrac_ip, args["id"]),verify=False,auth=(idrac_username, idrac_password))
-    statusCode = response.status_code
-    if statusCode != 200:
-        print("\n- FAIL, status code %s returned for GET command" % statusCode)
-        sys.exit()
-    else:
-        pass
-    data = response.json()
-    if data['UserName'] == args["un"]:
-        print("\n- PASS, iDRAC user \"%s\" successfully created" % args["un"])
-    else:
-        print("\n- FAIL, iDRAC user %s not successfully created, GET command complete details %s" % (args["un"], data))
-        sys.exit()
+        logging.error("\n- FAIL, status code %s returned, password was not changed" % response.status_code)
+        sys.exit(0)
 
 def delete_idrac_user():
-    url = 'https://%s/redfish/v1/Managers/iDRAC.Embedded.1/Accounts/%s' % (idrac_ip, args["d"])
+    url = 'https://%s/redfish/v1/Managers/iDRAC.Embedded.1/Accounts/%s' % (idrac_ip, args["delete"])
     payload = {"Enabled":False,"RoleId":"None"}
-    headers = {'content-type': 'application/json'}
-    response = requests.patch(url, data=json.dumps(payload), headers=headers,verify=False, auth=(idrac_username, idrac_password))
-    statusCode = response.status_code
-    data = response.json()
-    if statusCode == 200:
-        pass
+    if args["x"]:
+        headers = {'content-type': 'application/json', 'X-Auth-Token': args["x"]}
+        response = requests.patch(url, data=json.dumps(payload), headers=headers, verify=verify_cert)
     else:
-        print("\n- FAIL, status code %s returned, iDRAC user not deleted. Detailed error results %s" % (statusCode, data))
-        sys.exit()
+        headers = {'content-type': 'application/json'}
+        response = requests.patch(url, data=json.dumps(payload), headers=headers, verify=verify_cert,auth=(idrac_username,idrac_password))
+    data = response.json()
+    if response.status_code != 200:
+        logging.info("\n- FAIL, status code %s returned, iDRAC user not deleted. Detailed error results %s" % (response.status_code, data))
+        sys.exit(0)
     payload = {"UserName":""}
-    response = requests.patch(url, data=json.dumps(payload), headers=headers,verify=False, auth=(idrac_username, idrac_password))
-    statusCode = response.status_code
+    if args["x"]:
+        headers = {'content-type': 'application/json', 'X-Auth-Token': args["x"]}
+        response = requests.patch(url, data=json.dumps(payload), headers=headers, verify=verify_cert)
+    else:
+        headers = {'content-type': 'application/json'}
+        response = requests.patch(url, data=json.dumps(payload), headers=headers, verify=verify_cert,auth=(idrac_username,idrac_password))
     data = response.json()
-    if statusCode == 200:
-        print("\n- PASS, status code %s returned for PATCH command to delete iDRAC user id %s" % (statusCode, args["d"]))
+    if response.status_code == 200:
+        logging.info("\n- PASS, status code %s returned for PATCH command to delete iDRAC user id %s" % (response.status_code, args["delete"]))
     else:
-        print("\n- FAIL, status code %s returned, iDRAC user not deleted. Detailed error results %s" % (statusCode, data))
-        sys.exit()
-    response = requests.get('https://%s/redfish/v1/Managers/iDRAC.Embedded.1/Accounts/%s' % (idrac_ip, args["d"]),verify=False,auth=(idrac_username, idrac_password))
-    statusCode = response.status_code
-    if statusCode != 200:
-        print("\n- FAIL, status code %s returned for GET command" % statusCode)
-        sys.exit()
-    else:
-        pass
-    data = response.json()
-    if data['UserName'] == "":
-        print("\n- PASS, iDRAC user id \"%s\" successfully deleted" % args["d"])
-    else:
-        print("\n- FAIL, iDRAC user %s not successfully deleted, GET command complete details %s" % (args["d"], data))
-        sys.exit()
+        logging.error("\n- FAIL, status code %s returned, iDRAC user not deleted. Detailed error results %s" % (response.status_code, data))
+        sys.exit(0)
 
-def get_current_iDRAC_user_information():
-    if args["id"]:
-        print("\n- Current iDRAC account user information for id %s" % args["id"])
-        response = requests.get('https://%s/redfish/v1/Managers/iDRAC.Embedded.1/Accounts/%s' % (idrac_ip, args["id"]),verify=False,auth=(idrac_username, idrac_password))
-        statusCode = response.status_code
-        if statusCode != 200:
-            print("\n- FAIL, status code %s returned for GET command" % statusCode)
-            sys.exit()
-        else:
-            pass
-        data = response.json()
-        print("\n")
-        for i in data.items():
-            if i[0] == "@odata.type" or i[0] == "Links" or i[0] == "@odata.context":
-                pass
-            else:
-                print("%s: %s" % (i[0], i[1]))
-        sys.exit()
+def get_iDRAC_user_account_info():
+    if args["x"]:
+        response = requests.get('https://%s/redfish/v1/Managers/iDRAC.Embedded.1/Accounts?$expand=*($levels=1)' % idrac_ip, verify=verify_cert, headers={'X-Auth-Token': args["x"]})   
     else:
-        print("\n- Current iDRAC account user information -")
-        for i in range(2,17):
-            response = requests.get('https://%s/redfish/v1/Managers/iDRAC.Embedded.1/Accounts/%s' % (idrac_ip, i),verify=False,auth=(idrac_username, idrac_password))
-            statusCode = response.status_code
-            if statusCode != 200:
-                print("\n- FAIL, status code %s returned for GET command" % statusCode)
-                sys.exit()
-            else:
-                pass
-            data = response.json()
-            print("\n")
-            for i in data.items():
-                if i[0] == "@odata.type" or i[0] == "Links" or i[0] == "@odata.context":
-                    pass
-                else:
-                    print("%s: %s" % (i[0], i[1]))
+        response = requests.get('https://%s/redfish/v1/Managers/iDRAC.Embedded.1/Accounts?$expand=*($levels=1)' % idrac_ip, verify=verify_cert,auth=(idrac_username, idrac_password))
+    data = response.json()
+    if response.status_code != 200:
+        logging.error("\n- FAIL, status code %s returned for GET command. Detail error results: \n%s" % (statusCode, data))
+        sys.exit(0)
+    logging.info("\n- iDRAC User Account Information -")
+    for i in data["Members"]:
+        pprint(i)
+        print("\n")
         
     
 
 if __name__ == "__main__":
-    check_supported_idrac_version()
-    if args["id"] and args["un"] and args["pwd"] and args["pl"]:
-        create_idrac_user_password()
-        verify_idrac_user_created()
-    elif args["d"]:
-        delete_idrac_user()
-    elif args["g"]:
-        get_current_iDRAC_user_information()   
+    if args["script_examples"]:
+        script_examples()
+    if args["ip"] and args["ssl"] or args["u"] or args["p"] or args["x"]:
+        idrac_ip=args["ip"]
+        idrac_username=args["u"]
+        if args["p"]:
+            idrac_password=args["p"]
+        if not args["p"] and not args["x"] and args["u"]:
+            idrac_password = getpass.getpass("\n- Argument -p not detected, pass in iDRAC user %s password: " % args["u"])
+        if args["ssl"]:
+            if args["ssl"].lower() == "true":
+                verify_cert = True
+            elif args["ssl"].lower() == "false":
+                verify_cert = False
+            else:
+                verify_cert = False
+        else:
+            verify_cert = False
+        check_supported_idrac_version()
     else:
-        print("- FAIL, incorrect parameter(s) passed in or missing required parameters")
+        logging.error("\n- FAIL, invalid argument values or not all required parameters passed in. See help text or argument --script-examples for more details.")
+        sys.exit(0)
+    if args["user_id"] and args["new_user"] and args["privilege_role"]:
+        create_idrac_user_password()
+    elif args["delete"]:
+        delete_idrac_user()
+    elif args["get"]:
+        get_iDRAC_user_account_info()   
+    else:
+        logging.error("\n- FAIL, invalid argument values or not all required parameters passed in. See help text or argument --script-examples for more details.")
         
 
