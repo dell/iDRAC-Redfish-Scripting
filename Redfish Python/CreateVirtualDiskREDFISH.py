@@ -1,8 +1,10 @@
+#!/usr/bin/python
+#!/usr/bin/python3
 #
 # CreateVirtualDiskREDFISH. Python script using Redfish API to either get controllers / disks / virtual disks / supported RAID levels or create virtual disk.
 #
 # _author_ = Texas Roemer <Texas_Roemer@Dell.com>
-# _version_ = 16.0
+# _version_ = 18.0
 #
 # Copyright (c) 2018, Dell, Inc.
 #
@@ -14,524 +16,456 @@
 # http://www.gnu.org/licenses/old-licenses/gpl-2.0.txt.
 #
 
-
-import requests, json, sys, re, time, warnings, argparse
+import argparse
+import getpass
+import json
+import logging
+import re
+import requests
+import sys
+import time
+import warnings
 
 from datetime import datetime
+from pprint import pprint
 
 warnings.filterwarnings("ignore")
 
 parser=argparse.ArgumentParser(description="Python script using Redfish API to either get controllers / disks / virtual disks / supported RAID levels or create virtual disk")
-parser.add_argument('-ip',help='iDRAC IP address', required=True)
-parser.add_argument('-u', help='iDRAC username', required=True)
-parser.add_argument('-p', help='iDRAC password', required=True)
-parser.add_argument('script_examples',action="store_true",help='CreateVirtualDiskREDFISH.py -ip 192.168.0.120 -u root -p calvin -v RAID.Slot.6-1, this example will get current volumes for RAID controller RAID.Slot.6-1. CreateVirtualDiskREDFISH.py -ip 192.168.0.120 -u root -p calvin -C RAID.Slot.6-1 -V y -D Disk.Bay.0:Enclosure.Internal.0-1:RAID.Slot.6-1 -R 0, this example will create a one disk RAID 0 volume')
-parser.add_argument('-c', help='Get server storage controller FQDDs, pass in \"y\". To get detailed information for all controllerse detected, pass in \"yy\"', required=False)
-parser.add_argument('-cc', help='Pass in controller FQDD, this argument is used with -s to get support RAID levels for the controller', required=False)
-parser.add_argument('-d', help='Get server storage controller disk FQDDs only, pass in storage controller FQDD, Example "\RAID.Integrated.1-1\"', required=False)
-parser.add_argument('-dd', help='Get server storage controller disks detailed information, pass in storage controller FQDD, Example "\RAID.Integrated.1-1\"', required=False)
-parser.add_argument('-v', help='Get current server storage controller virtual disk(s) and virtual disk type, pass in storage controller FQDD, Example "\RAID.Integrated.1-1\"', required=False)
-parser.add_argument('-vv', help='Get current server storage controller virtual disk detailed information, pass in storage controller FQDD, Example "\RAID.Integrated.1-1\"', required=False)
-parser.add_argument('-e', help='Get current server storage enclosure information, pass in \"y\"', required=False)
-parser.add_argument('-s', help='Get current supported volume types (RAID levels) for your controller, pass in \"y\". You must use agrument -cc with your controller FQDD', required=False)
-parser.add_argument('-C', help='Pass in controller FQDD to create virtual disk, pass in storage controller FQDD, Example "\RAID.Integrated.1-1\"', required=False)
-parser.add_argument('-D', help='Pass in disk FQDD to create virtual disk, pass in storage disk FQDD, Example \"Disk.Bay.2:Enclosure.Internal.0-1:RAID.Mezzanine.1-1\". You can pass in multiple drives, just use a comma seperator between each disk FQDD string', required=False)
-parser.add_argument('-R', help='Pass in the RAID level you want to create. Possible supported values are: 0, 1, 5, 6, 10, 50 and 60. You must also pass in arguments -V, -C and -D. NOTE: Depending on your storage controller, not all RAID levels will be supported. if needed, check the storage controller user guide for details on which RAID levels are supported. For RAID levels 6 and 60, you must have iDRAC 4.40 or newer.', required=False)
-parser.add_argument('-V', help='Create virtual disk, pass in \"y\". You must also pass in arguments -C and -D', required=False)
+parser.add_argument('-ip',help='iDRAC IP address', required=False)
+parser.add_argument('-u', help='iDRAC username', required=False)
+parser.add_argument('-p', help='iDRAC password. If you do not pass in argument -p, script will prompt to enter user password which will not be echoed to the screen.', required=False)
+parser.add_argument('-x', help='Pass in X-Auth session token for executing Redfish calls. All Redfish calls will use X-Auth token instead of username/password', required=False)
+parser.add_argument('--ssl', help='SSL cert verification for all Redfish calls, pass in value \"true\" or \"false\". By default, this argument is not required and script ignores validating SSL cert for all Redfish calls.', required=False)
+parser.add_argument('--script-examples', help='Get executing script examples', action="store_true", dest="script_examples", required=False) 
+parser.add_argument('--get-controllers', help='Get server storage controller FQDDs', action="store_true", dest="get_controllers", required=False)
+parser.add_argument('--get-disks', help='Get server storage controller disk FQDDs and their raid status, pass in storage controller FQDD, Example "\RAID.Integrated.1-1\"', dest="get_disks", required=False)
+parser.add_argument('--get-virtualdisks', help='Get current server storage controller virtual disk(s) and virtual disk type, pass in storage controller FQDD, Example "\RAID.Integrated.1-1\"', dest="get_virtualdisks", required=False)
+parser.add_argument('--get-virtualdisk-details', help='Get complete details for all virtual disks behind storage controller, pass in storage controller FQDD, Example "\RAID.Integrated.1-1\"', dest="get_virtualdisk_details", required=False)
+parser.add_argument('--supported-raid-levels', help='Get current supported volume types (RAID levels) for your controller, pass in controller FQDD', dest="supported_raid_levels", required=False)
+parser.add_argument('--create', help='Pass in controller FQDD to create virtual disk, pass in storage controller FQDD, Example "\RAID.Integrated.1-1\"', required=False)
+parser.add_argument('--disks', help='Pass in disk FQDD to create virtual disk, pass in storage disk FQDD, Example \"Disk.Bay.2:Enclosure.Internal.0-1:RAID.Mezzanine.1-1\". You can pass in multiple drives, just use a comma seperator between each disk FQDD string', required=False)
+parser.add_argument('--raid-level', help='Pass in the RAID level you want to create. Possible supported values are: 0, 1, 5, 6, 10, 50 and 60. NOTE: Depending on your storage controller, not all RAID levels will be supported.', required=False)
 parser.add_argument('--size', help='Pass in the size(CapacityBytes) in bytes for VD creation. This is OPTIONAL, if you don\'t pass in the size, VD creation will use full disk size to create the VD', required=False)
 parser.add_argument('--stripesize', help='Pass in the stripesize(OptimumIOSizeBytes) in bytes for VD creation. This is OPTIONAL, if you don\'t pass in stripesize, controller will use the default value', required=False)
 parser.add_argument('--name', help='Pass in the name for VD creation. This is OPTIONAL, if you don\'t pass in name, controller will use the default value', required=False)
-args=vars(parser.parse_args())
 
-idrac_ip=args["ip"]
-idrac_username=args["u"]
-idrac_password=args["p"]
-if args["d"]:
-    controller=args["d"]
-elif args["c"]:
-    pass
-elif args["dd"]:
-    controller=args["dd"]
-elif args["v"]:
-    controller=args["v"]
-elif args["vv"]:
-    controller=args["vv"]
-elif args["cc"]:
-    controller=args["cc"]
-elif args["C"] and args["D"] and args["V"] and args["R"]:
-    controller=args["C"]
-    disks=args["D"]
-    response = requests.get('https://%s/redfish/v1/Managers/iDRAC.Embedded.1' % idrac_ip,verify=False,auth=(idrac_username, idrac_password))
-    if response.status_code == 401:
-        print("\n- WARNING, status code 401 returned, check to make sure you are passing in correct iDRAC username or password")
-        sys.exit()
-    else:
-        pass
-    
-    data = response.json()
-    get_version = data['FirmwareVersion'].split(".")[:2]
-    get_version = int("".join(get_version))
-    if get_version < 440:
-        raid_levels={"0":"NonRedundant","1":"Mirrored","5":"StripedWithParity","10":"SpannedMirrors","50":"SpannedStripesWithParity"}
-        try:
-            volume_type=raid_levels[args["R"]]  
-        except:
-            print("\n- FAIL, invalid RAID level value entered")
-            sys.exit()
-    elif get_version >= 440:
-        raid_levels={"0":"RAID0","1":"RAID1","5":"RAID5","6":"RAID6","10":"RAID10","50":"RAID50","60":"RAID60"}
-        try:
-            volume_type=raid_levels[args["R"]]  
-        except:
-            print("\n- FAIL, invalid RAID level value entered")
-            sys.exit()
-        
-    if args["size"]:
-        vd_size=int(args["size"])
-    if args["stripesize"]:
-        vd_stripesize=int(args["stripesize"])
-    if args["name"]:
-        vd_name=args["name"]
-elif args["e"]:
-    pass
-else:
-        print("\n- WARNING, missing or incorrect arguments passed in for executing script")
-        sys.exit()
-    
+args=vars(parser.parse_args())
+logging.basicConfig(format='%(message)s', stream=sys.stdout, level=logging.INFO)
+
+def script_examples():
+    print("""\n- CreateVirtualDiskREDFISH.py -ip 192.168.0.120 -u root -p calvin --get-disks RAID.Mezzanine.1-1, this example return return disks and their raid status for controller RAID.Mezzanine.1-1.
+    \n- CreateVirtualDiskREDFISH.py -ip 192.168.0.120 -x 3fe2401de68b718b5ce2761cb0651bbf --get-controllers, this example using iDRAC X-auth token session will return controller FQDDs.
+    \n- CreateVirtualDiskREDFISH.py -ip 192.168.0.120 -u root -p calvin --supported-raid-levels RAID.Integrated.1-1, this example will return supported RAID levels for controller RAID.Integrated.1-1.
+    \n- CreateVirtualDiskREDFISH.py -ip 192.168.0.120 -u root --create RAID.Mezzanine.1-1 --raid-level 0 --disks Disk.Bay.1:Enclosure.Internal.0-1:RAID.Mezzanine.1-1, this example will first prompt to enter iDRAC user password, then create one disk RAID 0.
+    \n- CreateVirtualDiskREDFISH.py -ip 192.168.0.120 -u root -p calvin --create RAID.Mezzanine.1-1 --raid-level 0 --disks  Disk.Bay.1:Enclosure.Internal.0-1:RAID.Mezzanine.1-1,Disk.Bay.7:Enclosure.Internal.0-1:RAID.Mezzanine.1-1 --name RAID_1_OS, this example will create RAID 1 with VD name RAID_1_OS.
+    \n- CreateVirtualDiskREDFISH.py -ip 192.168.0.120 -u root -p calvin --create RAID.Mezzanine.1-1 --raid-level 0 --disks  Disk.Bay.1:Enclosure.Internal.0-1:RAID.Mezzanine.1-1,Disk.Bay.7:Enclosure.Internal.0-1:RAID.Mezzanine.1-1 --name RAID_1_OS --size 107374182400 --stripesize 131072, this example will create 100GB size, 128KB stripesize RAID 1 virtual disk.""")
+    sys.exit(0)
+
 
 def check_supported_idrac_version():
-    response = requests.get('https://%s/redfish/v1/Systems/System.Embedded.1/Storage' % idrac_ip,verify=False,auth=(idrac_username, idrac_password))
+    if args["x"]:
+        response = requests.get('https://%s/redfish/v1/Systems/System.Embedded.1/Storage' % idrac_ip, verify=verify_cert, headers={'X-Auth-Token': args["x"]})
+    else:
+        response = requests.get('https://%s/redfish/v1/Systems/System.Embedded.1/Storage' % idrac_ip, verify=verify_cert, auth=(idrac_username, idrac_password))
     data = response.json()
     if response.status_code == 401:
-        print("\n- WARNING, status code 401 returned, check to make sure you are passing in correct iDRAC username or password")
-        sys.exit()
+        logging.warning("\n- WARNING, status code %s returned. Incorrect iDRAC username/password or invalid privilege detected." % response.status_code)
+        sys.exit(0)
     elif response.status_code != 200:
-        print("\n- WARNING, iDRAC version installed does not support this feature using Redfish API")
-        sys.exit()
-    else:
-        pass
+        logging.warning("\n- WARNING, iDRAC version installed does not support this feature using Redfish API")
+        sys.exit(0)
 
-def get_storage_enclosures():
-    response = requests.get('https://%s/redfish/v1/Chassis' % idrac_ip,verify=False,auth=(idrac_username, idrac_password))
-    data = response.json()
-    backplane_uris = []
-    if len(data['Members']) == 1:
-        print("\n- FAIL, no backplanes detected for server. Either backplane type not supported to get data and server has no backplane")
-        sys.exit()
-    print("\n - Backplane URIs detected for server -\n")
-    for i in data['Members']:
-        for ii in i.items():
-            if ii[1] == '/redfish/v1/Chassis/System.Embedded.1':
-                pass
-            else:
-                print(ii[1])
-                backplane_uris.append(ii[1])
-    for i in backplane_uris:
-        response = requests.get('https://%s%s' % (idrac_ip, i),verify=False,auth=(idrac_username, idrac_password))
-        print("\n- Detailed information for URI \"%s\" -\n" % i)
-        data = response.json()
-        for ii in data.items():
-            if ii[0] == 'Oem':
-                for iii in ii[1]['Dell']['DellEnclosure'].items():
-                    print("%s: %s" % (iii[0],iii[1]))
-            else:
-                print("%s: %s" % (ii[0],ii[1]))
-        
-        
-    sys.exit()
+def test_valid_controller_FQDD_string(x):
+    if args["x"]:
+        response = requests.get('https://%s/redfish/v1/Systems/System.Embedded.1/Storage/%s' % (idrac_ip, x),verify=verify_cert, headers={'X-Auth-Token': args["x"]})
+    else:
+        response = requests.get('https://%s/redfish/v1/Systems/System.Embedded.1/Storage/%s' % (idrac_ip, x),verify=verify_cert,auth=(idrac_username, idrac_password))
+    if response.status_code != 200:
+        logging.error("\n- FAIL, either controller FQDD does not exist or typo in FQDD string name (FQDD controller string value is case sensitive)")
+        sys.exit(0)
 
 def get_storage_controllers():
-    response = requests.get('https://%s/redfish/v1/Systems/System.Embedded.1/Storage' % idrac_ip,verify=False,auth=(idrac_username, idrac_password))
+    if args["x"]:
+        response = requests.get('https://%s/redfish/v1/Systems/System.Embedded.1/Storage' % idrac_ip,verify=verify_cert, headers={'X-Auth-Token': args["x"]})   
+    else:
+        response = requests.get('https://%s/redfish/v1/Systems/System.Embedded.1/Storage' % idrac_ip,verify=verify_cert,auth=(idrac_username, idrac_password))
     data = response.json()
-    print("\n- Server controller(s) detected -\n")
+    logging.info("\n- Server controller(s) detected -\n")
     controller_list=[]
     for i in data['Members']:
         controller_list.append(i['@odata.id'].split("/")[-1])
         print(i['@odata.id'].split("/")[-1])
-    if args["c"] == "yy":
-        for i in controller_list:
-            response = requests.get('https://%s/redfish/v1/Systems/System.Embedded.1/Storage/%s' % (idrac_ip, i),verify=False,auth=(idrac_username, idrac_password))
-            data = response.json()
-            print("\n - Detailed controller information for %s -\n" % i)
-            for i in data.items():
-                if i[0] == 'Status':
-                    pass
-                elif "@" in i[0] or "odata" in i[0]:
-                    pass
-                elif i[0] == 'StorageControllers':
-                    for ii in i[1]:
-                        for iii in ii.items():
-                            if iii[0] == 'Status':
-                                for iiii in iii[1].items():
-                                    print("%s: %s" % (iiii[0],iiii[1]))
-                            else:
-                                print("%s: %s" % (iii[0],iii[1]))
-                elif i[0] == 'Oem':
-                    try:
-                        for ii in i[1]['Dell']['DellController'].items():
-                            print("%s: %s" % (ii[0],ii[1]))
-                    except:
-                        for ii in i[1]['Dell'].items():
-                            print("%s: %s" % (ii[0],ii[1]))
-                    
-                else:
-                    print("%s: %s" % (i[0], i[1]))
-    else:
-        pass
-    sys.exit()
 
-def get_supported_RAID_levels():
-    non_supported = ""
-    response = requests.get('https://%s/redfish/v1/Systems/System.Embedded.1/Storage/%s' % (idrac_ip, controller),verify=False,auth=(idrac_username, idrac_password))
-    data = response.json()
-    for i in data['StorageControllers']:
-        for ii in i.items():
-            if ii[0] == "Model":
-                if "BOSS" in ii[1]:
-                    job_type="staged"
-                    if args["s"]:
-                        print("\nSupported RAID levels for %s controller are: \"Mirrored\" or RAID 1" % (controller))
-                    else:
-                        pass
-                elif "AHCI" in ii[1] or "PCIe" in ii[1] or "HBA" in ii[1]:
-                    if args["s"]:
-                        print("\nController \"%s\" does not support creating virtual disks" % controller)
-                        non_supported = "yes"
-                elif "S1" in ii[1]:
-                    if args["s"]:
-                        print("\nSupported RAID levels for %s controller are:\n\n- \"NonRedundant\" or RAID 0\n- \"Mirrored\" or RAID 1\n- \"StripedWithParity\" or RAID 5\n- \"SpannedMirrors\" or RAID 10" % (controller))
-                elif "H3" in ii[1] or "H7" in ii[1] or "H8" in ii[1]:
-                    if args["s"]:
-                        print("\nSupported RAID levels for %s controller are:\n\n- \"NonRedundant\" or RAID 0\n- \"Mirrored\" or RAID 1\n- \"StripedWithParity\" or RAID 5\n- \"SpannedMirrors\" or RAID 10\n- \"SpannedStripesWithParity\" or RAID 50" % (controller))    
-           
 
-    
 def get_pdisks():
-    disk_used_created_vds=[]
-    available_disks=[]
-    response = requests.get('https://%s/redfish/v1/Systems/System.Embedded.1/Storage/%s' % (idrac_ip, controller),verify=False,auth=(idrac_username, idrac_password))
+    test_valid_controller_FQDD_string(args["get_disks"])
+    if args["x"]:
+        response = requests.get('https://%s/redfish/v1/Systems/System.Embedded.1/Storage/%s' % (idrac_ip, args["get_disks"]), verify=verify_cert, headers={'X-Auth-Token': args["x"]})   
+    else:
+        response = requests.get('https://%s/redfish/v1/Systems/System.Embedded.1/Storage/%s' % (idrac_ip, args["get_disks"]), verify=verify_cert,auth=(idrac_username, idrac_password))
     data = response.json()
-    drive_list=[]
-    if response.status_code == 200 or response.status_code == 202:
-        pass
-    else:
-        print("- FAIL, GET command failed, detailed error information: %s" % data)
-        sys.exit()
+    if response.status_code != 200:
+        logging.error("\n- FAIL, GET command failed, return code %s" % response.status_code)
+        logging.error("Extended Info Message: {0}".format(response.json()))
+        sys.exit(0)
+    drive_list = []
     if data['Drives'] == []:
-        print("\n- WARNING, no drives detected for %s" % controller)
-        sys.exit()
+        logging.warning("\n- WARNING, no drives detected for %s" % args["get_disks"])
+        sys.exit(0)
     else:
-        print("\n- Drive(s) detected for %s -\n" % controller)
         for i in data['Drives']:
             drive_list.append(i['@odata.id'].split("/")[-1])
-            response = requests.get('https://%s/redfish/v1/Systems/System.Embedded.1/Storage/Drives/%s' % (idrac_ip, i['@odata.id'].split("/")[-1]),verify=False,auth=(idrac_username, idrac_password))
-            data = response.json()
-            if response.status_code != 200:
-                print("- FAIL, status code %s detected, detailed error results: \n%s" % (response.status_code, data))
-                sys.exit()
-            if data['Links']['Volumes'] == []:
-                print("Disk: %s, RaidStatus: Disk is not part of a RAID volume" % (i['@odata.id'].split("/")[-1]))
-            else:
-                print("Disk: %s, RaidStatus: Disk is part of a RAID volume, RAID volume is: %s" % (i['@odata.id'].split("/")[-1],data['Links']['Volumes'][0]['@odata.id'].split("/")[-1] ))
-    if args["dd"]:
-      for i in drive_list:
-          response = requests.get('https://%s/redfish/v1/Systems/System.Embedded.1/Storage/Drives/%s' % (idrac_ip, i),verify=False,auth=(idrac_username, idrac_password))
-          data = response.json()
-          
-          print("\n - Detailed drive information for %s -\n" % i)
-          for ii in data.items():
-              if ii[0] == 'Oem':
-                  for iii in ii[1]['Dell']['DellPhysicalDisk'].items():
-                      print("%s: %s" % (iii[0],iii[1]))
-              elif ii[0] == 'Status':
-                  for iii in ii[1].items():
-                      print("%s: %s" % (iii[0],iii[1]))
-              elif ii[0] == "Links":
-                  if ii[1]["Volumes"] != []:
-                      disk_used_created_vds.append(i)
-                  else:
-                      available_disks.append(i)
-              else:
-                  print("%s: %s" % (ii[0],ii[1]))
+    logging.info("\n- Drives detected for controller \"%s\" and RaidStatus\n" % args["get_disks"])
+    for i in drive_list:
+      if args["x"]:
+          response = requests.get('https://%s/redfish/v1/Systems/System.Embedded.1/Storage/Drives/%s' % (idrac_ip, i), verify=verify_cert, headers={'X-Auth-Token': args["x"]})   
+      else:
+          response = requests.get('https://%s/redfish/v1/Systems/System.Embedded.1/Storage/Drives/%s' % (idrac_ip, i), verify=verify_cert,auth=(idrac_username, idrac_password))
+      data = response.json()
+      logging.info(" - Disk: %s, Raidstatus: %s" % (i, data['Oem']['Dell']['DellPhysicalDisk']['RaidStatus']))
 
 def get_virtual_disks():
-    response = requests.get('https://%s/redfish/v1/Systems/System.Embedded.1/Storage/%s/Volumes' % (idrac_ip, controller),verify=False,auth=(idrac_username, idrac_password))
+    test_valid_controller_FQDD_string(args["get_virtualdisks"])
+    if args["x"]:
+        response = requests.get('https://%s/redfish/v1/Systems/System.Embedded.1/Storage/%s/Volumes' % (idrac_ip, args["get_virtualdisks"]),verify=verify_cert, headers={'X-Auth-Token': args["x"]})
+    else:
+        response = requests.get('https://%s/redfish/v1/Systems/System.Embedded.1/Storage/%s/Volumes' % (idrac_ip, args["get_virtualdisks"]),verify=verify_cert,auth=(idrac_username, idrac_password))
     data = response.json()
     vd_list=[]
-    if response.status_code == 200 or response.status_code == 202:
-        pass
-    else:
-        print("\n- FAIL, status code %s returned. Check to make sure you passed in correct controller FQDD string for argument value" % response.status_code)
-        sys.exit()
     if data['Members'] == []:
-        print("\n- WARNING, no volume(s) detected for %s" % controller)
-        sys.exit()
+        logging.warning("\n- WARNING, no volume(s) detected for %s" % args["get_virtualdisks"])
+        sys.exit(0)
     else:
         for i in data['Members']:
             vd_list.append(i['@odata.id'].split("/")[-1])
-    print("\n- Volume(s) detected for %s controller -\n" % controller)
+    logging.info("\n- Volume(s) detected for %s controller -\n" % args["get_virtualdisks"])
     for ii in vd_list:
-        response = requests.get('https://%s/redfish/v1/Systems/System.Embedded.1/Storage/Volumes/%s' % (idrac_ip, ii),verify=False,auth=(idrac_username, idrac_password))
+        if args["x"]:
+            response = requests.get('https://%s/redfish/v1/Systems/System.Embedded.1/Storage/Volumes/%s' % (idrac_ip, ii),verify=verify_cert, headers={'X-Auth-Token': args["x"]})
+        else:
+            response = requests.get('https://%s/redfish/v1/Systems/System.Embedded.1/Storage/Volumes/%s' % (idrac_ip, ii),verify=verify_cert, auth=(idrac_username, idrac_password))
         data = response.json()
-        try:
-            print("%s, Volume type: %s, RAID type: %s" % (ii, data["VolumeType"], data["RAIDType"]))
-        except:
-            print("%s, Volume type: %s" % (ii, data["VolumeType"]))
-    sys.exit()
+        for i in data.items():
+            if i[0] == "VolumeType":
+                print("%s, Volume type: %s" % (ii, i[1]))
 
-def get_virtual_disk_details():
-    response = requests.get('https://%s/redfish/v1/Systems/System.Embedded.1/Storage/%s/Volumes' % (idrac_ip, controller),verify=False,auth=(idrac_username, idrac_password))
+def get_virtual_disks_details():
+    test_valid_controller_FQDD_string(args["get_virtualdisk_details"])
+    if args["x"]:
+        response = requests.get('https://%s/redfish/v1/Systems/System.Embedded.1/Storage/%s/Volumes' % (idrac_ip, args["get_virtualdisk_details"]),verify=verify_cert, headers={'X-Auth-Token': args["x"]})
+    else:
+        response = requests.get('https://%s/redfish/v1/Systems/System.Embedded.1/Storage/%s/Volumes' % (idrac_ip, args["get_virtualdisk_details"]),verify=verify_cert, auth=(idrac_username, idrac_password))
     data = response.json()
-    vd_list=[]
-    if response.status_code == 200 or response.status_code == 202:
-        pass
-    else:
-        print("\n- FAIL, status code %s returned. Check to make sure you passed in correct controller FQDD string for argument value" % response.status_code)
-        sys.exit()
+    vd_list = []
     if data['Members'] == []:
-        print("\n- WARNING, no volume(s) detected for %s" % controller)
-        sys.exit()
+        logging.error("\n- WARNING, no volume(s) detected for %s" % args["get_virtualdisk_details"])
+        sys.exit(0)
     else:
-        print("\n- Volume(s) detected for %s controller -\n" % controller)
+        logging.info("\n- Volume(s) detected for %s controller -\n" % args["get_virtualdisk_details"])
         for i in data['Members']:
             vd_list.append(i['@odata.id'].split("/")[-1])
             print(i['@odata.id'].split("/")[-1])
     for ii in vd_list:
-        response = requests.get('https://%s/redfish/v1/Systems/System.Embedded.1/Storage/Volumes/%s' % (idrac_ip, ii),verify=False,auth=(idrac_username, idrac_password))
+        if args["x"]:
+            response = requests.get('https://%s/redfish/v1/Systems/System.Embedded.1/Storage/Volumes/%s' % (idrac_ip, ii),verify=verify_cert, headers={'X-Auth-Token': args["x"]})
+        else:
+            response = requests.get('https://%s/redfish/v1/Systems/System.Embedded.1/Storage/Volumes/%s' % (idrac_ip, ii),verify=verify_cert, auth=(idrac_username, idrac_password))
         data = response.json()
-        print("\n - Detailed Volume information for %s -\n" % ii)
+        logging.info("\n----- Detailed Volume information for %s -----\n" % ii)
         for i in data.items():
-            if i[0] == 'Oem':
-                  for ii in i[1]['Dell']['DellVirtualDisk'].items():
-                      print("%s: %s" % (ii[0],ii[1]))
-                  
-            elif i[0] == 'Status':
-                for ii in i[1].items():
-                    print("%s: %s" % (ii[0],ii[1]))
-            else:
-                print("%s: %s" % (i[0],i[1]))
-                
-    sys.exit()
-        
-    
+            pprint(i)
+        print("\n")
+
+def get_supported_RAID_levels():
+    non_supported = ""
+    response = requests.get('https://%s/redfish/v1/Systems/System.Embedded.1/Storage/%s?$select=StorageControllers' % (idrac_ip, args["supported_raid_levels"]),verify=False,auth=(idrac_username, idrac_password))
+    data = response.json()
+    logging.info("\n- Supported RAID levels for controller %s -\n" % args["supported_raid_levels"])
+    print(data["StorageControllers"][0]["SupportedRAIDTypes"])    
 
 
 def create_raid_vd():
     global job_id
     global job_type
-    url = 'https://%s/redfish/v1/Systems/System.Embedded.1/Storage/%s/Volumes' % (idrac_ip, controller)
-    disks_list=disks.split(",")
-    final_disks_list=[]
+    if args["x"]:
+        response = requests.get('https://%s/redfish/v1/Managers/iDRAC.Embedded.1' % idrac_ip, verify=verify_cert, headers={'X-Auth-Token': args["x"]})
+    else:
+        response = requests.get('https://%s/redfish/v1/Managers/iDRAC.Embedded.1' % idrac_ip, verify=verify_cert, auth=(idrac_username, idrac_password))
+    data = response.json()
+    if response.status_code != 200:
+        logging.error("\n- FAIL, GET command failed to get iDRAC firmware version.")
+        sys.exit(0)
+    data = response.json()
+    get_version = data['FirmwareVersion'].split(".")[:2]
+    get_version = int("".join(get_version))
+    if get_version < 440:
+        raid_levels = {"0":"NonRedundant","1":"Mirrored","5":"StripedWithParity","10":"SpannedMirrors","50":"SpannedStripesWithParity"}
+        try:
+            volume_type = raid_levels[args["raid_level"]]  
+        except:
+            logging.error("\n- FAIL, invalid RAID level value entered")
+            sys.exit(0)
+    elif get_version >= 440:
+        raid_levels = {"0":"RAID0","1":"RAID1","5":"RAID5","6":"RAID6","10":"RAID10","50":"RAID50","60":"RAID60"}
+        try:
+            volume_type = raid_levels[args["raid_level"]]  
+        except:
+            logging.error("\n- FAIL, invalid RAID level value entered")
+            sys.exit(0)
+    if args["size"]:
+        vd_size = int(args["size"])
+    if args["stripesize"]:
+        vd_stripesize = int(args["stripesize"])
+    if args["name"]:
+        vd_name = args["name"]
+    url = 'https://%s/redfish/v1/Systems/System.Embedded.1/Storage/%s/Volumes' % (idrac_ip, args["create"])
+    disks_list = args["disks"].split(",")
+    final_disks_list = []
     for i in disks_list:
-        s="/redfish/v1/Systems/System.Embedded.1/Storage/Drives/"+i
-        d={"@odata.id":s}
-        final_disks_list.append(d)
+        disk_string = "/redfish/v1/Systems/System.Embedded.1/Storage/Drives/" + i
+        create_disk_dict = {"@odata.id":disk_string}
+        final_disks_list.append(create_disk_dict)
     if get_version < 440:
         payload = {"VolumeType":volume_type,"Drives":final_disks_list}
     elif get_version >= 440:
         payload = {"RAIDType":volume_type,"Drives":final_disks_list}
-    try:
-        payload["CapacityBytes"]=vd_size
-    except:
-        pass
-    try:
-        payload["OptimumIOSizeBytes"]=vd_stripesize
-    except:
-        pass
-    try:
-        payload["Name"]=vd_name
-    except:
-        pass
-    headers = {'Content-type': 'application/json'}
-    response = requests.post(url, data=json.dumps(payload), headers=headers, verify=False,auth=(idrac_username,idrac_password))
-    if response.status_code == 202:
-        print("\n- PASS: POST command passed to create \"%s\" virtual disk, status code 202 returned" % volume_type)
+    if args["size"]:
+        payload["CapacityBytes"] = int(args["size"])
+    if args["stripesize"]:
+        payload["OptimumIOSizeBytes"] = int(args["stripesize"])
+    if args["name"]:
+        payload["Name"] = vd_name
+    if args["x"]:
+        headers = {'content-type': 'application/json', 'X-Auth-Token': args["x"]}
+        response = requests.post(url, data=json.dumps(payload), headers=headers, verify=verify_cert)
     else:
-        print("\n- FAIL, POST command failed, status code is %s" % response.status_code)
+        headers = {'content-type': 'application/json'}
+        response = requests.post(url, data=json.dumps(payload), headers=headers, verify=verify_cert,auth=(idrac_username,idrac_password))
+    if response.status_code == 202:
+        logging.info("\n- PASS: POST command passed to create \"%s\" virtual disk, status code 202 returned" % volume_type)
+    else:
+        logging.error("\n- FAIL, POST command failed, status code is %s" % response.status_code)
         data = response.json()
-        print("\n- POST command failure is:\n %s" % data)
-        sys.exit()
-    x=response.headers["Location"]
+        logging.error("\n- POST command failure is:\n %s" % data)
+        sys.exit(0)
     try:
-        job_id=re.search("JID.+",x).group()
+        job_id = response.headers['Location'].split("/")[-1]
     except:
-        print("\n- FAIL, unable to create job ID")
-        sys.exit()
-        
-    req = requests.get('https://%s/redfish/v1/Managers/iDRAC.Embedded.1/Jobs/%s' % (idrac_ip, job_id), auth=(idrac_username, idrac_password), verify=False)
-    data = req.json()
+        logging.error("- FAIL, unable to locate job ID in JSON headers output")
+        sys.exit(0)
+    if args["x"]:
+        response = requests.get('https://%s/redfish/v1/Managers/iDRAC.Embedded.1/Jobs/%s' % (idrac_ip, job_id), verify=verify_cert, headers={'X-Auth-Token': args["x"]})
+    else:
+        response = requests.get('https://%s/redfish/v1/Managers/iDRAC.Embedded.1/Jobs/%s' % (idrac_ip, job_id), verify=verify_cert,auth=(idrac_username, idrac_password))
+    data = response.json()
     if data['JobType'] == "RAIDConfiguration":
-        job_type="staged"
+        job_type = "staged"
     elif data['JobType'] == "RealTimeNoRebootConfiguration":
-        job_type="realtime"
-    print("\n- PASS, \"%s\" %s jid successfully created for create virtual disk" % (job_type, job_id))
+        job_type = "realtime"
     
-start_time=datetime.now()
-
-def loop_job_status():
-    start_time=datetime.now()
-    try:
-        req = requests.get('https://%s/redfish/v1/Managers/iDRAC.Embedded.1/Jobs/%s' % (idrac_ip, job_id), auth=(idrac_username, idrac_password), verify=False)
-    except requests.ConnectionError as error_message:
-        print(error_message)
-        sys.exit()
-    data = req.json()
-    if data['JobType'] == "RAIDConfiguration":
-        print("- PASS, staged jid \"%s\" successfully created. Server will now reboot to apply the configuration changes" % job_id)
-    elif data['JobType'] == "RealTimeNoRebootConfiguration":
-        print("- PASS, realtime jid \"%s\" successfully created. Server will apply the configuration changes in real time, no server reboot needed" % job_id)
+def get_job_status_scheduled():
+    count = 0
     while True:
-        req = requests.get('https://%s/redfish/v1/Managers/iDRAC.Embedded.1/Jobs/%s' % (idrac_ip, job_id), auth=(idrac_username, idrac_password), verify=False)
-        current_time=(datetime.now()-start_time)
-        statusCode = req.status_code
-        if statusCode == 200:
-            pass
-        else:
-            print("\n- FAIL, Command failed to check job status, return code is %s" % statusCode)
-            print("Extended Info Message: {0}".format(req.json()))
-            sys.exit()
-        data = req.json()
-        if str(current_time)[0:7] >= "2:00:00":
-            print("\n- FAIL: Timeout of 2 hours has been hit, script stopped\n")
-            sys.exit()
-        elif "Fail" in data['Message'] or "fail" in data['Message'] or data['JobState'] == "Failed":
-            print("- FAIL: job ID %s failed, failed message is: %s" % (job_id, data[u'Message']))
-            sys.exit()
-        elif data['JobState'] == "Completed":
-            print("\n--- PASS, Final Detailed Job Status Results ---\n")
-            for i in data.items():
-                if "odata" in i[0] or "MessageArgs" in i[0] or "TargetSettingsURI" in i[0]:
-                    pass
-                else:
-                    print("%s: %s" % (i[0],i[1]))
-            break
-        else:
-            try:
-                print("- INFO, JobStatus not completed, current status: \"%s\", percent complete: \"%s\"" % (data['Message'],data['PercentComplete']))
-            except:
-                print("- INFO, JobStatus not completed, current status: \"%s\"" % (data['Message']))
-            time.sleep(3)
-
-def get_job_status():
-    while True:
+        if count == 5:
+            logging.error("- FAIL, GET job status retry count of 5 has been reached, script will exit")
+            sys.exit(0)
         try:
-            req = requests.get('https://%s/redfish/v1/Managers/iDRAC.Embedded.1/Jobs/%s' % (idrac_ip, job_id), auth=(idrac_username, idrac_password), verify=False)
+            if args["x"]:
+                response = requests.get('https://%s/redfish/v1/Managers/iDRAC.Embedded.1/Jobs/%s' % (idrac_ip, job_id), verify=verify_cert, headers={'X-Auth-Token': args["x"]})
+            else:
+                response = requests.get('https://%s/redfish/v1/Managers/iDRAC.Embedded.1/Jobs/%s' % (idrac_ip, job_id), verify=verify_cert,auth=(idrac_username, idrac_password))
         except requests.ConnectionError as error_message:
-            print(error_message)
-            sys.exit()
-        statusCode = req.status_code
-        if statusCode == 200:
+            logging.error(error_message)
+            logging.info("\n- INFO, GET request will try again to poll job status")
             time.sleep(5)
-            pass
+            count += 1
+            continue
+        if response.status_code == 200:
+            time.sleep(5)
         else:
-            print("\n- FAIL, Command failed to check job status, return code is %s" % statusCode)
-            print("Extended Info Message: {0}".format(req.json()))
-            sys.exit()
-        data = req.json()
+            logging.error("\n- FAIL, Command failed to check job status, return code is %s" % response.status_code)
+            logging.error("Extended Info Message: {0}".format(response.json()))
+            sys.exit(0)
+        data = response.json()
         if data['Message'] == "Task successfully scheduled.":
-            print("- INFO, staged config job marked as scheduled, rebooting the system")
+            logging.info("- INFO, staged config job marked as scheduled, rebooting the system")
             break
         else:
-            print("- INFO: JobStatus not scheduled, current status: %s\n" % data['Message'])
+            logging.info("- INFO: job status not scheduled, current status: %s\n" % data['Message'])
 
+def loop_job_status_final():
+    start_time = datetime.now()
+    if args["x"]:
+        response = requests.get('https://%s/redfish/v1/Managers/iDRAC.Embedded.1/Jobs/%s' % (idrac_ip, job_id), verify=verify_cert, headers={'X-Auth-Token': args["x"]})
+    else:
+        response = requests.get('https://%s/redfish/v1/Managers/iDRAC.Embedded.1/Jobs/%s' % (idrac_ip, job_id), verify=verify_cert,auth=(idrac_username, idrac_password))
+    data = response.json()
+    if data['JobType'] == "RAIDConfiguration":
+        logging.info("- PASS, staged jid \"%s\" successfully created. Server will now reboot to apply the configuration changes" % job_id)
+    elif data['JobType'] == "RealTimeNoRebootConfiguration":
+        logging.info("- PASS, realtime jid \"%s\" successfully created. Server will apply the configuration changes in real time, no server reboot needed" % job_id)
+    while True:
+        if args["x"]:
+            response = requests.get('https://%s/redfish/v1/Managers/iDRAC.Embedded.1/Jobs/%s' % (idrac_ip, job_id), verify=verify_cert, headers={'X-Auth-Token': args["x"]})
+        else:
+            response = requests.get('https://%s/redfish/v1/Managers/iDRAC.Embedded.1/Jobs/%s' % (idrac_ip, job_id), verify=verify_cert,auth=(idrac_username, idrac_password))
+        current_time = (datetime.now()-start_time)
+        if response.status_code != 200:
+            logging.error("\n- FAIL, GET command failed to check job status, return code is %s" % statusCode)
+            logging.error("Extended Info Message: {0}".format(req.json()))
+            sys.exit(0)
+        data = response.json()
+        if str(current_time)[0:7] >= "2:00:00":
+            logging.error("\n- FAIL: Timeout of 2 hours has been hit, script stopped\n")
+            sys.exit(0)
+        elif "Fail" in data['Message'] or "fail" in data['Message'] or data['JobState'] == "Failed":
+            logging.error("- FAIL: job ID %s failed, failed message is: %s" % (job_id, data['Message']))
+            sys.exit(0)
+        elif data['JobState'] == "Completed":
+            logging.info("\n--- PASS, Final Detailed Job Status Results ---\n")
+            for i in data.items():
+                pprint(i)
+            break
+        else:
+            logging.info("- INFO, job status not completed, current status: \"%s\"" % data['Message'])
+            time.sleep(10)
 
 def reboot_server():
-    response = requests.get('https://%s/redfish/v1/Systems/System.Embedded.1/' % idrac_ip,verify=False,auth=(idrac_username, idrac_password))
+    if args["x"]:
+        response = requests.get('https://%s/redfish/v1/Systems/System.Embedded.1' % idrac_ip, verify=verify_cert, headers={'X-Auth-Token': args["x"]})   
+    else:
+        response = requests.get('https://%s/redfish/v1/Systems/System.Embedded.1' % idrac_ip, verify=verify_cert,auth=(idrac_username, idrac_password))
     data = response.json()
-    print("\n- INFO, Current server power state is: %s" % data['PowerState'])
+    logging.info("\n- INFO, Current server power state is: %s" % data['PowerState'])
     if data['PowerState'] == "On":
         url = 'https://%s/redfish/v1/Systems/System.Embedded.1/Actions/ComputerSystem.Reset' % idrac_ip
         payload = {'ResetType': 'GracefulShutdown'}
-        headers = {'content-type': 'application/json'}
-        response = requests.post(url, data=json.dumps(payload), headers=headers, verify=False, auth=(idrac_username,idrac_password))
-        statusCode = response.status_code
-        if statusCode == 204:
-            print("- PASS, POST action passed to gracefully power OFF server")
-            time.sleep(10)
+        if args["x"]:
+            headers = {'content-type': 'application/json', 'X-Auth-Token': args["x"]}
+            response = requests.post(url, data=json.dumps(payload), headers=headers, verify=verify_cert)
         else:
-            print("\n- FAIL, Command failed to gracefully power OFF server, status code is: %s\n" % statusCode)
-            print("Extended Info Message: {0}".format(response.json()))
-            sys.exit()
-        count = 0
+            headers = {'content-type': 'application/json'}
+            response = requests.post(url, data=json.dumps(payload), headers=headers, verify=verify_cert,auth=(idrac_username,idrac_password))
+        if response.status_code == 204:
+            logging.info("- PASS, POST command passed to gracefully power OFF server, status code return is %s" % response.status_code)
+            logging.info("- INFO, script will now verify the server was able to perform a graceful shutdown. If the server was unable to perform a graceful shutdown, forced shutdown will be invoked in 5 minutes")
+            time.sleep(15)
+            start_time = datetime.now()
+        else:
+            logging.error("\n- FAIL, Command failed to gracefully power OFF server, status code is: %s\n" % response.status_code)
+            logging.error("Extended Info Message: {0}".format(response.json()))
+            sys.exit(0)
         while True:
-            response = requests.get('https://%s/redfish/v1/Systems/System.Embedded.1/' % idrac_ip,verify=False,auth=(idrac_username, idrac_password))
-            data = response.json()
-            if data['PowerState'] == "Off":
-                print("- PASS, GET command passed to verify server is in OFF state")
-                break
-            elif count == 20:
-                print("- INFO, unable to graceful shutdown the server, will perform forced shutdown now")
-                url = 'https://%s/redfish/v1/Systems/System.Embedded.1/Actions/ComputerSystem.Reset' % idrac_ip
-                payload = {'ResetType': 'ForceOff'}
-                headers = {'content-type': 'application/json'}
-                response = requests.post(url, data=json.dumps(payload), headers=headers, verify=False, auth=(idrac_username,idrac_password))
-                statusCode = response.status_code
-                if statusCode == 204:
-                    print("- PASS, POST action passed to forcefully power OFF server")
-                    time.sleep(15)
-                    break
-                else:
-                    print("\n- FAIL, Command failed to gracefully power OFF server, status code: %s\n" % statusCode)
-                    print("Extended Info Message: {0}".format(response.json()))
-                    sys.exit()
-                
+            if args["x"]:
+                response = requests.get('https://%s/redfish/v1/Systems/System.Embedded.1' % idrac_ip, verify=verify_cert, headers={'X-Auth-Token': args["x"]})   
             else:
-                time.sleep(2)
-                count+=1
-                continue
-            
+                response = requests.get('https://%s/redfish/v1/Systems/System.Embedded.1' % idrac_ip, verify=verify_cert,auth=(idrac_username, idrac_password))
+            data = response.json()
+            current_time = str(datetime.now() - start_time)[0:7]
+            if data['PowerState'] == "Off":
+                logging.info("- PASS, GET command passed to verify graceful shutdown was successful and server is in OFF state")
+                break
+            elif current_time == "0:05:00":
+                logging.info("- INFO, unable to perform graceful shutdown, server will now perform forced shutdown")
+                payload = {'ResetType': 'ForceOff'}
+                if args["x"]:
+                    headers = {'content-type': 'application/json', 'X-Auth-Token': args["x"]}
+                    response = requests.post(url, data=json.dumps(payload), headers=headers, verify=verify_cert)
+                else:
+                    headers = {'content-type': 'application/json'}
+                    response = requests.post(url, data=json.dumps(payload), headers=headers, verify=verify_cert,auth=(idrac_username,idrac_password))
+                if response.status_code == 204:
+                    logging.info("- PASS, POST command passed to perform forced shutdown, status code return is %s" % response.status_code)
+                    time.sleep(15)
+                    if args["x"]:
+                        response = requests.get('https://%s/redfish/v1/Systems/System.Embedded.1' % idrac_ip, verify=verify_cert, headers={'X-Auth-Token': args["x"]})   
+                    else:
+                        response = requests.get('https://%s/redfish/v1/Systems/System.Embedded.1' % idrac_ip, verify=verify_cert,auth=(idrac_username, idrac_password))
+                    data = response.json()
+                    if data['PowerState'] == "Off":
+                        logging.info("- PASS, GET command passed to verify forced shutdown was successful and server is in OFF state")
+                        break
+                    else:
+                        logging.error("- FAIL, server not in OFF state, current power status is %s" % data['PowerState'])
+                        sys.exit(0)    
+            else:
+                continue 
         payload = {'ResetType': 'On'}
-        headers = {'content-type': 'application/json'}
-        response = requests.post(url, data=json.dumps(payload), headers=headers, verify=False, auth=(idrac_username,idrac_password))
-        statusCode = response.status_code
-        if statusCode == 204:
-            print("- PASS, Command passed to power ON server, code return is %s" % statusCode)
+        if args["x"]:
+            headers = {'content-type': 'application/json', 'X-Auth-Token': args["x"]}
+            response = requests.post(url, data=json.dumps(payload), headers=headers, verify=verify_cert)
         else:
-            print("\n- FAIL, Command failed to power ON server, status code is: %s\n" % statusCode)
-            print("Extended Info Message: {0}".format(response.json()))
-            sys.exit()
+            headers = {'content-type': 'application/json'}
+            response = requests.post(url, data=json.dumps(payload), headers=headers, verify=verify_cert,auth=(idrac_username,idrac_password))
+        if response.status_code == 204:
+            logging.info("- PASS, Command passed to power ON server, status code return is %s" % response.status_code)
+        else:
+            logging.error("\n- FAIL, Command failed to power ON server, status code is: %s\n" % response.status_code)
+            logging.error("Extended Info Message: {0}".format(response.json()))
+            sys.exit(0)
     elif data['PowerState'] == "Off":
         url = 'https://%s/redfish/v1/Systems/System.Embedded.1/Actions/ComputerSystem.Reset' % idrac_ip
         payload = {'ResetType': 'On'}
-        headers = {'content-type': 'application/json'}
-        response = requests.post(url, data=json.dumps(payload), headers=headers, verify=False, auth=(idrac_username,idrac_password))
-        statusCode = response.status_code
-        if statusCode == 204:
-            print("- PASS, POST action passed to power ON server")
+        if args["x"]:
+            headers = {'content-type': 'application/json', 'X-Auth-Token': args["x"]}
+            response = requests.post(url, data=json.dumps(payload), headers=headers, verify=verify_cert)
         else:
-            print("\n- FAIL, Command failed to power ON server, status code: %s\n" % statusCode)
-            print("Extended Info Message: {0}".format(response.json()))
-            sys.exit()
+            headers = {'content-type': 'application/json'}
+            response = requests.post(url, data=json.dumps(payload), headers=headers, verify=verify_cert,auth=(idrac_username,idrac_password))
+        if response.status_code == 204:
+            logging.info("- PASS, Command passed to power ON server, code return is %s" % response.status_code)
+        else:
+            logging.error("\n- FAIL, Command failed to power ON server, status code is: %s\n" % response.status_code)
+            logging.error("Extended Info Message: {0}".format(response.json()))
+            sys.exit(0)
     else:
-        print("- FAIL, unable to get current server power state to perform either reboot or power on")
-        sys.exit()
+        logging.error("- FAIL, unable to get current server power state to perform either reboot or power on")
+        sys.exit(0)
 
 if __name__ == "__main__":
-    check_supported_idrac_version()
-    if args["c"]:
+    if args["script_examples"]:
+        script_examples()
+    if args["ip"] and args["ssl"] or args["u"] or args["p"] or args["x"]:
+        idrac_ip=args["ip"]
+        idrac_username=args["u"]
+        if args["p"]:
+            idrac_password=args["p"]
+        if not args["p"] and not args["x"] and args["u"]:
+            idrac_password = getpass.getpass("\n- Argument -p not detected, pass in iDRAC user %s password: " % args["u"])
+        if args["ssl"]:
+            if args["ssl"].lower() == "true":
+                verify_cert = True
+            elif args["ssl"].lower() == "false":
+                verify_cert = False
+            else:
+                verify_cert = False
+        else:
+            verify_cert = False
+        check_supported_idrac_version()
+    else:
+        logging.error("\n- FAIL, invalid argument values or not all required parameters passed in. See help text or argument --script-examples for more details.")
+        sys.exit(0)
+    if args["get_controllers"]:
         get_storage_controllers()
-    elif args["e"]:
-        get_storage_enclosures()
-    elif args["d"]:
+    elif args["get_disks"]:
         get_pdisks()
-    elif args["dd"]:
-        get_pdisks()
-    elif args["v"]:
+    elif args["get_virtualdisks"]:
         get_virtual_disks()
-    elif args["vv"]:
-        get_virtual_disk_details()
-    elif args["cc"] and args["s"]:
+    elif args["get_virtualdisk_details"]:
+        get_virtual_disks_details()
+    elif args["supported_raid_levels"]:
         get_supported_RAID_levels()
-    elif args["C"] and args["D"] and args["V"] and args["R"]:
+    elif args["create"] and args["disks"] and args["raid_level"]:
         create_raid_vd()
         if job_type == "realtime":
-            loop_job_status()
+            loop_job_status_final()
         elif job_type == "staged":
-            get_job_status()
+            get_job_status_scheduled()
             reboot_server()
-            loop_job_status()
+            loop_job_status_final()
     else:
-        print("- WARNING, missing or incorrect arguments passed in for executing script")
+        logging.error("\n- FAIL, invalid argument values or not all required parameters passed in. See help text or argument --script-examples for more details.")
     
         
             
