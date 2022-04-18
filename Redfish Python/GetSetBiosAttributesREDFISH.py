@@ -4,7 +4,7 @@
 # GetSetBiosAttributesREDFISH. Python script using Redfish API DMTF to either get or set BIOS attributes using Redfish SettingApplyTime.
 #
 # _author_ = Texas Roemer <Texas_Roemer@Dell.com>
-# _version_ = 15.0
+# _version_ = 16.0
 #
 # Copyright (c) 2019, Dell, Inc.
 #
@@ -52,19 +52,6 @@ parser.add_argument('--duration-time', help='Maintenance window duration time(am
 
 args=vars(parser.parse_args())
 logging.basicConfig(format='%(message)s', stream=sys.stdout, level=logging.INFO)
-
-##if args["r"] and args["an"] and args["av"]:
-##    if args["r"] == "n":
-##        job_type = "n"
-##    elif args["r"] == "l":
-##        job_type = "l"
-##    elif args["r"] == "s" and args["st"] and args["dt"]:
-##        job_type = "s"
-##        start_time_input = args["st"]
-##        duration_time = args["dt"]
-##    else:
-##        print("\n- FAIL, -s, -st and -dt all required to create maintenance window config job")
-##        sys.exit()
 
 def script_examples():
     print("""\n- GetSetBiosAttributesREDFISH.py -ip 192.168.0.120 -u root -p calvin --get, this example will get all BIOS attributes.
