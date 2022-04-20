@@ -1,8 +1,10 @@
+#!/usr/bin/python
+#!/usr/bin/python3
 #
 # DeviceFirmwareRollbackREDFISH. Python script using Redfish API with OEM extension to rollback firmware for a device iDRAC supports. 
 #
 # _author_ = Texas Roemer <Texas_Roemer@Dell.com>
-# _version_ = 2.0
+# _version_ = 4.0
 #
 # Copyright (c) 2020, Dell, Inc.
 #
@@ -14,275 +16,391 @@
 # http://www.gnu.org/licenses/old-licenses/gpl-2.0.txt.
 #
 
-import requests, json, sys, re, time, warnings, argparse, os
+import argparse
+import getpass
+import json
+import logging
+import os
+import platform
+import re
+import requests
+import subprocess
+import sys
+import time
+import warnings
 
 from datetime import datetime
+from pprint import pprint
 
 warnings.filterwarnings("ignore")
 
-
-
 parser=argparse.ArgumentParser(description="Python script using Redfish API with OEM extension to rollback firmware for a device iDRAC supports")
-parser.add_argument('-ip',help='iDRAC IP address', required=True)
-parser.add_argument('-u', help='iDRAC username', required=True)
-parser.add_argument('-p', help='iDRAC password', required=True)
-parser.add_argument('script_examples',action="store_true",help='DeviceFirmwareRollbackREDFISH.py -ip 192.168.0.120 -u root -p calvin -gr y, this example will return devices which support rollback. DeviceFirmwareRollbackREDFISH.py -ip 192.168.0.120 -u root -p calvin -r /redfish/v1/UpdateService/FirmwareInventory/Previous-159-2.7.7, this example will rollback BIOS to version 2.7.7.') 
-parser.add_argument('-gf', help='Get current supported devices for firmware updates and their current firmware versions, pass in \"y\"', required=False)
-parser.add_argument('-gr', help='Get current PREVIOUS URI entries for rollback support, pass in \"y\"', required=False)
-parser.add_argument('-r', help='Pass in the PREVIOUS URI entry you want to rollback the firmware. If needed, use argument -gr to get this URI.', required=False)
-
+parser.add_argument('-ip',help='iDRAC IP address', required=False)
+parser.add_argument('-u', help='iDRAC username', required=False)
+parser.add_argument('-p', help='iDRAC password. If you do not pass in argument -p, script will prompt to enter user password which will not be echoed to the screen.', required=False)
+parser.add_argument('-x', help='Pass in X-Auth session token for executing Redfish calls. All Redfish calls will use X-Auth token instead of username/password', required=False)
+parser.add_argument('--ssl', help='SSL cert verification for all Redfish calls, pass in value \"true\" or \"false\". By default, this argument is not required and script ignores validating SSL cert for all Redfish calls.', required=False)
+parser.add_argument('--script-examples', action="store_true", help='Prints script examples')
+parser.add_argument('--get-firmware', help='Get current supported devices for firmware updates and their current firmware versions', action="store_true", dest="get_firmware", required=False)
+parser.add_argument('--get-rollback', help='Get current PREVIOUS URI entries for rollback support', action="store_true", dest="get_rollback", required=False)
+parser.add_argument('--rollback', help='Pass in the PREVIOUS URI entry you want to rollback the firmware', required=False)
+parser.add_argument('--reboot', help='Pass in this argument to reboot the server now to perform the update. If you do not pass in this argument, update job is still scheduled and will get applied on next server manual reboot. Note: For devices that do not need a reboot to apply the firmware update (Examples: iDRAC, DIAGS, Driver Pack), you don\'t need to pass in this agrument(update will happen immediately). See Lifecycle Controller User Guide firmware update section for more details on which devices get applied immediately or need a reboot to get updated', action="store_true", required=False)
 
 args=vars(parser.parse_args())
+logging.basicConfig(format='%(message)s', stream=sys.stdout, level=logging.INFO)
 
-idrac_ip=args["ip"]
-idrac_username=args["u"]
-idrac_password=args["p"]
-
-
+def script_examples():
+    print("""\n- DeviceFirmwareRollbackREDFISH.py -ip 192.168.0.120 -u root -p calvin --get-rollback, this example will return devices which support rollback.
+    \n- DeviceFirmwareRollbackREDFISH.py -ip 192.168.0.120 -u root -p calvin --rollback /redfish/v1/UpdateService/FirmwareInventory/Previous-159-2.7.7 --reboot, this example will reboot server now to rollback BIOS to version 2.7.7.""")
+    sys.exit(0)
 
 def check_supported_idrac_version():
-    response = requests.get('https://%s/redfish/v1/UpdateService/FirmwareInventory' % idrac_ip,verify=False,auth=(idrac_username, idrac_password))
+    if args["x"]:
+        response = requests.get('https://%s/redfish/v1/UpdateService/FirmwareInventory' % idrac_ip, verify=verify_cert, headers={'X-Auth-Token': args["x"]})
+    else:
+        response = requests.get('https://%s/redfish/v1/UpdateService/FirmwareInventory' % idrac_ip, verify=verify_cert, auth=(idrac_username, idrac_password))
     data = response.json()
     if response.status_code == 401:
-        print("\n- WARNING, unable to access iDRAC, check to make sure you are passing in valid iDRAC credentials")
-        sys.exit()
-    if response.status_code == 200 or response.status_code == 202:
-        pass
-    else:
-        print("\n- FAIL, iDRAC version detected does not support this feature, status code %s returned" % response.status_code)
-        sys.exit()
-
+        logging.warning("\n- WARNING, status code %s returned, check your iDRAC username/password is correct or iDRAC user has correct privileges to execute Redfish commands" % response.status_code)
+        sys.exit(0)
+    if response.status_code != 200:
+        logging.error("\n- ERROR, GET request failed to validate supported iDRAC version, status code %s returned, error: \n%s" % (response.status_code, data))
+        sys.exit(0)  
 
 def get_rollback_entries():
-    req = requests.get('https://%s/redfish/v1/UpdateService/FirmwareInventory/' % (idrac_ip), auth=(idrac_username, idrac_password), verify=False)
-    statusCode = req.status_code
-    previous_devices=[]
-    data = req.json()
+    if args["x"]:
+        response = requests.get('https://%s/redfish/v1/UpdateService/FirmwareInventory' % idrac_ip, verify=verify_cert, headers={'X-Auth-Token': args["x"]})
+    else:
+        response = requests.get('https://%s/redfish/v1/UpdateService/FirmwareInventory' % idrac_ip, verify=verify_cert, auth=(idrac_username, idrac_password))
+    previous_devices = []
+    data = response.json()
+    if response.status_code != 200:
+        logging.error("\n- ERROR, GET request failed to get rollback entries, error: \n%s" % data)
+        sys.exit(0)
     for i in data["Members"]:
         for ii in i.items():
             if "Previous" in ii[1]:
                 previous_devices.append(ii[1])
     if previous_devices == []:
-        print("- WARNING, no PREVIOUS firmware images detected for rollback support")
-        sys.exit()
-    print("\n- Device(s) detected for rollback support -\n")
+        logging.warning("- WARNING, no PREVIOUS firmware images detected for rollback support")
+        sys.exit(0)
+    logging.info("\n- Device URI(s) detected for rollback support -\n")
     for i in previous_devices:
-        response = requests.get('https://%s%s' % (idrac_ip, i), auth=(idrac_username, idrac_password), verify=False)
-        data = response.json()
-        try:
-            print("Name: %s" % data["Name"])
-            print("Version: %s" % data["Version"])
-            print("URI: %s" % i)
-            print("\n")
-        except:
-            pass
-
+        print(i)
 
 def get_FW_inventory():
-    print("\n- WARNING, getting current firmware inventory for iDRAC %s -\n" % idrac_ip)
-    req = requests.get('https://%s/redfish/v1/UpdateService/FirmwareInventory?$expand=*($levels=1)' % (idrac_ip), auth=(idrac_username, idrac_password), verify=False)
-    statusCode = req.status_code
-    installed_devices=[]
-    data = req.json()
+    logging.info("\n- INFO, getting current firmware inventory for iDRAC %s -\n" % idrac_ip)
+    if args["x"]:
+        response = requests.get('https://%s/redfish/v1/UpdateService/FirmwareInventory?$expand=*($levels=1)' % idrac_ip, verify=verify_cert, headers={'X-Auth-Token': args["x"]})
+    else:
+        response = requests.get('https://%s/redfish/v1/UpdateService/FirmwareInventory?$expand=*($levels=1)' % idrac_ip, verify=verify_cert, auth=(idrac_username, idrac_password))
+    data = response.json()
+    if response.status_code != 200:
+        logging.error("\n- ERROR, GET request failed to get firmware inventory, error: \n%s" % data)
+        sys.exit(0)
+    installed_devices = []
     for i in data['Members']:
-        for ii in i.items():
-            if ii[0] == "Oem":
-                for iii in ii[1]["Dell"]["DellSoftwareInventory"].items():
-                    if "odata" in iii[0]:
-                        pass
-                    else:
-                        print("%s: %s" % (iii[0],iii[1]))
-                
-            elif "odata" in ii[0] or "Description" in ii[0]:
-                pass
-            else:
-                print("%s: %s" % (ii[0],ii[1]))
+        pprint(i)
         print("\n")
 
 def rollback_fw():
     global job_id
     global start_time
-    start_time=datetime.now()
+    start_time = datetime.now()
     url = 'https://%s/redfish/v1/UpdateService/Actions/UpdateService.SimpleUpdate' % (idrac_ip)
-    payload = {"ImageURI":args["r"]}
-    headers = {'content-type': 'application/json'}
-    response = requests.post(url, data=json.dumps(payload), headers=headers, verify=False,auth=(idrac_username,idrac_password))
+    payload = {"ImageURI":args["rollback"]}
+    if args["x"]:
+        headers = {'content-type': 'application/json', 'X-Auth-Token': args["x"]}
+        response = requests.post(url, data=json.dumps(payload), headers=headers, verify=verify_cert)
+    else:
+        headers = {'content-type': 'application/json'}
+        response = requests.post(url, data=json.dumps(payload), headers=headers, verify=verify_cert,auth=(idrac_username,idrac_password))
     if response.status_code != 202:
         data = response.json()
-        print("\n- FAIL, POST command failed, status code %s returned, detailed error results: \n%s" % (response.status_code, data))
-        sys.exit()
+        logging.info("\n- FAIL, POST command failed, status code %s returned, detailed error results: \n%s" % (response.status_code, data))
+        sys.exit(0)
     try:
         job_id = response.headers["Location"].split("/")[-1]
     except:
-        print("- FAIL, unable to locate job ID in headers output")
-        sys.exit()
-    print("\n- PASS, rollback job ID \"%s\" successfully created" % job_id) 
-
-
-
+        logging.error("- FAIL, unable to locate job ID in headers output")
+        sys.exit(0)
+    logging.info("\n- PASS, rollback job ID \"%s\" successfully created" % job_id) 
 
 def check_job_status():
-    current_time = str(datetime.now()-start_time)[0:7]
+    retry_count = 1
     while True:
-        req = requests.get('https://%s/redfish/v1/TaskService/Tasks/%s' % (idrac_ip, job_id), auth=(idrac_username, idrac_password), verify=False)
-        statusCode = req.status_code
-        data = req.json()
-        if data["TaskState"] == "Completed":
-            print("\n- PASS, job ID %s successfuly marked completed, detailed final job status results:\n" % data[u"Id"])
-            for i in data['Oem']['Dell'].items():
-                print("%s: %s" % (i[0],i[1]))
-            print("\n- JOB ID %s completed in %s" % (job_id, current_time))
-            sys.exit()
+        check_idrac_connection()
+        if retry_count == 20:
+            logging.warning("- WARNING, GET command retry count of 20 has been reached, script will exit")
+            sys.exit(0)
+        try:
+            if args["x"]:
+                response = requests.get('https://%s/redfish/v1/TaskService/Tasks/%s' % (idrac_ip, job_id), verify=verify_cert, headers={'X-Auth-Token': args["x"]})
+            else:
+                response = requests.get('https://%s/redfish/v1/TaskService/Tasks/%s' % (idrac_ip, job_id), verify=verify_cert, auth=(idrac_username, idrac_password))
+        except requests.ConnectionError as error_message:
+            logging.info("- INFO, GET request failed due to connection error, retry")
+            time.sleep(10)
+            retry_count += 1
+            continue
+        data = response.json()
         current_time = str(datetime.now()-start_time)[0:7]   
-        statusCode = req.status_code
-        data = req.json()
-        message_string=data["Messages"]
-        if statusCode == 202 or statusCode == 200:
-            pass
+        message_string = data["Messages"]
+        if response.status_code == 200 or response.status_code == 202:
+            time.sleep(1)
         else:
-            print("Query job ID command failed, error code is: %s" % statusCode)
-            sys.exit()
-        if str(current_time)[0:7] >= "0:30:00":
-            print("\n- FAIL: Timeout of 30 minutes has been hit, update job should of already been marked completed. Check the iDRAC job queue and LC logs to debug the issue\n")
-            sys.exit()
-        elif "failed" in data['Oem']['Dell']['Message'] or "completed with errors" in data['Oem']['Dell']['Message'] or "Failed" in data['Oem']['Dell']['Message']:
-            print("- FAIL: Job failed, current message is: %s" % data["Messages"])
-            sys.exit()
-        elif "scheduled" in data['Oem']['Dell']['Message']:
-            print("\n- PASS, job ID %s successfully marked as scheduled, powering on or rebooting the server to apply the update" % data["Id"])
-            break
-        elif "completed successfully" in data['Oem']['Dell']['Message']:
-            print("\n- PASS, job ID %s successfully marked completed, detailed final job status results:\n" % data["Id"])
+            logging.error("\n- ERROR, GET request failed to get job ID details, status code %s returned, error: \n%s" % (response.status_code, data))
+            sys.exit(0)
+        if data["TaskState"] == "Completed" and data["Oem"]["Dell"]["JobState"]:
+            logging.info("\n- INFO, job completed, detailed final job status results\n")
             for i in data['Oem']['Dell'].items():
-                print("%s: %s" % (i[0],i[1]))
-            print("\n- %s completed in: %s" % (job_id, str(current_time)[0:7]))
+                pprint(i)
+            logging.info("\n- JOB ID %s completed in %s" % (job_id, current_time))
+            sys.exit(0)
+        if data["TaskState"] == "Completed":
+            logging.info("\n- PASS, job ID successfuly marked completed, detailed final job status results\n")
+            for i in data['Oem']['Dell'].items():
+                pprint(i)
+            logging.info("\n- JOB ID %s completed in %s" % (job_id, current_time))
+            sys.exit(0)
+        if str(current_time)[0:7] >= "0:30:00":
+            logging.error("\n- FAIL: Timeout of 30 minutes has been hit, update job should of already been marked completed. Check the iDRAC job queue and LC logs to debug the issue\n")
+            sys.exit(0)
+        elif "failed" in data['Oem']['Dell']['Message'] or "completed with errors" in data['Oem']['Dell']['Message'] or "Failed" in data['Oem']['Dell']['Message']:
+            logging.error("- FAIL: Job failed, current message: %s" % data["Messages"])
+            sys.exit(0)
+        elif "scheduled" in data['Oem']['Dell']['Message']:
+            print("- PASS, job ID %s successfully marked as scheduled" % data["Id"])
+            if not args["reboot"]:
+                logging.warning("- WARNING, missing argument --reboot for rebooting the server. Job is still scheduled and will be applied on next manual server reboot")
+                sys.exit(0)
+            elif args["reboot"]:
+                break
+        elif "completed successfully" in data['Oem']['Dell']['Message']:
+            logging.info("\n- PASS, job ID %s successfully marked completed, detailed final job status results\n")
+            for i in data['Oem']['Dell'].items():
+                pprint(i)
+            logging.info("\n- %s completed in: %s" % (job_id, str(current_time)[0:7]))
+            break
         else:
-            print("- INFO: %s, current job execution time is: %s" % (message_string[0]["Message"], current_time))
+            logging.info("- INFO: %s, execution time: %s" % (message_string[0]["Message"].rstrip("."), current_time))
             time.sleep(1)
             continue
 
+def loop_check_final_job_status():
+    retry_count = 1
+    while True:
+        if retry_count == 20:
+            logging.warning("- WARNING, GET command retry count of 20 has been reached, script will exit")
+            sys.exit(0)
+        check_idrac_connection()
+        try:
+            if args["x"]:
+                response = requests.get('https://%s/redfish/v1/Managers/iDRAC.Embedded.1/Jobs/%s' % (idrac_ip, job_id), verify=verify_cert, headers={'X-Auth-Token': args["x"]})
+            else:
+                response = requests.get('https://%s/redfish/v1/Managers/iDRAC.Embedded.1/Jobs/%s' % (idrac_ip, job_id), verify=verify_cert,auth=(idrac_username, idrac_password))
+        except requests.ConnectionError as error_message:
+            logging.info("- INFO, GET request failed due to connection error, retry")
+            time.sleep(10)
+            retry_count += 1
+            continue 
+        current_time = str((datetime.now()-start_time))[0:7]
+        if response.status_code != 200:
+            logging.error("\n- FAIL, GET command failed to check job status, return code %s" % response.status_code)
+            logging.error("Extended Info Message: {0}".format(response.json()))
+            sys.exit(0)
+        data = response.json()
+        if str(current_time)[0:7] >= "0:30:00":
+            logging.error("\n- FAIL: Timeout of 30 minutes has been hit, script stopped\n")
+            sys.exit(0)
+        elif "Fail" in data['Message'] or "fail" in data['Message'] or "fail" in data['JobState'] or "Fail" in data['JobState']:
+            logging.error("- FAIL: job ID %s failed" % job_id)
+            sys.exit(0)
+        elif "completed successfully" in data['Message']:
+            logging.info("\n- PASS, job ID %s successfully marked completed" % job_id)
+            logging.info("\n- Final detailed job results -\n")
+            for i in data.items():
+                pprint(i)
+            logging.info("\n- JOB ID %s completed in %s" % (job_id, current_time))
+            sys.exit(0)
+        else:
+            logging.info("- INFO, JobStatus not completed, current status: \"%s\", execution time: \"%s\"" % (data['Message'].rstrip("."), current_time))
+            time.sleep(1)
+
 def reboot_server():
-    response = requests.get('https://%s/redfish/v1/Systems/System.Embedded.1/' % idrac_ip,verify=False,auth=(idrac_username, idrac_password))
+    if args["x"]:
+        response = requests.get('https://%s/redfish/v1/Systems/System.Embedded.1' % idrac_ip, verify=verify_cert, headers={'X-Auth-Token': args["x"]})   
+    else:
+        response = requests.get('https://%s/redfish/v1/Systems/System.Embedded.1' % idrac_ip, verify=verify_cert,auth=(idrac_username, idrac_password))
     data = response.json()
-    print("\n- INFO, Current server power state is: %s" % data['PowerState'])
+    logging.info("\n- INFO, Current server power state is: %s" % data['PowerState'])
     if data['PowerState'] == "On":
         url = 'https://%s/redfish/v1/Systems/System.Embedded.1/Actions/ComputerSystem.Reset' % idrac_ip
         payload = {'ResetType': 'GracefulShutdown'}
-        headers = {'content-type': 'application/json'}
-        response = requests.post(url, data=json.dumps(payload), headers=headers, verify=False, auth=(idrac_username,idrac_password))
-        statusCode = response.status_code
-        if statusCode == 204:
-            print("- PASS, Command passed to gracefully power OFF server, code return is %s" % statusCode)
-            time.sleep(10)
+        if args["x"]:
+            headers = {'content-type': 'application/json', 'X-Auth-Token': args["x"]}
+            response = requests.post(url, data=json.dumps(payload), headers=headers, verify=verify_cert)
         else:
-            print("\n- FAIL, Command failed to gracefully power OFF server, status code is: %s\n" % statusCode)
-            print("Extended Info Message: {0}".format(response.json()))
-            sys.exit()
-        count = 0
+            headers = {'content-type': 'application/json'}
+            response = requests.post(url, data=json.dumps(payload), headers=headers, verify=verify_cert,auth=(idrac_username,idrac_password))
+        if response.status_code == 204:
+            logging.info("- PASS, POST command passed to gracefully power OFF server")
+            logging.info("- INFO, script will now verify the server was able to perform a graceful shutdown. If the server was unable to perform a graceful shutdown, forced shutdown will be invoked in 5 minutes")
+            time.sleep(15)
+            start_time = datetime.now()
+        else:
+            logging.error("\n- FAIL, Command failed to gracefully power OFF server, status code is: %s\n" % response.status_code)
+            logging.error("Extended Info Message: {0}".format(response.json()))
+            sys.exit(0)
         while True:
-            response = requests.get('https://%s/redfish/v1/Systems/System.Embedded.1/' % idrac_ip,verify=False,auth=(idrac_username, idrac_password))
-            data = response.json()
-            if data['PowerState'] == "Off":
-                print("- PASS, GET command passed to verify server is in OFF state")
-                break
-            elif count == 20:
-                print("- WARNING, unable to graceful shutdown the server, will perform forced shutdown now")
-                url = 'https://%s/redfish/v1/Systems/System.Embedded.1/Actions/ComputerSystem.Reset' % idrac_ip
-                payload = {'ResetType': 'ForceOff'}
-                headers = {'content-type': 'application/json'}
-                response = requests.post(url, data=json.dumps(payload), headers=headers, verify=False, auth=(idrac_username,idrac_password))
-                statusCode = response.status_code
-                if statusCode == 204:
-                    print("- PASS, Command passed to forcefully power OFF server, code return is %s" % statusCode)
-                    time.sleep(15)
-                    break
-                else:
-                    print("\n- FAIL, Command failed to gracefully power OFF server, status code is: %s\n" % statusCode)
-                    print("Extended Info Message: {0}".format(response.json()))
-                    sys.exit()
-                
+            if args["x"]:
+                response = requests.get('https://%s/redfish/v1/Systems/System.Embedded.1' % idrac_ip, verify=verify_cert, headers={'X-Auth-Token': args["x"]})   
             else:
-                time.sleep(2)
-                count+=1
-                continue
-            
+                response = requests.get('https://%s/redfish/v1/Systems/System.Embedded.1' % idrac_ip, verify=verify_cert,auth=(idrac_username, idrac_password))
+            data = response.json()
+            current_time = str(datetime.now() - start_time)[0:7]
+            if data['PowerState'] == "Off":
+                logging.info("- PASS, GET command passed to verify graceful shutdown was successful and server is in OFF state")
+                break
+            elif current_time == "0:05:00":
+                logging.info("- INFO, unable to perform graceful shutdown, server will now perform forced shutdown")
+                payload = {'ResetType': 'ForceOff'}
+                if args["x"]:
+                    headers = {'content-type': 'application/json', 'X-Auth-Token': args["x"]}
+                    response = requests.post(url, data=json.dumps(payload), headers=headers, verify=verify_cert)
+                else:
+                    headers = {'content-type': 'application/json'}
+                    response = requests.post(url, data=json.dumps(payload), headers=headers, verify=verify_cert,auth=(idrac_username,idrac_password))
+                if response.status_code == 204:
+                    logging.info("- PASS, POST command passed to perform forced shutdown")
+                    time.sleep(15)
+                    if args["x"]:
+                        response = requests.get('https://%s/redfish/v1/Systems/System.Embedded.1' % idrac_ip, verify=verify_cert, headers={'X-Auth-Token': args["x"]})   
+                    else:
+                        response = requests.get('https://%s/redfish/v1/Systems/System.Embedded.1' % idrac_ip, verify=verify_cert,auth=(idrac_username, idrac_password))
+                    data = response.json()
+                    if data['PowerState'] == "Off":
+                        logging.info("- PASS, GET command passed to verify forced shutdown was successful and server is in OFF state")
+                        break
+                    else:
+                        logging.error("- FAIL, server not in OFF state, current power status is %s" % data['PowerState'])
+                        sys.exit(0)    
+            else:
+                continue 
         payload = {'ResetType': 'On'}
-        headers = {'content-type': 'application/json'}
-        response = requests.post(url, data=json.dumps(payload), headers=headers, verify=False, auth=(idrac_username,idrac_password))
-        statusCode = response.status_code
-        if statusCode == 204:
-            print("- PASS, Command passed to power ON server, code return is %s" % statusCode)
+        if args["x"]:
+            headers = {'content-type': 'application/json', 'X-Auth-Token': args["x"]}
+            response = requests.post(url, data=json.dumps(payload), headers=headers, verify=verify_cert)
         else:
-            print("\n- FAIL, Command failed to power ON server, status code is: %s\n" % statusCode)
-            print("Extended Info Message: {0}".format(response.json()))
-            sys.exit()
+            headers = {'content-type': 'application/json'}
+            response = requests.post(url, data=json.dumps(payload), headers=headers, verify=verify_cert,auth=(idrac_username,idrac_password))
+        if response.status_code == 204:
+            logging.info("- PASS, POST command passed to power ON server")
+        else:
+            logging.error("\n- FAIL, Command failed to power ON server, status code is: %s\n" % response.status_code)
+            logging.error("Extended Info Message: {0}".format(response.json()))
+            sys.exit(0)
     elif data['PowerState'] == "Off":
         url = 'https://%s/redfish/v1/Systems/System.Embedded.1/Actions/ComputerSystem.Reset' % idrac_ip
         payload = {'ResetType': 'On'}
-        headers = {'content-type': 'application/json'}
-        response = requests.post(url, data=json.dumps(payload), headers=headers, verify=False, auth=(idrac_username,idrac_password))
-        statusCode = response.status_code
-        if statusCode == 204:
-            print("- PASS, Command passed to power ON server, code return is %s" % statusCode)
+        if args["x"]:
+            headers = {'content-type': 'application/json', 'X-Auth-Token': args["x"]}
+            response = requests.post(url, data=json.dumps(payload), headers=headers, verify=verify_cert)
         else:
-            print("\n- FAIL, Command failed to power ON server, status code is: %s\n" % statusCode)
-            print("Extended Info Message: {0}".format(response.json()))
-            sys.exit()
+            headers = {'content-type': 'application/json'}
+            response = requests.post(url, data=json.dumps(payload), headers=headers, verify=verify_cert,auth=(idrac_username,idrac_password))
+        if response.status_code == 204:
+            logging.info("- PASS, Command passed to power ON server, code return is %s" % response.status_code)
+        else:
+            logging.error("\n- FAIL, Command failed to power ON server, status code is: %s\n" % response.status_code)
+            logging.error("Extended Info Message: {0}".format(response.json()))
+            sys.exit(0)
     else:
-        print("- FAIL, unable to get current server power state to perform either reboot or power on")
-        sys.exit()
+        logging.error("- FAIL, unable to get current server power state to perform either reboot or power on")
+        sys.exit(0)
 
-
-def loop_check_final_job_status():
-    start_time=datetime.now()
-    count = 0
-    while True:
-        req = requests.get('https://%s/redfish/v1/TaskService/Tasks/%s' % (idrac_ip, job_id), auth=(idrac_username, idrac_password), verify=False)
-        current_time=str((datetime.now()-start_time))[0:7]
-        statusCode = req.status_code
-        if count == 10:
-            print("- FAIL, retry count of 10 has been reached for checking job status, manually check the job queue for job status")
-            sys.exit()
-        if statusCode == 202 or statusCode == 200:
-            pass
-        else:
-            print("\n- FAIL, Command failed to check job status, return code is %s" % statusCode)
-            print("Extended Info Message: {0}".format(req.json()))
-            print("\n- INFO, script will wait 10 seconds before attempting to check job status again")
-            time.sleep(10)
-            count+=1
-            continue
-        data = req.json()
-        if str(current_time)[0:7] >= "2:00:00":
-            print("\n- FAIL: Timeout of 2 hours has been hit, update job should of already been marked completed. Check the iDRAC job queue and LC logs to debug the issue\n")
-            sys.exit()
-        elif "Fail" in data['Oem']['Dell']['Message'] or "fail" in data['Oem']['Dell']['Message']:
-            print("- FAIL: %s failed" % job_id)
-            sys.exit()
-        
-        elif "completed successfully" in data['Oem']['Dell']['Message']:
-            print("\n- PASS, job ID %s successfully marked completed" % job_id)
-            print("\n- Final detailed job results -\n")
-            for i in data['Oem']['Dell'].items():
-                print("%s: %s" % (i[0], i[1]))
-            print("\n- JOB ID %s completed in %s" % (job_id, current_time))
-            sys.exit()
-        else:
-            print("- INFO, Job status not completed, current status: \"%s\", job execution time: \"%s\"" % (data['Oem']['Dell']['Message'], current_time))
-            time.sleep(20)
+def check_idrac_connection():
+    run_network_connection_function = ""
+    if platform.system().lower() == "windows":
+        ping_command = "ping -n 3 %s" % idrac_ip
+    elif platform.system().lower() == "linux":
+        ping_command = "ping -c 3 %s" % idrac_ip
+    else:
+        logging.error("- FAIL, unable to determine OS type, check iDRAC connection function will not execute")
+        run_network_connection_function = "fail"
+    execute_command = subprocess.call(ping_command, stdout=subprocess.PIPE, shell=True)
+    if execute_command != 0:
+        ping_status = "lost"
+    else:
+        ping_status = "good"
+        pass
+    if ping_status == "lost":
+            logging.info("- INFO, iDRAC network connection lost due to slow network response, waiting 30 seconds to access iDRAC again")
+            time.sleep(30)
+            while True:
+                if run_network_connection_function == "fail":
+                    break
+                execute_command=subprocess.call(ping_command, stdout=subprocess.PIPE, shell=True)
+                if execute_command != 0:
+                    ping_status = "lost"
+                else:
+                    ping_status = "good"
+                if ping_status == "lost":
+                    logging.info("- INFO, unable to ping iDRAC IP, script will wait 30 seconds and try again")
+                    time.sleep(30)
+                    continue
+                else:
+                    break
+            while True:
+                try:
+                    if args["x"]:
+                        response = requests.get('https://%s/redfish/v1/TaskService/Tasks/%s' % (idrac_ip, job_id), verify=verify_cert, headers={'X-Auth-Token': args["x"]})
+                    else:
+                        response = requests.get('https://%s/redfish/v1/TaskService/Tasks/%s' % (idrac_ip, job_id), verify=verify_cert, auth=(idrac_username, idrac_password))
+                except requests.ConnectionError as error_message:
+                    logging.info("- INFO, GET request failed due to connection error, retry")
+                    time.sleep(10)
+                    continue
+                break
 
 
 if __name__ == "__main__":
-    check_supported_idrac_version()
-    if args["gf"]:
+    if args["script_examples"]:
+        script_examples()
+    if args["ip"] and args["ssl"] or args["u"] or args["p"] or args["x"]:
+        idrac_ip = args["ip"]
+        idrac_username = args["u"]
+        if args["p"]:
+            idrac_password = args["p"]
+        if not args["p"] and not args["x"] and args["u"]:
+            idrac_password = getpass.getpass("\n- Argument -p not detected, pass in iDRAC user %s password: " % args["u"])
+        if args["ssl"]:
+            if args["ssl"].lower() == "true":
+                verify_cert = True
+            elif args["ssl"].lower() == "false":
+                verify_cert = False
+            else:
+                verify_cert = False
+        else:
+            verify_cert = False
+        check_supported_idrac_version()
+    else:
+        logging.error("\n- FAIL, invalid argument values or not all required parameters passed in. See help text or argument --script-examples for more details.")
+        sys.exit(0)
+    if args["get_firmware"]:
         get_FW_inventory()
-    elif args["gr"]:
+    elif args["get_rollback"]:
         get_rollback_entries()
-    elif args["r"]:
+    elif args["rollback"]:
         rollback_fw()
         check_job_status()
-        reboot_server()
-        loop_check_final_job_status()
+        if args["reboot"]:
+            logging.info("- INFO, powering on or rebooting server to apply the firmware")
+            reboot_server()
+            loop_check_final_job_status()
+        else:
+            logging.info("- INFO, argument --reboot not detected. Update job is marked as scheduled and will be applied on next server reboot")
+            sys.exit(0)
     else:
         print("- FAIL, incorrect parameter(s) passed in or missing required parameters")
 
