@@ -4,7 +4,7 @@
 # DeviceFirmwareRollbackREDFISH. Python script using Redfish API with OEM extension to rollback firmware for a device iDRAC supports. 
 #
 # _author_ = Texas Roemer <Texas_Roemer@Dell.com>
-# _version_ = 4.0
+# _version_ = 5.0
 #
 # Copyright (c) 2020, Dell, Inc.
 #
@@ -367,7 +367,7 @@ def check_idrac_connection():
 if __name__ == "__main__":
     if args["script_examples"]:
         script_examples()
-    if args["ip"] and args["ssl"] or args["u"] or args["p"] or args["x"]:
+    if args["ip"] or args["ssl"] or args["u"] or args["p"] or args["x"]:
         idrac_ip = args["ip"]
         idrac_username = args["u"]
         if args["p"]:
@@ -402,7 +402,7 @@ if __name__ == "__main__":
             logging.info("- INFO, argument --reboot not detected. Update job is marked as scheduled and will be applied on next server reboot")
             sys.exit(0)
     else:
-        print("- FAIL, incorrect parameter(s) passed in or missing required parameters")
+        logging.info("- INFO, argument --reboot not detected. Update job is marked as scheduled and will be applied on next server reboot")
 
 
 
