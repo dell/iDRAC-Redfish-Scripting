@@ -1,8 +1,10 @@
+#!/usr/bin/python
+#!/usr/bin/python3
 #
 # ImportSystemConfigurationLocalFilenameREDFISH. Python script using Redfish API to import system configuration profile attributes locally from a configuration file.
 #
 # _author_ = Texas Roemer <Texas_Roemer@Dell.com>
-# _version_ = 20.0
+# _version_ = 21.0
 #
 # Copyright (c) 2017, Dell, Inc.
 #
@@ -14,285 +16,231 @@
 # http://www.gnu.org/licenses/old-licenses/gpl-2.0.txt.
 #
 
-import requests, json, sys, re, time, warnings, argparse, platform, subprocess
+import argparse
+import getpass
+import json
+import logging
+import re
+import requests
+import sys
+import time
+import warnings
 
 from datetime import datetime
+from pprint import pprint
 
 warnings.filterwarnings("ignore")
 
 parser=argparse.ArgumentParser(description="Python script using Redfish API to import the host server configuration profile locally from a configuration file.")
-parser.add_argument('-ip',help='iDRAC IP address', required=True)
-parser.add_argument('-u', help='iDRAC username', required=True)
-parser.add_argument('-p', help='iDRAC password', required=True)
-parser.add_argument('-np', help='Pass in new iDRAC user password that gets set during SCP import. This will be required to continue to query the job status.', required=False)
-parser.add_argument('script_examples',action="store_true",help='ImportSystemConfigurationLocalFilenameREDFISH.py -ip 192.168.0.120 -u root -p calvin -t ALL --filename SCP_export_R740, this example is going to import SCP file and apply all attribute changes for all components. \nImportSystemConfigurationLocalFilenameREDFISH.py -ip 192.168.0.120 -u root -p calvin -t BIOS --filename R740_scp_file -s Forced, this example is going to only apply BIOS changes from the SCP file along with forcing a server power reboot. ImportSystemConfigurationLocalFilenameREDFISH.py -ip 192.168.0.120 -u root -t IDRAC -f 2020-8-5_135318_export.xml -p calvin -np Test1234#, this example uses SCP import to change root user password and will leverage the new user password to continue to query the job status until marked completed')
-parser.add_argument('-t', help='Pass in Target value to set component attributes. You can pass in \"ALL" to set all component attributes or pass in a specific component to set only those attributes. Supported values are: ALL, System, BIOS, IDRAC, NIC, FC, LifecycleController, RAID.', required=True)
-parser.add_argument('-s', help='Pass in ShutdownType value. Supported values are Graceful, Forced and NoReboot. If you don\'t use this optional parameter, default value is Graceful. NOTE: If you pass in NoReboot value, configuration changes will not be applied until the next server manual reboot.', required=False)
-parser.add_argument('-f', help='Pass in Server Configuration Profile filename', required=True)
-parser.add_argument('-e', help='Pass in end HostPowerState value. Supported values are On and Off. If you don\'t use this optional parameter, default value is On', required=False)
-args=vars(parser.parse_args())
+parser.add_argument('-ip',help='iDRAC IP address', required=False)
+parser.add_argument('-u', help='iDRAC username', required=False)
+parser.add_argument('-p', help='iDRAC password. If you do not pass in argument -p, script will prompt to enter user password which will not be echoed to the screen.', required=False)
+parser.add_argument('-x', help='Pass in X-Auth session token for executing Redfish calls. All Redfish calls will use X-Auth token instead of username/password', required=False)
+parser.add_argument('--ssl', help='SSL cert verification for all Redfish calls, pass in value \"true\" or \"false\". By default, this argument is not required and script ignores validating SSL cert for all Redfish calls.', required=False)
+parser.add_argument('--script-examples', action="store_true", help='Prints script examples')
+parser.add_argument('--new-password', help='Pass in new iDRAC user password that gets set during SCP import. This will be required to continue to query the job status. NOTE: If you pass in "" for value, script will prompt you to enter the password which is not echoed to the screen.', dest="new_password", required=False)
+parser.add_argument('--target', help='Pass in Target value to set component attributes. You can pass in \"ALL" to set all component attributes or pass in a specific component to set only those attributes. Supported values are: ALL, System, BIOS, IDRAC, NIC, FC, LifecycleController, RAID.', required=False)
+parser.add_argument('--shutdown-type', help='Pass in ShutdownType value. Supported values are Graceful, Forced and NoReboot. If you don\'t use this optional parameter, default value is Graceful. NOTE: If you pass in NoReboot value, configuration changes will not be applied until the next server manual reboot.', dest="shutdown_type", required=False)
+parser.add_argument('--filename', help='Pass in Server Configuration Profile filename', required=False)
+parser.add_argument('--end-powerstate', help='Pass in end HostPowerState value. Supported values are On and Off. If you don\'t use this optional parameter, default value is On', dest="end_powerstate", required=False)
 
-idrac_ip = args["ip"]
-idrac_username = args["u"]
-idrac_password = args["p"]
-filename = args["f"]
+args=vars(parser.parse_args())
+logging.basicConfig(format='%(message)s', stream=sys.stdout, level=logging.INFO)
+
+def script_examples():
+    print("""\n- ImportSystemConfigurationLocalFilenameREDFISH.py -ip 192.168.0.120 -u root -p calvin --target ALL --filename SCP_export_R740, this example is going to import SCP file and apply all attribute changes for all components.
+    \n- ImportSystemConfigurationLocalFilenameREDFISH.py -ip 192.168.0.120 -u root -p calvin --target BIOS --filename R740_scp_file --shutdown-type Forced, this example is going to only apply BIOS changes from the SCP file along with forcing a server power reboot.
+    \n- ImportSystemConfigurationLocalFilenameREDFISH.py -ip 192.168.0.120 -u root -p calvin --target IDRAC -f 2020-8-5_135318_export.xml --new-password Test1234#, this example uses SCP import to change root user password and will leverage the new user password to continue to query the job status until marked completed.
+    \n- ImportSystemConfigurationLocalFilenameREDFISH.py -ip 192.168.0.120 -u root --target IDRAC --filename 2022-4-21_111957_export.xml --new-password \"\", this example will first prompt you to enter current root password, then prompt you to enter new password set for root which was passed in the SCP file.""")
+    sys.exit(0)
 
 def check_supported_idrac_version():
-    global get_version
-    response = requests.get('https://%s/redfish/v1/Managers/iDRAC.Embedded.1' % idrac_ip,verify=False,auth=(idrac_username, idrac_password))
+    if args["x"]:
+        response = requests.get('https://%s/redfish/v1/Managers/iDRAC.Embedded.1' % idrac_ip, verify=verify_cert, headers={'X-Auth-Token': args["x"]})
+    else:
+        response = requests.get('https://%s/redfish/v1/Managers/iDRAC.Embedded.1' % idrac_ip, verify=verify_cert, auth=(idrac_username, idrac_password))
     data = response.json()
     if response.status_code == 401:
-        print("\n- WARNING, status code 401 detected, check iDRAC username / password credentials")
-        sys.exit()
+        logging.warning("\n- WARNING, status code %s returned, check your iDRAC username/password is correct or iDRAC user has correct privileges to execute Redfish commands" % response.status_code)
+        sys.exit(0)
     if response.status_code != 200:
-        print("\n- WARNING, iDRAC version installed does not support this feature using Redfish API")
-        sys.exit()
-    else:
-        data = response.json()
-        get_version = data['FirmwareVersion'].split(".")[:2]
-        get_version = int("".join(get_version))
-
+        logging.warning("\n- WARNING, GET command failed to check supported iDRAC version, status code %s returned" % response.status_code)
+        sys.exit(0)
 
 def import_SCP_local_filename():
     global job_id
     try:
-        open_file = open(filename,"r")
+        open_file = open(args["filename"],"r")
     except:
-        print("\n-FAIL, \"%s\" file doesn't exist" % filename)
-        sys.exit()
-        
+        logging.error("\n- FAIL, \"%s\" file doesn't exist" % args["filename"])
+        sys.exit(0)    
     url = 'https://%s/redfish/v1/Managers/iDRAC.Embedded.1/Actions/Oem/EID_674_Manager.ImportSystemConfiguration' % idrac_ip
-
     # Code needed to modify the SCP file to one string to pass in for POST command
     modify_file = open_file.read()
     modify_file = re.sub(" \n ","",modify_file)
     modify_file = re.sub(" \n","",modify_file)
     file_string = re.sub("   ","",modify_file)
     open_file.close()
-
-    payload = {"ImportBuffer":"","ShareParameters":{"Target":args["t"]}}
-    if args["s"]:
-        payload["ShutdownType"] = args["s"]
-    if args["e"]:
-        payload["HostPowerState"] = args["e"]
-
+    payload = {"ImportBuffer":"","ShareParameters":{"Target":args["target"]}}
+    if args["shutdown_type"]:
+        payload["ShutdownType"] = args["shutdown_type"].title()
+    if args["end_powerstate"]:
+        payload["HostPowerState"] = args["end_powerstate"].title()
     payload["ImportBuffer"] = file_string
-    headers = {'content-type': 'application/json'}
-    response = requests.post(url, data=json.dumps(payload), headers=headers, verify=False, auth=(idrac_username, idrac_password))
-    get_dict = str(response.__dict__)
-
-    try:
-        get_job_ID_search = re.search("JID_.+?,",get_dict).group()
-    except:
-        print("\n- FAIL: status code %s returned for ImportSystemConfiguration action" % response.status_code)
-        print("- Detailed error information: %s" % get_dict)
-        sys.exit()
-
-    job_id = re.sub("[,']","",get_job_ID_search)
-    if response.status_code != 202:
-        print("\n- FAIL, status code not 202\n, code is: %s" % response.status_code )  
-        sys.exit()
+    if args["x"]:
+        headers = {'content-type': 'application/json', 'X-Auth-Token': args["x"]}
+        response = requests.post(url, data=json.dumps(payload), headers=headers, verify=verify_cert)
     else:
-        print("\n- PASS, %s successfully created for ImportSystemConfiguration method\n" % (job_id))
-
-
-def check_job_status():
+        headers = {'content-type': 'application/json'}
+        response = requests.post(url, data=json.dumps(payload), headers=headers, verify=verify_cert,auth=(idrac_username, args["p"]))
+    if response.status_code != 202:
+        logging.error("\n- FAIL, POST command failed for import system configuration, status code %s returned" % response.status_code)
+        logging.error(response.json())
+        sys.exit(0)
+    try:
+        job_id = response.headers['Location'].split("/")[-1]
+    except:
+        logging.error("- FAIL, unable to find job ID in headers POST response, headers output is:\n%s" % response.headers)
+        sys.exit(0)
+    logging.info("\n- PASS, %s successfully created for ImportSystemConfiguration method\n" % (job_id))
     start_job_message = ""
     start_time = datetime.now()
-    idrac_ip = args["ip"]
-    idrac_username = args["u"]
-    idrac_password = args["p"]
     count = 1
     get_job_status_count = 1
+    new_password_set = "no"
     while True:
-        check_idrac_connection()
         if count == 10:
-            print("- FAIL, 10 attempts at getting job status failed, script will exit")
+            logging.error("- FAIL, 10 attempts at getting job status failed, script will exit")
             sys.exit(0)
         if get_job_status_count == 10:
-            print("- INFO, retry count of 10 has been hit for retry job status GET request, script will exit")
+            logging.warning("- WARNING, retry count of 10 has been hit for retry job status GET request, script will exit")
             sys.exit(0)
         try:
-            req = requests.get('https://%s/redfish/v1/TaskService/Tasks/%s' % (idrac_ip, job_id), auth=(idrac_username, idrac_password), verify=False)
+            if args["x"]:
+                response = requests.get('https://%s/redfish/v1/TaskService/Tasks/%s' % (idrac_ip, job_id), verify=verify_cert, headers={'X-Auth-Token': args["x"]})
+            else:
+                response = requests.get('https://%s/redfish/v1/TaskService/Tasks/%s' % (idrac_ip, job_id), verify=verify_cert, auth=(idrac_username, args["p"]))
         except requests.ConnectionError as error_message:
-            print("- FAIL, requests command failed to GET job status, detailed error information: \n%s" % error_message)
+            logging.warning("- WARNING, requests command failed to GET job status, detailed error information: \n%s" % error_message)
+            logging.info("- INFO, script will attempt to get job status again")
             time.sleep(10)
-            print("- INFO, script will now attempt to get job status again")
-            count+=1
+            count += 1
             continue
-        statusCode = req.status_code
-        if statusCode == 401 and args["np"]:
-            print("- INFO, status code 401 and argument -np detected. Script will now query job status using iDRAC user \"%s\" new password set by SCP import" % idrac_username)
-            idrac_password = args["np"]
-            req = requests.get('https://%s/redfish/v1/TaskService/Tasks/%s' % (idrac_ip, job_id), auth=(idrac_username, idrac_password), verify=False)
-            if req.status_code == 401:
-                print("- INFO, new password passed in for argument -np still failed with status code 401 for idrac user \"%s\", unable to check job status" % idrac_username)
-                sys.exit()
+        if args["new_password"] == "" and new_password_set == "no":
+            args["p"] = getpass.getpass("- INFO, empty value detected for argument --new-password, pass in new password being set by SCP: ")
+            new_password_set = "yes"
+        if response.status_code == 401 and args["new_password"]:
+            if args["x"]:
+                logging.warning("- WARNING, X-auth token session detected along with new password changed, script will exit. Manually check the overall job queue for completed job status. X-auth token session is no longer valid, recreate the token using new password set.")
+                sys.exit(0)
+            logging.info("- INFO, status code 401 and argument --new-password detected. Script will now query job status using iDRAC user \"%s\" new password set by SCP import" % idrac_username)
+            time.sleep(5)
+            args["p"] = args["new_password"]
+            if args["x"]:
+                response = requests.get('https://%s/redfish/v1/TaskService/Tasks/%s' % (idrac_ip, job_id), verify=verify_cert, headers={'X-Auth-Token': args["x"]})
+            else:
+                response = requests.get('https://%s/redfish/v1/TaskService/Tasks/%s' % (idrac_ip, job_id), verify=verify_cert, auth=(idrac_username, args["p"]))
+            if response.status_code == 401:
+                logging.info("- INFO, new password passed in for argument --new-password still failed with status code 401 for idrac user \"%s\", unable to check job status" % idrac_username)
+                sys.exit(0)
             else:
                 continue
-        elif statusCode == 401:
-            print("- INFO, status code 401 still detected for iDRAC user \"%s\". Check SCP file to see if iDRAC user \"%s\" password was changed for import" % (idrac_username, idrac_username))
-            sys.exit()
-        else:
-            pass
-        data = req.json()
+        elif response.status_code == 401:
+            logging.info("- INFO, status code 401 still detected for iDRAC user \"%s\". Check SCP file to see if iDRAC user \"%s\" password was changed for import" % (idrac_username, idrac_username))
+            sys.exit(0)
+        data = response.json()
         try:
             current_job_message = data['Oem']['Dell']['Message']
         except:
-            print("- INFO, unable to get job ID message string from JSON output, retry")
-            count +=1
+            logging.info("- INFO, unable to get job ID message string from JSON output, retry")
+            count += 1
             continue
         current_time = (datetime.now()-start_time)
-        if statusCode == 202 or statusCode == 200:
-            pass
+        if response.status_code == 202 or response.status_code == 200:
+            time.sleep(1)
         else:
-            print("Query job ID command failed, error code: %s, retry" % statusCode)
-            count +=1
+            logging.info("- INFO, GET command failed to get job ID details, error code: %s, retry" % response.status_code)
+            count += 1
             time.sleep(5)
             continue
-        if "Oem" in data:
-            pass
-        else:
-            print("- INFO, unable to locate OEM data in JSON response, retry")
-            get_job_status_count +=1
+        if "Oem" not in data:
+            logging.info("- INFO, unable to locate OEM data in JSON response, retry")
+            get_job_status_count += 1
             time.sleep(5)
             continue
-            
         if data['Oem']['Dell']['JobState'] == "Failed" or data['Oem']['Dell']['JobState'] == "CompletedWithErrors":
-            print("\n- INFO, job ID %s status marked as \"%s\"" % (job_id, data['Oem']['Dell']['JobState']))
-            print("\n- Detailed configuration changes and job results for \"%s\"\n" % job_id)
+            logging.info("\n- INFO, job ID %s status marked as \"%s\"" % (job_id, data['Oem']['Dell']['JobState']))
+            logging.info("\n- Detailed configuration changes and job results for \"%s\"\n" % job_id)
             try:
                 for i in data["Messages"]:
-                    for ii in i.items():
-                        if ii[0] == "Oem":
-                            for iii in ii[1]["Dell"].items():
-                                print("%s: %s" % (iii[0], iii[1]))
-                        else:
-                            if ii[0] == "Severity":
-                                pass
-                            if get_version < 440:
-                                if ii[1] == "Critical":
-                                    print("%s: %s" % (ii[0], ii[1]))
-                                    print("Status: Failure")
-                                elif ii[1] == "OK":
-                                    print("%s: %s" % (ii[0], ii[1]))
-                                    print("Status: Success")
-                                else:
-                                    print("%s: %s" % (ii[0], ii[1]))
-                                    
-                            else:
-                                print("%s: %s" % (ii[0], ii[1]))
-                    print("\n")
+                    pprint(i)
             except:
-                print("- FAIL, unable to get configuration results for job ID, returning only final job results\n")
+                logging.error("- FAIL, unable to get configuration results for job ID, returning only final job results\n")
                 for i in data['Oem']['Dell'].items():
                     print("%s: %s" % (i[0], i[1]))
-                    
-            print("- %s completed in: %s" % (job_id, str(current_time)[0:7]))
-            sys.exit()
+            logging.info("- %s completed in: %s" % (job_id, str(current_time)[0:7]))
+            sys.exit(0)
         elif data['Oem']['Dell']['JobState'] == "Completed":
             if "fail" in data['Oem']['Dell']['Message'].lower() or "error" in data['Oem']['Dell']['Message'].lower() or "not" in data['Oem']['Dell']['Message'].lower() or "unable" in data['Oem']['Dell']['Message'].lower() or "no device configuration" in data['Oem']['Dell']['Message'].lower() or "time" in data['Oem']['Dell']['Message'].lower():
-                print("- FAIL, Job ID %s marked as %s but detected issue(s). See detailed job results below for more information on failure\n" % (job_id, data['Oem']['Dell']['JobState']))
+                logging.error("- FAIL, Job ID %s marked as %s but detected issue(s). See detailed job results below for more information on failure\n" % (job_id, data['Oem']['Dell']['JobState']))
             elif "success" in data['Oem']['Dell']['Message'].lower():
-                print("- PASS, job ID %s successfully marked completed\n" % job_id)
+                logging.info("- PASS, job ID %s successfully marked completed\n" % job_id)
             elif "no changes" in data['Oem']['Dell']['Message'].lower():
-                print("\n- PASS, job ID %s marked completed\n" % job_id)
-                print("- Detailed job results for job ID %s\n" % job_id)
+                logging.info("\n- PASS, job ID %s marked completed\n" % job_id)
+                logging.info("- Detailed job results for job ID %s\n" % job_id)
                 for i in data['Oem']['Dell'].items():
-                    print("%s: %s" % (i[0], i[1]))
-                sys.exit()
-            print("- Detailed configuration changes and job results for \"%s\"\n" % job_id)
+                    pprint(i)
+                sys.exit(0)
+            logging.info("- Detailed configuration changes and job results for \"%s\"\n" % job_id)
             try:
                 for i in data["Messages"]:
-                    for ii in i.items():
-                        if ii[0] == "Oem":
-                            for iii in ii[1]["Dell"].items():
-                                print("%s: %s" % (iii[0], iii[1]))
-                        else:
-                            if ii[0] == "Severity":
-                                pass
-                            if get_version < 440:
-                                if ii[1] == "Critical":
-                                    print("%s: %s" % (ii[0], ii[1]))
-                                    print("Status: Failure")
-                                elif ii[1] == "OK":
-                                    print("%s: %s" % (ii[0], ii[1]))
-                                    print("Status: Success")
-                                else:
-                                    print("%s: %s" % (ii[0], ii[1]))
-                                    
-                            else:
-                                print("%s: %s" % (ii[0], ii[1]))
-                    print("\n")
+                    pprint(i)
             except:
-                print("- FAIL, unable to get configuration results for job ID, returning only final job results\n")
+                logging.error("- FAIL, unable to get configuration results for job ID, returning only final job results\n")
                 for i in data['Oem']['Dell'].items():
-                    print("%s: %s" % (i[0], i[1]))
-                    
-            print("- %s completed in: %s" % (job_id, str(current_time)[0:7]))
-            sys.exit()
-                
+                    pprint(i)
+            logging.info("\n- %s completed in: %s" % (job_id, str(current_time)[0:7]))
+            sys.exit(0)
         elif "No reboot Server" in data['Oem']['Dell']['Message']:
-            print("- PASS, job ID %s successfully marked completed. NoReboot value detected and config changes will not be applied until next manual server reboot\n" % job_id)
-            print("\n- Detailed job results for job ID %s\n" % job_id)
+            logging.info("- PASS, job ID %s successfully marked completed. NoReboot value detected and config changes will not be applied until next manual server reboot\n" % job_id)
+            logging.info("\n- Detailed job results for job ID %s\n" % job_id)
             for i in data['Oem']['Dell'].items():
                 print("%s: %s" % (i[0], i[1]))
-            sys.exit()
+            sys.exit(0)
         else:
             if start_job_message != current_job_message:
-                print("- INFO, job not completed, current status: \"%s\", percent complete: \"%s\"" % (data['Oem']['Dell']['Message'],data['Oem']['Dell']['PercentComplete']))
+                logging.info("- INFO, \"%s\", percent complete: %s" % (data['Oem']['Dell']['Message'],data['Oem']['Dell']['PercentComplete']))
                 start_job_message = current_job_message
-                #time.sleep(3)
                 continue
-            else:
-                pass
-def check_idrac_connection():
-    run_network_connection_function = ""
-    if platform.system().lower() == "windows":
-        ping_command = "ping -n 3 %s" % idrac_ip
-    elif platform.system().lower() == "linux":
-        ping_command = "ping -c 3 %s" % idrac_ip
-    else:
-        print("- FAIL, unable to determine OS type, check iDRAC connection function will not execute")
-        run_network_connection_function = "fail"
-    execute_command = subprocess.call(ping_command, stdout=subprocess.PIPE, shell=True)
-    if execute_command != 0:
-        ping_status = "lost"
-    else:
-        ping_status = "good"
-        pass
-    if ping_status == "lost":
-            print("- INFO, iDRAC network connection lost due to slow network response, waiting 1 minute to access iDRAC again")
-            time.sleep(60)
-            while True:
-                if run_network_connection_function == "fail":
-                    break
-                execute_command=subprocess.call(ping_command, stdout=subprocess.PIPE, shell=True)
-                if execute_command != 0:
-                    ping_status = "lost"
-                else:
-                    ping_status = "good"
-                if ping_status == "lost":
-                    print("- INFO, unable to ping iDRAC IP, script will wait 1 minute and try again")
-                    time.sleep(60)
-                    continue
-                else:
-                    pass
-                    break
-            while True:
-                try:
-                    req = requests.get('https://%s/redfish/v1/TaskService/Tasks/%s' % (idrac_ip, job_id), auth=(idrac_username, idrac_password), verify=False)
-                except requests.ConnectionError as error_message:
-                    print("- INFO, GET request failed due to connection error, retry")
-                    time.sleep(10)
-                    continue
-                break
-    else:
-        pass
+            
 
 
 if __name__ == "__main__":
-    check_supported_idrac_version()
-    import_SCP_local_filename()
-    check_job_status()
+    if args["script_examples"]:
+        script_examples()
+    if args["ip"] or args["ssl"] or args["u"] or args["p"] or args["x"]:
+        idrac_ip = args["ip"]
+        idrac_username = args["u"]
+        if args["p"]:
+            idrac_password = args["p"]
+        if not args["p"] and not args["x"] and args["u"]:
+            idrac_password = getpass.getpass("\n- Argument -p not detected, pass in iDRAC user %s password: " % args["u"])
+            args["p"] = idrac_password
+        if args["ssl"]:
+            if args["ssl"].lower() == "true":
+                verify_cert = True
+            elif args["ssl"].lower() == "false":
+                verify_cert = False
+            else:
+                verify_cert = False
+        else:
+            verify_cert = False
+        check_supported_idrac_version()
+    else:
+        logging.error("\n- FAIL, invalid argument values or not all required parameters passed in. See help text or argument --script-examples for more details.")
+        sys.exit(0)
+    if args["target"]:
+        import_SCP_local_filename()
+    else:
+        logging.error("\n- FAIL, invalid argument values or not all required parameters passed in. See help text or argument --script-examples for more details.")
     
