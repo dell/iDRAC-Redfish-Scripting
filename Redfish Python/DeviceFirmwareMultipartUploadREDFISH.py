@@ -4,7 +4,7 @@
 # DeviceFirmwareMultipartUploadREDFISH.py. Python script using Redfish API to update a device firmware with DMTF MultipartUpload. Supported file image types are Windows DUPs, d7/d9 image or pm files.
 #
 # _author_ = Texas Roemer <Texas_Roemer@Dell.com>
-# _version_ = 3.0
+# _version_ = 4.0
 #
 # Copyright (c) 2020, Dell, Inc.
 #
@@ -103,8 +103,6 @@ def download_image_create_update_job():
         payload = {"Targets": [], "@Redfish.OperationApplyTime": "Immediate", "Oem": {}}
     else:
         payload = {"Targets": [], "@Redfish.OperationApplyTime": "OnReset", "Oem": {}}
-    #if not args["reboot"]:
-    #    payload = {"Targets": [], "@Redfish.OperationApplyTime": "Immediate", "Oem": {}}
     files = {
          'UpdateParameters': (None, json.dumps(payload), 'application/json'),
          'UpdateFile': (os.path.basename(args["location"]), open(args["location"], 'rb'), 'application/octet-stream')
@@ -367,7 +365,7 @@ def check_idrac_connection():
 if __name__ == "__main__":
     if args["script_examples"]:
         script_examples()
-    if args["ip"] and args["ssl"] or args["u"] or args["p"] or args["x"]:
+    if args["ip"] or args["ssl"] or args["u"] or args["p"] or args["x"]:
         idrac_ip = args["ip"]
         idrac_username = args["u"]
         if args["p"]:
