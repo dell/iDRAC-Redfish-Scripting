@@ -4,7 +4,7 @@
 # DeviceFirmwareRollbackREDFISH. Python script using Redfish API with OEM extension to rollback firmware for a device iDRAC supports. 
 #
 # _author_ = Texas Roemer <Texas_Roemer@Dell.com>
-# _version_ = 5.0
+# _version_ = 6.0
 #
 # Copyright (c) 2020, Dell, Inc.
 #
@@ -124,7 +124,17 @@ def rollback_fw():
     except:
         logging.error("- FAIL, unable to locate job ID in headers output")
         sys.exit(0)
-    logging.info("\n- PASS, rollback job ID \"%s\" successfully created" % job_id) 
+    logging.info("\n- PASS, rollback job ID \"%s\" successfully created" % job_id)
+    if "idrac" in args["rollback"].lower():
+        if args["x"]:
+            response = requests.get('https://%s/redfish/v1/TaskService/Tasks/%s' % (idrac_ip, job_id), verify=verify_cert, headers={'X-Auth-Token': args["x"]})
+        else:
+            response = requests.get('https://%s/redfish/v1/TaskService/Tasks/%s' % (idrac_ip, job_id), verify=verify_cert, auth=(idrac_username, idrac_password))
+        data = response.json()
+        logging.info("\n- Final detailed job results -\n")
+        for i in data['Oem']['Dell'].items():
+            pprint(i)
+        sys.exit(0)
 
 def check_job_status():
     retry_count = 1
