@@ -1,10 +1,10 @@
 #!/usr/bin/python
+#!/usr/bin/python3
+#
 # ImportSystemConfigurationNetworkShareREDFISH. Python script using Redfish API to import server configuration profile from a network share. 
 #
-# 
-#
 # _author_ = Texas Roemer <Texas_Roemer@Dell.com>
-# _version_ = 18.0
+# _version_ = 21.0
 #
 # Copyright (c) 2017, Dell, Inc.
 #
@@ -16,75 +16,77 @@
 # http://www.gnu.org/licenses/old-licenses/gpl-2.0.txt.
 #
 
-import requests, json, sys, re, time, warnings, argparse
+import argparse
+import getpass
+import json
+import logging
+import platform
+import re
+import requests
+import subprocess
+import sys
+import time
+import warnings
 
 from datetime import datetime
+from pprint import pprint
 
 warnings.filterwarnings("ignore")
 
 parser=argparse.ArgumentParser(description="Python script using Redfish API to import server configuration profile (SCP) from a supported network share")
-parser.add_argument('-ip',help='iDRAC IP address', required=True)
-parser.add_argument('-u', help='iDRAC username', required=True)
-parser.add_argument('-p', help='iDRAC password', required=True)
-parser.add_argument('-np', help='Pass in new iDRAC user password that gets set during SCP import. This will be required to continue to query the job status.', required=False)
-parser.add_argument('script_examples',action="store_true",help='ImportSystemConfigurationNetworkShareREDFISH.py -ip 192.168.0.120 -u root -p calvin -t ALL --ipaddress 192.168.0.130 --sharetype NFS --sharename /nfs --filename SCP_export_R740, this example is going to import SCP file from NFS share and apply all attribute changes for all components. \nImportSystemConfigurationNetworkShareREDFISH.py -ip 192.168.0.120 -u root -p calvin -t BIOS --ipaddress 192.168.0.140 --sharetype CIFS --sharename cifs_share_vm --filename R740_scp_file -s Forced --username administrator --password password, this example is going to only apply BIOS changes from the SCP file on the CIFS share along with forcing a server power reboot.')
-parser.add_argument('-st', help='Pass in \"y\" to get supported share types for your iDRAC firmware version', required=False)
-parser.add_argument('--ipaddress', help='Pass in the IP address of the network share', required=False)
+parser.add_argument('-ip',help='iDRAC IP address', required=False)
+parser.add_argument('-u', help='iDRAC username', required=False)
+parser.add_argument('-p', help='iDRAC password. If you do not pass in argument -p, script will prompt to enter user password which will not be echoed to the screen.', required=False)
+parser.add_argument('-x', help='Pass in X-Auth session token for executing Redfish calls. All Redfish calls will use X-Auth token instead of username/password', required=False)
+parser.add_argument('--ssl', help='SSL cert verification for all Redfish calls, pass in value \"true\" or \"false\". By default, this argument is not required and script ignores validating SSL cert for all Redfish calls.', required=False)
+parser.add_argument('--script-examples', action="store_true", help='Prints script examples')
+parser.add_argument('--new-password', help='Pass in new iDRAC user password that gets set during SCP import. This will be required to continue to query the job status. NOTE: If you pass in "" for value, script will prompt you to enter the password which is not echoed to the screen.', dest="new_password", required=False)
+parser.add_argument('--shareip', help='Pass in the IP address of the network share', required=False)
 parser.add_argument('--sharetype', help='Pass in the share type of the network share. If needed, use argument -st to get supported values for your iDRAC firmware version', required=False)
 parser.add_argument('--sharename', help='Pass in the network share share name', required=False)
 parser.add_argument('--username', help='Pass in the CIFS username', required=False)
 parser.add_argument('--password', help='Pass in the CIFS username pasword', required=False)
 parser.add_argument('--workgroup', help='Pass in the workgroup of your CIFS network share. This argument is optional', required=False)
-parser.add_argument('-t', help='Pass in Target value to import component attributes. You can pass in \"ALL" to import all component attributes or pass in a specific component to import only those attributes. Supported values are: ALL, System, BIOS, IDRAC, NIC, FC, LifecycleController, RAID.', required=False)
+parser.add_argument('--target', help='Pass in Target value to import component attributes. You can pass in \"ALL" to import all component attributes or pass in a specific component to import only those attributes. Supported values are: ALL, System, BIOS, IDRAC, NIC, FC, LifecycleController, RAID.', required=False)
 parser.add_argument('--filename', help='Pass in the filename of the SCP file which is on the network share you are using', required=False)
 parser.add_argument('--ignorecertwarning', help='Supported values are Disabled and Enabled. This argument is only required if using HTTPS for share type. If you don\'t pass in this argument when using HTTPS, default iDRAC setting is Enabled', required=False)
-parser.add_argument('-s', help='Pass in ShutdownType value. Supported values are Graceful, Forced and NoReboot. If you don\'t use this optional parameter, default value is Graceful. NOTE: If you pass in NoReboot value, configuration changes will not be applied until the next server manual reboot.', required=False)
-parser.add_argument('-e', help='Pass in end HostPowerState value. Supported values are On and Off. If you don\'t use this optional parameter, default value is On', required=False)
+parser.add_argument('--shutdown-type', help='Pass in ShutdownType value. Supported values are Graceful, Forced and NoReboot. If you don\'t use this optional parameter, default value is Graceful. NOTE: If you pass in NoReboot value, configuration changes will not be applied until the next server manual reboot.', dest="shutdown_type", required=False)
+parser.add_argument('--end-powerstate', help='Pass in end HostPowerState value. Supported values are On and Off. If you don\'t use this optional parameter, default value is On', dest="end_powerstate", required=False)
 
+args = vars(parser.parse_args())
+logging.basicConfig(format='%(message)s', stream=sys.stdout, level=logging.INFO)
 
-args=vars(parser.parse_args())
+def script_examples():
+    print("""\n- ImportSystemConfigurationNetworkShareREDFISH.py -ip 192.168.0.120 -u root -p calvin --target ALL --shareip 192.168.0.130 --sharetype NFS --sharename /nfs --filename SCP_export_R740, this example is going to import SCP file from NFS share and apply all attribute changes for all components.
+    \n- ImportSystemConfigurationNetworkShareREDFISH.py -ip 192.168.0.120 -u root -p calvin --target BIOS --shareip 192.168.0.140 --sharetype CIFS --sharename cifs_share_vm --filename R740_scp_file --shutdowwn-type Forced --username administrator --password password, this example is going to only apply BIOS changes from the SCP file on the CIFS share along with forcing a server power reboot.""")
+    sys.exit(0)
 
-idrac_ip=args["ip"]
-idrac_username=args["u"]
-idrac_password=args["p"]
-
-def test_idrac_credentials():
-    response = requests.get('https://%s/redfish/v1/Managers/iDRAC.Embedded.1' % (idrac_ip), auth=(idrac_username, idrac_password), verify=False)
+def check_supported_idrac_version():
+    if args["x"]:
+        response = requests.get('https://%s/redfish/v1/Managers/iDRAC.Embedded.1' % idrac_ip, verify=verify_cert, headers={'X-Auth-Token': args["x"]})
+    else:
+        response = requests.get('https://%s/redfish/v1/Managers/iDRAC.Embedded.1' % idrac_ip, verify=verify_cert, auth=(idrac_username, idrac_password))
+    data = response.json()
     if response.status_code == 401:
-        print("\n- WARNING, status code 401 detected, check iDRAC username / password credentials")
-        sys.exit()
-    else:
-        data = response.json()
-        get_version = data['FirmwareVersion'].split(".")[:2]
-        get_version = int("".join(get_version))
-
-def get_sharetypes():
-    req = requests.get('https://%s/redfish/v1/Managers/iDRAC.Embedded.1' % (idrac_ip), auth=(idrac_username, idrac_password), verify=False)
-    data = req.json()
-    print("\n- ImportSystemConfiguration supported share types for iDRAC %s\n" % idrac_ip)
-    if 'OemManager.v1_0_0#OemManager.ImportSystemConfiguration' in data['Actions']['Oem']:
-        share_types = data['Actions']['Oem']['OemManager.v1_0_0#OemManager.ImportSystemConfiguration']['ShareParameters']['ShareType@Redfish.AllowableValues']
-    else:
-        share_types = data['Actions']['Oem']['OemManager.v1_1_0#OemManager.ImportSystemConfiguration']['ShareParameters']['ShareType@Redfish.AllowableValues']
-    for i in share_types:
-        if i == "LOCAL":
-            pass
-        else:
-            print(i)
+        logging.warning("\n- WARNING, status code %s returned, check your iDRAC username/password is correct or iDRAC user has correct privileges to execute Redfish commands" % response.status_code)
+        sys.exit(0)
+    if response.status_code != 200:
+        logging.warning("\n- WARNING, GET command failed to check supported iDRAC version, status code %s returned" % response.status_code)
+        sys.exit(0)
     
 def import_server_configuration_profile():
     global job_id
     method = "ImportSystemConfiguration"
     url = 'https://%s/redfish/v1/Managers/iDRAC.Embedded.1/Actions/Oem/EID_674_Manager.ImportSystemConfiguration' % idrac_ip
-    payload = {"ShareParameters":{"Target":args["t"]}}
-    if args["s"]:
-        payload["ShutdownType"] = args["s"]
-    if args["e"]:
-        payload["HostPowerState"] = args["e"]
-    if args["ipaddress"]:
-        payload["ShareParameters"]["IPAddress"] = args["ipaddress"]
+    payload = {"ShareParameters":{"Target":args["target"]}}
+    if args["shutdown_type"]:
+        payload["ShutdownType"] = args["shutdown_type"].title()
+    if args["end_powerstate"]:
+        payload["HostPowerState"] = args["end_powerstate"].title()
+    if args["shareip"]:
+        payload["ShareParameters"]["IPAddress"] = args["shareip"]
     if args["sharetype"]:
-        payload["ShareParameters"]["ShareType"] = args["sharetype"]
+        payload["ShareParameters"]["ShareType"] = args["sharetype"].upper()
     if args["sharename"]:
         payload["ShareParameters"]["ShareName"] = args["sharename"]
     if args["filename"]:
@@ -97,135 +99,162 @@ def import_server_configuration_profile():
         payload["ShareParameters"]["Workgroup"] = args["workgroup"]
     if args["ignorecertwarning"]:
         payload["ShareParameters"]["IgnoreCertificateWarning"] = args["ignorecertwarning"]
-    print("\n- WARNING, arguments and values for %s method\n" % method)
-    for i in payload.items():
-        if i[0] == "ShareParameters":
-            for ii in i[1].items():
-                if ii[0] == "Password":
-                    print("Password: **********")
-                else:
-                    print("%s: %s" % (ii[0],ii[1]))
-        else:
-            print("%s: %s" % (i[0],i[1]))
-    headers = {'content-type': 'application/json'}
-    response = requests.post(url, data=json.dumps(payload), headers=headers, verify=False, auth=(idrac_username,idrac_password))
-    post_output_convert_to_string = str(response.__dict__)
-    
-
-    try:
-        z=re.search("JID_.+?,",post_output_convert_to_string).group()
-    except:
-        print("\n- FAIL: detailed error message: {0}".format(response.__dict__['_content']))
-        sys.exit()
-
-    job_id=re.sub("[,']","",z)
-    if response.status_code != 202:
-        print("\n- FAIL, status code not 202\n, code is: %s" % response.status_code)   
-        sys.exit()
+    if args["x"]:
+        headers = {'content-type': 'application/json', 'X-Auth-Token': args["x"]}
+        response = requests.post(url, data=json.dumps(payload), headers=headers, verify=verify_cert)
     else:
-        print("\n- Job ID \"%s\" successfully created for %s method\n" % (job_id, method)) 
+        headers = {'content-type': 'application/json'}
+        response = requests.post(url, data=json.dumps(payload), headers=headers, verify=verify_cert,auth=(idrac_username, args["p"]))
+    if response.status_code != 202:
+        logging.error("\n- FAIL, POST command failed for import system configuration, status code %s returned" % response.status_code)
+        logging.error(response.json())
+        sys.exit(0)
+    try:
+        job_id = response.headers['Location'].split("/")[-1]
+    except:
+        logging.error("- FAIL, unable to find job ID in headers POST response, headers output is:\n%s" % response.headers)
+        sys.exit(0)
+    logging.info("\n- PASS, %s successfully created for ImportSystemConfiguration method\n" % (job_id))
 
-    response_output=response.__dict__
-    job_id=response_output["headers"]["Location"]
-    job_id=re.search("JID_.+",job_id).group()
-
-
-    
-def loop_job_status():
-    idrac_ip=args["ip"]
-    idrac_username=args["u"]
-    idrac_password=args["p"]
-    start_time=datetime.now()
+def check_job_status():
+    start_job_message = ""
+    start_time = datetime.now()
+    count = 1
+    get_job_status_count = 1
+    new_password_set = "no"
     while True:
-        count = 1
-        while True:
-            if count == 5:
-                print("- FAIL, 5 attempts at getting job status failed, script will exit")
-                sys.exit()
-            try:
-                req = requests.get('https://%s/redfish/v1/TaskService/Tasks/%s' % (idrac_ip, job_id), auth=(idrac_username, idrac_password), verify=False)
-                break
-            except requests.ConnectionError as error_message:
-                print("- FAIL, requests command failed to GET job status, detailed error information: \n%s" % error_message)
-                time.sleep(10)
-                print("- WARNING, script will now attempt to get job status again")
-                count+=1
-                continue
-        statusCode = req.status_code
-        if statusCode == 401 and args["np"]:
-            print("- WARNING, status code 401 and argument -np detected. Script will now query job status using iDRAC user \"%s\" new password set by SCP import" % idrac_username)
-            idrac_password = args["np"]
-            req = requests.get('https://%s/redfish/v1/TaskService/Tasks/%s' % (idrac_ip, job_id), auth=(idrac_username, idrac_password), verify=False)
-            if req.status_code == 401:
-                print("- WARNING, new password passed in for argument -np still failed with status code 401 for idrac user \"%s\", unable to check job status" % idrac_username)
-                sys.exit()
+        if count == 10:
+            logging.error("- FAIL, 10 attempts at getting job status failed, script will exit")
+            sys.exit(0)
+        if get_job_status_count == 10:
+            logging.warning("- WARNING, retry count of 10 has been hit for retry job status GET request, script will exit")
+            sys.exit(0)
+        try:
+            if args["x"]:
+                response = requests.get('https://%s/redfish/v1/TaskService/Tasks/%s' % (idrac_ip, job_id), verify=verify_cert, headers={'X-Auth-Token': args["x"]})
+            else:
+                response = requests.get('https://%s/redfish/v1/TaskService/Tasks/%s' % (idrac_ip, job_id), verify=verify_cert, auth=(idrac_username, args["p"]))
+        except requests.ConnectionError as error_message:
+            logging.warning("- WARNING, requests command failed to GET job status, detailed error information: \n%s" % error_message)
+            logging.info("- INFO, script will attempt to get job status again")
+            time.sleep(10)
+            count += 1
+            continue
+        if args["new_password"] == "" and new_password_set == "no":
+            args["p"] = getpass.getpass("- INFO, empty value detected for argument --new-password, pass in new password being set by SCP: ")
+            new_password_set = "yes"
+        if response.status_code == 401 and args["new_password"]:
+            if args["x"]:
+                logging.warning("- WARNING, X-auth token session detected along with new password changed, script will exit. Manually check the overall job queue for completed job status. X-auth token session is no longer valid, recreate the token using new password set.")
+                sys.exit(0)
+            logging.info("- INFO, status code 401 and argument --new-password detected. Script will now query job status using iDRAC user \"%s\" new password set by SCP import" % idrac_username)
+            time.sleep(5)
+            args["p"] = args["new_password"]
+            if args["x"]:
+                response = requests.get('https://%s/redfish/v1/TaskService/Tasks/%s' % (idrac_ip, job_id), verify=verify_cert, headers={'X-Auth-Token': args["x"]})
+            else:
+                response = requests.get('https://%s/redfish/v1/TaskService/Tasks/%s' % (idrac_ip, job_id), verify=verify_cert, auth=(idrac_username, args["p"]))
+            if response.status_code == 401:
+                logging.info("- INFO, new password passed in for argument --new-password still failed with status code 401 for idrac user \"%s\", unable to check job status" % idrac_username)
+                sys.exit(0)
             else:
                 continue
-        elif statusCode == 401:
-            print("- WARNING, status code 401 still detected for iDRAC user \"%s\". Check SCP file to see if iDRAC user \"%s\" password was changed for import" % (idrac_username, idrac_username))
-            sys.exit()
+        elif response.status_code == 401:
+            logging.info("- INFO, status code 401 still detected for iDRAC user \"%s\". Check SCP file to see if iDRAC user \"%s\" password was changed for import" % (idrac_username, idrac_username))
+            sys.exit(0)
+        data = response.json()
+        try:
+            current_job_message = data['Oem']['Dell']['Message']
+        except:
+            logging.info("- INFO, unable to get job ID message string from JSON output, retry")
+            count += 1
+            continue
+        current_time = (datetime.now()-start_time)
+        if response.status_code == 202 or response.status_code == 200:
+            time.sleep(1)
         else:
-            pass
-        data = req.json()
-        current_time=(datetime.now()-start_time)
-        if statusCode == 202 or statusCode == 200:
-            pass
-            time.sleep(3)
-        else:
-            print("Query job ID command failed, error code is: %s" % statusCode)
-            sys.exit()
-        if "not compliant with configuration schema" in data['Oem']['Dell']['Message'].lower():
-            print("- FAIL, schema validation error detected for SCP file, checking config results for more details if available.\n")
-            req = requests.get('https://%s/redfish/v1/TaskService/Tasks/%s' % (idrac_ip, job_id), auth=(idrac_username, idrac_password), verify=False)
-            data = req.json()
-            for i in data["Messages"]:
-                for ii in i.items():
-                    if ii[0] == "Message":
-                        print("%s: %s" % (ii[0], ii[1]))
-                    else:
-                        pass
-            
-            sys.exit(1)
-        else:
-            pass
-            
-        if data['Oem']['Dell']['JobState'] == "Completed":
-            if "fail" in data['Oem']['Dell']['Message'].lower() or "error" in data['Oem']['Dell']['Message'].lower() or "not" in data['Oem']['Dell']['Message'].lower() or "unable" in data['Oem']['Dell']['Message'].lower() or "no device configuration" in data['Oem']['Dell']['Message'].lower() or "time" in data['Oem']['Dell']['Message'].lower():
-                print("- FAIL, Job ID %s marked as %s but detected issue(s). See detailed job results below for more information on failure\n" % (job_id, data['Oem']['Dell']['JobState']))
-            elif "success" in data['Oem']['Dell']['Message'].lower():
-                print("- PASS, job ID %s successfully marked completed\n" % job_id)
-            elif "no changes" in data['Oem']['Dell']['Message'].lower():
-                print("\n- PASS, job ID %s marked completed\n" % job_id)
-                print("- Detailed job results for job ID %s\n" % job_id)
+            logging.info("- INFO, GET command failed to get job ID details, error code: %s, retry" % response.status_code)
+            count += 1
+            time.sleep(5)
+            continue
+        if "Oem" not in data:
+            logging.info("- INFO, unable to locate OEM data in JSON response, retry")
+            get_job_status_count += 1
+            time.sleep(5)
+            continue
+        if data['Oem']['Dell']['JobState'] == "Failed" or data['Oem']['Dell']['JobState'] == "CompletedWithErrors":
+            logging.info("\n- INFO, job ID %s status marked as \"%s\"" % (job_id, data['Oem']['Dell']['JobState']))
+            logging.info("\n- Detailed configuration changes and job results for \"%s\"\n" % job_id)
+            try:
+                for i in data["Messages"]:
+                    pprint(i)
+            except:
+                logging.error("- FAIL, unable to get configuration results for job ID, returning only final job results\n")
                 for i in data['Oem']['Dell'].items():
                     print("%s: %s" % (i[0], i[1]))
-                sys.exit()
-            print("- Detailed configuration changes and job results for \"%s\"\n" % job_id)
-            for i in data["Messages"]:
-                for ii in i.items():
-                    if ii[0] == "Oem":
-                        for iii in ii[1]["Dell"].items():
-                            print("%s: %s" % (iii[0], iii[1]))
-                        print("\n")
-
-            sys.exit()
-                
+            logging.info("- %s completed in: %s" % (job_id, str(current_time)[0:7]))
+            sys.exit(0)
+        elif data['Oem']['Dell']['JobState'] == "Completed":
+            if "fail" in data['Oem']['Dell']['Message'].lower() or "error" in data['Oem']['Dell']['Message'].lower() or "not" in data['Oem']['Dell']['Message'].lower() or "unable" in data['Oem']['Dell']['Message'].lower() or "no device configuration" in data['Oem']['Dell']['Message'].lower() or "time" in data['Oem']['Dell']['Message'].lower():
+                logging.error("- FAIL, Job ID %s marked as %s but detected issue(s). See detailed job results below for more information on failure\n" % (job_id, data['Oem']['Dell']['JobState']))
+            elif "success" in data['Oem']['Dell']['Message'].lower():
+                logging.info("- PASS, job ID %s successfully marked completed\n" % job_id)
+            elif "no changes" in data['Oem']['Dell']['Message'].lower():
+                logging.info("\n- PASS, job ID %s marked completed\n" % job_id)
+                logging.info("- Detailed job results for job ID %s\n" % job_id)
+                for i in data['Oem']['Dell'].items():
+                    pprint(i)
+                sys.exit(0)
+            logging.info("- Detailed configuration changes and job results for \"%s\"\n" % job_id)
+            try:
+                for i in data["Messages"]:
+                    pprint(i)
+            except:
+                logging.error("- FAIL, unable to get configuration results for job ID, returning only final job results\n")
+                for i in data['Oem']['Dell'].items():
+                    pprint(i)
+            logging.info("\n- %s completed in: %s" % (job_id, str(current_time)[0:7]))
+            sys.exit(0)
         elif "No reboot Server" in data['Oem']['Dell']['Message']:
-            print("- PASS, job ID %s successfully marked completed. NoReboot value detected and config changes will not be applied until next manual server reboot\n" % job_id)
-            print("\n- Detailed job results for job ID %s\n" % job_id)
+            logging.info("- PASS, job ID %s successfully marked completed. NoReboot value detected and config changes will not be applied until next manual server reboot\n" % job_id)
+            logging.info("\n- Detailed job results for job ID %s\n" % job_id)
             for i in data['Oem']['Dell'].items():
                 print("%s: %s" % (i[0], i[1]))
-            sys.exit()
+            sys.exit(0)
         else:
-            print("- INFO, JobStatus not completed, current status: \"%s\", percent complete: \"%s\"" % (data['Oem']['Dell']['Message'],data['Oem']['Dell']['PercentComplete']))
-            time.sleep(3)
-            continue
+            if start_job_message != current_job_message:
+                logging.info("- INFO, \"%s\", percent complete: %s" % (data['Oem']['Dell']['Message'],data['Oem']['Dell']['PercentComplete']))
+                start_job_message = current_job_message
+                continue
+
+            
 
 if __name__ == "__main__":
-    test_idrac_credentials()
-    if args["st"]:
-        get_sharetypes()
+    if args["script_examples"]:
+        script_examples()
+    if args["ip"] or args["ssl"] or args["u"] or args["p"] or args["x"]:
+        idrac_ip = args["ip"]
+        idrac_username = args["u"]
+        if args["p"]:
+            idrac_password = args["p"]
+        if not args["p"] and not args["x"] and args["u"]:
+            idrac_password = getpass.getpass("\n- Argument -p not detected, pass in iDRAC user %s password: " % args["u"])
+        if args["ssl"]:
+            if args["ssl"].lower() == "true":
+                verify_cert = True
+            elif args["ssl"].lower() == "false":
+                verify_cert = False
+            else:
+                verify_cert = False
+        else:
+            verify_cert = False
+        check_supported_idrac_version()
     else:
+        logging.error("\n- FAIL, invalid argument values or not all required parameters passed in. See help text or argument --script-examples for more details.")
+        sys.exit(0)
+    if args["target"] and args["filename"] and args["shareip"] and args["sharename"] and args["sharetype"]:
         import_server_configuration_profile()
-        loop_job_status()
+        check_job_status()
+    else:
+        logging.warning("\n- WARNING, arguments --target, --filename, --sharename, --sharetype and --shareip are required for import. See help text or argument --script-examples for more details.")
         
