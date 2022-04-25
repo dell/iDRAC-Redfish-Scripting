@@ -1,7 +1,8 @@
-#
+#!/usr/bin/python
+#!/usr/bin/python3
 #
 # _author_ = Texas Roemer <Texas_Roemer@Dell.com>
-# _version_ = 1.0
+# _version_ = 2.0
 #
 # Copyright (c) 2022, Dell, Inc.
 #
@@ -15,6 +16,7 @@
 
 import argparse
 import json
+import logging
 import requests
 import os
 import sys
@@ -25,51 +27,78 @@ from datetime import datetime
 warnings.filterwarnings("ignore")
 
 parser=argparse.ArgumentParser(description="Python script using Redfish API to either enable serial data capture, export serial data or clear serial data. NOTE: This feature requires iDRAC Datacenter license.")
-parser.add_argument('-ip',help = 'iDRAC IP address', required = True)
-parser.add_argument('-u', help = 'iDRAC username', required = True)
-parser.add_argument('-p', help = 'iDRAC password', required = True)
-parser.add_argument('script_examples',action = "store_true",help = 'ExportClearSerialDataLogsREDFISH.py -ip 192.168.0.120 -u root -p calvin -s, this example will enable iDRAC serial data capture. ExportClearSerialDataLogsREDFISH.py -ip 192.168.0.120 -u root -p calvin -e, this example will export captured serial data. ExportClearSerialDataLogsREDFISH.py -ip 192.168.0.120 -u root -p calvin -c, this example will clear serial data.')
-parser.add_argument('-s', help = 'Enabled iDRAC settings to capture serial data', required = False, action='store_true')
-parser.add_argument('-e', help = 'Export captured serial data locally', required = False, action='store_true')
-parser.add_argument('-c', help = 'Clear serial data stored by iDRAC', required = False, action='store_true')
-parser.add_argument('-d', help = 'Disable iDRAC settings to capture serial data', required = False, action='store_true')
+parser.add_argument('-ip',help='iDRAC IP address', required=False)
+parser.add_argument('-u', help='iDRAC username', required=False)
+parser.add_argument('-p', help='iDRAC password. If you do not pass in argument -p, script will prompt to enter user password which will not be echoed to the screen.', required=False)
+parser.add_argument('-x', help='Pass in X-Auth session token for executing Redfish calls. All Redfish calls will use X-Auth token instead of username/password', required=False)
+parser.add_argument('--ssl', help='SSL cert verification for all Redfish calls, pass in value \"true\" or \"false\". By default, this argument is not required and script ignores validating SSL cert for all Redfish calls.', required=False)
+parser.add_argument('--script-examples', action="store_true", help='Prints script examples')
+parser.add_argument('--enable', help = 'Enabled iDRAC settings to capture serial data', required = False, action='store_true')
+parser.add_argument('--export', help = 'Export captured serial data locally', required = False, action='store_true')
+parser.add_argument('--clear', help = 'Clear serial data stored by iDRAC', required = False, action='store_true')
+parser.add_argument('--disable', help = 'Disable iDRAC settings to capture serial data', required = False, action='store_true')
 
 args=vars(parser.parse_args())
+logging.basicConfig(format='%(message)s', stream=sys.stdout, level=logging.INFO)
 
-idrac_ip=args["ip"]
-idrac_username=args["u"]
-idrac_password=args["p"]
+def script_examples():
+    print("""\n- ExportClearSerialDataLogsREDFISH.py -ip 192.168.0.120 -u root -p calvin --enable, this example will enable iDRAC serial data capture.
+    \n- ExportClearSerialDataLogsREDFISH.py -ip 192.168.0.120 -u root -p calvin --export, this example will export captured serial data.
+    \n- ExportClearSerialDataLogsREDFISH.py -ip 192.168.0.120 -u root -p calvin --clear, this example will clear serial data.""")
+    sys.exit(0)
 
-def set_iDRAC_attributes_enable_capture_serial():
+def check_supported_idrac_version():
+    if args["x"]:
+        response = requests.get('https://%s/redfish/v1/Managers/iDRAC.Embedded.1/Attributes' % idrac_ip, verify=verify_cert, headers={'X-Auth-Token': args["x"]})
+    else:
+        response = requests.get('https://%s/redfish/v1/Managers/iDRAC.Embedded.1/Attributes' % idrac_ip, verify=verify_cert, auth=(idrac_username, idrac_password))
+    data = response.json()
+    if response.status_code == 401:
+        logging.warning("\n- WARNING, status code %s returned, check your iDRAC username/password is correct or iDRAC user has correct privileges to execute Redfish commands" % response.status_code)
+        sys.exit(0)
+    if response.status_code != 200:
+        logging.warning("\n- WARNING, GET command failed to check supported iDRAC version, status code %s returned" % response.status_code)
+        sys.exit(0) 
+
+def enable_disable_iDRAC_attributes_enable_capture_serial(attribute_setting):
     url = 'https://%s/redfish/v1/Managers/iDRAC.Embedded.1/Attributes' % idrac_ip
-    headers = {'content-type': 'application/json'}
-    payload = {"Attributes":{"SerialCapture.1.Enable":"Enabled","Serial.1.Enable":"Enabled"}}
-    response = requests.patch(url, data=json.dumps(payload), headers=headers, verify=False,auth=(idrac_username, idrac_password))
+    payload = {"Attributes":{"SerialCapture.1.Enable":attribute_setting}}
+    if args["x"]:
+        headers = {'content-type': 'application/json', 'X-Auth-Token': args["x"]}
+        response = requests.patch(url, data=json.dumps(payload), headers=headers, verify=verify_cert)
+    else:
+        headers = {'content-type': 'application/json'}
+        response = requests.patch(url, data=json.dumps(payload), headers=headers, verify=verify_cert,auth=(idrac_username,idrac_password))
     data = response.json()
     if response.status_code == 200:
-        print("\n- PASS, PATCH command passed to successfully set attributes to enable serial data capture, status code %s returned\n" % response.status_code)
+        logging.info("\n- PASS, PATCH command passed to %s serial data capture, status code %s returned\n" % (attribute_setting.upper().rstrip("D"), response.status_code))
         if "error" in data.keys():
-            print("- WARNING, error detected for one or more of the attribute(s) being set, detailed error results:\n\n %s" % data["error"])
-            print("\n- INFO, for attributes that detected no error, these will still get applied")
-        else:
-            pass
+            logging.warning("\n- WARNING, error detected for one or more of the attribute(s) being set, detailed error results:\n\n %s" % data["error"])
+            logging.info("\n- INFO, for attributes that detected no error, these will still get applied")
     else:
-        print("\n- FAIL, Command failed to set attributes, status code : %s\n" % response.status_code)
-        print("Extended Info Message: {0}".format(response.json()))
-        sys.exit()
+        logging.error("\n- FAIL, Command failed to set attributes, status code : %s\n" % response.status_code)
+        logging.error("Extended Info Message: {0}".format(response.json()))
+        sys.exit(0)
 
 def export_serial_data():
     method = "SerialDataExport"
     url = 'https://%s/redfish/v1/Managers/iDRAC.Embedded.1/SerialInterfaces/Serial.1/Actions/Oem/DellSerialInterface.SerialDataExport' % (idrac_ip)
-    headers = {'content-type': 'application/json'}
     payload={}
-    response = requests.post(url, data=json.dumps(payload), headers=headers, verify=False,auth=(idrac_username,idrac_password))
-    if response.status_code == 200:
-        print("\n- PASS: POST command passed for %s method, status code %s returned" % (method, response.status_code))
+    if args["x"]:
+        headers = {'content-type': 'application/json', 'X-Auth-Token': args["x"]}
+        response = requests.post(url, data=json.dumps(payload), headers=headers, verify=verify_cert)
     else:
-        print("\n- FAIL, POST command failed for %s method, status code %s returned" % (method, response.status_code))
-        print("\n- POST command failure results:\n %s" % response.__dict__)
-        sys.exit()
+        headers = {'content-type': 'application/json'}
+        response = requests.post(url, data=json.dumps(payload), headers=headers, verify=verify_cert,auth=(idrac_username,idrac_password))
+    if response.status_code == 204:
+        logging.warning("- WARNING, serial logs enabled but no serial content has been stored in iDRAC. Reboot server to start generating serial content stored in iDRAC")
+        sys.exit(0)
+    elif response.status_code == 200:
+        logging.info("\n- PASS: POST command passed for %s method, status code %s returned" % (method, response.status_code))
+    else:
+        logging.error("\n- FAIL, POST command failed for %s method, status code %s returned" % (method, response.status_code))
+        logging.error("\n- POST command failure results:\n %s" % response.__dict__)
+        sys.exit(0)
     try:
         os.remove("serial_data_logs.txt")
     except:
@@ -86,50 +115,59 @@ def export_serial_data():
         filename_open.writelines(key)
         filename_open.writelines("\n")
     filename_open.close()
-    print("- INFO, Exported serial logs captured to file \"%s\\%s\"" % (os.getcwd(), "serial_data_logs.txt"))
+    logging.info("- INFO, Exported serial logs captured to file \"%s\\%s\"" % (os.getcwd(), "serial_data_logs.txt"))
 
 def clear_serial_data():
     method = "SerialDataClear"
     url = 'https://%s/redfish/v1/Managers/iDRAC.Embedded.1/SerialInterfaces/Serial.1/Actions/Oem/DellSerialInterface.SerialDataClear' % (idrac_ip)
-    headers = {'content-type': 'application/json'}
     payload={}
-    response = requests.post(url, data=json.dumps(payload), headers=headers, verify=False,auth=(idrac_username,idrac_password))
+    if args["x"]:
+        headers = {'content-type': 'application/json', 'X-Auth-Token': args["x"]}
+        response = requests.post(url, data=json.dumps(payload), headers=headers, verify=verify_cert)
+    else:
+        headers = {'content-type': 'application/json'}
+        response = requests.post(url, data=json.dumps(payload), headers=headers, verify=verify_cert,auth=(idrac_username,idrac_password))
     if response.status_code == 204:
-        print("\n- PASS: POST command passed for %s method, status code %s returned" % (method, response.status_code))
+        logging.info("\n- PASS: POST command passed for %s method, status code %s returned" % (method, response.status_code))
     else:
-        print("\n- FAIL, POST command failed for %s method, status code %s returned" % (method, response.status_code))
-        print("\n- POST command failure results:\n %s" % response.__dict__)
-        sys.exit()
-
-def disable_iDRAC_attributes_enable_capture_serial():
-    url = 'https://%s/redfish/v1/Managers/iDRAC.Embedded.1/Attributes' % idrac_ip
-    headers = {'content-type': 'application/json'}
-    payload = {"Attributes":{"SerialCapture.1.Enable":"Disabled"}}
-    response = requests.patch(url, data=json.dumps(payload), headers=headers, verify=False,auth=(idrac_username, idrac_password))
-    data = response.json()
-    if response.status_code == 200:
-        print("\n- PASS, PATCH command passed to successfully disable attribute for serial data capture, status code %s returned\n" % response.status_code)
-        if "error" in data.keys():
-            print("- WARNING, error detected for one or more of the attribute(s) being set, detailed error results:\n\n %s" % data["error"])
-            print("\n- INFO, for attributes that detected no error, these will still get applied")
-        else:
-            pass
-    else:
-        print("\n- FAIL, Command failed to set attributes, status code : %s\n" % response.status_code)
-        print("Extended Info Message: {0}".format(response.json()))
-        sys.exit()
+        logging.error("\n- FAIL, POST command failed for %s method, status code %s returned" % (method, response.status_code))
+        logging.error("\n- POST command failure results:\n %s" % response.__dict__)
+        sys.exit(0)
+        
 
 if __name__ == "__main__":
-    if args["s"]:
-        set_iDRAC_attributes_enable_capture_serial()
-    elif args["e"]:
-        export_serial_data()
-    elif args["c"]:
-        clear_serial_data()
-    elif args["d"]:
-        disable_iDRAC_attributes_enable_capture_serial()
+    if args["script_examples"]:
+        script_examples()
+    if args["ip"] or args["ssl"] or args["u"] or args["p"] or args["x"]:
+        idrac_ip = args["ip"]
+        idrac_username = args["u"]
+        if args["p"]:
+            idrac_password = args["p"]
+        if not args["p"] and not args["x"] and args["u"]:
+            idrac_password = getpass.getpass("\n- Argument -p not detected, pass in iDRAC user %s password: " % args["u"])
+        if args["ssl"]:
+            if args["ssl"].lower() == "true":
+                verify_cert = True
+            elif args["ssl"].lower() == "false":
+                verify_cert = False
+            else:
+                verify_cert = False
+        else:
+            verify_cert = False
+        check_supported_idrac_version()
     else:
-        print("- FAIL, either missing parameter(s) or invalid paramter value(s) passed in. Refer to help text if needed for supported parameters and values along with script examples")
+        logging.error("\n- FAIL, invalid argument values or not all required parameters passed in. See help text or argument --script-examples for more details.")
+        sys.exit(0)
+    if args["enable"]:
+        enable_disable_iDRAC_attributes_enable_capture_serial("Enabled")
+    elif args["export"]:
+        export_serial_data()
+    elif args["clear"]:
+        clear_serial_data()
+    elif args["disable"]:
+        enable_disable_iDRAC_attributes_enable_capture_serial("Disabled")
+    else:
+        logging.error("\n- FAIL, invalid argument values or not all required parameters passed in. See help text or argument --script-examples for more details.")
     
     
         

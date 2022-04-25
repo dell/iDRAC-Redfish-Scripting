@@ -22,7 +22,6 @@ import json
 import logging
 import re
 import requests
-import subprocess
 import sys
 import time
 import warnings
