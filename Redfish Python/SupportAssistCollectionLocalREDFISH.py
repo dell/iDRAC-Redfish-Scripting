@@ -5,7 +5,7 @@
 # SupportAssistCollectionLocalREDFISH. Python script using Redfish API with OEM extension to perform Support Assist operations.
 #
 # _author_ = Texas Roemer <Texas_Roemer@Dell.com>
-# _version_ = 9.0
+# _version_ = 10.0
 #
 # Copyright (c) 2020, Dell, Inc.
 #
@@ -223,7 +223,7 @@ def support_assist_register():
     url = 'https://%s/redfish/v1/Dell/Managers/iDRAC.Embedded.1/DellLCService/Actions/DellLCService.SupportAssistGetEULAStatus' % (idrac_ip)
     method = "SupportAssistGetEULAStatus"
     payload = {}
-    print("- INFO, validating if Support Assist is registered for iDRAC")
+    logging.info("- INFO, validating if Support Assist is registered for iDRAC")
     time.sleep(15)
     if args["x"]:
         headers = {'content-type': 'application/json', 'X-Auth-Token': args["x"]}
@@ -244,8 +244,8 @@ def loop_job_status():
     loop_count = 0
     while True:
         if loop_count == 20:
-            print("- INFO, retry count for GET request has been elapsed, script will exit. Manually check the job queue for final job status results")
-            sys.exit()
+            logging.info("- INFO, retry count for GET request has been elapsed, script will exit. Manually check the job queue for final job status results")
+            sys.exit(0)
         if args["x"]:
             response = requests.get('https://%s/redfish/v1/Managers/iDRAC.Embedded.1/Oem/Dell/Jobs/%s' % (idrac_ip, job_id), verify=verify_cert, headers={'X-Auth-Token': args["x"]})
         else:
@@ -259,7 +259,7 @@ def loop_job_status():
             continue
         try:
             if response.headers['Location'] == "/redfish/v1/Dell/sacollect.zip" or response.headers['Location'] == "/redfish/v1/Oem/Dell/sacollect.zip":
-                print("- PASS, job ID successfully marked completed. Support Assist logs filename: \"%s\"" % response.headers['Location'].split("/")[-1])
+                logging.info("- PASS, job ID successfully marked completed. Support Assist logs filename: \"%s\"" % response.headers['Location'].split("/")[-1])
                 python_version = sys.version_info
                 while True:
                     if python_version.major <= 2:
