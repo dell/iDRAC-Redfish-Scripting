@@ -6,7 +6,7 @@
 #
 # _author_ = Texas Roemer <Texas_Roemer@Dell.com>
 # _author_ = Grant Curell <grant_curell@dell.com>
-# _version_ = 9.0
+# _version_ = 10.0
 #
 # Copyright (c) 2022, Dell, Inc.
 #
@@ -114,7 +114,7 @@ def export_hw_inventory():
         logging.error("\n- POST command failure results:")
         logging.error(data)
         sys.exit(0)
-    if args["sharetype"].lower == "local":
+    if args["sharetype"].lower() == "local":
         if response.headers['Location'] == "/redfish/v1/Dell/hwinv.xml":
             logging.info("- INFO, export server hardware inventory filename: \"%s\"" % response.headers['Location'])
             python_version = sys.version_info
