@@ -84,7 +84,7 @@ def export_hw_inventory():
     if args["shareip"]:
         payload["IPAddress"] = args["shareip"]
     if args["sharetype"]:
-        if args["sharetype"] == "local" or args["sharetype"] == "Local":
+        if args["sharetype"].lower() == "local":
             payload["ShareType"] = args["sharetype"].title()
         else:
             payload["ShareType"] = args["sharetype"].upper()
