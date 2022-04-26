@@ -3,7 +3,7 @@
 #
 #
 # _author_ = Texas Roemer <Texas_Roemer@Dell.com>
-# _version_ = 6.0
+# _version_ = 7.0
 #
 # Copyright (c) 2020, Dell, Inc.
 #
@@ -108,7 +108,7 @@ def create_x_auth_session():
     response = requests.post(url, data=json.dumps(payload), headers=headers, verify=False)
     data = response.json()
     if response.status_code == 201:
-        logging.info("\n- PASS, successfuly created X auth session")
+        logging.info("\n- PASS, successfully created X auth session")
     else:
         try:
             logging.error("\n- FAIL, unable to create X-auth_token session, status code %s returned, detailed error results:\n %s" % (response.status_code, data))
