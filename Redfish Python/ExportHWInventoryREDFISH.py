@@ -158,7 +158,7 @@ def loop_job_status():
             response = requests.get('https://%s/redfish/v1/Managers/iDRAC.Embedded.1/Jobs/%s' % (idrac_ip, job_id), verify=verify_cert,auth=(idrac_username, idrac_password))
         current_time = (datetime.now() - start_time)
         if response.status_code != 200:
-            logging.error("\n- FAIL, Command failed to check job status, return code is %s" % status_code)
+            logging.error("\n- FAIL, GET command failed to check job status, return code %s" % response.status_code)
             logging.error("Extended Info Message: {0}".format(response.json()))
             sys.exit(0)
         data = response.json()
