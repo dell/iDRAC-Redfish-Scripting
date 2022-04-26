@@ -80,12 +80,12 @@ def export_hw_inventory():
     url = 'https://%s/redfish/v1/Dell/Managers/iDRAC.Embedded.1/DellLCService/Actions/DellLCService.ExportHWInventory' % idrac_ip
     method = "ExportHWInventory"
     payload = {}
-    logging.info("\n- INFO, collecting data for exporting server hardware inventory, this may take 15-30 seconds to complete")
     if args["shareip"]:
         payload["IPAddress"] = args["shareip"]
     if args["sharetype"]:
         if args["sharetype"].lower() == "local":
             payload["ShareType"] = args["sharetype"].title()
+            logging.info("\n- INFO, collecting data for exporting server hardware inventory, this may take 15-30 seconds to complete")
         else:
             payload["ShareType"] = args["sharetype"].upper()
     if args["sharename"]:
