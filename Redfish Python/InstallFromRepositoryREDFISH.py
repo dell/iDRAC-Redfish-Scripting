@@ -329,7 +329,7 @@ def loop_job_status(x):
                         return
             else:
                 break
-        elif "Fail" in data['Message'] or "fail" in data['Message'] or "invalid" in data['Message'] or "unable" in data['Message'] or "Unable" in data['Message'] or "not" in data['Message'] or "cancel" in data['Message'] or "Cancel" in data['Message']:
+        elif "fail" in data['Message'].lower() or "invalid" in data['Message'].lower() or "unable" in data['Message'].lower() or "not" in data['Message'].lower() or "cancel" in data['Message'].lower():
             logging.error("- FAIL: Job ID %s failed, detailed error message: %s" % (x, data['Message']))
             break
         elif data['Message'] == "Job for this device is already present.":
