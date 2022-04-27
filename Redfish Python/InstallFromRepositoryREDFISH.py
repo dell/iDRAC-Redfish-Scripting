@@ -322,7 +322,7 @@ def loop_job_status(x):
                     sys.exit(0)   
                 else:
                     if args["rebootneeded"] == "False" or not args["rebootneeded"]:
-                        logging.info("\n- INFO, \"RebootNeeded = False\" detected or argument not passed in. Check the overall Job Queue for Update Jobs using -q argument. Next server manual reboot, any scheduled update job(s) will execute.\n")
+                        logging.info("\n- INFO, \"RebootNeeded = False\" detected or argument not passed in. Check the overall Job Queue for update jobs using --get-jobqueue argument. Next server manual reboot, any scheduled update job(s) will execute.\n")
                         sys.exit(0)
                     else:
                         logging.info("\n- INFO, repository update job marked completed. Script will now check to see if any update job(s) were created due to different firmware version change detected")
@@ -335,7 +335,7 @@ def loop_job_status(x):
         elif data['Message'] == "Job for this device is already present.":
             break
         elif "Package successfully downloaded" in data['Message'] and args["rebootneeded"] == "False" or not args["rebootneeded"]:
-            logging.info("\n- INFO, repository package successfully downloaded, \"RebootNeeded = False\" detected or argument not passed in. Check the overall Job Queue for Update Jobs using -q argument. Next server manual reboot, any scheduled update job(s) will execute.\n")
+            logging.info("\n- INFO, repository package successfully downloaded, \"RebootNeeded = False\" detected or argument not passed in. Check the overall Job Queue for update jobs using --get-jobqueue argument. Next server manual reboot, any scheduled update job(s) will execute.\n")
             logging.info("\n- INFO, if iDRAC update is detected, this update job will not get created and execute until all scheduled update jobs have been completed")
             sys.exit(0)
         elif "Package successfully downloaded" in data['Message'] and print_message_count == 1:
@@ -413,7 +413,7 @@ if __name__ == "__main__":
         get_repo_based_update_list()
     elif args["get_critical_info"]:
         get_device_name_criticality_info()
-    elif args["install"] and args["shareip"]:
+    elif args["install"] and args["shareip"] and args["sharetype"]:
         install_from_repository()
         logging.info("- INFO, script will now loop checking the repo update job status")
         loop_job_status(repo_job_id)
