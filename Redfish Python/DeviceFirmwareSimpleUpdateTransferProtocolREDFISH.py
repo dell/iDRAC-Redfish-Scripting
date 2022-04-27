@@ -1,8 +1,10 @@
+#!/usr/bin/python
+#!/usr/bin/python3
 #
 # DeviceFirmwareSimpleUpdateTransferProtocolREDFISH. Python script using Redfish API to update a device firmware with DMTF standard SimpleUpdate with TransferProtocol. Only supported file image type is Windows Dell Update Packages(DUPs).
 #
 # _author_ = Texas Roemer <Texas_Roemer@Dell.com>
-# _version_ = 10.0
+# _version_ = 12.0
 #
 # Copyright (c) 2019, Dell, Inc.
 #
@@ -14,290 +16,328 @@
 # http://www.gnu.org/licenses/old-licenses/gpl-2.0.txt.
 #
 
-import requests, json, sys, re, time, warnings, argparse, os, subprocess, platform
+import argparse
+import getpass
+import json
+import logging
+import os
+import platform
+import re
+import requests
+import subprocess
+import sys
+import time
+import warnings
 
 from datetime import datetime
+from pprint import pprint
 
 warnings.filterwarnings("ignore")
 
-# Code to validate all correct parameters are passed in
-
 parser=argparse.ArgumentParser(description="Python script using Redfish API to update device firmware using DMTF standard SimpleUpdate with TransferProtocol. Only supported file image type is Windows Dell Update Packages(DUPs)")
-parser.add_argument('-ip',help='iDRAC IP address', required=True)
-parser.add_argument('-u', help='iDRAC username', required=True)
-parser.add_argument('-p', help='iDRAC password', required=True)
-parser.add_argument('script_examples',action="store_true",help='DeviceFirmwareSimpleUpdateTransferProtocolREDFISH.py -ip 192.168.0.120 -u root -p calvin -g y, this example will return current firmware versions for all devices supported for updates. DeviceFirmwareSimpleUpdateTransferProtocolREDFISH.py -ip 192.168.0.120 -u root -p calvin -t HTTP --uri http://192.168.0.130/updates_http/CPLD_Firmware_WN64_1.0.2_A00.EXE -r y, this example will reboot the server now and update CPLD firmware using HTTP share. DeviceFirmwareSimpleUpdateTransferProtocolREDFISH.py -ip 192.168.0.120 -u root -p calvin -t CIFS --uri cifs://administrator:password@192.168.0.130/updates_cifs/BIOS_WN64_2.4.11_A00.EXE -r n, this example using CIFS share will create and schedule BIOS update job but not reboot the server now to execute. Job will execute on next server manual reboot.') 
-parser.add_argument('-g', help='Get current supported devices for firmware updates and their current firmware versions, pass in \"y\"', required=False)
-parser.add_argument('-s', help='Get current supported transfer protocols for SimpleUpdate action, pass in \"y\"', required=False)
+parser.add_argument('-ip',help='iDRAC IP address', required=False)
+parser.add_argument('-u', help='iDRAC username', required=False)
+parser.add_argument('-p', help='iDRAC password. If you do not pass in argument -p, script will prompt to enter user password which will not be echoed to the screen.', required=False)
+parser.add_argument('-x', help='Pass in X-Auth session token for executing Redfish calls. All Redfish calls will use X-Auth token instead of username/password', required=False)
+parser.add_argument('--ssl', help='SSL cert verification for all Redfish calls, pass in value \"true\" or \"false\". By default, this argument is not required and script ignores validating SSL cert for all Redfish calls.', required=False)
+parser.add_argument('--script-examples', action="store_true", help='Prints script examples')
+parser.add_argument('--get-firmware', help='Get current supported devices for firmware updates and their current firmware versions', dest="get_firmware", action="store_true", required=False)
+parser.add_argument('--get-protocols', help='Get current supported transfer protocols for SimpleUpdate action', dest="get_protocols", action="store_true", required=False)
 parser.add_argument('--uri', help='Pass in the complete URI path of the network share along with the firmware image name', required=False)
-parser.add_argument('-t', help='Pass in the transfer protocol type you are using for the URI path.', required=False)
-parser.add_argument('-r', help='Reboot type, pass in \"y\" if you want the server to reboot now to apply the update or \"n\" to not reboot the server now. If you select \"n\", job will still get scheduled but won\'t be applied until next manual server reboot. NOTE: This option is only required for devices that need a server reboot to apply the update. If updating iDRAC, DIAGS, ISM, USC or Driver Pack, this option is not needed.', required=False)
+parser.add_argument('--protocol', help='Pass in the transfer protocol type you are using for the URI path.', required=False)
+parser.add_argument('--reboot', help='Reboot the server to apply the update if needed. if argument not passed in, job ID will still be in scheduled state and execute on next manual server reboot. Note: If the update gets applied with no server reboot (Example: iDRAC, DIAGs, Driver pack), you don\'t need to pass in this argument. For more details on which devices update immediately, refer to Lifecycle Controller User Guide Update section.', action="store_true", required=False)
 
+args = vars(parser.parse_args())
+logging.basicConfig(format='%(message)s', stream=sys.stdout, level=logging.INFO)
 
-args=vars(parser.parse_args())
-
-idrac_ip=args["ip"]
-idrac_username=args["u"]
-idrac_password=args["p"]
+def script_examples():
+    print("""\n- DeviceFirmwareSimpleUpdateTransferProtocolREDFISH.py -ip 192.168.0.120 -u root -p calvin --get-firmware, this example will return current firmware versions for all devices supported for updates.
+    \n- \n- DeviceFirmwareSimpleUpdateTransferProtocolREDFISH.py -ip 192.168.0.120 -u root -p calvin --get-protocols, this example will get current supported protocol types to perform firmware update using transfer protocol method.
+    \n- DeviceFirmwareSimpleUpdateTransferProtocolREDFISH.py -ip 192.168.0.120 -u root -p calvin --protocol HTTP --uri http://192.168.0.130/updates_http/CPLD_Firmware_WN64_1.0.2_A00.EXE --reboot, this example will reboot the server now and update CPLD firmware using HTTP share.
+    \n- DeviceFirmwareSimpleUpdateTransferProtocolREDFISH.py -ip 192.168.0.120 -u root -p calvin -protocol CIFS --uri cifs://administrator:password@192.168.0.130/updates_cifs/BIOS_WN64_2.4.11_A00.EXE, this example using CIFS share will create and schedule BIOS update job but not reboot the server now to execute. Job will execute on next server manual reboot.
+    \n- DeviceFirmwareSimpleUpdateTransferProtocolREDFISH.py -ip 192.168.0.120 -x 017c2b92678091e0fc9b2a4c5985299a --protocol NFS --uri 192.168.0.140:/nfs/Diags_c6420.exe, this example using X-auth token session will update diags using NFS share.""")
+    sys.exit(0)
 
 def check_supported_idrac_version():
-    response = requests.get('https://%s/redfish/v1/UpdateService' % idrac_ip,verify=False,auth=(idrac_username, idrac_password))
+    if args["x"]:
+        response = requests.get('https://%s/redfish/v1/UpdateService' % idrac_ip, verify=verify_cert, headers={'X-Auth-Token': args["x"]})
+    else:
+        response = requests.get('https://%s/redfish/v1/UpdateService' % idrac_ip, verify=verify_cert, auth=(idrac_username, idrac_password))
     data = response.json()
     if response.status_code == 401:
-        print("\n- INFO, status code %s returned. Incorrect iDRAC username/password or invalid privilege detected." % response.status_code)
-        sys.exit(1)
+        logging.error("\n- ERROR, status code %s returned. Incorrect iDRAC username/password or invalid privilege detected." % response.status_code)
+        sys.exit(0)
     if response.status_code != 200:
-        print("\n- INFO, iDRAC version installed does not support this feature using Redfish API")
-        sys.exit(1)
+        logging.error("\n- ERROR, iDRAC version installed does not support this feature using Redfish API")
+        sys.exit(0)
     try:
-        for i in data['Actions']['#UpdateService.SimpleUpdate']['TransferProtocol@Redfish.AllowableValues']:
-            pass
+        supported_idrac = data['Actions']['#UpdateService.SimpleUpdate']['TransferProtocol@Redfish.AllowableValues']
     except:
-        print("\n- INFO, iDRAC version installed does not support this feature using Redfish API")
-        sys.exit(1)
+        logging.error("\n- ERROR, iDRAC version installed does not support this feature using Redfish API")
+        sys.exit(0)
 
 def get_idrac_version():
     global idrac_fw_version
-    response = requests.get('https://%s/redfish/v1/Managers/iDRAC.Embedded.1?$select=FirmwareVersion' % idrac_ip,verify=False,auth=(idrac_username, idrac_password))
+    if args["x"]:
+        response = requests.get('https://%s/redfish/v1/Managers/iDRAC.Embedded.1?$select=FirmwareVersion' % idrac_ip, verify=verify_cert, headers={'X-Auth-Token': args["x"]})
+    else:
+        response = requests.get('https://%s/redfish/v1/Managers/iDRAC.Embedded.1?$select=FirmwareVersion' % idrac_ip, verify=verify_cert, auth=(idrac_username, idrac_password))
     data = response.json()
     if response.status_code != 200:
-        print("\n- WARNING, GET request failed to get iDRAC firmware version, error: \n%s" % data)
-        sys.exit(1)
+        logging.error("\n- FAIL, GET request failed to get iDRAC firmware version, error: \n%s" % data)
+        sys.exit(0)
     idrac_fw_version = data["FirmwareVersion"].replace(".","")
     
 def get_FW_inventory():
-    print("\n- INFO, current devices detected with firmware version and updateable status -\n")
-    req = requests.get('https://%s/redfish/v1/UpdateService/FirmwareInventory/' % (idrac_ip), auth=(idrac_username, idrac_password), verify=False)
-    statusCode = req.status_code
-    installed_devices=[]
-    data = req.json()
+    logging.info("\n- INFO, getting current firmware inventory for iDRAC %s -\n" % idrac_ip)
+    if args["x"]:
+        response = requests.get('https://%s/redfish/v1/UpdateService/FirmwareInventory?$expand=*($levels=1)' % idrac_ip, verify=verify_cert, headers={'X-Auth-Token': args["x"]})
+    else:
+        response = requests.get('https://%s/redfish/v1/UpdateService/FirmwareInventory?$expand=*($levels=1)' % idrac_ip, verify=verify_cert, auth=(idrac_username, idrac_password))
+    data = response.json()
+    if response.status_code != 200:
+        logging.error("\n- ERROR, GET request failed to get firmware inventory, error: \n%s" % data)
+        sys.exit(0)
+    installed_devices = []
     for i in data['Members']:
-        for ii in i.items():
-            if "Installed" in ii[1]:
-                installed_devices.append(ii[1])
-    for i in installed_devices:
-        req = requests.get('https://%s%s' % (idrac_ip, i), auth=(idrac_username, idrac_password), verify=False)
-        statusCode = req.status_code
-        data = req.json()
-        try:
-            updateable_status = data['Updateable']
-            version = data['Version']
-            device_name = data['Name']
-            print("Device Name: %s, Firmware Version: %s, Updatable: %s" % (device_name, version, updateable_status))
-        except:
-            print("- INFO, unable to get property info for URI \"%s\"" % i)
-    sys.exit(1)
+        pprint(i)
+        print("\n")  
+
 
 def get_supported_protocols():
-    req = requests.get('https://%s/redfish/v1/UpdateService' % (idrac_ip), auth=(idrac_username, idrac_password), verify=False)
-    statusCode = req.status_code
-    installed_devices=[]
-    data = req.json()
-    print("\n- Supported protocols for TransferProtocol parameter (-t argument) -\n")
+    if args["x"]:
+        response = requests.get('https://%s/redfish/v1/UpdateService' % idrac_ip, verify=verify_cert, headers={'X-Auth-Token': args["x"]})
+    else:
+        response = requests.get('https://%s/redfish/v1/UpdateService' % idrac_ip, verify=verify_cert, auth=(idrac_username, idrac_password))
+    data = response.json()
+    logging.info("\n- Supported protocols for TransferProtocol parameter (--protocol argument) -\n")
     try:
         for i in data['Actions']['#UpdateService.SimpleUpdate']['TransferProtocol@Redfish.AllowableValues']:
             print(i)
     except:
-        print("- FAIL, unable to retrieve supported protocols")
-        sys.exit(1)
+        logging.error("- FAIL, unable to retrieve supported protocols")
+        sys.exit(0)
     
 def install_image_payload():
     global job_id
     global start_time
     url = 'https://%s/redfish/v1/UpdateService/Actions/UpdateService.SimpleUpdate' % (idrac_ip)
-    if args["r"] == "y":
-        payload = {"ImageURI":args["uri"], "TransferProtocol":args["t"], "@Redfish.OperationApplyTime": "Immediate"}
-    elif args["r"] == "n":
-        payload = {"ImageURI":args["uri"], "TransferProtocol":args["t"], "@Redfish.OperationApplyTime": "OnReset"}
+    if args["reboot"]:
+        payload = {"ImageURI":args["uri"], "TransferProtocol":args["protocol"], "@Redfish.OperationApplyTime": "Immediate"}
     else:
-        payload = {"ImageURI":args["uri"], "TransferProtocol":args["t"]}
-    headers = {'content-type': 'application/json'}
-    response = requests.post(url, data=json.dumps(payload), headers=headers, verify=False,auth=(idrac_username,idrac_password))
-    if response.status_code == 202 or response.status_code == 200:
-            pass
+        payload = {"ImageURI":args["uri"], "TransferProtocol":args["protocol"], "@Redfish.OperationApplyTime": "OnReset"}
+    if args["x"]:
+        headers = {'content-type': 'application/json', 'X-Auth-Token': args["x"]}
+        response = requests.post(url, data=json.dumps(payload), headers=headers, verify=verify_cert)
     else:
-        print("\n- FAIL, Command failed to check job status, return code is %s" % response.status_code)
-        print("Extended Info Message: {0}".format(response.json()))
-        sys.exit(1)
-    job_id_location = response.headers['Location']
-    job_id = re.search("JID_.+",job_id_location).group()
-    print("\n- PASS, %s firmware update job ID successfully created for update image \"%s\"" % (job_id, args["uri"].split("/")[-1]))
-    start_time=datetime.now()
+        headers = {'content-type': 'application/json'}
+        response = requests.post(url, data=json.dumps(payload), headers=headers, verify=verify_cert, auth=(idrac_username,idrac_password))
+    if response.status_code != 202:
+        data = response.json()
+        logging.error("- FAIL, status code %s returned, detailed error: %s" % (response.status_code, data))
+        sys.exit(0)
+    try:
+        job_id = response.headers['Location'].split("/")[-1]
+    except:
+        logging.error("- FAIL, unable to locate job ID in header")
+        sys.exit(0)
+    logging.info("\n- PASS, update job ID %s successfully created, script will now loop polling the job status\n" % job_id)
+    start_time = datetime.now()
     time.sleep(1)
 
 
 def check_job_status():
     retry_count = 1
     while True:
-        if retry_count == 20:
-            print("- INFO, retry of 20 for GET request has been hit, script will exit")
-            sys.exit()
         check_idrac_connection()
+        if retry_count == 20:
+            logging.warning("- WARNING, GET command retry count of 20 has been reached, script will exit")
+            sys.exit(0)
         try:
-            req = requests.get('https://%s/redfish/v1/TaskService/Tasks/%s' % (idrac_ip, job_id), auth=(idrac_username, idrac_password), verify=False)
+            if args["x"]:
+                response = requests.get('https://%s/redfish/v1/TaskService/Tasks/%s' % (idrac_ip, job_id), verify=verify_cert, headers={'X-Auth-Token': args["x"]})
+            else:
+                response = requests.get('https://%s/redfish/v1/TaskService/Tasks/%s' % (idrac_ip, job_id), verify=verify_cert, auth=(idrac_username, idrac_password))
         except requests.ConnectionError as error_message:
-            print("- INFO, GET request failed due to connection error, retry")
+            logging.info("- INFO, GET request failed due to connection error, retry")
             time.sleep(10)
-            retry_count+=1
+            retry_count += 1
             continue
-        statusCode = req.status_code
-        data = req.json()
-        if data["TaskState"] == "Completed" and "Job completed successfully" in data['Oem']['Dell']['Message']:
-            print("\n- PASS, job ID %s successfully marked completed, detailed final job status results:\n" % data["Id"])
-            for i in data['Oem']['Dell'].items():
-                print("%s: %s" % (i[0],i[1]))
-            print("\n- JOB ID %s completed in %s" % (job_id, current_time))
-            sys.exit()
-        elif data["TaskState"] == "Completed":
-            print("\n- WARNING, job marked completed but issues detected. Detailed final job results:\n")
-            for i in data['Oem']['Dell'].items():
-                print("%s: %s" % (i[0],i[1]))
-            print("\n- JOB ID %s completed in %s" % (job_id, current_time))
-            sys.exit()
+        data = response.json()
         current_time = str(datetime.now()-start_time)[0:7]   
-        message_string=data["Messages"]
-        if statusCode == 202 or statusCode == 200:
-            pass
+        message_string = data["Messages"]
+        if response.status_code == 200 or response.status_code == 202:
+            time.sleep(1)
         else:
-            print("Query job ID command failed, error code is: %s" % statusCode)
-            sys.exit()
-        if str(current_time)[0:7] >= "0:30:00":
-            print("\n- FAIL: Timeout of 30 minutes has been hit, update job should of already been marked completed. Check the iDRAC job queue and LC logs to debug the issue\n")
-            sys.exit()
-        elif "failed" in data['Oem']['Dell']['Message'] or "completed with errors" in data['Oem']['Dell']['Message'] or "Failed" in data['Oem']['Dell']['Message'] or "internal error" in data['Oem']['Dell']['Message']:
-            print("- FAIL: Job failed, current message is: %s" % data["Messages"])
-            sys.exit()
-        elif "scheduled" in data['Oem']['Dell']['Message']:
-            print("- PASS, job ID marked as scheduled")
-            break
-        elif "completed successfully" in data['Oem']['Dell']['Message']:
-            print("\n- PASS, job ID %s successfully marked completed, detailed final job status results:\n" % data["Id"])
+            logging.error("\n- ERROR, GET request failed to get job ID details, status code %s returned, error: \n%s" % (response.status_code, data))
+            sys.exit(0)
+        if data["TaskState"] == "Completed" and data["Oem"]["Dell"]["JobState"]:
+            logging.info("\n- INFO, job completed, detailed final job status results\n")
             for i in data['Oem']['Dell'].items():
-                if i[0] == "Name":
-                    pass
-                else:
-                    print("%s: %s" % (i[0],i[1]))
-            print("\n- %s completed in: %s" % (job_id, str(current_time)[0:7]))
-            sys.exit()
+                pprint(i)
+            logging.info("\n- JOB ID %s completed in %s" % (job_id, current_time))
+            sys.exit(0)
+        if data["TaskState"] == "Completed":
+            logging.info("\n- PASS, job ID successfuly marked completed, detailed final job status results\n")
+            for i in data['Oem']['Dell'].items():
+                pprint(i)
+            logging.info("\n- JOB ID %s completed in %s" % (job_id, current_time))
+            sys.exit(0)
+        if str(current_time)[0:7] >= "0:30:00":
+            logging.error("\n- FAIL: Timeout of 30 minutes has been hit, update job should of already been marked completed. Check the iDRAC job queue and LC logs to debug the issue\n")
+            sys.exit(0)
+        elif "failed" in data['Oem']['Dell']['Message'] or "completed with errors" in data['Oem']['Dell']['Message'] or "Failed" in data['Oem']['Dell']['Message']:
+            logging.error("- FAIL: Job failed, current message: %s" % data["Messages"])
+            sys.exit(0)
+        elif "scheduled" in data['Oem']['Dell']['Message']:
+            print("- PASS, job ID %s successfully marked as scheduled" % data["Id"])
+            if not args["reboot"]:
+                logging.warning("- WARNING, missing argument --reboot for rebooting the server. Job is still scheduled and will be applied on next manual server reboot")
+                sys.exit(0)
+            else:
+                break
+        elif "completed successfully" in data['Oem']['Dell']['Message']:
+            logging.info("\n- PASS, job ID %s successfully marked completed, detailed final job status results\n")
+            for i in data['Oem']['Dell'].items():
+                pprint(i)
+            logging.info("\n- %s completed in: %s" % (job_id, str(current_time)[0:7]))
+            break
         else:
-            print("- INFO: %s, current job execution time: %s" % (message_string[0]["Message"], current_time))
+            logging.info("- INFO: %s, execution time: %s" % (message_string[0]["Message"].rstrip("."), current_time))
             time.sleep(1)
             continue
-
-
-
 
 def loop_check_final_job_status():
     retry_count = 1
     while True:
         if retry_count == 20:
-            print("- WARNING, GET command retry count of 20 has been reached, script will exit")
-            sys.exit()
+            logging.warning("- WARNING, GET command retry count of 20 has been reached, script will exit")
+            sys.exit(0)
         check_idrac_connection()
         try:
-            req = requests.get('https://%s/redfish/v1/Managers/iDRAC.Embedded.1/Jobs/%s' % (idrac_ip, job_id), auth=(idrac_username, idrac_password), verify=False)
+            if args["x"]:
+                response = requests.get('https://%s/redfish/v1/Managers/iDRAC.Embedded.1/Jobs/%s' % (idrac_ip, job_id), verify=verify_cert, headers={'X-Auth-Token': args["x"]})
+            else:
+                response = requests.get('https://%s/redfish/v1/Managers/iDRAC.Embedded.1/Jobs/%s' % (idrac_ip, job_id), verify=verify_cert,auth=(idrac_username, idrac_password))
         except requests.ConnectionError as error_message:
-            print("- INFO, GET request failed due to connection error, retry")
+            logging.info("- INFO, GET request failed due to connection error, retry")
             time.sleep(10)
-            retry_count+=1
-            continue
-        current_time=str((datetime.now()-start_time))[0:7]
-        statusCode = req.status_code
-        if statusCode == 200:
-            pass
-        else:
-            print("\n- FAIL, Command failed to check job status, return code is %s" % statusCode)
-            print("Extended Info Message: {0}".format(req.json()))
-            sys.exit(1)
-        data = req.json()
+            retry_count += 1
+            continue 
+        current_time = str((datetime.now()-start_time))[0:7]
+        if response.status_code != 200:
+            logging.error("\n- FAIL, GET command failed to check job status, return code %s" % response.status_code)
+            logging.error("Extended Info Message: {0}".format(response.json()))
+            sys.exit(0)
+        data = response.json()
         if str(current_time)[0:7] >= "0:30:00":
-            print("\n- FAIL: Timeout of 30 minutes has been hit, script stopped\n")
-            sys.exit(1)
+            logging.error("\n- FAIL: Timeout of 30 minutes has been hit, script stopped\n")
+            sys.exit(0)
         elif "Fail" in data['Message'] or "fail" in data['Message'] or "fail" in data['JobState'] or "Fail" in data['JobState']:
-            print("- FAIL: %s failed" % job_id)
-            sys.exit(1)
-        
+            logging.error("- FAIL: job ID %s failed" % job_id)
+            sys.exit(0)
         elif "completed successfully" in data['Message']:
-            print("\n- PASS, job ID %s successfully marked completed" % job_id)
-            print("\n- Final detailed job results -\n")
+            logging.info("\n- PASS, job ID %s successfully marked completed" % job_id)
+            logging.info("\n- Final detailed job results -\n")
             for i in data.items():
-                print("%s: %s" % (i[0], i[1]))
-            print("\n- JOB ID %s completed in %s" % (job_id, current_time))
-            sys.exit(1)
+                pprint(i)
+            logging.info("\n- JOB ID %s completed in %s" % (job_id, current_time))
+            sys.exit(0)
         else:
-            print("- INFO, JobStatus not completed, current status: \"%s\", execution time: \"%s\"" % (data['Message'], current_time))
-            check_idrac_connection()
+            logging.info("- INFO, JobStatus not completed, current status: \"%s\", execution time: \"%s\"" % (data['Message'].rstrip("."), current_time))
             time.sleep(1)
 
 def reboot_server():
-    response = requests.get('https://%s/redfish/v1/Systems/System.Embedded.1/' % idrac_ip,verify=False,auth=(idrac_username, idrac_password))
+    if args["x"]:
+        response = requests.get('https://%s/redfish/v1/Systems/System.Embedded.1' % idrac_ip, verify=verify_cert, headers={'X-Auth-Token': args["x"]})   
+    else:
+        response = requests.get('https://%s/redfish/v1/Systems/System.Embedded.1' % idrac_ip, verify=verify_cert,auth=(idrac_username, idrac_password))
     data = response.json()
-    print("- INFO, rebooting server to execute update job, current server power state: %s" % data['PowerState'])
+    logging.info("\n- INFO, Current server power state is: %s" % data['PowerState'])
     if data['PowerState'] == "On":
         url = 'https://%s/redfish/v1/Systems/System.Embedded.1/Actions/ComputerSystem.Reset' % idrac_ip
         payload = {'ResetType': 'GracefulShutdown'}
-        headers = {'content-type': 'application/json'}
-        response = requests.post(url, data=json.dumps(payload), headers=headers, verify=False, auth=(idrac_username,idrac_password))
-        statusCode = response.status_code
-        if statusCode == 204:
-            print("- PASS, Command passed to gracefully power OFF server")
-            time.sleep(10)
+        if args["x"]:
+            headers = {'content-type': 'application/json', 'X-Auth-Token': args["x"]}
+            response = requests.post(url, data=json.dumps(payload), headers=headers, verify=verify_cert)
         else:
-            print("\n- FAIL, Command failed to gracefully power OFF server, status code: %s\n" % statusCode)
-            print("Extended Info Message: {0}".format(response.json()))
-            sys.exit()
-        count = 0
+            headers = {'content-type': 'application/json'}
+            response = requests.post(url, data=json.dumps(payload), headers=headers, verify=verify_cert,auth=(idrac_username,idrac_password))
+        if response.status_code == 204:
+            logging.info("- PASS, POST command passed to gracefully power OFF server")
+            logging.info("- INFO, script will now verify the server was able to perform a graceful shutdown. If the server was unable to perform a graceful shutdown, forced shutdown will be invoked in 5 minutes")
+            time.sleep(15)
+            start_time = datetime.now()
+        else:
+            logging.error("\n- FAIL, Command failed to gracefully power OFF server, status code is: %s\n" % response.status_code)
+            logging.error("Extended Info Message: {0}".format(response.json()))
+            sys.exit(0)
         while True:
-            response = requests.get('https://%s/redfish/v1/Systems/System.Embedded.1/' % idrac_ip,verify=False,auth=(idrac_username, idrac_password))
-            data = response.json()
-            if data['PowerState'] == "Off":
-                print("- PASS, GET command passed to verify server is in OFF state")
-                break
-            elif count == 20:
-                print("- WARNING, unable to graceful shutdown the server, will perform forced shutdown now")
-                url = 'https://%s/redfish/v1/Systems/System.Embedded.1/Actions/ComputerSystem.Reset' % idrac_ip
-                payload = {'ResetType': 'ForceOff'}
-                headers = {'content-type': 'application/json'}
-                response = requests.post(url, data=json.dumps(payload), headers=headers, verify=False, auth=(idrac_username,idrac_password))
-                statusCode = response.status_code
-                if statusCode == 204:
-                    print("- PASS, Command passed to forcefully power OFF server")
-                    time.sleep(15)
-                    break
-                else:
-                    print("\n- FAIL, Command failed to gracefully power OFF server, status code: %s\n" % statusCode)
-                    print("Extended Info Message: {0}".format(response.json()))
-                    sys.exit()                
+            if args["x"]:
+                response = requests.get('https://%s/redfish/v1/Systems/System.Embedded.1' % idrac_ip, verify=verify_cert, headers={'X-Auth-Token': args["x"]})   
             else:
-                time.sleep(2)
-                count+=1
-                continue            
+                response = requests.get('https://%s/redfish/v1/Systems/System.Embedded.1' % idrac_ip, verify=verify_cert,auth=(idrac_username, idrac_password))
+            data = response.json()
+            current_time = str(datetime.now() - start_time)[0:7]
+            if data['PowerState'] == "Off":
+                logging.info("- PASS, GET command passed to verify graceful shutdown was successful and server is in OFF state")
+                break
+            elif current_time == "0:05:00":
+                logging.info("- INFO, unable to perform graceful shutdown, server will now perform forced shutdown")
+                payload = {'ResetType': 'ForceOff'}
+                if args["x"]:
+                    headers = {'content-type': 'application/json', 'X-Auth-Token': args["x"]}
+                    response = requests.post(url, data=json.dumps(payload), headers=headers, verify=verify_cert)
+                else:
+                    headers = {'content-type': 'application/json'}
+                    response = requests.post(url, data=json.dumps(payload), headers=headers, verify=verify_cert,auth=(idrac_username,idrac_password))
+                if response.status_code == 204:
+                    logging.info("- PASS, POST command passed to perform forced shutdown")
+                    time.sleep(15)
+                    if args["x"]:
+                        response = requests.get('https://%s/redfish/v1/Systems/System.Embedded.1' % idrac_ip, verify=verify_cert, headers={'X-Auth-Token': args["x"]})   
+                    else:
+                        response = requests.get('https://%s/redfish/v1/Systems/System.Embedded.1' % idrac_ip, verify=verify_cert,auth=(idrac_username, idrac_password))
+                    data = response.json()
+                    if data['PowerState'] == "Off":
+                        logging.info("- PASS, GET command passed to verify forced shutdown was successful and server is in OFF state")
+                        break
+                    else:
+                        logging.error("- FAIL, server not in OFF state, current power status is %s" % data['PowerState'])
+                        sys.exit(0)    
+            else:
+                continue 
         payload = {'ResetType': 'On'}
-        headers = {'content-type': 'application/json'}
-        response = requests.post(url, data=json.dumps(payload), headers=headers, verify=False, auth=(idrac_username,idrac_password))
-        statusCode = response.status_code
-        if statusCode == 204:
-            print("- PASS, Command passed to power ON server")
+        if args["x"]:
+            headers = {'content-type': 'application/json', 'X-Auth-Token': args["x"]}
+            response = requests.post(url, data=json.dumps(payload), headers=headers, verify=verify_cert)
         else:
-            print("\n- FAIL, Command failed to power ON server, status code: %s\n" % statusCode)
-            print("Extended Info Message: {0}".format(response.json()))
-            sys.exit()
+            headers = {'content-type': 'application/json'}
+            response = requests.post(url, data=json.dumps(payload), headers=headers, verify=verify_cert,auth=(idrac_username,idrac_password))
+        if response.status_code == 204:
+            logging.info("- PASS, POST command passed to power ON server")
+        else:
+            logging.error("\n- FAIL, Command failed to power ON server, status code is: %s\n" % response.status_code)
+            logging.error("Extended Info Message: {0}".format(response.json()))
+            sys.exit(0)
     elif data['PowerState'] == "Off":
         url = 'https://%s/redfish/v1/Systems/System.Embedded.1/Actions/ComputerSystem.Reset' % idrac_ip
         payload = {'ResetType': 'On'}
-        headers = {'content-type': 'application/json'}
-        response = requests.post(url, data=json.dumps(payload), headers=headers, verify=False, auth=(idrac_username,idrac_password))
-        statusCode = response.status_code
-        if statusCode == 204:
-            print("- PASS, Command passed to power ON server")
-            time.sleep(30)
+        if args["x"]:
+            headers = {'content-type': 'application/json', 'X-Auth-Token': args["x"]}
+            response = requests.post(url, data=json.dumps(payload), headers=headers, verify=verify_cert)
         else:
-            print("\n- FAIL, Command failed to power ON server, status code: %s\n" % statusCode)
-            print("Extended Info Message: {0}".format(response.json()))
-            sys.exit()
+            headers = {'content-type': 'application/json'}
+            response = requests.post(url, data=json.dumps(payload), headers=headers, verify=verify_cert,auth=(idrac_username,idrac_password))
+        if response.status_code == 204:
+            logging.info("- PASS, Command passed to power ON server, code return is %s" % response.status_code)
+        else:
+            logging.error("\n- FAIL, Command failed to power ON server, status code is: %s\n" % response.status_code)
+            logging.error("Extended Info Message: {0}".format(response.json()))
+            sys.exit(0)
     else:
-        print("- FAIL, unable to get current server power state to perform either reboot or power on")
-        sys.exit()
+        logging.error("- FAIL, unable to get current server power state to perform either reboot or power on")
+        sys.exit(0)
 
 def check_idrac_connection():
     run_network_connection_function = ""
@@ -306,7 +346,7 @@ def check_idrac_connection():
     elif platform.system().lower() == "linux":
         ping_command = "ping -c 3 %s" % idrac_ip
     else:
-        print("- FAIL, unable to determine OS type, check iDRAC connection function will not execute")
+        logging.error("- FAIL, unable to determine OS type, check iDRAC connection function will not execute")
         run_network_connection_function = "fail"
     execute_command = subprocess.call(ping_command, stdout=subprocess.PIPE, shell=True)
     if execute_command != 0:
@@ -315,8 +355,8 @@ def check_idrac_connection():
         ping_status = "good"
         pass
     if ping_status == "lost":
-            print("- INFO, iDRAC network connection lost due to slow network response, waiting 1 minute to access iDRAC again")
-            time.sleep(60)
+            logging.info("- INFO, iDRAC network connection lost due to slow network response, waiting 30 seconds to access iDRAC again")
+            time.sleep(30)
             while True:
                 if run_network_connection_function == "fail":
                     break
@@ -326,50 +366,69 @@ def check_idrac_connection():
                 else:
                     ping_status = "good"
                 if ping_status == "lost":
-                    print("- INFO, unable to ping iDRAC IP, script will wait 30 seconds and try again")
+                    logging.info("- INFO, unable to ping iDRAC IP, script will wait 30 seconds and try again")
                     time.sleep(30)
                     continue
                 else:
-                    pass
                     break
             while True:
                 try:
-                    req = requests.get('https://%s/redfish/v1/TaskService/Tasks/%s' % (idrac_ip, job_id), auth=(idrac_username, idrac_password), verify=False)
+                    if args["x"]:
+                        response = requests.get('https://%s/redfish/v1/TaskService/Tasks/%s' % (idrac_ip, job_id), verify=verify_cert, headers={'X-Auth-Token': args["x"]})
+                    else:
+                        response = requests.get('https://%s/redfish/v1/TaskService/Tasks/%s' % (idrac_ip, job_id), verify=verify_cert, auth=(idrac_username, idrac_password))
                 except requests.ConnectionError as error_message:
-                    print("- INFO, GET request failed due to connection error, retry")
+                    logging.info("- INFO, GET request failed due to connection error, retry")
                     time.sleep(10)
                     continue
                 break
-    else:
-        pass
+            
 
 
 if __name__ == "__main__":
-    check_supported_idrac_version()
-    if args["g"]:
+    if args["script_examples"]:
+        script_examples()
+    if args["ip"] or args["ssl"] or args["u"] or args["p"] or args["x"]:
+        idrac_ip = args["ip"]
+        idrac_username = args["u"]
+        if args["p"]:
+            idrac_password = args["p"]
+        if not args["p"] and not args["x"] and args["u"]:
+            idrac_password = getpass.getpass("\n- Argument -p not detected, pass in iDRAC user %s password: " % args["u"])
+        if args["ssl"]:
+            if args["ssl"].lower() == "true":
+                verify_cert = True
+            elif args["ssl"].lower() == "false":
+                verify_cert = False
+            else:
+                verify_cert = False
+        else:
+            verify_cert = False
+        check_supported_idrac_version()
+    else:
+        logging.error("\n- FAIL, invalid argument values or not all required parameters passed in. See help text or argument --script-examples for more details.")
+        sys.exit(0)
+    if args["get_firmware"]:
         get_FW_inventory()
-    elif args["s"]:
+    elif args["get_protocols"]:
         get_supported_protocols()
-    elif args["uri"] and args["t"]:
+    elif args["uri"] and args["protocol"]:
         get_idrac_version()
         install_image_payload()
         check_job_status()
-        if args["r"] == "n":
-            print("- INFO, job ID successfully scheduled but no server reboot selected. Job is still scheduled and will execute on next server manual reboot.")
-            sys.exit()
-        elif args["r"] == "y":
-            print("- INFO, user selected to reboot the server now to execute the update job")
+        if args["reboot"]:
+            logging.info("- INFO, user selected to reboot the server now to execute update job")
             if int(idrac_fw_version[0]) >= 5:
                 loop_check_final_job_status()
             else:
-                print("- INFO, older iDRAC version detected, execute action ComputerSystem.Reset to reboot the server")
+                logging.info("- INFO, older iDRAC version detected, execute action ComputerSystem.Reset to reboot the server")
                 reboot_server()
                 loop_check_final_job_status()
         else:
-            print("- INFO, argument -r not detected. Job is still scheduled and will execute on next server manual reboot.")
-            sys.exit()
+            logging.info("- INFO, argument --reboot not detected. Job is still scheduled and will execute on next server manual reboot.")
+            sys.exit(0)
     else:
-        print("\n- FAIL, incorrect parameter(s) passed in or missing required parameters")
+        logging.error("\n- FAIL, invalid argument values or not all required parameters passed in. See help text or argument --script-examples for more details.")
 
 
 
