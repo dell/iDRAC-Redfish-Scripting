@@ -50,7 +50,7 @@ logging.basicConfig(format='%(message)s', stream=sys.stdout, level=logging.INFO)
 def script_examples():
     print("""\n- ImportSystemConfigurationLocalFilenameREDFISH.py -ip 192.168.0.120 -u root -p calvin --target ALL --filename SCP_export_R740, this example is going to import SCP file and apply all attribute changes for all components.
     \n- ImportSystemConfigurationLocalFilenameREDFISH.py -ip 192.168.0.120 -u root -p calvin --target BIOS --filename R740_scp_file --shutdown-type Forced, this example is going to only apply BIOS changes from the SCP file along with forcing a server power reboot.
-    \n- ImportSystemConfigurationLocalFilenameREDFISH.py -ip 192.168.0.120 -u root -p calvin --target IDRAC -f 2020-8-5_135318_export.xml --new-password Test1234#, this example uses SCP import to change root user password and will leverage the new user password to continue to query the job status until marked completed.
+    \n- ImportSystemConfigurationLocalFilenameREDFISH.py -ip 192.168.0.120 -u root -p calvin --target IDRAC --filename 2020-8-5_135318_export.xml --new-password Test1234#, this example uses SCP import to change root user password and will leverage the new user password to continue to query the job status until marked completed.
     \n- ImportSystemConfigurationLocalFilenameREDFISH.py -ip 192.168.0.120 -u root --target IDRAC --filename 2022-4-21_111957_export.xml --new-password \"\", this example will first prompt you to enter current root password, then prompt you to enter new password set for root which was passed in the SCP file.""")
     sys.exit(0)
 
