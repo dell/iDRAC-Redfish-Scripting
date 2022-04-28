@@ -1,12 +1,10 @@
+#!/usr/bin/python
+#!/usr/bin/python3
 #
-# GetFirmwareInventoryREDFISH. Python script using Redfish API DMTF method to get current firmware version for all devices iDRAC supports for updates.
-#
-# NOTE: Recommended to run this script first to get current FW versions of devices before executing DeviceFirmwareUpdateREDFISH script.
-#
-# 
+# GetFirmwareInventoryREDFISH. Python script using Redfish API DMTF method to get current firmware version for all devices iDRAC supports for updates. 
 #
 # _author_ = Texas Roemer <Texas_Roemer@Dell.com>
-# _version_ = 6.0
+# _version_ = 7.0
 #
 # Copyright (c) 2018, Dell, Inc.
 #
@@ -18,95 +16,87 @@
 # http://www.gnu.org/licenses/old-licenses/gpl-2.0.txt.
 #
 
-import requests, json, sys, re, time, warnings, os, argparse
+import argparse
+import getpass
+import json
+import logging
+import re
+import requests
+import sys
+import time
+import warnings
 
-import requests, json, sys, re, time, os, warnings, argparse
-
-from datetime import datetime
+from pprint import pprint
 
 warnings.filterwarnings("ignore")
 
-parser=argparse.ArgumentParser(description="Python script using Redfish API DMTF method to get current firmware version for all devices iDRAC supports for updates. This script is executing one GET command using OData feature $expand ")
-parser.add_argument('-ip',help='iDRAC IP address', required=True)
-parser.add_argument('-u', help='iDRAC username', required=True)
-parser.add_argument('-p', help='iDRAC password', required=True)
+parser = argparse.ArgumentParser(description="Python script using Redfish API DMTF method to get current firmware version for all devices iDRAC supports for updates. This script is executing one GET command using OData feature $expand ")
+parser.add_argument('-ip',help='iDRAC IP address', required=False)
+parser.add_argument('-u', help='iDRAC username', required=False)
+parser.add_argument('-p', help='iDRAC password. If you do not pass in argument -p, script will prompt to enter user password which will not be echoed to the screen.', required=False)
+parser.add_argument('-x', help='Pass in X-Auth session token for executing Redfish calls. All Redfish calls will use X-Auth token instead of username/password', required=False)
+parser.add_argument('--ssl', help='SSL cert verification for all Redfish calls, pass in value \"true\" or \"false\". By default, this argument is not required and script ignores validating SSL cert for all Redfish calls.', required=False)
+parser.add_argument('--script-examples', help='Get executing script examples', action="store_true", dest="script_examples", required=False)
 
-args=vars(parser.parse_args())
+args = vars(parser.parse_args())
+logging.basicConfig(format='%(message)s', stream=sys.stdout, level=logging.INFO)
 
-idrac_ip=args["ip"]
-idrac_username=args["u"]
-idrac_password=args["p"]
-filename = "iDRAC_%s_FW_inventory.txt" % idrac_ip
+def script_examples():
+    print("""\n- GetFirmwareInventoryREDFISH.py -ip 192.168.0.120 -u root -p calvin, this example will return firmware inventory, current versions for all devices detected in the server.""")
+    sys.exit(0)
 
-
-def check_idrac_fw_support():
-    response = requests.get('https://%s/redfish/v1/UpdateService/FirmwareInventory/' % (idrac_ip), auth=(idrac_username, idrac_password), verify=False)
-    statusCode = response.status_code
+def check_supported_idrac_version():
+    if args["x"]:
+        response = requests.get('https://%s/redfish/v1/UpdateService/FirmwareInventory' % idrac_ip, verify=verify_cert, headers={'X-Auth-Token': args["x"]})
+    else:
+        response = requests.get('https://%s/redfish/v1/UpdateService/FirmwareInventory' % idrac_ip, verify=verify_cert, auth=(idrac_username, idrac_password))
+    data = response.json()
     if response.status_code == 401:
-        print("\n- WARNING, status code %s returned. Incorrect iDRAC username/password or invalid privilege detected." % response.status_code)
-        sys.exit()
+        logging.warning("\n- WARNING, status code %s returned. Incorrect iDRAC username/password or invalid privilege detected." % response.status_code)
+        sys.exit(0)
     elif response.status_code != 200:
-        print("\n- WARNING, iDRAC version installed does not support this feature using Redfish API")
-        sys.exit()
-    else:
-        pass  
+        logging.warning("\n- WARNING, iDRAC version installed does not support this feature using Redfish API")
+        sys.exit(0)
     
-
 def get_FW_inventory():
-    print("\n- INFO, get current firmware version(s) for all devices in the system iDRAC supports\n")
-    time.sleep(3)
-    try:
-        os.remove(filename)
-    except:
-        pass
-    f=open(filename,"a")
-    d=datetime.now()
-    current_date_time="- Data collection timestamp: %s-%s-%s  %s:%s:%s\n" % (d.month,d.day,d.year, d.hour,d.minute,d.second)
-    f.writelines(current_date_time)
-    f.writelines("\n\n")
-    req = requests.get('https://%s/redfish/v1/UpdateService/FirmwareInventory?$expand=*($levels=1)' % (idrac_ip), auth=(idrac_username, idrac_password), verify=False)
-    statusCode = req.status_code
-    data = req.json()
-    if "Members" in data.keys():
-        if data["Members@odata.count"] > 0:
-            pass
-        else:
-            print("- FAIL, no URI members detected for firmware inventory, manually run GET on URI \"/redfish/v1/UpdateService/FirmwareInventory\" to debug issue")
-            sys.exit()
+    logging.info("\n- INFO, getting current firmware inventory for iDRAC %s -\n" % idrac_ip)
+    if args["x"]:
+        response = requests.get('https://%s/redfish/v1/UpdateService/FirmwareInventory?$expand=*($levels=1)' % idrac_ip, verify=verify_cert, headers={'X-Auth-Token': args["x"]})
     else:
-        print("- FAIL, unable to locate \"Members\" in JSON output, manually run GET on URI \"/redfish/v1/UpdateService/FirmwareInventory\" to debug issue")
-        sys.exit()
+        response = requests.get('https://%s/redfish/v1/UpdateService/FirmwareInventory?$expand=*($levels=1)' % idrac_ip, verify=verify_cert, auth=(idrac_username, idrac_password))
+    data = response.json()
+    if response.status_code != 200:
+        logging.error("\n- ERROR, GET request failed to get firmware inventory, error: \n%s" % data)
+        sys.exit(0)
+    installed_devices = []
     for i in data['Members']:
-        for ii in i.items():
-            if ii[0] == '@odata.type':
-                message = "\n%s: %s" % (ii[0], ii[1])
-                f.writelines(message)
-                print(message)
-                message = "\n"
-                f.writelines(message)
-            elif ii[0] == "Oem":
-                for iii in ii[1]['Dell']['DellSoftwareInventory'].items():
-                    message = "%s: %s" % (iii[0], iii[1])
-                    f.writelines(message)
-                    print(message)
-                    message = "\n"
-                    f.writelines(message)
-
-            else:
-                message = "%s: %s" % (ii[0], ii[1])
-                f.writelines(message)
-                print(message)
-                message = "\n"
-                f.writelines(message)
-
-    print("\n- Firmware inventory output is also captured in \"%s\" file" % filename)
-    f.close()
-        
+        pprint(i), print("\n")  
         
 
 
 if __name__ == "__main__":
-    check_idrac_fw_support()
+    if args["script_examples"]:
+        script_examples()
+    if args["ip"] and args["ssl"] or args["u"] or args["p"] or args["x"]:
+        idrac_ip=args["ip"]
+        idrac_username=args["u"]
+        if args["p"]:
+            idrac_password=args["p"]
+        if not args["p"] and not args["x"] and args["u"]:
+            idrac_password = getpass.getpass("\n- Argument -p not detected, pass in iDRAC user %s password: " % args["u"])
+        if args["ssl"]:
+            if args["ssl"].lower() == "true":
+                verify_cert = True
+            elif args["ssl"].lower() == "false":
+                verify_cert = False
+            else:
+                verify_cert = False
+        else:
+            verify_cert = False
+        check_supported_idrac_version()
+    else:
+        logging.error("\n- FAIL, invalid argument values or not all required parameters passed in. See help text or argument --script-examples for more details.")
+        sys.exit(0)
     get_FW_inventory()
 
 
