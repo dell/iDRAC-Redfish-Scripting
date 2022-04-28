@@ -54,7 +54,7 @@ def script_examples():
     print("""\n- DeviceFirmwareSimpleUpdateTransferProtocolREDFISH.py -ip 192.168.0.120 -u root -p calvin --get-firmware, this example will return current firmware versions for all devices supported for updates.
     \n- \n- DeviceFirmwareSimpleUpdateTransferProtocolREDFISH.py -ip 192.168.0.120 -u root -p calvin --get-protocols, this example will get current supported protocol types to perform firmware update using transfer protocol method.
     \n- DeviceFirmwareSimpleUpdateTransferProtocolREDFISH.py -ip 192.168.0.120 -u root -p calvin --protocol HTTP --uri http://192.168.0.130/updates_http/CPLD_Firmware_WN64_1.0.2_A00.EXE --reboot, this example will reboot the server now and update CPLD firmware using HTTP share.
-    \n- DeviceFirmwareSimpleUpdateTransferProtocolREDFISH.py -ip 192.168.0.120 -u root -p calvin -protocol CIFS --uri cifs://administrator:password@192.168.0.130/updates_cifs/BIOS_WN64_2.4.11_A00.EXE, this example using CIFS share will create and schedule BIOS update job but not reboot the server now to execute. Job will execute on next server manual reboot.
+    \n- DeviceFirmwareSimpleUpdateTransferProtocolREDFISH.py -ip 192.168.0.120 -u root -p calvin --protocol CIFS --uri cifs://administrator:password@192.168.0.130/updates_cifs/BIOS_WN64_2.4.11_A00.EXE, this example using CIFS share will create and schedule BIOS update job but not reboot the server now to execute. Job will execute on next server manual reboot.
     \n- DeviceFirmwareSimpleUpdateTransferProtocolREDFISH.py -ip 192.168.0.120 -x 017c2b92678091e0fc9b2a4c5985299a --protocol NFS --uri 192.168.0.140:/nfs/Diags_c6420.exe, this example using X-auth token session will update diags using NFS share.""")
     sys.exit(0)
 
