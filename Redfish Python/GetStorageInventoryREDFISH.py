@@ -1,10 +1,10 @@
+#!/usr/bin/python
+#!/usr/bin/python3
 #
 # GetStorageInventoryREDFISH. Python script using Redfish API DMTF to get storage inventory: controllers, disks and backplanes.
 #
-# NOTE: Recommended to run "GetStorageInventoryREDFISH -h" first to get help text, display supported parameter options and get examples. 
-#
 # _author_ = Texas Roemer <Texas_Roemer@Dell.com>
-# _version_ = 5.0
+# _version_ = 7.0
 #
 # Copyright (c) 2017, Dell, Inc.
 #
@@ -16,144 +16,182 @@
 # http://www.gnu.org/licenses/old-licenses/gpl-2.0.txt.
 #
 
-import requests, json, sys, re, time, os, warnings, argparse
+import argparse
+import getpass
+import json
+import logging
+import os
+import platform
+import re
+import requests
+import sys
+import time
+import warnings
 
 from datetime import datetime
+from pprint import pprint
 
 warnings.filterwarnings("ignore")
 
-
-
 parser = argparse.ArgumentParser(description='Python script using Redfish API DMTF to get server storage inventory (disks, controllers and backplanes)')
-parser.add_argument('-ip', help='iDRAC IP Address', required=True)
-parser.add_argument('-u', help='iDRAC username', required=True)
-parser.add_argument('-p', help='iDRAC username pasword', required=True)
-parser.add_argument('script_examples',action="store_true",help='GetStorageInventoryREDFISH.py -ip 192.168.0.120 -u root -p calvin -b RAID.Integrated.1-1, this example will get backplanes for storage controller RAID.Integrated.1-1. GetStorageInventoryREDFISH.py -ip 192.168.0.120 -u root -p calvin -dd RAID.Integrated.1-1, this example will get detailed information for all disks detected for storage controller RAID.Integrated.1-1')
-parser.add_argument('-c', help='Get server storage controller FQDDs, pass in \"y\". To get detailed information for all controllerse detected, pass in \"yy\"', required=False)
-parser.add_argument('-d', help='Get server storage controller disk FQDDs only, pass in storage controller FQDD, Example "\RAID.Integrated.1-1\"', required=False)
-parser.add_argument('-dd', help='Get server storage controller disks detailed information, pass in storage controller FQDD, Example "\RAID.Integrated.1-1\"', required=False)
-parser.add_argument('-b', help='Get server backplane(s), pass in storage controller FQDD, Example "\RAID.Integrated.1-1\"', required=False)
+parser.add_argument('-ip',help='iDRAC IP address', required=False)
+parser.add_argument('-u', help='iDRAC username', required=False)
+parser.add_argument('-p', help='iDRAC password. If you do not pass in argument -p, script will prompt to enter user password which will not be echoed to the screen.', required=False)
+parser.add_argument('-x', help='Pass in X-Auth session token for executing Redfish calls. All Redfish calls will use X-Auth token instead of username/password', required=False)
+parser.add_argument('--ssl', help='SSL cert verification for all Redfish calls, pass in value \"true\" or \"false\". By default, this argument is not required and script ignores validating SSL cert for all Redfish calls.', required=False)
+parser.add_argument('--script-examples', action="store_true", help='Prints script examples')
+parser.add_argument('--get-controllers', help='Get server storage controller information.', action="store_true", dest="get_controllers", required=False)
+parser.add_argument('--get-disks', help='Get server storage disks information', action="store_true", dest="get_disks", required=False)
+parser.add_argument('--get-virtualdisks', help='Get server storage virtual disk information', action="store_true", dest="get_virtualdisks", required=False)
+parser.add_argument('--get-backplanes', help='Get server storage backplane information', action="store_true", dest="get_backplanes", required=False)
 
 args=vars(parser.parse_args())
+logging.basicConfig(format='%(message)s', stream=sys.stdout, level=logging.INFO)
 
-idrac_ip=args["ip"]
-idrac_username=args["u"]
-idrac_password=args["p"]
-
+def script_examples():
+    print("""\n- GetStorageInventoryREDFISH.py -ip 192.168.0.120 -u root -p calvin --get-controllers, this example will get details for all controllers detected.
+    \n- GetStorageInventoryREDFISH.py -ip 192.168.0.120 -u root -p calvin --get-disks, this example will get details for all disks detected for all controllers.
+    \n- GetStorageInventoryREDFISH.py -ip 192.168.0.120 -u root -p calvin --get-virtualdisks, this example will get details for all virtualdisks detected for all controllers.
+    \n- GetStorageInventoryREDFISH.py -ip 192.168.0.120 -u root -p calvin --get-backplanes, this example will get details for all backplanes(enclosures) detected.""")
+    sys.exit(0)
 
 def check_supported_idrac_version():
-    response = requests.get('https://%s/redfish/v1/Systems/System.Embedded.1/Storage' % idrac_ip,verify=False,auth=(idrac_username, idrac_password))
+    if args["x"]:
+        response = requests.get('https://%s/redfish/v1/Systems/System.Embedded.1/Storage' % idrac_ip, verify=verify_cert, headers={'X-Auth-Token': args["x"]})
+    else:
+        response = requests.get('https://%s/redfish/v1/Systems/System.Embedded.1/Storage' % idrac_ip, verify=verify_cert, auth=(idrac_username, idrac_password))
     data = response.json()
     if response.status_code == 401:
-        print("\n- WARNING, unable to access iDRAC, check to make sure you are passing in valid iDRAC credentials")
-        sys.exit()
-    if response.status_code == 200 or response.status_code == 202:
-        pass
-    else:
-        print("\n- FAIL, iDRAC version detected does not support this feature, status code %s returned" % response.status_code)
-        sys.exit()
+        logging.warning("\n- WARNING, status code %s returned. Incorrect iDRAC username/password or invalid privilege detected." % response.status_code)
+        sys.exit(0)
+    elif response.status_code != 200:
+        logging.warning("\n- WARNING, iDRAC version installed does not support this feature using Redfish API")
+        sys.exit(0)
     
-
-def get_storage_controllers():
-    response = requests.get('https://%s/redfish/v1/Systems/System.Embedded.1/Storage' % idrac_ip,verify=False,auth=(idrac_username, idrac_password))
+def get_controllers():
+    if args["x"]:
+        response = requests.get('https://%s/redfish/v1/Systems/System.Embedded.1/Storage?$expand=*($levels=1)' % idrac_ip, verify=verify_cert, headers={'X-Auth-Token': args["x"]})
+    else:
+        response = requests.get('https://%s/redfish/v1/Systems/System.Embedded.1/Storage?$expand=*($levels=1)' % idrac_ip, verify=verify_cert, auth=(idrac_username, idrac_password))
     data = response.json()
-    print("\n- Server controller(s) detected -\n")
-    controller_list=[]
+    if response.status_code != 200:
+        logging.error("- FAIL, GET command failed, detailed error information: %s" % data)
+        sys.exit(0)
+    logging.info("\n- Storage controller information for iDRAC %s -\n" % idrac_ip)
+    for i in data.items():
+        pprint(i)
+        print("\n")
+    
+def get_disks():
+    if args["x"]:
+        response = requests.get('https://%s/redfish/v1/Systems/System.Embedded.1/Storage' % idrac_ip, verify=verify_cert, headers={'X-Auth-Token': args["x"]})   
+    else:
+        response = requests.get('https://%s/redfish/v1/Systems/System.Embedded.1/Storage' % idrac_ip, verify=verify_cert,auth=(idrac_username, idrac_password))
+    data = response.json()
+    controller_list = []
     for i in data['Members']:
-        controller_list.append(i['@odata.id'][46:])
-        print(i['@odata.id'][46:])
-    if args["c"] == "yy":
-        for i in controller_list:
-            response = requests.get('https://%s/redfish/v1/Systems/System.Embedded.1/Storage/%s' % (idrac_ip, i),verify=False,auth=(idrac_username, idrac_password))
-            data = response.json()
-            print("\n### Overall detailed controller information for %s ###\n" % i)
-            for i in data.items():
-                if i[0] == "Oem":
-                    print("\n- Dell OEM property details - \n")
-                    for ii in i[1]["Dell"]["DellController"].items():
-                        print("%s: %s" % (ii[0], ii[1]))
-                elif i[0] == "StorageControllers":
-                    print("\n- Storage controller property details - \n")
-                    for ii in i[1][0].items():
-                        print("%s: %s" % (ii[0], ii[1]))   
-                else:
-                    print("%s: %s" % (i[0], i[1]))
-
-    
-def get_storage_disks():
-    response = requests.get('https://%s/redfish/v1/Systems/System.Embedded.1/Storage/%s' % (idrac_ip, controller),verify=False,auth=(idrac_username, idrac_password))
-    data = response.json()
-    drive_list=[]
-    if response.status_code == 200 or response.status_code == 202:
-        pass
-    else:
-        print("- FAIL, GET command failed, detailed error information: %s" % data)
-        sys.exit()
-    if data['Drives'] == []:
-        print("\n- WARNING, no drives detected for %s" % controller)
-        sys.exit()
-    else:
-        print("\n- Drive(s) detected for %s -\n" % controller)
-        for i in data['Drives']:
-            drive_list.append(i['@odata.id'].split("/")[-1])
-            response = requests.get('https://%s/redfish/v1/Systems/System.Embedded.1/Storage/Drives/%s' % (idrac_ip, i['@odata.id'].split("/")[-1]),verify=False,auth=(idrac_username, idrac_password))
-            data = response.json()
-            print(i['@odata.id'].split("/")[-1])
-    if args["dd"]:
-      for i in drive_list:
-          response = requests.get('https://%s/redfish/v1/Systems/System.Embedded.1/Storage/Drives/%s' % (idrac_ip, i),verify=False,auth=(idrac_username, idrac_password))
-          data = response.json()
-          print("\n### Detailed drive information for %s ###\n" % i)
-          for ii in data.items():
-              if ii[0] == "Oem":
-                  print("\n- Dell OEM property details - \n")
-                  for iii in ii[1]["Dell"]["DellPhysicalDisk"].items():
-                      print("%s: %s" % (iii[0], iii[1]))
-              else:
-                  print("%s: %s" % (ii[0],ii[1]))
-                
+        controller_list.append(i['@odata.id'].split("/")[-1])
+    for i in controller_list:
+        if args["x"]:
+            response = requests.get('https://%s/redfish/v1/Systems/System.Embedded.1/Storage/%s?$select=Drives' % (idrac_ip, i), verify=verify_cert, headers={'X-Auth-Token': args["x"]})   
+        else:
+            response = requests.get('https://%s/redfish/v1/Systems/System.Embedded.1/Storage/%s?$select=Drives' % (idrac_ip, i), verify=verify_cert,auth=(idrac_username, idrac_password))
+        data = response.json()
+        if data["Drives"] == []:
+            logging.warning("\n- WARNING, no drives detected for controller %s\n" % i)
+        else:
+            logging.info("\n- INFO, drives detected for controller %s -\n" % i)
+            for i in data["Drives"]:
+                for ii in i.items():
+                    if args["x"]:
+                        response = requests.get('https://%s%s' % (idrac_ip, ii[1]), verify=verify_cert, headers={'X-Auth-Token': args["x"]})   
+                    else:
+                        response = requests.get('https://%s%s' % (idrac_ip, ii[1]), verify=verify_cert,auth=(idrac_username, idrac_password))
+                pprint(response.json())
 
 def get_backplanes():
-    response = requests.get('https://%s/redfish/v1/Systems/System.Embedded.1/SimpleStorage/Controllers/%s' % (idrac_ip, args["b"]),verify=False,auth=(idrac_username, idrac_password))
-    data = response.json()
-    backplane_dict = {}
-    try:
-        for i in data['Devices']:
-            for ii in i.items():
-                if ii[0] == "Name":
-                    if "plane" in ii[1]:
-                        backplane_dict = i
-    except:
-        print("\n- WARNING, invalid controller FQDD passed in for argument -b")
-        sys.exit()
-    if backplane_dict == {}:
-        print("\n- WARNING, no backplanes detected in storage inventory for controller %s" % args["b"])
-        sys.exit()
+    if args["x"]:
+        response = requests.get('https://%s/redfish/v1/Chassis?$select=Members' % idrac_ip, verify=verify_cert, headers={'X-Auth-Token': args["x"]})   
     else:
-        print("\n- Backplane(s) detected for controller %s -\n" % args["b"])
-        for i in backplane_dict.items():
-            if i[0] == "Status":
-                for ii in i[1].items():
-                    print("%s: %s" % (ii[0],ii[1]))
+        response = requests.get('https://%s/redfish/v1/Chassis?$select=Members' % idrac_ip, verify=verify_cert,auth=(idrac_username, idrac_password))
+    data = response.json()
+    for i in data["Members"]:
+        for ii in i.items():
+            if "enclosure" in ii[1].lower():
+                logging.info("\n- INFO, detailed information for %s -\n" % ii[1].split("/")[-1])
+                if args["x"]:
+                    response = requests.get('https://%s%s' % (idrac_ip, ii[1]), verify=verify_cert, headers={'X-Auth-Token': args["x"]})   
+                else:
+                    response = requests.get('https://%s%s' % (idrac_ip, ii[1]), verify=verify_cert,auth=(idrac_username, idrac_password))
+                pprint(response.json())
+
+def get_virtualdisks():
+    if args["x"]:
+        response = requests.get('https://%s/redfish/v1/Systems/System.Embedded.1/Storage' % idrac_ip, verify=verify_cert, headers={'X-Auth-Token': args["x"]})   
+    else:
+        response = requests.get('https://%s/redfish/v1/Systems/System.Embedded.1/Storage' % idrac_ip, verify=verify_cert,auth=(idrac_username, idrac_password))
+    data = response.json()
+    controller_list = []
+    for i in data['Members']:
+        controller_list.append(i['@odata.id'].split("/")[-1])
+    for i in controller_list:
+        if args["x"]:
+            response = requests.get('https://%s/redfish/v1/Systems/System.Embedded.1/Storage/%s/Volumes' % (idrac_ip, i),verify=verify_cert, headers={'X-Auth-Token': args["x"]})
+        else:
+            response = requests.get('https://%s/redfish/v1/Systems/System.Embedded.1/Storage/%s/Volumes' % (idrac_ip, i),verify=verify_cert, auth=(idrac_username, idrac_password))
+        data = response.json()
+        vd_list = []
+        if data['Members'] == []:
+            logging.error("\n- WARNING, no volume(s) detected for controller %s\n" % i)
+        else:
+            logging.info("\n- Volume(s) detected for %s controller -\n" % i)
+            for i in data['Members']:
+                vd_list.append(i['@odata.id'].split("/")[-1])
+        for ii in vd_list:
+            if args["x"]:
+                response = requests.get('https://%s/redfish/v1/Systems/System.Embedded.1/Storage/Volumes/%s' % (idrac_ip, ii),verify=verify_cert, headers={'X-Auth-Token': args["x"]})
             else:
-                print("%s: %s" % (i[0],i[1]))
-    
+                response = requests.get('https://%s/redfish/v1/Systems/System.Embedded.1/Storage/Volumes/%s' % (idrac_ip, ii),verify=verify_cert, auth=(idrac_username, idrac_password))
+            data = response.json()
+            for i in data.items():
+                pprint(i)
+            print("\n")
+                
     
 
 
 if __name__ == "__main__":
-    check_supported_idrac_version()
-    if args["c"]:
-        get_storage_controllers()
-    elif args["d"] or args["dd"]:
-        if args["d"]:
-            controller = args["d"]
-        elif args["dd"]:
-            controller = args["dd"]
-        get_storage_disks()
-    elif args["b"]:
-        get_backplanes()
+    if args["script_examples"]:
+        script_examples()
+    if args["ip"] and args["ssl"] or args["u"] or args["p"] or args["x"]:
+        idrac_ip=args["ip"]
+        idrac_username=args["u"]
+        if args["p"]:
+            idrac_password=args["p"]
+        if not args["p"] and not args["x"] and args["u"]:
+            idrac_password = getpass.getpass("\n- Argument -p not detected, pass in iDRAC user %s password: " % args["u"])
+        if args["ssl"]:
+            if args["ssl"].lower() == "true":
+                verify_cert = True
+            elif args["ssl"].lower() == "false":
+                verify_cert = False
+            else:
+                verify_cert = False
+        else:
+            verify_cert = False
+        check_supported_idrac_version()
     else:
-        print("\n- WARNING, either incorrect parameter value(s) passed in or missing parameter")
+        logging.error("\n- FAIL, invalid argument values or not all required parameters passed in. See help text or argument --script-examples for more details.")
+        sys.exit(0)
+    if args["get_controllers"]:
+        get_controllers()
+    elif args["get_disks"]:
+        get_disks()
+    elif args["get_backplanes"]:
+        get_backplanes()
+    elif args["get_virtualdisks"]:
+        get_virtualdisks()
+    else:
+        logging.error("\n- FAIL, invalid argument values or not all required parameters passed in. See help text or argument --script-examples for more details.")
 
 
