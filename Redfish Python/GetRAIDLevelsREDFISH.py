@@ -1,8 +1,10 @@
+#!/usr/bin/python
+#!/usr/bin/python3
 #
 # GetRAIDLevelsREDFISH. Python script using Redfish API with OEM extension to get supported RAID levels for storage controller
 #
 # _author_ = Texas Roemer <Texas_Roemer@Dell.com>
-# _version_ = 3.0
+# _version_ = 4.0
 #
 # Copyright (c) 2019, Dell, Inc.
 #
@@ -15,189 +17,214 @@
 #
 
 
-import requests, json, sys, re, time, warnings, argparse
-
-from datetime import datetime
+import argparse
+import getpass
+import json
+import logging
+import re
+import requests
+import sys
+import time
+import warnings
 
 warnings.filterwarnings("ignore")
 
-parser=argparse.ArgumentParser(description="Python script using Redfish API with OEM extension to get supported RAID levels for storage controller based of parameters passed in for the POST command")
-parser.add_argument('-ip',help='iDRAC IP address', required=True)
-parser.add_argument('-u', help='iDRAC username', required=True)
-parser.add_argument('-p', help='iDRAC password', required=True)
-parser.add_argument('script_examples',action="store_true",help='GetRAIDLevelsREDFISH.py -ip 192.168.0.120 -u root -p calvin -t RAID.Slot.6-1 -dt 0 -dp 0, this example is going to return supported RAID levels for controller RAID.Slot.6-1 based off this disk criteria: all disk types and all disk protocols. GetRAIDLevelsREDFISH.py -ip 192.168.0.120 -u root -p calvin -t RAID.Slot.6-1 -dt 0 -dp 1 -b 2, this example is going to return supported RAID levels for controller RAID.Slot.6-1 based off this disk criteria: all disk types, SAS disks only and 4096 block size only. GetRAIDLevelsREDFISH.py -ip 192.168.0.120 -u root -p calvin -t RAID.Slot.6-1 -dt 0 -dp 0 -pd Disk.Bay.0:Enclosure.Internal.0-1:RAID.Slot.6-1,Disk.Bay.1:Enclosure.Internal.0-1:RAID.Slot.6-1, this example is going to return supported RAID levels for controller RAID.Slot.6-1 based off this disk criteria: all disk types, all disk protocols and only using disk 0 and disk 1') 
-parser.add_argument('-c', help='Get server storage controller FQDDs, pass in \"y\"', required=False)
-parser.add_argument('-d', help='Get server storage controller disk FQDDs only, pass in storage controller FQDD, Example "\RAID.Integrated.1-1\"', required=False)
-parser.add_argument('-t', help='Get supported RAID levels, pass in target controller FQDD, Example \"RAID.Slot.6-1\". Note: You must pass in -dt and -dp also with -t which are the minimum required parameters needed to get RAID levels', required=False)
-parser.add_argument('-dt', help='DiskType, pass in 0 for \"IncludeAllTypes\", pass in 1 for \"IncludeHardDiskOnly\", pass in 2 for \"IncludeSolidStateOnly\"', required=False)
-parser.add_argument('-dp', help='Diskprotocol, pass in 0 for \"AllProtocols\", pass in 1 for \"SAS\", pass in 2 for \"SATA\", pass in 3 for \"NVMe\"', required=False)
-parser.add_argument('-f', help='FormFactor, pass in 0 for \"IncludeAll\", pass in 1 for \"IncludeOnlyM.2\"', required=False)
-parser.add_argument('-de', help='DiskEncrypt, pass in 0 for \"IncludeFDECapableAndNonEncryptionCapableDisks\", pass in 1 for \"IncludeFDEDisksOnly\", pass in 2 for \"IncludeOnlyNonFDEDisks\"', required=False)
-parser.add_argument('-b', help='BlockSizeInBytes, pass in 0 for \"IncludeAllBlockSizeDisks\", pass in 1 for \"Include512BytesBlockSizeDisksOnly\", pass in 2 for \"Include4096BytesBlockSizeDisks\"', required=False)
-parser.add_argument('-t10', help='T10PIStatus, pass in 0 for \"IncludeAlldrives,T10PIIncapableAndCapableDrives\", pass in 1 for \"IncludeT10PICapableDrivesOnly\", pass in 2 for \"IncludeT10PIIncapableDrivesOnly\"', required=False)
-parser.add_argument('-pd', help='PDArray, pass in disk FQDD string. If passing in multiple disks, use a comma separator', required=False)
+parser = argparse.ArgumentParser(description="Python script using Redfish API with OEM extension to get supported RAID levels for storage controller based of parameters passed in for the POST command")
+parser.add_argument('-ip',help='iDRAC IP address', required=False)
+parser.add_argument('-u', help='iDRAC username', required=False)
+parser.add_argument('-p', help='iDRAC password. If you do not pass in argument -p, script will prompt to enter user password which will not be echoed to the screen.', required=False)
+parser.add_argument('-x', help='Pass in X-Auth session token for executing Redfish calls. All Redfish calls will use X-Auth token instead of username/password', required=False)
+parser.add_argument('--ssl', help='SSL cert verification for all Redfish calls, pass in value \"true\" or \"false\". By default, this argument is not required and script ignores validating SSL cert for all Redfish calls.', required=False)
+parser.add_argument('--script-examples', help='Get executing script examples', action="store_true", dest="script_examples", required=False) 
+parser.add_argument('--get-controllers', help='Get server storage controller FQDDs', action="store_true", dest="get_controllers", required=False)
+parser.add_argument('--get-disks', help='Get server storage controller disk FQDDs and their raid status, pass in storage controller FQDD, Example "\RAID.Integrated.1-1\"', dest="get_disks", required=False)
+parser.add_argument('--target', help='Get supported RAID levels, pass in target controller FQDD, Example \"RAID.Slot.6-1\". Note: You must pass in --disktype and --diskprotocol also with --target which are the minimum required parameters needed to get RAID levels', required=False)
+parser.add_argument('--disktype', help='DiskType, pass in 0 for \"IncludeAllTypes\", pass in 1 for \"IncludeHardDiskOnly\", pass in 2 for \"IncludeSolidStateOnly\"', required=False)
+parser.add_argument('--diskprotocol', help='Diskprotocol, pass in 0 for \"AllProtocols\", pass in 1 for \"SAS\", pass in 2 for \"SATA\", pass in 3 for \"NVMe\"', required=False)
+parser.add_argument('--formfactor', help='FormFactor, pass in 0 for \"IncludeAll\", pass in 1 for \"IncludeOnlyM.2\"', required=False)
+parser.add_argument('--diskencrypt', help='DiskEncrypt, pass in 0 for \"IncludeFDECapableAndNonEncryptionCapableDisks\", pass in 1 for \"IncludeFDEDisksOnly\", pass in 2 for \"IncludeOnlyNonFDEDisks\"', required=False)
+parser.add_argument('--blocksize', help='BlockSizeInBytes, pass in 0 for \"IncludeAllBlockSizeDisks\", pass in 1 for \"Include512BytesBlockSizeDisksOnly\", pass in 2 for \"Include4096BytesBlockSizeDisks\"', required=False)
+parser.add_argument('--disk', help='PDArray, pass in disk FQDD string. If passing in multiple disks, use a comma separator', required=False)
+args = vars(parser.parse_args())
+logging.basicConfig(format='%(message)s', stream=sys.stdout, level=logging.INFO)
 
-
-args=vars(parser.parse_args())
-
-idrac_ip=args["ip"]
-idrac_username=args["u"]
-idrac_password=args["p"]
-
-    
-    
+def script_examples():
+    print("""\n- GetRAIDLevelsREDFISH.py -ip 192.168.0.120 -u root -p calvin --target RAID.Slot.6-1 --disktype 0 --diskprotocol 0, this example is going to return supported RAID levels for controller RAID.Slot.6-1 based off this disk criteria: all disk types and all disk protocols.
+    \n- GetRAIDLevelsREDFISH.py -ip 192.168.0.120 -u root -p calvin --target RAID.Slot.6-1 --disktype 0 --diskprotocol 1 --blocksize 2, this example is going to return supported RAID levels for controller RAID.Slot.6-1 based off this disk criteria: all disk types, SAS disks only and 4096 block size only.
+    \n- GetRAIDLevelsREDFISH.py -ip 192.168.0.120 -u root -p calvin --target RAID.Slot.6-1 --disktype 0 --diskprotocol 0 --disk Disk.Bay.0:Enclosure.Internal.0-1:RAID.Slot.6-1,Disk.Bay.1:Enclosure.Internal.0-1:RAID.Slot.6-1, this example is going to return supported RAID levels for controller RAID.Slot.6-1 based off this disk criteria: all disk types, all disk protocols and only using disk 0 and disk 1 """)
+    sys.exit(0)
 
 def check_supported_idrac_version():
-    response = requests.get('https://%s/redfish/v1/Dell/Systems/System.Embedded.1/DellRaidService' % idrac_ip,verify=False,auth=(idrac_username, idrac_password))
-    data = response.json()
-    if response.status_code != 200:
-        print("\n- WARNING, iDRAC version installed does not support this feature using Redfish API")
-        sys.exit()
+    if args["x"]:
+        response = requests.get('https://%s/redfish/v1/Dell/Systems/System.Embedded.1/DellRaidService' % idrac_ip, verify=verify_cert, headers={'X-Auth-Token': args["x"]})
     else:
-        pass
+        response = requests.get('https://%s/redfish/v1/Dell/Systems/System.Embedded.1/DellRaidService' % idrac_ip, verify=verify_cert, auth=(idrac_username, idrac_password))
+    data = response.json()
+    if response.status_code == 401:
+        logging.warning("\n- WARNING, status code %s returned. Incorrect iDRAC username/password or invalid privilege detected." % response.status_code)
+        sys.exit(0)
+    elif response.status_code != 200:
+        logging.warning("\n- WARNING, iDRAC version installed does not support this feature using Redfish API")
+        sys.exit(0)
+
+def test_valid_controller_FQDD_string(x):
+    if args["x"]:
+        response = requests.get('https://%s/redfish/v1/Systems/System.Embedded.1/Storage/%s' % (idrac_ip, x),verify=verify_cert, headers={'X-Auth-Token': args["x"]})
+    else:
+        response = requests.get('https://%s/redfish/v1/Systems/System.Embedded.1/Storage/%s' % (idrac_ip, x),verify=verify_cert,auth=(idrac_username, idrac_password))
+    if response.status_code != 200:
+        logging.error("\n- FAIL, either controller FQDD does not exist or typo in FQDD string name (FQDD controller string value is case sensitive)")
+        sys.exit(0)
 
 def get_storage_controllers():
-    response = requests.get('https://%s/redfish/v1/Systems/System.Embedded.1/Storage' % idrac_ip,verify=False,auth=(idrac_username, idrac_password))
-    data = response.json()
-    print("\n- Server controller(s) detected -\n")
-    controller_list=[]
-    for i in data[u'Members']:
-        for ii in i.items():
-            controller = ii[1].split("/")[-1]
-            controller_list.append(controller)
-            print(controller)
-    if args["c"] == "yy":
-        for i in controller_list:
-            response = requests.get('https://%s/redfish/v1/Systems/System.Embedded.1/Storage/%s' % (idrac_ip, i),verify=False,auth=(idrac_username, idrac_password))
-            data = response.json()
-            print("\n - Detailed controller information for %s -\n" % i)
-            for i in data.items():
-                print("%s: %s" % (i[0], i[1]))
+    if args["x"]:
+        response = requests.get('https://%s/redfish/v1/Systems/System.Embedded.1/Storage' % idrac_ip,verify=verify_cert, headers={'X-Auth-Token': args["x"]})   
     else:
-        pass
-    sys.exit()
+        response = requests.get('https://%s/redfish/v1/Systems/System.Embedded.1/Storage' % idrac_ip,verify=verify_cert,auth=(idrac_username, idrac_password))
+    data = response.json()
+    logging.info("\n- Server controller(s) detected -\n")
+    controller_list = []
+    for i in data['Members']:
+        controller_list.append(i['@odata.id'].split("/")[-1])
+        print(i['@odata.id'].split("/")[-1])
 
 def get_pdisks():
-    disk_used_created_vds=[]
-    available_disks=[]
-    response = requests.get('https://%s/redfish/v1/Systems/System.Embedded.1/Storage/%s' % (idrac_ip, args["d"]),verify=False,auth=(idrac_username, idrac_password))
-    data = response.json()
-    drive_list=[]
-    if data[u'Drives'] == []:
-        print("\n- WARNING, no drives detected for %s" % args["d"])
-        sys.exit()
+    test_valid_controller_FQDD_string(args["get_disks"])
+    if args["x"]:
+        response = requests.get('https://%s/redfish/v1/Systems/System.Embedded.1/Storage/%s' % (idrac_ip, args["get_disks"]), verify=verify_cert, headers={'X-Auth-Token': args["x"]})   
     else:
-        print("\n- Drive(s) detected for %s -\n" % args["d"])
-        for i in data[u'Drives']:
-            for ii in i.items():
-                    disk = ii[1].split("/")[-1]
-                    drive_list.append(disk)
-                    print(disk)
+        response = requests.get('https://%s/redfish/v1/Systems/System.Embedded.1/Storage/%s' % (idrac_ip, args["get_disks"]), verify=verify_cert,auth=(idrac_username, idrac_password))
+    data = response.json()
+    if response.status_code != 200:
+        logging.error("\n- FAIL, GET command failed, return code %s" % response.status_code)
+        logging.error("Extended Info Message: {0}".format(response.json()))
+        sys.exit(0)
+    drive_list = []
+    if data['Drives'] == []:
+        logging.warning("\n- WARNING, no drives detected for %s" % args["get_disks"])
+        sys.exit(0)
+    else:
+        for i in data['Drives']:
+            drive_list.append(i['@odata.id'].split("/")[-1])
+    logging.info("\n- Drives detected for controller \"%s\" and RaidStatus\n" % args["get_disks"])
+    for i in drive_list:
+        if args["x"]:
+          response = requests.get('https://%s/redfish/v1/Systems/System.Embedded.1/Storage/Drives/%s' % (idrac_ip, i), verify=verify_cert, headers={'X-Auth-Token': args["x"]})   
+        else:
+          response = requests.get('https://%s/redfish/v1/Systems/System.Embedded.1/Storage/Drives/%s' % (idrac_ip, i), verify=verify_cert,auth=(idrac_username, idrac_password))
+        data = response.json()
+        logging.info(" - Disk: %s, Raidstatus: %s" % (i, data['Oem']['Dell']['DellPhysicalDisk']['RaidStatus']))
     
-
 def get_supported_RAID_levels():
     url = 'https://%s/redfish/v1/Dell/Systems/System.Embedded.1/DellRaidService/Actions/DellRaidService.GetRAIDLevels' % (idrac_ip)
-    headers = {'content-type': 'application/json'}
-    payload={"TargetFQDD":args["t"]}
-    if args["dt"]:
-        if args["dt"] == "0":
+    payload={"TargetFQDD":args["target"]}
+    if args["disktype"]:
+        if args["disktype"] == "0":
             payload["DiskType"] = "All"
-        elif args["dt"] == "1":
+        elif args["disktype"] == "1":
             payload["DiskType"] = "HDD"
-        elif args["dt"] == "2":
+        elif args["disktype"] == "2":
             payload["DiskType"] = "SSD"
         else:
-            print("\n- WARNING, invalid value entered for -dt parameter")
-            sys.exit()
-    if args["dp"]:
-        if args["dp"] == "0":
+            logging.warning("\n- WARNING, invalid value entered for --disktype argument")
+            sys.exit(0)
+    if args["diskprotocol"]:
+        if args["diskprotocol"] == "0":
             payload["Diskprotocol"] = "AllProtocols"
-        elif args["dp"] == "1":
+        elif args["diskprotocol"] == "1":
             payload["Diskprotocol"] = "SAS"
-        elif args["dp"] == "2":
+        elif args["diskprotocol"] == "2":
             payload["Diskprotocol"] = "SATA"
-        elif args["dp"] == "3":
+        elif args["diskprotocol"] == "3":
             payload["Diskprotocol"] = "NVMe"
         else:
-            print("\n- WARNING, invalid value entered for -dp parameter")
-            sys.exit()
-    if args["f"]:
-        if args["f"] == "0":
+            logging.warning("\n- WARNING, invalid value entered for --diskprotocol argument")
+            sys.exit(0)
+    if args["formfactor"]:
+        if args["formfactor"] == "0":
             payload["FormFactor"] = "All"
-        elif args["f"] == "1":
+        elif args["formfactor"] == "1":
             payload["FormFactor"] = "M.2"
         else:
-            print("\n- WARNING, invalid value entered for -f parameter")
-            sys.exit()
-    if args["de"]:
-        if args["de"] == "0":
+            logging.warning("\n- WARNING, invalid value entered for --formfactor argument")
+            sys.exit(0)
+    if args["diskencrypt"]:
+        if args["diskencrypt"] == "0":
             payload["DiskEncrypt"] = "All"
-        elif args["de"] == "1":
+        elif args["diskencrypt"] == "1":
             payload["DiskEncrypt"] = "FDE"
-        elif args["de"] == "2":
+        elif args["diskencrypt"] == "2":
             payload["DiskEncrypt"] = "NonFDE"
         else:
-            print("\n- WARNING, invalid value entered for -de parameter")
-            sys.exit()
-    if args["b"]:
-        if args["b"] == "0":
+            logging.warning("\n- WARNING, invalid value entered for --diskencrypt argument")
+            sys.exit(0)
+    if args["blocksize"]:
+        if args["blocksize"] == "0":
             payload["BlockSizeInBytes"] = "All"
-        elif args["b"] == "1":
+        elif args["blocksize"] == "1":
             payload["BlockSizeInBytes"] = "512"
-        elif args["b"] == "2":
+        elif args["blocksize"] == "2":
             payload["BlockSizeInBytes"] = "4096"
         else:
-            print("\n- WARNING, invalid value entered for -b parameter")
-            sys.exit()
-    if args["t10"]:
-        if args["t10"] == "0":
-            payload["T10PIStatus"] = "All"
-        elif args["t10"] == "1":
-            payload["T10PIStatus"] = "T10PICapable"
-        elif args["t10"] == "2":
-            payload["T10PIStatus"] = "T10PIIncapable"
-        else:
-            print("\n- WARNING, invalid value entered for -t10 parameter")
-            sys.exit()
-    if args["pd"]:
-        if "," in args["pd"]:
-            disk_list=args["pd"].split(",")
+            logging.warning("\n- WARNING, invalid value entered for --blocksize argument")
+            sys.exit(0)
+    if args["disk"]:
+        if "," in args["disk"]:
+            disk_list=args["disk"].split(",")
             payload["PDArray"] = disk_list
         else:
-            payload["PDArray"] = [args["pd"]]
-            
-    print("\n- WARNING, parameters keys / values used for GetRAIDLevels POST command are:\n")
-    for i in payload.items():
-        print("%s: %s" % (i[0], i[1]))
-        
-    
-    response = requests.post(url, data=json.dumps(payload), headers=headers, verify=False,auth=(idrac_username,idrac_password))
+            payload["PDArray"] = [args["disk"]]
+    if args["x"]:
+        headers = {'content-type': 'application/json', 'X-Auth-Token': args["x"]}
+        response = requests.post(url, data=json.dumps(payload), headers=headers, verify=verify_cert)
+    else:
+        headers = {'content-type': 'application/json'}
+        response = requests.post(url, data=json.dumps(payload), headers=headers, verify=verify_cert,auth=(idrac_username,idrac_password))
     data = response.json()
     if response.status_code == 200:
-        print("\n- PASS: POST command passed to get RAID levels for controller %s" % args["t"])
+        logging.info("\n- PASS: POST command passed to get RAID levels for controller %s" % args["target"])
     else:
-        print("\n- FAIL, POST command failed to get RAID levels for controller %s" % args["t"])
+        logging.error("\n- FAIL, POST command failed to get RAID levels for controller %s" % args["target"])
         data = response.json()
-        print("\n-POST command failure detailed results:\n %s" % data)
-        sys.exit()
-    raid_level_integer_values = data[u'VDRAIDEnumArray']
-    if data[u'VDRAIDEnumArray'] == None:
-        print("\n- WARNING, no RAID levels currently available to create based off available disks")
-        sys.exit()
-    raid_supported_string_values = []
-    print("\n- RAID levels currently available to create based off available disks -\n")
-    for i in data[u'VDRAIDEnumArray']:
+        logging.error("\n- POST command failure detailed results:\n %s" % data)
+        sys.exit(0)
+    if data['VDRAIDEnumArray'] == [] or data['VDRAIDEnumArray'] == None:
+        logging.warning("- WARNING, no supported RAID levels detected based off disk argument values")
+        sys.exit(0)
+    logging.info("\n- RAID levels currently available to create based off available disks -\n")
+    for i in data['VDRAIDEnumArray']:
         print(i)
         
 
 if __name__ == "__main__":
-    check_supported_idrac_version()
-    if args["c"]:
+    if args["script_examples"]:
+        script_examples()
+    if args["ip"] and args["ssl"] or args["u"] or args["p"] or args["x"]:
+        idrac_ip=args["ip"]
+        idrac_username=args["u"]
+        if args["p"]:
+            idrac_password=args["p"]
+        if not args["p"] and not args["x"] and args["u"]:
+            idrac_password = getpass.getpass("\n- Argument -p not detected, pass in iDRAC user %s password: " % args["u"])
+        if args["ssl"]:
+            if args["ssl"].lower() == "true":
+                verify_cert = True
+            elif args["ssl"].lower() == "false":
+                verify_cert = False
+            else:
+                verify_cert = False
+        else:
+            verify_cert = False
+        check_supported_idrac_version()
+    else:
+        logging.error("\n- FAIL, invalid argument values or not all required parameters passed in. See help text or argument --script-examples for more details.")
+        sys.exit(0)
+    if args["get_controllers"]:
         get_storage_controllers()
-    elif args["d"]:
+    elif args["get_disks"]:
         get_pdisks()
-    elif args["t"] and args["dt"] and args["dp"]:
+    elif args["target"] and args["disktype"] and args["diskprotocol"]:
         get_supported_RAID_levels()
     else:
-        print("\n- FAIL, either missing required parameter(s) or invalid parameter value passed in")
+        logging.error("\n- FAIL, invalid argument values or not all required parameters passed in. See help text or argument --script-examples for more details.")
   

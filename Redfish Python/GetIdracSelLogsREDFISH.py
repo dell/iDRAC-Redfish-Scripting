@@ -1,8 +1,10 @@
+#!/usr/bin/python
+#!/usr/bin/python3
 #
 # GetIdracSelLogsREDFISH. Python script using Redfish API to get iDRAC System Event Logs (SEL) logs.
 #
 # _author_ = Texas Roemer <Texas_Roemer@Dell.com>
-# _version_ = 1.0
+# _version_ = 2.0
 #
 # Copyright (c) 2020, Dell, Inc.
 #
@@ -14,77 +16,117 @@
 # http://www.gnu.org/licenses/old-licenses/gpl-2.0.txt.
 #
 
-import requests, json, sys, re, time, os, warnings, argparse
+import argparse
+import getpass
+import json
+import logging
+import os
+import re
+import requests
+import sys
+import time
+import warnings
 
+from pprint import pprint
 from datetime import datetime
 
 warnings.filterwarnings("ignore")
 
-parser=argparse.ArgumentParser(description="Python script using Redfish API to get iDRAC System Event Logs (SEL) logs, either last 50 entries or all entries. By default, it will get the last 50 entries if you don't use \"-c\" argument.")
-parser.add_argument('-ip',help='iDRAC IP address', required=True)
-parser.add_argument('-u', help='iDRAC username', required=True)
-parser.add_argument('-p', help='iDRAC password', required=True)
-parser.add_argument('script_examples',action="store_true",help='GetIdracSelLogsREDFISH.py -ip 192.168.0.120 -u root -p calvin, this example will get the latest 50 entries in iDRAC system event log. GetIdracSelLogsREDFISH.py -ip 192.168.0.120 -u root -p calvin, this example will get the complete iDRAC system event log.')
-parser.add_argument('-c', help='Get all iDRAC system event logs, pass in \"y\"', required=False)
-args=vars(parser.parse_args())
+parser = argparse.ArgumentParser(description="Python script using Redfish API to get iDRAC System Event Logs (SEL) logs.")
+parser.add_argument('-ip',help='iDRAC IP address', required=False)
+parser.add_argument('-u', help='iDRAC username', required=False)
+parser.add_argument('-p', help='iDRAC password. If you do not pass in argument -p, script will prompt to enter user password which will not be echoed to the screen.', required=False)
+parser.add_argument('-x', help='Pass in X-Auth session token for executing Redfish calls. All Redfish calls will use X-Auth token instead of username/password', required=False)
+parser.add_argument('--ssl', help='SSL cert verification for all Redfish calls, pass in value \"true\" or \"false\". By default, this argument is not required and script ignores validating SSL cert for all Redfish calls.', required=False)
+parser.add_argument('--script-examples', help='Get executing script examples', action="store_true", dest="script_examples", required=False) 
+args = vars(parser.parse_args())
+logging.basicConfig(format='%(message)s', stream=sys.stdout, level=logging.INFO)
 
-idrac_ip=args["ip"]
-idrac_username=args["u"]
-idrac_password=args["p"]
+def script_examples():
+    print("""\n- GetIdracSelLogsREDFISH.py -ip 192.168.0.120 -u root -p calvin, this example will get the complete iDRAC system event log.""")
+    sys.exit(0)
 
-try:
-    os.remove("iDRAC_SEL_logs.txt")
-except:
-    pass
+def check_supported_idrac_version():
+    if args["x"]:
+        response = requests.get('https://%s/redfish/v1/Managers/iDRAC.Embedded.1/LogServices/Sel/Entries' % idrac_ip, verify=verify_cert, headers={'X-Auth-Token': args["x"]})
+    else:
+        response = requests.get('https://%s/redfish/v1/Managers/iDRAC.Embedded.1/LogServices/Sel/Entries' % idrac_ip, verify=verify_cert, auth=(idrac_username, idrac_password))
+    data = response.json()
+    if response.status_code == 401:
+        logging.warning("\n- WARNING, status code %s returned. Incorrect iDRAC username/password or invalid privilege detected." % response.status_code)
+        sys.exit(0)
+    elif response.status_code != 200:
+        logging.warning("\n- WARNING, iDRAC version installed does not support this feature using Redfish API")
+        sys.exit(0)
 
 def get_SEL_logs():
-    f=open("iDRAC_SEL_logs.txt","a")
-    d=datetime.now()
-    current_date_time="- Data collection timestamp: %s-%s-%s  %s:%s:%s\n" % (d.month,d.day,d.year, d.hour,d.minute,d.second)
-    f.writelines(current_date_time)
-    f.writelines("\n\n")
-    response = requests.get('https://%s/redfish/v1/Managers/iDRAC.Embedded.1/LogServices/Sel/Entries' % idrac_ip,verify=False,auth=(idrac_username,idrac_password))
-    if response.status_code == 401:
-        print("\n- WARNING, status code %s returned. Incorrect iDRAC username/password or invalid privilege detected." % response.status_code)
-        sys.exit()
+    try:
+        os.remove("iDRAC_SEL_logs.txt")
+    except:
+        logging.info("- INFO, unable to locate file %s, skipping step" % "iDRAC_SEL_logs.txt")
+    open_file = open("iDRAC_SEL_logs.txt","w")
+    date_timestamp = datetime.now()
+    current_date_time = "- Data collection timestamp: %s-%s-%s  %s:%s:%s\n" % (date_timestamp.month, date_timestamp.day, date_timestamp.year, date_timestamp.hour, date_timestamp.minute, date_timestamp.second)
+    open_file.writelines(current_date_time)
+    open_file.writelines("\n\n")
+    if args["x"]:
+        response = requests.get('https://%s/redfish/v1/Managers/iDRAC.Embedded.1/LogServices/Sel/Entries' % idrac_ip, verify=verify_cert, headers={'X-Auth-Token': args["x"]})
+    else:
+        response = requests.get('https://%s/redfish/v1/Managers/iDRAC.Embedded.1/LogServices/Sel/Entries' % idrac_ip, verify=verify_cert, auth=(idrac_username, idrac_password))
     if response.status_code != 200:
-        print("\n- WARNING, iDRAC version installed does not support this feature using Redfish.")
-        sys.exit()
+        logging.error("\n- ERROR, GET command failed to get iDRAC SEL entries, status code %s returned" % response.status_code)
+        sys.exit(0)
     data = response.json()
     for i in data['Members']:
         for ii in i.items():
             SEL_log_entry = ("%s: %s" % (ii[0],ii[1]))
             print(SEL_log_entry)
-            f.writelines("%s\n" % SEL_log_entry)
+            open_file.writelines("%s\n" % SEL_log_entry)
         print("\n")
-        f.writelines("\n")
+        open_file.writelines("\n")
+    number_list = [i for i in range (1,100001) if i % 50 == 0]
+    for seq in number_list:
+        if args["x"]:
+            response = requests.get('https://%s/redfish/v1/Managers/iDRAC.Embedded.1/LogServices/Sel/Entries?$skip=%s' % (idrac_ip, seq), verify=verify_cert, headers={'X-Auth-Token': args["x"]})
+        else:
+            response = requests.get('https://%s/redfish/v1/Managers/iDRAC.Embedded.1/LogServices/Sel/Entries?$skip=%s' % (idrac_ip, seq), verify=verify_cert, auth=(idrac_username, idrac_password))
+        data = response.json()
+        if "Members" not in data or data["Members"] == [] or response.status_code == 400:
+            break
+        for i in data['Members']:
+            for ii in i.items():
+                SEL_log_entry = ("%s: %s" % (ii[0], ii[1]))
+                print(SEL_log_entry)
+                open_file.writelines("%s\n" % SEL_log_entry)
+            print("\n")
+            open_file.writelines("\n")
+    logging.info("\n- INFO, system event logs also captured in \"iDRAC_SEL_logs.txt\" file")
+    open_file.close()
 
-    if args["c"]:
-        number_list=[i for i in range (1,100001) if i % 50 == 0]
-        for seq in number_list:
-            response = requests.get('https://%s/redfish/v1/Managers/iDRAC.Embedded.1/LogServices/Sel/Entries?$skip=%s' % (idrac_ip, seq) ,verify=False,auth=(idrac_username,idrac_password))
-            data = response.json()
-            if "Members" in data:
-                pass
-            else:
-                break
-            for i in data['Members']:
-                for ii in i.items():
-                    SEL_log_entry = ("%s: %s" % (ii[0],ii[1]))
-                    print(SEL_log_entry)
-                    f.writelines("%s\n" % SEL_log_entry)
-                print("\n")
-                f.writelines("\n")
-
-    else:
-        pass
-    
-    print("\n- WARNING, system event logs also captured in \"iDRAC_SEL_logs.txt\" file")
-    f.close()
-
-#Run Code
 
 if __name__ == "__main__":
+    if args["script_examples"]:
+        script_examples()
+    if args["ip"] and args["ssl"] or args["u"] or args["p"] or args["x"]:
+        idrac_ip=args["ip"]
+        idrac_username=args["u"]
+        if args["p"]:
+            idrac_password=args["p"]
+        if not args["p"] and not args["x"] and args["u"]:
+            idrac_password = getpass.getpass("\n- Argument -p not detected, pass in iDRAC user %s password: " % args["u"])
+        if args["ssl"]:
+            if args["ssl"].lower() == "true":
+                verify_cert = True
+            elif args["ssl"].lower() == "false":
+                verify_cert = False
+            else:
+                verify_cert = False
+        else:
+            verify_cert = False
+        check_supported_idrac_version()
+    else:
+        logging.error("\n- FAIL, invalid argument values or not all required parameters passed in. See help text or argument --script-examples for more details.")
+        sys.exit(0)
     get_SEL_logs()
 
 

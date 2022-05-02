@@ -1,10 +1,12 @@
+#!/usr/bin/python
+#!/usr/bin/python3
 #
 # GetOSNetworkInformationREDFISH. Python script using Redfish API to get host operating system (OS) network information.
 #
 # NOTE: iSM (iDRAC Service Module) must be installed and running in the OS for Redfish to be able to get this data. iSM is available on Dell support site under Drivers / Downloads, System Management section for your server model.
 #
 # _author_ = Texas Roemer <Texas_Roemer@Dell.com>
-# _version_ = 2.0
+# _version_ = 4.0
 #
 # Copyright (c) 2018, Dell, Inc.
 #
@@ -16,99 +18,118 @@
 # http://www.gnu.org/licenses/old-licenses/gpl-2.0.txt.
 #
 
-import requests, json, sys, re, time, warnings, argparse
+import argparse
+import json
+import logging
+import re
+import requests
+import sys
+import time
+import warnings
 
 from datetime import datetime
+from pprint import pprint
 
 warnings.filterwarnings("ignore")
 
-
-
-parser = argparse.ArgumentParser(description='Python script using Redfish API to get operating system (iSM must be running in the OS) network information')
-parser.add_argument('-ip', help='iDRAC IP Address', required=False)
+parser = argparse.ArgumentParser(description='Python script using Redfish API to get operating system network information. iDRAC Service Module (iSM) must be installed in the OS and services is running for iDRAC to get this data.')
+parser.add_argument('-ip',help='iDRAC IP address', required=False)
 parser.add_argument('-u', help='iDRAC username', required=False)
-parser.add_argument('-p', help='iDRAC password', required=False)
-parser.add_argument('-e', help='Pass in \"y\" to get script examples', required=False)
-parser.add_argument('-g', help='Pass in \"y\" to get supported host network devices. Pass in \"yy\" to get detailed information for all the supported devices', required=False)
-parser.add_argument('-n', help='Pass in the network device string to get specific information for this device only. You must run \"-g y\" first to get the supported network device strings.', required=False)
-parser.add_argument('-i', help='Pass in the network device string. You must run \"-g y\" first to get the supported network device strings. This option is only supported with \"-a\" option to get specific property information', required=False)
-parser.add_argument('-a', help='Pass in specific property name to get only this data for a specific network device. You must first execute \"-g yy\" to get the supported properties. This value is case sensitive so make sure to pass in exact syntax (Example: Pass in \"HostName\", \"hostname\" will fail. \"-i\" option is also required with \"-a\" where you must pass in the network string device. ', required=False)
-
-
+parser.add_argument('-p', help='iDRAC password. If you do not pass in argument -p, script will prompt to enter user password which will not be echoed to the screen.', required=False)
+parser.add_argument('-x', help='Pass in X-Auth session token for executing Redfish calls. All Redfish calls will use X-Auth token instead of username/password', required=False)
+parser.add_argument('--ssl', help='SSL cert verification for all Redfish calls, pass in value \"true\" or \"false\". By default, this argument is not required and script ignores validating SSL cert for all Redfish calls.', required=False)
+parser.add_argument('--script-examples', action="store_true", help='Prints script examples')
+parser.add_argument('--get-ism-status', help='Get iSM service status, confirm iSM is running in the OS', dest="get_ism_status", action="store_true", required=False)
+parser.add_argument('--get-network-details', help='Get OS network details for each network device configured in the OS.', dest="get_network_details", action="store_true", required=False)
 args = vars(parser.parse_args())
-
-idrac_ip=args["ip"]
-idrac_username=args["u"]
-idrac_password=args["p"]
-
-if args["a"]:
-    property_value = args["a"]
+logging.basicConfig(format='%(message)s', stream=sys.stdout, level=logging.INFO)
 
 def script_examples():
-    print("""\n- SCRIPT EXAMPLES -\n\nGetOSNetworkInformationREDFISH.py -ip 192.168.0.120 -u root -p calvin -g y. This example will return host supported network device URI strings\n
-GetOSNetworkInformationREDFISH.py -ip 192.168.0.120 -u root -p calvin -n iDRAC.Embedded.1%23ServiceModule.1%23OSLogicalNetwork.1. This example will return detailed information for this network device only\n
-GetOSNetworkInformationREDFISH.py -ip 192.168.0.120 -u root -p calvin -i iDRAC.Embedded.1%23ServiceModule.1%23OSLogicalNetwork.1 -a IPv4Addresses. This example will return only information for IPv4Addresses for this network device""")
-    
+    print("""\n- GetOSNetworkInformationREDFISH.py -ip 192.168.0.120 -u root -p calvin --get-ism-status, this example will return current iDRAC iSM service status.
+    \n- GetOSNetworkInformationREDFISH.py -ip 192.168.0.120 -u root -p calvin --get-network-details, this example will return detailed information for all OS network devices configured.""")
+    sys.exit(0)
 
-
-def get_OS_network_devices():
-    f=open("lc_logs.txt","a")
-    d=datetime.now()
-    current_date_time="- Data collection timestamp: %s-%s-%s  %s:%s:%s\n" % (d.month,d.day,d.year, d.hour,d.minute,d.second)
-    f.writelines(current_date_time)
-    response = requests.get('https://%s/redfish/v1/Systems/System.Embedded.1/EthernetInterfaces' % idrac_ip,verify=False,auth=(idrac_username,idrac_password))
+def check_supported_idrac_version():
+    if args["x"]:
+        response = requests.get('https://%s/redfish/v1/Systems/System.Embedded.1/EthernetInterfaces' % idrac_ip, verify=verify_cert, headers={'X-Auth-Token': args["x"]})
+    else:
+        response = requests.get('https://%s/redfish/v1/Systems/System.Embedded.1/EthernetInterfaces' % idrac_ip, verify=verify_cert, auth=(idrac_username, idrac_password))
     data = response.json()
-    valid_network_devices=[]
-    for i in data[u'Members']:
+    if response.status_code == 401:
+        logging.warning("\n- WARNING, status code %s returned. Incorrect iDRAC username/password or invalid privilege detected." % response.status_code)
+        sys.exit(0)
+    elif response.status_code != 200:
+        logging.warning("\n- WARNING, iDRAC version installed does not support this feature using Redfish API")
+        sys.exit(0)
+
+def get_iSM_status():
+    if args["x"]:
+        response = requests.get('https://%s/redfish/v1/Managers/iDRAC.Embedded.1/Attributes?$select=Attributes/ServiceModule.1.ServiceModuleState' % idrac_ip, verify=verify_cert, headers={'X-Auth-Token': args["x"]})
+    else:
+        response = requests.get('https://%s/redfish/v1/Managers/iDRAC.Embedded.1/Attributes?$select=Attributes/ServiceModule.1.ServiceModuleState' % idrac_ip, verify=verify_cert, auth=(idrac_username, idrac_password))
+    data = response.json()
+    if response.status_code != 200:
+        logging.error("- FAIL, GET command failed to get iDRAC iSM service status, status code %s returned" % response.status_code)
+        logging.error(data)
+        sys.exit(0)
+    logging.info("\n- INFO, current iDRAC iSM service status: %s" % data["Attributes"]["ServiceModule.1.ServiceModuleState"])
+        
+def get_OS_network_devices():
+    if args["x"]:
+        response = requests.get('https://%s/redfish/v1/Systems/System.Embedded.1/EthernetInterfaces' % idrac_ip, verify=verify_cert, headers={'X-Auth-Token': args["x"]})
+    else:
+        response = requests.get('https://%s/redfish/v1/Systems/System.Embedded.1/EthernetInterfaces' % idrac_ip, verify=verify_cert, auth=(idrac_username, idrac_password))
+    data = response.json()
+    if response.status_code != 200:
+        logging.error("- FAIL, GET command failed to get OS network device interfaces, status code %s returned" % response.status_code)
+        logging.error(data)
+        sys.exit(0)
+    supported_os_uris = []
+    for i in data["Members"]:
         for ii in i.items():
-            if "ServiceModule" not in ii[1]:
-                print("\n- WARNING, no supported devices detected to get OS network information. Either server in OFF state or iSM is not running in the OS.")
-                sys.exit()
-            else:
-                valid_network_devices.append(ii[1].split("/")[-1])
-    print("\n- Supported host network devices detected to get OS network information -\n")
-    for i in valid_network_devices:
-        print(i)
-    if args["g"] == "yy":
-        for i in valid_network_devices:
-            response = requests.get('https://%s/redfish/v1/Systems/System.Embedded.1/EthernetInterfaces/%s' % (idrac_ip, i),verify=False,auth=(idrac_username,idrac_password))
-            data = response.json()
-            print("\n- Detailed information for network device %s -\n" % i)
-            for ii in data.items():
-                print("%s: %s" % (ii[0], ii[1]))
+            if "OS" in ii[1]:
+                supported_os_uris.append(ii[1])
+    if supported_os_uris == []:
+        logging.warning("\n- WARNING, no OS network uris detected. Check to make sure iSM is running and network devices are configured in the OS.")
+        sys.exit(0)
+    for i in supported_os_uris:
+        logging.info("\n- Detailed information for %s -\n" % i)
+        if args["x"]:
+            response = requests.get('https://%s%s' % (idrac_ip, i), verify=verify_cert, headers={'X-Auth-Token': args["x"]})
+        else:
+            response = requests.get('https://%s%s' % (idrac_ip, i), verify=verify_cert, auth=(idrac_username, idrac_password))
+        pprint(response.json())
             
         
-
-def get_individual_network_device_info():
-    response = requests.get('https://%s/redfish/v1/Systems/System.Embedded.1/EthernetInterfaces/%s' % (idrac_ip, args["n"]),verify=False,auth=(idrac_username,idrac_password))
-    data = response.json()
-    print("\n- Detailed information for network device %s -\n" % args["n"])
-    for ii in data.items():
-        print("%s: %s" % (ii[0], ii[1]))
-
-def get_property_value_only():
-    response = requests.get('https://%s/redfish/v1/Systems/System.Embedded.1/EthernetInterfaces/%s' % (idrac_ip, args["i"]),verify=False,auth=(idrac_username,idrac_password))
-    data = response.json()
-    count=0
-    for i in data.items():
-        if i[0] == property_value:
-            print("\n- Property \"%s\" information for network device %s -\n" % (property_value, args["i"]))
-            print("%s: %s" % (i[0], i[1]))
-            count+=1
-    if count == 0:
-        print("\n- FAIL, invalid property name entered. Please check if valid string valur or case is correct")
-        sys.exit()
-
-
 if __name__ == "__main__":
-    if args["g"]:
-        get_OS_network_devices()
-    elif args["i"] and args["a"]:
-        get_property_value_only()
-    elif args["n"]:
-        get_individual_network_device_info()
-    elif args["e"]:
+    if args["script_examples"]:
         script_examples()
+    if args["ip"] and args["ssl"] or args["u"] or args["p"] or args["x"]:
+        idrac_ip=args["ip"]
+        idrac_username=args["u"]
+        if args["p"]:
+            idrac_password=args["p"]
+        if not args["p"] and not args["x"] and args["u"]:
+            idrac_password = getpass.getpass("\n- Argument -p not detected, pass in iDRAC user %s password: " % args["u"])
+        if args["ssl"]:
+            if args["ssl"].lower() == "true":
+                verify_cert = True
+            elif args["ssl"].lower() == "false":
+                verify_cert = False
+            else:
+                verify_cert = False
+        else:
+            verify_cert = False
+        check_supported_idrac_version()
+    else:
+        logging.error("\n- FAIL, invalid argument values or not all required parameters passed in. See help text or argument --script-examples for more details.")
+        sys.exit(0)
+    if args["get_ism_status"]:
+        get_iSM_status()
+    elif args["get_network_details"]:
+        get_OS_network_devices()
+    else:
+        logging.error("\n- FAIL, invalid argument values or not all required parameters passed in. See help text or argument --script-examples for more details.")
 
         
 

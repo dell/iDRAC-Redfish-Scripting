@@ -1,7 +1,8 @@
-#
+#!/usr/bin/python
+#!/usr/bin/python3
 #
 # _author_ = Texas Roemer <Texas_Roemer@Dell.com>
-# _version_ = 1.0
+# _version_ = 2.0
 #
 # Copyright (c) 2021, Dell, Inc.
 #
@@ -13,35 +14,36 @@
 # http://www.gnu.org/licenses/old-licenses/gpl-2.0.txt.
 #
 
+import argparse
+import getpass
+import json
+import logging
+import requests
+import sys
+import warnings
 
-import requests, json, sys, re, time, warnings, argparse, webbrowser
-
-from datetime import datetime
+from pprint import pprint
 
 warnings.filterwarnings("ignore")
 
-parser=argparse.ArgumentParser(description="Python script using Redfish API to return iDRAC server root details. Only iDRAC IP address argument required, no user credentials needed.")
+parser = argparse.ArgumentParser(description="Python script using Redfish API to return iDRAC server root details. Only iDRAC IP address argument required, no user credentials needed.")
 parser.add_argument('-ip',help='iDRAC IP address', required=True)
 parser.add_argument('script_examples',action="store_true",help='GetIdracServiceRootDetailsNoCredsREDFISH.py -ip 192.168.0.120, this example will return Redfish service root details for iDRAC.')
-
-args=vars(parser.parse_args())
-idrac_ip=args["ip"]
+args = vars(parser.parse_args())
+logging.basicConfig(format='%(message)s', stream=sys.stdout, level=logging.INFO)
 
 def get_idrac_oem_details_no_creds():
-    print("\n- iDRAC %s Redfish Service Root Details -\n" % idrac_ip) 
-    response = requests.get('https://%s/redfish/v1' % idrac_ip,verify=False)
+    logging.info("\n- iDRAC %s Redfish Service Root Details -\n" % args["ip"]) 
+    response = requests.get('https://%s/redfish/v1' % args["ip"], verify=False)
     data = response.json()
     for i in data['Oem']['Dell'].items():
-        print("%s: %s" % (i[0], i[1]))
-    print("Product: %s" % data['Product'])
-    print("Redfish Version: %s" % data['RedfishVersion'])
-                                
+        pprint(i)                        
 
 if __name__ == "__main__":
     try:
         get_idrac_oem_details_no_creds()
     except:
-        print("\n- FAIL, either missing parameter(s) or incorrect parameter(s) passed in. If needed, execute script with -h for script help")
+        logging.error("- ERROR, unable to run GET on service root URI. Confirm IP address is a valid iDRAC address")
 
     
     

@@ -1,8 +1,10 @@
+#!/usr/bin/python
+#!/usr/bin/python3
 #
-# GetPCIeDeviceInventoryREDFISH. Python script using Redfish API DMTF to get server PCIeDevice inventory.
+# GetPCIeDeviceInventoryREDFISH. Python script using Redfish API to get either PCIe device or function inventory.
 #
 # _author_ = Texas Roemer <Texas_Roemer@Dell.com>
-# _version_ = 2.0
+# _version_ = 4.0
 #
 # Copyright (c) 2019, Dell, Inc.
 #
@@ -14,114 +16,100 @@
 # http://www.gnu.org/licenses/old-licenses/gpl-2.0.txt.
 #
 
-import requests, json, sys, re, time, warnings, argparse, os
+import argparse
+import json
+import logging
+import re
+import requests
+import sys
+import time
+import warnings
 
 from datetime import datetime
+from pprint import pprint
 
 warnings.filterwarnings("ignore")
 
-parser = argparse.ArgumentParser(description='Python script using Redfish API DMTF to get server PCIe Device Inventory')
-parser.add_argument('-ip', help='iDRAC IP Address', required=False)
+parser = argparse.ArgumentParser(description='Python script using Redfish API to get either PCIe device or function inventory.')
+parser.add_argument('-ip',help='iDRAC IP address', required=False)
 parser.add_argument('-u', help='iDRAC username', required=False)
-parser.add_argument('-p', help='iDRAC password', required=False)
-parser.add_argument('script_examples',action="store_true",help='GetPCIeDeviceInventoryREDFISH -ip 192.168.0.120 -u root -p calvin -d y, this example will return PCIe device URIs\n- GetPCIeDeviceInventoryREDFISH -ip 192.168.0.120 -u root -p calvin -d yy, this example will return detailed information for PCIe device URIs')
-parser.add_argument('-d', help='Pass in \"y\" to get server pcie device URIs. Pass in \"yy\" to get detailed information for each device URI', required=False)
-parser.add_argument('-f', help='Pass in \"y\" to get server pcie function URIs. Pass in \"yy\" to get detailed information for each device URI', required=False)
-
-
+parser.add_argument('-p', help='iDRAC password. If you do not pass in argument -p, script will prompt to enter user password which will not be echoed to the screen.', required=False)
+parser.add_argument('-x', help='Pass in X-Auth session token for executing Redfish calls. All Redfish calls will use X-Auth token instead of username/password', required=False)
+parser.add_argument('--ssl', help='SSL cert verification for all Redfish calls, pass in value \"true\" or \"false\". By default, this argument is not required and script ignores validating SSL cert for all Redfish calls.', required=False)
+parser.add_argument('--script-examples', action="store_true", help='Prints script examples')
+parser.add_argument('--get-devices', help='Get server pcie devices and details', dest="get_devices", action="store_true", required=False)
+parser.add_argument('--get-functions', help='Get service pcie functions and details', dest="get_functions", action="store_true", required=False)
 args = vars(parser.parse_args())
+logging.basicConfig(format='%(message)s', stream=sys.stdout, level=logging.INFO)
 
-idrac_ip=args["ip"]
-idrac_username=args["u"]
-idrac_password=args["p"]
+def script_examples():
+    print("""\n- GetPCIeDeviceInventoryREDFISH -ip 192.168.0.120 -u root -p calvin --get-devices, this example will return details for all PCIe devices.
+    \n- GetPCIeDeviceInventoryREDFISH -ip 192.168.0.120 -u root -p calvin --get-functions, this example will return details for all PCIe functions.""")
+    sys.exit(0)
 
-def check_idrac_fw_support():
-    req = requests.get('https://%s/redfish/v1/Systems/System.Embedded.1' % (idrac_ip), auth=(idrac_username, idrac_password), verify=False)
-    statusCode = req.status_code
-    data = req.json()
-    if u'PCIeDevices' in data.keys():
-        pass
+def check_supported_idrac_version():
+    if args["x"]:
+        response = requests.get('https://%s/redfish/v1/Systems/System.Embedded.1' % idrac_ip, verify=verify_cert, headers={'X-Auth-Token': args["x"]})
     else:
-        print("\n- WARNING, current iDRAC version does not support getting server PCIe Device information")
-        sys.exit()
+        response = requests.get('https://%s/redfish/v1/Systems/System.Embedded.1' % idrac_ip, verify=verify_cert, auth=(idrac_username, idrac_password))
+    data = response.json()
+    if response.status_code == 401:
+        logging.warning("\n- WARNING, status code %s returned. Incorrect iDRAC username/password or invalid privilege detected." % response.status_code)
+        sys.exit(0)
+    elif response.status_code != 200:
+        logging.warning("\n- WARNING, iDRAC version installed does not support this feature using Redfish API")
+        sys.exit(0)
 
-def get_pcie_device_inventory():
-        print("\n- WARNING, server PCIe Device URIs for iDRAC %s\n" % idrac_ip)
-        req = requests.get('https://%s/redfish/v1/Systems/System.Embedded.1' % (idrac_ip), auth=(idrac_username, idrac_password), verify=False)
-        statusCode = req.status_code
-        data = req.json()
-        pcie_devices=[]
-        try:
-            os.remove("pcie_devices.txt")
-        except:
-            pass
-        f=open("pcie_devices.txt","a")
-        for i in data[u'PCIeDevices']:
-            for ii in i.items():
-                print(ii[1])
-                pcie_devices.append(ii[1])
-        if args["d"] == "yy":
-            for i in pcie_devices:
-                req = requests.get('https://%s%s' % (idrac_ip, i), auth=(idrac_username, idrac_password), verify=False)
-                statusCode = req.status_code
-                data = req.json()
-                message = "\n\n- Detailed information for URI \"%s\"\n\n" % i
-                print(message)
-                f.writelines(message)
-                for ii in data.items():
-                    device = "%s: %s" % (ii[0], ii[1])
-                    print(device)
-                    f.writelines("%s%s" % ("\n",device))
-                    
-        else:       
-            sys.exit()
-        f.close()
-        print("\n- WARNING, detailed information also captured in \"pcie_devices.txt\" file")
-        sys.exit()
-
-def get_pcie_function_inventory():
-        print("\n- WARNING, server PCIe Function URIs for iDRAC %s\n" % idrac_ip)
-        req = requests.get('https://%s/redfish/v1/Systems/System.Embedded.1' % (idrac_ip), auth=(idrac_username, idrac_password), verify=False)
-        statusCode = req.status_code
-        data = req.json()
-        pcie_devices=[]
-        try:
-            os.remove("pcie_function.txt")
-        except:
-            pass
-        f=open("pcie_function.txt","a")
-        for i in data[u'PCIeFunctions']:
-            for ii in i.items():
-                print(ii[1])
-                pcie_devices.append(ii[1])
-        if args["f"] == "yy":
-            for i in pcie_devices:
-                req = requests.get('https://%s%s' % (idrac_ip, i), auth=(idrac_username, idrac_password), verify=False)
-                statusCode = req.status_code
-                data = req.json()
-                message = "\n\n- Detailed information for URI \"%s\"\n\n" % i
-                print(message)
-                f.writelines(message)
-                for ii in data.items():
-                    device = "%s: %s" % (ii[0], ii[1])
-                    print(device)
-                    f.writelines("%s%s" % ("\n",device))
-                    
-        else:       
-            sys.exit()
-        f.close()
-        print("\n- WARNING, detailed information also captured in \"pcie_function.txt\" file")
-        sys.exit()
-        
+def get_pcie_device_function_inventory(function_value):
+    logging.info("\n- Getting %s details for iDRAC %s -\n" % (function_value, idrac_ip))
+    if args["x"]:
+        response = requests.get('https://%s/redfish/v1/Systems/System.Embedded.1?$select=%s' % (idrac_ip, function_value), verify=verify_cert, headers={'X-Auth-Token': args["x"]})
+    else:
+        response = requests.get('https://%s/redfish/v1/Systems/System.Embedded.1?$select=%s' % (idrac_ip, function_value), verify=verify_cert, auth=(idrac_username, idrac_password))
+    data = response.json()
+    if response.status_code != 200:
+        logging.error("- FAIL, GET command failed to get %s URIs, status code %s returned" % (function_value, response.status_code))
+        logging.error(data)
+        sys.exit(0)
+    for i in data[function_value]:
+        for ii in i.items():
+            logging.info("\n- Detailed information for %s -\n" % ii[1])
+            if args["x"]:
+                response = requests.get('https://%s%s' % (idrac_ip, ii[1]), verify=verify_cert, headers={'X-Auth-Token': args["x"]})
+            else:
+                response = requests.get('https://%s%s' % (idrac_ip, ii[1]), verify=verify_cert, auth=(idrac_username, idrac_password))
+            pprint(response.json())
+            
 
 
 if __name__ == "__main__":
-    check_idrac_fw_support()
-    if args["d"] == "y" or args["d"] == "yy":
-        get_pcie_device_inventory()
-    elif args["f"]:
-        get_pcie_function_inventory()
+    if args["script_examples"]:
+        script_examples()
+    if args["ip"] and args["ssl"] or args["u"] or args["p"] or args["x"]:
+        idrac_ip=args["ip"]
+        idrac_username=args["u"]
+        if args["p"]:
+            idrac_password=args["p"]
+        if not args["p"] and not args["x"] and args["u"]:
+            idrac_password = getpass.getpass("\n- Argument -p not detected, pass in iDRAC user %s password: " % args["u"])
+        if args["ssl"]:
+            if args["ssl"].lower() == "true":
+                verify_cert = True
+            elif args["ssl"].lower() == "false":
+                verify_cert = False
+            else:
+                verify_cert = False
+        else:
+            verify_cert = False
+        check_supported_idrac_version()
     else:
-      print("\n- FAIL, either missing or invalid parameter(s) passed in. If needed, see script help text for supported parameters and script examples")
+        logging.error("\n- FAIL, invalid argument values or not all required parameters passed in. See help text or argument --script-examples for more details.")
+        sys.exit(0)
+    if args["get_devices"]:
+        get_pcie_device_function_inventory("PCIeDevices")
+    elif args["get_functions"]:
+        get_pcie_device_function_inventory("PCIeFunctions")
+    else:
+      logging.error("\n- FAIL, invalid argument values or not all required parameters passed in. See help text or argument --script-examples for more details.")
 
 
