@@ -482,7 +482,7 @@ if __name__ == "__main__":
             get_job_status_scheduled()
             logging.info("- INFO, argument --reboot not detected, server will not auto reboot. Config job is still scheduled and will execute on next server manual reboot.")
     else:
-        print("\n- FAIL, either missing parameter(s) or incorrect parameter(s) passed in. If needed, execute script with -h for script help")
+        logging.error("\n- FAIL, invalid argument values or not all required parameters passed in. See help text or argument --script-examples for more details.")
         
             
         
