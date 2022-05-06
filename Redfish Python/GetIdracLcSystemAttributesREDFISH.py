@@ -102,7 +102,6 @@ def attribute_registry_get_specific_attribute():
     else:
         response = requests.get('https://%s/redfish/v1/Registries/ManagerAttributeRegistry/ManagerAttributeRegistry.v1_0_0.json' % idrac_ip, verify=verify_cert, auth=(idrac_username, idrac_password))
     data = response.json()
-    found = ""
     for i in data['RegistryEntries']['Attributes']:
         if args["registry_attribute"] in i.values():
             logging.info("\n- Attribute Registry information for attribute \"%s\" -\n" % args["registry_attribute"])
