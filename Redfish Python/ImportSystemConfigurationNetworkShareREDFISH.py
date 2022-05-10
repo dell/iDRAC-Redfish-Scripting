@@ -4,7 +4,7 @@
 # ImportSystemConfigurationNetworkShareREDFISH. Python script using Redfish API to import server configuration profile from a network share. 
 #
 # _author_ = Texas Roemer <Texas_Roemer@Dell.com>
-# _version_ = 21.0
+# _version_ = 22.0
 #
 # Copyright (c) 2017, Dell, Inc.
 #
@@ -104,7 +104,7 @@ def import_server_configuration_profile():
         response = requests.post(url, data=json.dumps(payload), headers=headers, verify=verify_cert)
     else:
         headers = {'content-type': 'application/json'}
-        response = requests.post(url, data=json.dumps(payload), headers=headers, verify=verify_cert,auth=(idrac_username, args["p"]))
+        response = requests.post(url, data=json.dumps(payload), headers=headers, verify=verify_cert,auth=(idrac_username, idrac_password))
     if response.status_code != 202:
         logging.error("\n- FAIL, POST command failed for import system configuration, status code %s returned" % response.status_code)
         logging.error(response.json())
@@ -133,7 +133,7 @@ def check_job_status():
             if args["x"]:
                 response = requests.get('https://%s/redfish/v1/TaskService/Tasks/%s' % (idrac_ip, job_id), verify=verify_cert, headers={'X-Auth-Token': args["x"]})
             else:
-                response = requests.get('https://%s/redfish/v1/TaskService/Tasks/%s' % (idrac_ip, job_id), verify=verify_cert, auth=(idrac_username, args["p"]))
+                response = requests.get('https://%s/redfish/v1/TaskService/Tasks/%s' % (idrac_ip, job_id), verify=verify_cert, auth=(idrac_username, idrac_password))
         except requests.ConnectionError as error_message:
             logging.warning("- WARNING, requests command failed to GET job status, detailed error information: \n%s" % error_message)
             logging.info("- INFO, script will attempt to get job status again")
