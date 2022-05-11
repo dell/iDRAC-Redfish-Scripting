@@ -1,8 +1,10 @@
+#!/usr/bin/python
+#!/usr/bin/python3
 #
 # UnpackAndAttachOsdREDFISH. Python script using Redfish API with OEM extension to either get driver pack information, unpack and attach driver pack or detach driver pack
 #
 # _author_ = Texas Roemer <Texas_Roemer@Dell.com>
-# _version_ = 1.0
+# _version_ = 2.0
 #
 # Copyright (c) 2019, Dell, Inc.
 #
@@ -15,211 +17,237 @@
 #
 
 
-import requests, json, sys, re, time, warnings, argparse
+import argparse
+import getpass
+import json
+import logging
+import re
+import requests
+import sys
+import time
+import warnings
 
 from datetime import datetime
+from pprint import pprint
 
 warnings.filterwarnings("ignore")
 
-parser=argparse.ArgumentParser(description="Python script using Redfish API with OEM extension either to get driver pack information, unpack and attach driver pack or detach driver pack")
-parser.add_argument('-ip',help='iDRAC IP address', required=True)
-parser.add_argument('-u', help='iDRAC username', required=True)
-parser.add_argument('-p', help='iDRAC password', required=True)
-parser.add_argument('script_examples',action="store_true",help='UnpackAndAttachOsdREDFISH.py -ip 192.168.0.120 -u root -p calvin -g y, this example to get current driver pack list. UnpackAndAttachOsdREDFISH.py -ip 192.168.0.120 -u root -p calvin -U \"Microsoft Windows Server 2012 R2\". This example will unpack and attach Windows Server 2012 driver pack')
-parser.add_argument('-g', help='Get driver pack information, pass in \"y\"', required=False)
-parser.add_argument('-a', help='Get attach status for driver pack, pass in \"y\"', required=False)
-parser.add_argument('-U', help='Unpack and attach driver pack, pass in the operating system(OS) string. Example: pass in \"Microsoft Windows Server 2012 R2\"(make sure to pass double quotes around the string value)', required=False)
-parser.add_argument('-d', help='Detach driver pack, pass in \"y\"', required=False)
+parser = argparse.ArgumentParser(description="Python script using Redfish API with OEM extension either to get driver pack information, unpack and attach driver pack or detach driver pack")
+parser.add_argument('-ip',help='iDRAC IP address', required=False)
+parser.add_argument('-u', help='iDRAC username', required=False)
+parser.add_argument('-p', help='iDRAC password. If you do not pass in argument -p, script will prompt to enter user password which will not be echoed to the screen.', required=False)
+parser.add_argument('-x', help='Pass in X-Auth session token for executing Redfish calls. All Redfish calls will use X-Auth token instead of username/password', required=False)
+parser.add_argument('--ssl', help='SSL cert verification for all Redfish calls, pass in value \"true\" or \"false\". By default, this argument is not required and script ignores validating SSL cert for all Redfish calls.', required=False)
+parser.add_argument('--script-examples', help='Get executing script examples', action="store_true", dest="script_examples", required=False)
+parser.add_argument('--get-driverpack', help='Get driver pack information for current OS driver packs supported by iDRAC', dest="get_driverpack", action="store_true", required=False)
+parser.add_argument('--get-attach-status', help='Get attach status for driver pack', dest="get_attach_status", action="store_true", required=False)
+parser.add_argument('--driverpack', help='Unpack and attach driver pack, pass in the operating system(OS) string. Example: pass in \"Microsoft Windows Server 2012 R2\"(make sure to pass double quotes around the string value)', required=False)
+parser.add_argument('--detach', help='Detach driver pack', action="store_true", required=False)
+args = vars(parser.parse_args())
+logging.basicConfig(format='%(message)s', stream=sys.stdout, level=logging.INFO)
 
-
-
-args=vars(parser.parse_args())
-
-idrac_ip=args["ip"]
-idrac_username=args["u"]
-idrac_password=args["p"]
-
+def script_examples():
+    print("""\n- UnpackAndAttachOsdREDFISH.py -ip 192.168.0.120 -u root -p calvin --get-driverpack, this example to get current driver pack list.
+    \n- UnpackAndAttachOsdREDFISH.py -ip 192.168.0.120 -u root -p calvin --get-attach-status, this example will return current driver pack attach status.
+    \n- UnpackAndAttachOsdREDFISH.py -ip 192.168.0.120 -u root -p calvin --driverpack \"Microsoft Windows Server 2022\". This example will unpack and attach Windows Server 2022 driver pack.
+    \n- UnpackAndAttachOsdREDFISH.py -ip 192.168.0.120 -u root -p calvin --detach, this example will detach attached driver pack.""")
+    sys.exit(0)
 
 def check_supported_idrac_version():
-    response = requests.get('https://%s/redfish/v1/Dell/Systems/System.Embedded.1/DellOSDeploymentService' % idrac_ip,verify=False,auth=(idrac_username, idrac_password))
-    data = response.json()
-    if response.status_code != 200:
-        print("\n- WARNING, iDRAC version installed does not support this feature using Redfish API")
-        sys.exit()
+    if args["x"]:
+        response = requests.get('https://%s/redfish/v1/Dell/Systems/System.Embedded.1/DellOSDeploymentService' % idrac_ip, verify=verify_cert, headers={'X-Auth-Token': args["x"]})   
     else:
-        pass
-
-
+        response = requests.get('https://%s/redfish/v1/Dell/Systems/System.Embedded.1/DellOSDeploymentService' % idrac_ip, verify=verify_cert,auth=(idrac_username, idrac_password))
+    data = response.json()
+    if response.status_code == 401:
+        logging.warning("\n- WARNING, status code %s returned. Incorrect iDRAC username/password or invalid privilege detected." % response.status_code)
+        sys.exit(0)
+    if response.status_code != 200:
+        logging.warning("\n- WARNING, iDRAC version installed does not support this feature using Redfish API")
+        sys.exit(0)
 
 def get_driver_pack_info():
     url = 'https://%s/redfish/v1/Dell/Systems/System.Embedded.1/DellOSDeploymentService/Actions/DellOSDeploymentService.GetDriverPackInfo' % (idrac_ip)
-    headers = {'content-type': 'application/json'}
-    payload={}
-    response = requests.post(url, data=json.dumps(payload), headers=headers, verify=False,auth=(idrac_username,idrac_password))
+    payload = {}
+    if args["x"]:
+        headers = {'content-type': 'application/json', 'X-Auth-Token': args["x"]}
+        response = requests.post(url, data=json.dumps(payload), headers=headers, verify=verify_cert)
+    else:
+        headers = {'content-type': 'application/json'}
+        response = requests.post(url, data=json.dumps(payload), headers=headers, verify=verify_cert,auth=(idrac_username,idrac_password))
     data = response.json()
     if response.status_code == 200 or response.status_code == 202:
-        print("\n- PASS: POST command passed to get driver pack information, status code 200 returned")
+        logging.info("\n- PASS: POST command passed to get driver pack information, status code 200 returned")
     else:
-        print("\n- FAIL, POST command failed to get driver pack information, status code is %s" % (response.status_code))
-        data = response.json()
-        print("\n-POST command failure results:\n %s" % data)
-        sys.exit()
-    print("\n- Driver packs supported for iDRAC %s\n" % idrac_ip)
-    for i in data[u'OSList']:
-        i=i.replace("\n","")
-        print(i)
+        logging.error("\n- FAIL, POST command failed to get driver pack information, status code is %s" % (response.status_code))
+        logging.error("\n- POST command failure results:\n %s" % data)
+        sys.exit(0)
+    logging.info("\n- Driver packs supported for iDRAC %s\n" % idrac_ip)
+    pprint(data['OSList'])
 
 def get_attach_status():
     url = 'https://%s/redfish/v1/Dell/Systems/System.Embedded.1/DellOSDeploymentService/Actions/DellOSDeploymentService.GetAttachStatus' % (idrac_ip)
-    headers = {'content-type': 'application/json'}
     payload={}
-    response = requests.post(url, data=json.dumps(payload), headers=headers, verify=False,auth=(idrac_username,idrac_password))
+    if args["x"]:
+        headers = {'content-type': 'application/json', 'X-Auth-Token': args["x"]}
+        response = requests.post(url, data=json.dumps(payload), headers=headers, verify=verify_cert)
+    else:
+        headers = {'content-type': 'application/json'}
+        response = requests.post(url, data=json.dumps(payload), headers=headers, verify=verify_cert,auth=(idrac_username,idrac_password))
     data = response.json()
     if response.status_code == 200 or response.status_code == 202:
-        print("\n- PASS: POST command passed to get driver pack attach status, status code 200 returned")
+        logging.info("\n- PASS: POST command passed to get driver pack attach status, status code 200 returned")
     else:
-        print("\n- FAIL, POST command failed to get driver pack attach status, status code is %s" % (response.status_code))
-        data = response.json()
-        print("\n-POST command failure results:\n %s" % data)
-        sys.exit()
-    print("- WARNING, Current driver pack attach status: %s" % data[u'DriversAttachStatus'])
-
-
+        logging.error("\n- FAIL, POST command failed to get driver pack attach status, status code is %s" % (response.status_code))
+        logging.error("\n- POST command failure results:\n %s" % data)
+        sys.exit(0)
+    logging.info("- INFO, Current driver pack attach status: %s" % data['DriversAttachStatus'])
     
 def unpack_and_attach_driver_pack():
     global concrete_job_uri
+    global start_time
+    method = "UnpackAndAttach"
+    start_time = datetime.now()
+    logging.info("\n- INFO, starting %s operation which may take 5-10 seconds to create the task" % method)
     url = 'https://%s/redfish/v1/Dell/Systems/System.Embedded.1/DellOSDeploymentService/Actions/DellOSDeploymentService.UnpackAndAttach' % (idrac_ip)
     method = "UnpackAndAttach"
-    headers = {'content-type': 'application/json'}
-    payload={"OSName":args["U"]}
-    response = requests.post(url, data=json.dumps(payload), headers=headers, verify=False,auth=(idrac_username,idrac_password))
+    payload = {"OSName":args["driverpack"]}
+    if args["x"]:
+        headers = {'content-type': 'application/json', 'X-Auth-Token': args["x"]}
+        response = requests.post(url, data=json.dumps(payload), headers=headers, verify=verify_cert)
+    else:
+        headers = {'content-type': 'application/json'}
+        response = requests.post(url, data=json.dumps(payload), headers=headers, verify=verify_cert,auth=(idrac_username,idrac_password))
     data = response.json()
-    #print(dir(response))
-    #print(response.headers)
     concrete_job_uri = response.headers[u'Location']
     if response.status_code == 202 or response.status_code == 200:
-        print("\n- PASS: POST command passed for %s method, status code %s returned" % (method, response.status_code))
-        concrete_job_uri = response.headers[u'Location']
-        print("- WARNING, concrete job URI created for method %s: %s\n" % (method, concrete_job_uri))
+        logging.info("\n- PASS: POST command passed for %s method, status code %s returned" % (method, response.status_code))
+        concrete_job_uri = response.headers['Location']
+        logging.info("- INFO, task URI created for method %s: %s\n" % (method, concrete_job_uri))
     else:
-        print("\n- FAIL, POST command failed for %s method, status code is %s" % (method, response.status_code))
-        data = response.json()
-        print("\n-POST command failure results:\n %s" % data)
-        sys.exit()
+        logging.error("\n- FAIL, POST command failed for %s method, status code %s" % (method, response.status_code))
+        logging.error("\n- POST command failure results:\n %s" % data)
+        sys.exit(0)
     
-
 def detach_driver_pack():
     url = 'https://%s/redfish/v1/Dell/Systems/System.Embedded.1/DellOSDeploymentService/Actions/DellOSDeploymentService.DetachDrivers' % (idrac_ip)
-    headers = {'content-type': 'application/json'}
-    payload={}
-    response = requests.post(url, data=json.dumps(payload), headers=headers, verify=False,auth=(idrac_username,idrac_password))
+    payload = {}
+    if args["x"]:
+        headers = {'content-type': 'application/json', 'X-Auth-Token': args["x"]}
+        response = requests.post(url, data=json.dumps(payload), headers=headers, verify=verify_cert)
+    else:
+        headers = {'content-type': 'application/json'}
+        response = requests.post(url, data=json.dumps(payload), headers=headers, verify=verify_cert,auth=(idrac_username,idrac_password))
     data = response.json()
     if response.status_code == 200 or response.status_code == 202:
-        print("\n- PASS: POST command passed to detach driver pack, status code 200 returned")
+        logging.info("\n- PASS: POST command passed to detach driver pack, status code 200 returned")
     else:
-        print("\n- FAIL, POST command failed to detach driver pack, status code is %s" % (response.status_code))
-        data = response.json()
-        print("\n-POST command failure results:\n %s" % data)
-        sys.exit()
+        logging.error("\n- FAIL, POST command failed to detach driver pack, status code is %s" % (response.status_code))
+        logging.error("\n- POST command failure results:\n %s" % data)
+        sys.exit(0)
 
-
-    
 def check_concrete_job_status():
-    #concrete_job_uri = "/redfish/v1/TaskService/Tasks/OSDeployment"
-    start_time=datetime.now()
     while True:
-        req = requests.get('https://%s%s' % (idrac_ip, concrete_job_uri), auth=(idrac_username, idrac_password), verify=False)
-        current_time=str((datetime.now()-start_time))[0:7]
-        statusCode = req.status_code
-        if statusCode == 200 or statusCode == 202:
-            pass
+        if args["x"]:
+            response = requests.get('https://%s%s' % (idrac_ip, concrete_job_uri), verify=verify_cert, headers={'X-Auth-Token': args["x"]})   
         else:
-            print("\n- FAIL, Command failed to check job status, return code is %s" % statusCode)
-            print("Extended Info Message: {0}".format(req.json()))
-            sys.exit()
-        data= req.json()
-        #print(data[u'TaskState'])
-        #print(data[u'Messages'][0][u'Message'])
-        #sys.exit()
-
+            response = requests.get('https://%s%s' % (idrac_ip, concrete_job_uri), verify=verify_cert,auth=(idrac_username, idrac_password))
+        current_time = str((datetime.now()-start_time))[0:7]
+        if response.status_code == 200 or response.status_code == 202:
+            logging.debug("- PASS, GET command passed to get task details")
+        else:
+            logging.error("\n- FAIL, command failed to check job status, return code %s" % response.status_code)
+            logging.error("Extended Info Message: {0}".format(response.json()))
+            sys.exit(0)
+        data = response.json()
         if str(current_time)[0:7] >= "0:30:00":
-            print("\n- FAIL: Timeout of 30 minutes has been hit, script stopped\n")
-            sys.exit()
-        elif data[u'TaskState'] == "Completed":
-            if "Fail" in data[u'Messages'][0][u'Message'] or "fail" in data[u'Messages'][0][u'Message']:
-                print("- FAIL: concrete job failed, detailed error results: %s" % data.items())
-                sys.exit()
-        
-            elif "completed successful" in data[u'Messages'][0][u'Message'] or "command was successful" in data[u'Messages'][0][u'Message']:
-                print("\n- PASS, concrete job successfully marked completed")
-                print("\n- Final detailed job results -\n")
+            logging.error("\n- FAIL: Timeout of 30 minutes has been hit, script stopped\n")
+            sys.exit(0)
+        elif data['TaskState'] == "Completed":
+            if "Fail" in data['Messages'][0]['Message'] or "fail" in data['Messages'][0]['Message']:
+                logging.error("- FAIL: concrete job failed, detailed error results: %s" % data.items())
+                sys.exit(0)
+            elif "completed successful" in data['Messages'][0]['Message'] or "command was successful" in data['Messages'][0]['Message']:
+                logging.info("\n- PASS, task successfully marked completed")
+                logging.info("\n- Final detailed task results -\n")
                 for i in data.items():
-                    if '@odata.type' in i[0]:
-                        pass
-                    elif i[0] == u'Messages':
-                        for ii in i[1][0].items():
-                            print("%s: %s" % (ii[0], ii[1]))   
-                    else:
-                        print("%s: %s" % (i[0], i[1]))
-                print("\n- Concrete job completed in %s\n" % (current_time))
+                    pprint(i)
+                logging.info("\n- INFO, task completion time: %s" % (current_time))
                 break
             else:
-                print("- FAIL, unable to get final concrete job message string")
-                sys.exit()
-        elif data[u'TaskState'] == "Exception":
-            print("\n- FAIL, final detailed job results -\n")
+                logging.error("- FAIL, unable to get final task message string")
+                sys.exit(0)
+        elif data["TaskState"] == "Exception":
+            logging.error("\n- FAIL, final detailed task results -\n")
             for i in data.items():
-                if '@odata.type' in i[0]:
-                    pass
-                elif i[0] == u'Messages':
-                    for ii in i[1][0].items():
-                        print("%s: %s" % (ii[0], ii[1]))   
-                else:
-                    print("%s: %s" % (i[0], i[1]))
-            sys.exit()
+                pprint(i)
+            sys.exit(0)
         else:
-            print("- WARNING, concrete job not completed, current status is: \"%s\", job execution time is \"%s\"" % (data[u'TaskState'], current_time))
-            #print(data)
-            time.sleep(3)    
-    
+            logging.info("- INFO, task not completed, current status: \"%s\", job execution time: \"%s\"" % (data['TaskState'], current_time))
+            time.sleep(10)    
+
 def check_attach_status(x):
     url = 'https://%s/redfish/v1/Dell/Systems/System.Embedded.1/DellOSDeploymentService/Actions/DellOSDeploymentService.GetAttachStatus' % (idrac_ip)
-    headers = {'content-type': 'application/json'}
     payload={}
-    response = requests.post(url, data=json.dumps(payload), headers=headers, verify=False,auth=(idrac_username,idrac_password))
+    if args["x"]:
+        headers = {'content-type': 'application/json', 'X-Auth-Token': args["x"]}
+        response = requests.post(url, data=json.dumps(payload), headers=headers, verify=verify_cert)
+    else:
+        headers = {'content-type': 'application/json'}
+        response = requests.post(url, data=json.dumps(payload), headers=headers, verify=verify_cert,auth=(idrac_username,idrac_password))
     data = response.json()
-    if response.status_code == 200 or response.status_code == 202:
-        pass
-    else:
-        print("\n- FAIL, POST command failed to get driver pack attach status, status code is %s" % (response.status_code))
+    if response.status_code != 200:
+        logging.error("\n- FAIL, POST command failed to get driverpack attach status, status code %s" % (response.status_code))
         data = response.json()
-        print("\n-POST command failure results:\n %s" % data)
-        sys.exit()
-    if data[u'DriversAttachStatus'] == x:
-        print("- PASS, driver pack attach status successfully identified as \"%s\"" % x)
+        logging.error("\n- POST command failure results:\n %s" % data)
+        sys.exit(0)
+    if data['DriversAttachStatus'] == x:
+        logging.info("- PASS, driverpack attach status successfully identified as \"%s\"" % x)
     else:
-        print("- FAIL, driver pack attach status not successfully identified as %s" % x)
-        sys.exit()
+        logging.error("- FAIL, driverpack attach status not successfully identified as %s" % x)
+        sys.exit(0)
+
 
 
 
     
 
 if __name__ == "__main__":
-    check_supported_idrac_version()
-    if args["g"]:
+    if args["script_examples"]:
+        script_examples()
+    if args["ip"] or args["ssl"] or args["u"] or args["p"] or args["x"]:
+        idrac_ip = args["ip"]
+        idrac_username = args["u"]
+        if args["p"]:
+            idrac_password = args["p"]
+        if not args["p"] and not args["x"] and args["u"]:
+            idrac_password = getpass.getpass("\n- Argument -p not detected, pass in iDRAC user %s password: " % args["u"])
+        if args["ssl"]:
+            if args["ssl"].lower() == "true":
+                verify_cert = True
+            elif args["ssl"].lower() == "false":
+                verify_cert = False
+            else:
+                verify_cert = False
+        else:
+                verify_cert = False
+        check_supported_idrac_version()
+    else:
+        logging.error("\n- FAIL, invalid argument values or not all required parameters passed in. See help text or argument --script-examples for more details.")
+        sys.exit(0)
+    if args["get_driverpack"]:
         get_driver_pack_info()
-    elif args["a"]:
+    elif args["get_attach_status"]:
         get_attach_status()
-    elif args["U"]:
+    elif args["driverpack"]:
         unpack_and_attach_driver_pack()
         check_concrete_job_status()
         check_attach_status("Attached")
-    elif args["d"]:
+    elif args["detach"]:
         detach_driver_pack()
         check_attach_status("NotAttached")
     else:
-        print("\n- FAIL, either missing required parameter(s) or incorrect parameter value(s)")
+        logging.error("\n- FAIL, invalid argument values or not all required parameters passed in. See help text or argument --script-examples for more details.")
     
         
         

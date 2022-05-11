@@ -1,3 +1,5 @@
+#!/usr/bin/python
+#!/usr/bin/python3
 #
 # BootToNetworkIsoOsdREDFISH. Python script using Redfish API with OEM extension to either get network ISO attach status, boot to network ISO or detach network ISO
 #
@@ -30,7 +32,7 @@ from pprint import pprint
 
 warnings.filterwarnings("ignore")
 
-parser=argparse.ArgumentParser(description="Python script using Redfish API with OEM extension to either get network ISO attach status, boot to network ISO or detach network ISO")
+parser = argparse.ArgumentParser(description="Python script using Redfish API with OEM extension to either get network ISO attach status, boot to network ISO or detach network ISO")
 parser.add_argument('-ip',help='iDRAC IP address', required=False)
 parser.add_argument('-u', help='iDRAC username', required=False)
 parser.add_argument('-p', help='iDRAC password. If you do not pass in argument -p, script will prompt to enter user password which will not be echoed to the screen.', required=False)
@@ -48,7 +50,7 @@ parser.add_argument('--workgroup', help='Pass in the workgroup of your CIFS netw
 parser.add_argument('--imagename', help='Pass in the operating system(OS) string you want to boot from on your network share', required=False)
 parser.add_argument('--detach-iso', help='Detach network ISO', action="store_true", dest="detach_iso", required=False)
 
-args=vars(parser.parse_args())
+args = vars(parser.parse_args())
 logging.basicConfig(format='%(message)s', stream=sys.stdout, level=logging.INFO)
 
 def script_examples():
@@ -156,12 +158,12 @@ def check_concrete_job_status():
             response = requests.get('https://%s%s' % (idrac_ip, concrete_job_uri), verify=verify_cert,auth=(idrac_username, idrac_password))
         current_time = str((datetime.now()-start_time))[0:7]
         if response.status_code == 200 or response.status_code == 202:
-            logging.info("- PASS, GET command passed to get task details")
+            logging.debug("- PASS, GET command passed to get task details")
         else:
             logging.error("\n- FAIL, command failed to check job status, return code %s" % response.status_code)
             logging.error("Extended Info Message: {0}".format(response.json()))
             sys.exit(0)
-        data= response.json()
+        data = response.json()
         if str(current_time)[0:7] >= "0:30:00":
             logging.error("\n- FAIL: Timeout of 30 minutes has been hit, script stopped\n")
             sys.exit(0)
@@ -182,14 +184,10 @@ def check_concrete_job_status():
         elif data["TaskState"] == "Exception":
             logging.error("\n- FAIL, final detailed task results -\n")
             for i in data.items():
-                if i[0] == "Messages":
-                    for ii in i[1][0].items():
-                        print("%s: %s" % (ii[0], ii[1]))   
-                else:
-                    print("%s: %s" % (i[0], i[1]))
-            sys.exit()
+                pprint(i)
+            sys.exit(0)
         else:
-            print("- INFO, task not completed, current status: \"%s\", job execution time: \"%s\"" % (data['TaskState'], current_time))
+            logging.info("- INFO, task not completed, current status: \"%s\", job execution time: \"%s\"" % (data['TaskState'], current_time))
             time.sleep(10)    
     
 def check_attach_status(x):
@@ -220,7 +218,7 @@ def check_attach_status(x):
 if __name__ == "__main__":
     if args["script_examples"]:
         script_examples()
-    if args["ip"] and args["ssl"] or args["u"] or args["p"] or args["x"]:
+    if args["ip"] or args["ssl"] or args["u"] or args["p"] or args["x"]:
         idrac_ip = args["ip"]
         idrac_username = args["u"]
         if args["p"]:
