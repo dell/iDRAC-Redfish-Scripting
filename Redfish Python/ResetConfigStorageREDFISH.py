@@ -114,12 +114,6 @@ def reset_controller():
     else:
         headers = {'content-type': 'application/json'}
         response = requests.post(url, data=json.dumps(payload), headers=headers, verify=verify_cert,auth=(idrac_username,idrac_password))
-    if args["x"]:
-        headers = {'content-type': 'application/json', 'X-Auth-Token': args["x"]}
-        response = requests.post(url, data=json.dumps(payload), headers=headers, verify=verify_cert)
-    else:
-        headers = {'content-type': 'application/json'}
-        response = requests.post(url, data=json.dumps(payload), headers=headers, verify=verify_cert,auth=(idrac_username,idrac_password))
     data = response.json()
     if response.status_code == 202:
         logging.info("\n- PASS: POST command passed to reset storage controller %s, status code %s returned" % (args["reset_controller"], response.status_code))
@@ -177,7 +171,7 @@ def loop_job_status():
 if __name__ == "__main__":
     if args["script_examples"]:
         script_examples()
-    if args["ip"] and args["ssl"] or args["u"] or args["p"] or args["x"]:
+    if args["ip"] or args["ssl"] or args["u"] or args["p"] or args["x"]:
         idrac_ip=args["ip"]
         idrac_username=args["u"]
         if args["p"]:
