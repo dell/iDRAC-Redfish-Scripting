@@ -31,7 +31,7 @@ from pprint import pprint
 
 warnings.filterwarnings("ignore")
 
-parser=argparse.ArgumentParser(description="Python script using Redfish API with OEM extension to reset the storage controller. Note: This method is destructive and will clear all virtual disks on the controller.")
+parser = argparse.ArgumentParser(description="Python script using Redfish API with OEM extension to reset the storage controller. Note: This method is destructive and will clear all virtual disks on the controller.")
 parser.add_argument('-ip',help='iDRAC IP address', required=False)
 parser.add_argument('-u', help='iDRAC username', required=False)
 parser.add_argument('-p', help='iDRAC password', required=False)
@@ -41,8 +41,7 @@ parser.add_argument('--script-examples', help='Get executing script examples', a
 parser.add_argument('--get-controllers', help='Get server storage controller FQDDs', action="store_true", dest="get_controllers", required=False)
 parser.add_argument('--get-virtualdisks', help='Get current server storage controller virtual disk(s) and virtual disk type, pass in storage controller FQDD, Example "\RAID.Integrated.1-1\"', dest="get_virtualdisks", required=False)
 parser.add_argument('--reset-controller', help='Reset the storage controller, pass in the controller FQDD, Example \"RAID.Slot.6-1\"', dest="reset_controller", required=False)
-
-args=vars(parser.parse_args())
+args = vars(parser.parse_args())
 logging.basicConfig(format='%(message)s', stream=sys.stdout, level=logging.INFO)
 
 def script_examples():
@@ -64,7 +63,6 @@ def check_supported_idrac_version():
         logging.warning("\n- WARNING, iDRAC version installed does not support this feature using Redfish API")
         sys.exit(0)
 
-
 def get_storage_controllers():
     if args["x"]:
         response = requests.get('https://%s/redfish/v1/Systems/System.Embedded.1/Storage' % idrac_ip, verify=verify_cert, headers={'X-Auth-Token': args["x"]})   
@@ -77,7 +75,6 @@ def get_storage_controllers():
         controller_list.append(i['@odata.id'].split("/")[-1])
         print(i['@odata.id'].split("/")[-1])
     
-
 def get_virtual_disks():
     test_valid_controller_FQDD_string(args["get_virtualdisks"])
     if args["x"]:
@@ -172,10 +169,10 @@ if __name__ == "__main__":
     if args["script_examples"]:
         script_examples()
     if args["ip"] or args["ssl"] or args["u"] or args["p"] or args["x"]:
-        idrac_ip=args["ip"]
-        idrac_username=args["u"]
+        idrac_ip = args["ip"]
+        idrac_username = args["u"]
         if args["p"]:
-            idrac_password=args["p"]
+            idrac_password = args["p"]
         if not args["p"] and not args["x"] and args["u"]:
             idrac_password = getpass.getpass("\n- Argument -p not detected, pass in iDRAC user %s password: " % args["u"])
         if args["ssl"]:
