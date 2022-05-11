@@ -4,7 +4,7 @@
 # ResetConfigStorageREDFISH. Python script using Redfish API with OEM extension to reset the storage controller
 #
 # _author_ = Texas Roemer <Texas_Roemer@Dell.com>
-# _version_ = 7.0
+# _version_ = 8.0
 #
 # Copyright (c) 2019, Dell, Inc.
 #
@@ -105,15 +105,15 @@ def get_virtual_disks():
 
 def reset_controller():
     global job_id
+    url = 'https://%s/redfish/v1/Dell/Systems/System.Embedded.1/DellRaidService/Actions/DellRaidService.ResetConfig' % (idrac_ip)
+    method = "ResetConfig"
+    payload={"TargetFQDD": args["reset_controller"]}
     if args["x"]:
         headers = {'content-type': 'application/json', 'X-Auth-Token': args["x"]}
         response = requests.post(url, data=json.dumps(payload), headers=headers, verify=verify_cert)
     else:
         headers = {'content-type': 'application/json'}
         response = requests.post(url, data=json.dumps(payload), headers=headers, verify=verify_cert,auth=(idrac_username,idrac_password))
-    url = 'https://%s/redfish/v1/Dell/Systems/System.Embedded.1/DellRaidService/Actions/DellRaidService.ResetConfig' % (idrac_ip)
-    method = "ResetConfig"
-    payload={"TargetFQDD": args["reset_controller"]}
     if args["x"]:
         headers = {'content-type': 'application/json', 'X-Auth-Token': args["x"]}
         response = requests.post(url, data=json.dumps(payload), headers=headers, verify=verify_cert)
