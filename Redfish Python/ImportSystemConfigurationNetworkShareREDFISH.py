@@ -252,7 +252,7 @@ if __name__ == "__main__":
     else:
         logging.error("\n- FAIL, invalid argument values or not all required parameters passed in. See help text or argument --script-examples for more details.")
         sys.exit(0)
-    if args["target"] and args["filename"] and args["shareip"] and args["sharename"] and args["sharetype"]:
+    if args["target"] and args["filename"] and args["shareip"] and args["sharetype"]:
         import_server_configuration_profile()
         check_job_status()
     else:
