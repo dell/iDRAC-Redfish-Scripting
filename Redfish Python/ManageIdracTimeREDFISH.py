@@ -1,8 +1,10 @@
+#!/usr/bin/python
+#!/usr/bin/python3
 #
 # ManageIdracTimeREDFISH. Python script using Redfish API with OEM extension to either GET or SET iDRAC time
 #
 # _author_ = Texas Roemer <Texas_Roemer@Dell.com>
-# _version_ = 1.0
+# _version_ = 2.0
 #
 # Copyright (c) 2020, Dell, Inc.
 #
@@ -15,94 +17,123 @@
 #
 
 
-import requests, json, sys, re, time, warnings, argparse
+import argparse
+import getpass
+import json
+import logging
+import re
+import requests
+import sys
+import time
+import warnings
 
-from datetime import datetime
+from pprint import pprint
 
 warnings.filterwarnings("ignore")
 
-parser=argparse.ArgumentParser(description="Python script using Redfish API with OEM extension to either GET or SET iDRAC time")
-parser.add_argument('script_examples',action="store_true",help='ManageIdracTimeREDFISH.py -ip 192.168.0.120 -u root -p calvin -g y, this example will get current iDRAC time. ManageIdracTimeREDFISH.py -ip 192.168.0.120 -u root -p calvin -s 2019-11-18T17:00:10-06:00, this example sets iDRAC current time.')
-parser.add_argument('-ip',help='iDRAC IP address', required=True)
-parser.add_argument('-u', help='iDRAC username', required=True)
-parser.add_argument('-p', help='iDRAC password', required=True)
-parser.add_argument('-g', help='Get current iDRAC time, pass in \"y\"', required=False)
-parser.add_argument('-s', help='To set iDRAC time, pass in the correct date / time in supported format. To see valid format, execute -g argument first to get current time and supported format.', required=False)
+parser = argparse.ArgumentParser(description="Python script using Redfish API with OEM extension to either GET or SET iDRAC time")
+parser.add_argument('-ip',help='iDRAC IP address', required=False)
+parser.add_argument('-u', help='iDRAC username', required=False)
+parser.add_argument('-p', help='iDRAC password. If you do not pass in argument -p, script will prompt to enter user password which will not be echoed to the screen.', required=False)
+parser.add_argument('-x', help='Pass in X-Auth session token for executing Redfish calls. All Redfish calls will use X-Auth token instead of username/password', required=False)
+parser.add_argument('--ssl', help='SSL cert verification for all Redfish calls, pass in value \"true\" or \"false\". By default, this argument is not required and script ignores validating SSL cert for all Redfish calls.', required=False)
+parser.add_argument('--script-examples', help='Get executing script examples', action="store_true", dest="script_examples", required=False) 
+parser.add_argument('--get', help='Get current iDRAC time',  action="store_true", required=False)
+parser.add_argument('--set', help='To set iDRAC time, pass in the correct date / time in supported format. To see valid format, execute --get argument first to get current time and supported format.', required=False)
+args = vars(parser.parse_args())
+logging.basicConfig(format='%(message)s', stream=sys.stdout, level=logging.INFO)
 
-
-
-
-args=vars(parser.parse_args())
-
-idrac_ip=args["ip"]
-idrac_username=args["u"]
-idrac_password=args["p"]
+def script_examples():
+    print("""\n- ManageIdracTimeREDFISH.py -ip 192.168.0.120 -u root -p calvin --get, this example will get current iDRAC time.
+    \n- ManageIdracTimeREDFISH.py -ip 192.168.0.120 -u root -p calvin --set 2019-11-18T17:00:10-06:00, this example sets iDRAC current time.""")
+    sys.exit(0)
 
 
 def check_supported_idrac_version():
-    response = requests.get('https://%s/redfish/v1/Dell/Managers/iDRAC.Embedded.1/DellTimeService' % idrac_ip,verify=False,auth=(idrac_username, idrac_password))
+    if args["x"]:
+        response = requests.get('https://%s/redfish/v1/Dell/Managers/iDRAC.Embedded.1/DellTimeService' % idrac_ip, verify=verify_cert, headers={'X-Auth-Token': args["x"]})
+    else:
+        response = requests.get('https://%s/redfish/v1/Dell/Managers/iDRAC.Embedded.1/DellTimeService' % idrac_ip, verify=verify_cert, auth=(idrac_username, idrac_password))
     try:
         data = response.json()
     except:
-        print("\n- FAIL, either incorrect iDRAC username / password passed in or iDRAC user doesn't have correct privileges")
-        sys.exit()
+        logging.error("\n- FAIL, either incorrect iDRAC username / password passed in or iDRAC user doesn't have correct privileges")
+        sys.exit(0)
     if response.status_code != 200:
-        print("\n- WARNING, iDRAC version installed does not support this feature using Redfish API")
-        sys.exit()
-    else:
-        pass
-
-
-
+        logging.error("\n- WARNING, iDRAC version installed does not support this feature using Redfish API")
+        sys.exit(0)
 
 def get_idrac_time():
     url = 'https://%s/redfish/v1/Dell/Managers/iDRAC.Embedded.1/DellTimeService/Actions/DellTimeService.ManageTime' % (idrac_ip)
     method = "ManageTime"
-    headers = {'content-type': 'application/json'}
-    payload={"GetRequest":True}
-    response = requests.post(url, data=json.dumps(payload), headers=headers, verify=False,auth=(idrac_username,idrac_password))
-    data=response.json()
-    if response.status_code == 200:
-        print("\n-PASS: POST command passed for %s action GET iDRAC time, status code 200 returned\n" % method)
+    payload = {"GetRequest":True}
+    if args["x"]:
+        headers = {'content-type': 'application/json', 'X-Auth-Token': args["x"]}
+        response = requests.post(url, data=json.dumps(payload), headers=headers, verify=verify_cert)
     else:
-        print("\n-FAIL, POST command failed for %s action, status code is %s" % (method, response.status_code))
-        data = response.json()
-        print("\n-POST command failure results:\n %s" % data)
-        sys.exit()
-    for i in data.items():
-        if i[0] =="@Message.ExtendedInfo":
-            pass
-        else:
-            print("%s: %s" % (i[0], i[1]))
-
+        headers = {'content-type': 'application/json'}
+        response = requests.post(url, data=json.dumps(payload), headers=headers, verify=verify_cert,auth=(idrac_username,idrac_password))
+    data = response.json()
+    if response.status_code == 200:
+        logging.info("\n- PASS: POST command passed for %s action GET iDRAC time, status code 200 returned\n" % method)
+    else:
+        logging.error("\n- FAIL, POST command failed for %s action, status code is %s" % (method, response.status_code))
+        logging.error("\n- POST command failure results:\n %s" % data)
+        sys.exit(0)
+    logging.info("- INFO, current iDRAC date/time: %s" % data["TimeData"])
+        
 def set_idrac_time():
     url = 'https://%s/redfish/v1/Dell/Managers/iDRAC.Embedded.1/DellTimeService/Actions/DellTimeService.ManageTime' % (idrac_ip)
     method = "ManageTime"
-    headers = {'content-type': 'application/json'}
-    payload={"GetRequest":False, "TimeData":args["s"]}
-    response = requests.post(url, data=json.dumps(payload), headers=headers, verify=False,auth=(idrac_username,idrac_password))
-    data=response.json()
-    if response.status_code == 200:
-        print("\n-PASS: POST command passed for %s action to SET iDRAC time, status code 200 returned\n" % method)
+    payload={"GetRequest":False, "TimeData":args["set"]}
+    if args["x"]:
+        headers = {'content-type': 'application/json', 'X-Auth-Token': args["x"]}
+        response = requests.post(url, data=json.dumps(payload), headers=headers, verify=verify_cert)
     else:
-        print("\n-FAIL, POST command failed for %s action, status code is %s" % (method, response.status_code))
+        headers = {'content-type': 'application/json'}
+        response = requests.post(url, data=json.dumps(payload), headers=headers, verify=verify_cert,auth=(idrac_username,idrac_password))
+    data = response.json()
+    if response.status_code == 200:
+        logging.info("\n- PASS: POST command passed for %s action to SET iDRAC time, status code 200 returned\n" % method)
+    else:
+        logging.error("\n- FAIL, POST command failed for %s action, status code is %s" % (method, response.status_code))
         data = response.json()
-        print("\n-POST command failure results:\n %s" % data)
-        sys.exit()
+        logging.error("\n- POST command failure results:\n %s" % data)
+        sys.exit(0)
 
     
 
     
 
 if __name__ == "__main__":
-    check_supported_idrac_version()
-    if args["g"]:
+    if args["script_examples"]:
+        script_examples()
+    if args["ip"] or args["ssl"] or args["u"] or args["p"] or args["x"]:
+        idrac_ip = args["ip"]
+        idrac_username = args["u"]
+        if args["p"]:
+            idrac_password = args["p"]
+        if not args["p"] and not args["x"] and args["u"]:
+            idrac_password = getpass.getpass("\n- Argument -p not detected, pass in iDRAC user %s password: " % args["u"])
+        if args["ssl"]:
+            if args["ssl"].lower() == "true":
+                verify_cert = True
+            elif args["ssl"].lower() == "false":
+                verify_cert = False
+            else:
+                verify_cert = False
+        else:
+            verify_cert = False
+        check_supported_idrac_version()
+    else:
+        logging.error("\n- FAIL, invalid argument values or not all required parameters passed in. See help text or argument --script-examples for more details.")
+        sys.exit(0)
+    if args["get"]:
         get_idrac_time()
-    elif args["s"]:
+    elif args["set"]:
         set_idrac_time()
     else:
-        print("\n- FAIL, either missing argument or incorrect argument used. If needed, check script help text.")
-        sys.exit()
+        logging.error("\n- FAIL, invalid argument values or not all required parameters passed in. See help text or argument --script-examples for more details.")
     
     
     

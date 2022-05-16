@@ -1,8 +1,10 @@
+#!/usr/bin/python
+#!/usr/bin/python3
 #
 # LockVirtualDiskREDFISH. Python script using Redfish API with OEM extension to lock a virtual disk.
 #
 # _author_ = Texas Roemer <Texas_Roemer@Dell.com>
-# _version_ = 4.0
+# _version_ = 5.0
 #
 # Copyright (c) 2018, Dell, Inc.
 #
@@ -15,286 +17,312 @@
 #
 
 
-import requests, json, sys, re, time, warnings, argparse
+import argparse
+import getpass
+import json
+import logging
+import re
+import requests
+import sys
+import time
+import warnings
 
 from datetime import datetime
+from pprint import pprint
 
 warnings.filterwarnings("ignore")
 
 parser=argparse.ArgumentParser(description="Python script using Redfish API with OEM extension to lock a virtual disk. Encryption or controller key must already be set on the controller and virtual disk created with SED(self encrypting drive) drives")
-parser.add_argument('-ip',help='iDRAC IP address', required=True)
-parser.add_argument('-u', help='iDRAC username', required=True)
-parser.add_argument('-p', help='iDRAC password', required=True)
-parser.add_argument('script_examples',action="store_true",help='LockVirtualDiskREDFISH.py -ip 192.168.0.120 -u root -p calvin -cl RAID.Mezzanine.1-1, this exampe will return current virtual disks detected and their lock status for controller RAID.Mezzanine.1-1. LockVirtualDiskREDFISH.py -ip 192.168.0.120 -u root -p calvin -l Disk.Virtual.0:RAID.Mezzanine.1-1, this example will lock VD 0 on controller RAID.Mezzanine.1-1')
-parser.add_argument('-c', help='Get server storage controller FQDDs, pass in \"y\"', required=False)
-parser.add_argument('-d', help='Get server storage controller disk FQDDs only, pass in storage controller FQDD, Example "\RAID.Integrated.1-1\"', required=False)
-parser.add_argument('-dd', help='Get server storage controller disks detailed information, pass in storage controller FQDD, Example "\RAID.Integrated.1-1\"', required=False)
-parser.add_argument('-e', help='Get drive encryption capability, pass in storage controller FQDD, Example "\RAID.Integrated.1-1\"', required=False)
-parser.add_argument('-v', help='Get current server storage controller virtual disk(s) and virtual disk type, pass in storage controller FQDD, Example "\RAID.Integrated.1-1\"', required=False)
-parser.add_argument('-vv', help='Get current server storage controller virtual disk detailed information, pass in storage controller FQDD, Example "\RAID.Integrated.1-1\"', required=False)
-parser.add_argument('-cl', help='Check for current locked virtual disks, pass in storage controller FQDD, Example "\RAID.Integrated.1-1\"', required=False)
-parser.add_argument('-l', help='Lock virtual disk, pass in the virtual disk FQDD, Example \"Disk.Virtual.0:RAID.Integrated.1-1\"', required=False)
+parser.add_argument('-ip',help='iDRAC IP address', required=False)
+parser.add_argument('-u', help='iDRAC username', required=False)
+parser.add_argument('-p', help='iDRAC password', required=False)
+parser.add_argument('-x', help='Pass in X-Auth session token for executing Redfish calls. All Redfish calls will use X-Auth token instead of username/password', required=False)
+parser.add_argument('--ssl', help='SSL cert verification for all Redfish calls, pass in value \"true\" or \"false\". By default, this argument is not required and script ignores validating SSL cert for all Redfish calls.', required=False)
+parser.add_argument('--script-examples', help='Get executing script examples', action="store_true", dest="script_examples", required=False)
+parser.add_argument('--get-controllers', help='Get server storage controller FQDDs', action="store_true", dest="get_controllers", required=False)
+parser.add_argument('--get-disks', help='Get server storage controller disk FQDDs and their raid status, pass in storage controller FQDD, Example "\RAID.Integrated.1-1\"', dest="get_disks", required=False)
+parser.add_argument('--get-disk-encryption', help='Get drive encryption capability, pass in storage controller FQDD, Example "\RAID.Integrated.1-1\"', dest="get_disk_encryption", required=False)
+parser.add_argument('--get-virtualdisks', help='Get current server storage controller virtual disk(s) and virtual disk type, pass in storage controller FQDD, Example "\RAID.Integrated.1-1\"', dest="get_virtualdisks", required=False)
+parser.add_argument('--get-virtualdisk-details', help='Get complete details for all virtual disks behind storage controller, pass in storage controller FQDD, Example "\RAID.Integrated.1-1\"', dest="get_virtualdisk_details", required=False)
+parser.add_argument('--check-locked-vds', help='Check for current locked virtual disks, pass in storage controller FQDD, Example "\RAID.Integrated.1-1\"', dest="check_locked_vds", required=False)
+parser.add_argument('--lock', help='Lock virtual disk, pass in the virtual disk FQDD, Example \"Disk.Virtual.0:RAID.Integrated.1-1\"', required=False)
+args = vars(parser.parse_args())
+logging.basicConfig(format='%(message)s', stream=sys.stdout, level=logging.INFO)
 
-
-args=vars(parser.parse_args())
-
-idrac_ip=args["ip"]
-idrac_username=args["u"]
-idrac_password=args["p"]
-
-if args["d"]:
-    controller = args["d"]
-if args["dd"]:
-    controller = args["dd"]
-
+def script_examples():
+    print("""\n- LockVirtualDiskREDFISH.py -ip 192.168.0.120 -u root -p calvin --get-controllers, this example will return storage controller FQDDs.
+    \n- LockVirtualDiskREDFISH.py -ip 192.168.0.120 -u root -p calvin --get-disk-encryption RAID.Mezzanine.1-1, this example will return encryption capcable status for each drive behind this storage controller.
+    \n- LockVirtualDiskREDFISH.py -ip 192.168.0.120 -u root -p calvin --get-virtualdisks RAID.Integrated.1-1, this example will return virtual disks for this storage controller.
+    \n- LockVirtualDiskREDFISH.py -ip 192.168.0.120 -u root -p calvin --check-locked-vds RAID.Mezzanine.1-1, this example will return current virtual disks detected and their lock status for controller RAID.Mezzanine.1-1.
+    \n- LockVirtualDiskREDFISH.py -ip 192.168.0.120 -u root -p calvin --lock Disk.Virtual.0:RAID.Mezzanine.1-1, this example will lock VD 0 on controller RAID.Mezzanine.1-1""")
+    sys.exit(0)
 
 def check_supported_idrac_version():
-    response = requests.get('https://%s/redfish/v1/Dell/Systems/System.Embedded.1/DellRaidService' % idrac_ip,verify=False,auth=(idrac_username, idrac_password))
-    data = response.json()
-    if response.status_code != 200:
-        print("\n- WARNING, iDRAC version installed does not support this feature using Redfish API")
-        sys.exit()
+    if args["x"]:
+        response = requests.get('https://%s/redfish/v1/Dell/Systems/System.Embedded.1/DellRaidService' % idrac_ip, verify=verify_cert, headers={'X-Auth-Token': args["x"]})
     else:
-        pass
+        response = requests.get('https://%s/redfish/v1/Dell/Systems/System.Embedded.1/DellRaidService' % idrac_ip, verify=verify_cert,auth=(idrac_username, idrac_password))
+    data = response.json()
+    if response.status_code == 401:
+        logging.warning("\n- WARNING, status code %s returned. Incorrect iDRAC username/password or invalid privilege detected." % response.status_code)
+        sys.exit(0)
+    elif response.status_code != 200:
+        logging.warning("\n- WARNING, iDRAC version installed does not support this feature using Redfish API")
+        sys.exit(0)
 
+def test_valid_controller_FQDD_string(x):
+    if args["x"]:
+        response = requests.get('https://%s/redfish/v1/Systems/System.Embedded.1/Storage/%s' % (idrac_ip, x),verify=verify_cert, headers={'X-Auth-Token': args["x"]})
+    else:
+        response = requests.get('https://%s/redfish/v1/Systems/System.Embedded.1/Storage/%s' % (idrac_ip, x),verify=verify_cert,auth=(idrac_username, idrac_password))
+    if response.status_code != 200:
+        logging.error("\n- FAIL, either controller FQDD does not exist or typo in FQDD string name (FQDD controller string value is case sensitive)")
+        sys.exit(0)
 
 def get_storage_controllers():
-    response = requests.get('https://%s/redfish/v1/Systems/System.Embedded.1/Storage' % idrac_ip,verify=False,auth=(idrac_username, idrac_password))
+    if args["x"]:
+        response = requests.get('https://%s/redfish/v1/Systems/System.Embedded.1/Storage' % idrac_ip,verify=verify_cert, headers={'X-Auth-Token': args["x"]})   
+    else:
+        response = requests.get('https://%s/redfish/v1/Systems/System.Embedded.1/Storage' % idrac_ip,verify=verify_cert,auth=(idrac_username, idrac_password))
     data = response.json()
-    print("\n- Server controller(s) detected -\n")
-    controller_list=[]
+    logging.info("\n- Server controller(s) detected -\n")
+    controller_list = []
     for i in data['Members']:
-        for ii in i.items():
-            controller = ii[1].split("/")[-1]
-            controller_list.append(controller)
-            print(controller)
-    
-
+        controller_list.append(i['@odata.id'].split("/")[-1])
+        print(i['@odata.id'].split("/")[-1])
 
 def get_pdisks():
-    disk_used_created_vds=[]
-    available_disks=[]
-    response = requests.get('https://%s/redfish/v1/Systems/System.Embedded.1/Storage/%s' % (idrac_ip, controller),verify=False,auth=(idrac_username, idrac_password))
+    test_valid_controller_FQDD_string(args["get_disks"])
+    if args["x"]:
+        response = requests.get('https://%s/redfish/v1/Systems/System.Embedded.1/Storage/%s' % (idrac_ip, args["get_disks"]), verify=verify_cert, headers={'X-Auth-Token': args["x"]})   
+    else:
+        response = requests.get('https://%s/redfish/v1/Systems/System.Embedded.1/Storage/%s' % (idrac_ip, args["get_disks"]), verify=verify_cert,auth=(idrac_username, idrac_password))
     data = response.json()
-    drive_list=[]
-    try:
-        if data['Drives'] == []:
-            print("\n- WARNING, no drives detected for %s" % controller)
-            sys.exit()
+    if response.status_code != 200:
+        logging.error("\n- FAIL, GET command failed, return code %s" % response.status_code)
+        logging.error("Extended Info Message: {0}".format(response.json()))
+        sys.exit(0)
+    drive_list = []
+    if data['Drives'] == []:
+        logging.warning("\n- WARNING, no drives detected for %s" % args["get_disks"])
+        sys.exit(0)
+    else:
+        for i in data['Drives']:
+            drive_list.append(i['@odata.id'].split("/")[-1])
+    logging.info("\n- Drives detected for controller \"%s\" and RaidStatus\n" % args["get_disks"])
+    for i in drive_list:
+      if args["x"]:
+          response = requests.get('https://%s/redfish/v1/Systems/System.Embedded.1/Storage/Drives/%s' % (idrac_ip, i), verify=verify_cert, headers={'X-Auth-Token': args["x"]})   
+      else:
+          response = requests.get('https://%s/redfish/v1/Systems/System.Embedded.1/Storage/Drives/%s' % (idrac_ip, i), verify=verify_cert,auth=(idrac_username, idrac_password))
+      data = response.json()
+      logging.info(" - Disk: %s, Raidstatus: %s" % (i, data['Oem']['Dell']['DellPhysicalDisk']['RaidStatus']))
+
+def get_virtual_disks():
+    test_valid_controller_FQDD_string(args["get_virtualdisks"])
+    if args["x"]:
+        response = requests.get('https://%s/redfish/v1/Systems/System.Embedded.1/Storage/%s/Volumes' % (idrac_ip, args["get_virtualdisks"]),verify=verify_cert, headers={'X-Auth-Token': args["x"]})
+    else:
+        response = requests.get('https://%s/redfish/v1/Systems/System.Embedded.1/Storage/%s/Volumes' % (idrac_ip, args["get_virtualdisks"]),verify=verify_cert,auth=(idrac_username, idrac_password))
+    data = response.json()
+    vd_list=[]
+    if data['Members'] == []:
+        logging.warning("\n- WARNING, no volume(s) detected for %s" % args["get_virtualdisks"])
+        sys.exit(0)
+    else:
+        for i in data['Members']:
+            vd_list.append(i['@odata.id'].split("/")[-1])
+    logging.info("\n- Volume(s) detected for %s controller -\n" % args["get_virtualdisks"])
+    for ii in vd_list:
+        if args["x"]:
+            response = requests.get('https://%s/redfish/v1/Systems/System.Embedded.1/Storage/Volumes/%s' % (idrac_ip, ii),verify=verify_cert, headers={'X-Auth-Token': args["x"]})
         else:
-            print("\n- Drive(s) detected for %s -\n" % controller)
-            for i in data['Drives']:
-                for ii in i.items():
-                    disk = ii[1].split("/")[-1]
-                    drive_list.append(disk)
-                    print(disk)
-        if args["dd"]:
-          for i in drive_list:
-              response = requests.get('https://%s/redfish/v1/Systems/System.Embedded.1/Storage/Drives/%s' % (idrac_ip, i),verify=False,auth=(idrac_username, idrac_password))
-              data = response.json()
-              
-              print("\n - Detailed drive information for %s -\n" % i)
-              for ii in data.items():
-                  print("%s: %s" % (ii[0],ii[1]))
-                  if ii[0] == "Links":
-                      print("\n")
-                      if ii[1]["Volumes"] != []:
-                          disk_used_created_vds.append(i)
-                      else:
-                          available_disks.append(i)
-    except:
-        print("\n- FAIL, GET command failed. Check to make sure you passed in correct controller FQDD")
+            response = requests.get('https://%s/redfish/v1/Systems/System.Embedded.1/Storage/Volumes/%s' % (idrac_ip, ii),verify=verify_cert, auth=(idrac_username, idrac_password))
+        data = response.json()
+        for i in data.items():
+            if i[0] == "VolumeType":
+                print("%s, Volume type: %s" % (ii, i[1]))
+
+def get_virtual_disks_details():
+    test_valid_controller_FQDD_string(args["get_virtualdisk_details"])
+    if args["x"]:
+        response = requests.get('https://%s/redfish/v1/Systems/System.Embedded.1/Storage/%s/Volumes' % (idrac_ip, args["get_virtualdisk_details"]),verify=verify_cert, headers={'X-Auth-Token': args["x"]})
+    else:
+        response = requests.get('https://%s/redfish/v1/Systems/System.Embedded.1/Storage/%s/Volumes' % (idrac_ip, args["get_virtualdisk_details"]),verify=verify_cert, auth=(idrac_username, idrac_password))
+    data = response.json()
+    vd_list = []
+    if data['Members'] == []:
+        logging.error("\n- WARNING, no volume(s) detected for %s" % args["get_virtualdisk_details"])
+        sys.exit(0)
+    else:
+        logging.info("\n- Volume(s) detected for %s controller -\n" % args["get_virtualdisk_details"])
+        for i in data['Members']:
+            vd_list.append(i['@odata.id'].split("/")[-1])
+            print(i['@odata.id'].split("/")[-1])
+    for ii in vd_list:
+        if args["x"]:
+            response = requests.get('https://%s/redfish/v1/Systems/System.Embedded.1/Storage/Volumes/%s' % (idrac_ip, ii),verify=verify_cert, headers={'X-Auth-Token': args["x"]})
+        else:
+            response = requests.get('https://%s/redfish/v1/Systems/System.Embedded.1/Storage/Volumes/%s' % (idrac_ip, ii),verify=verify_cert, auth=(idrac_username, idrac_password))
+        data = response.json()
+        logging.info("\n----- Detailed Volume information for %s -----\n" % ii)
+        for i in data.items():
+            pprint(i)
+        print("\n")
         
           
-
 def check_drive_capabiity():
-    response = requests.get('https://%s/redfish/v1/Systems/System.Embedded.1/Storage/%s' % (idrac_ip, args["e"]),verify=False,auth=(idrac_username, idrac_password))
+    test_valid_controller_FQDD_string(args["get_disk_encryption"])
+    if args["x"]:
+        response = requests.get('https://%s/redfish/v1/Systems/System.Embedded.1/Storage/%s' % (idrac_ip, args["get_disk_encryption"]),verify=verify_cert, headers={'X-Auth-Token': args["x"]})
+    else:
+        response = requests.get('https://%s/redfish/v1/Systems/System.Embedded.1/Storage/%s' % (idrac_ip, args["get_disk_encryption"]),verify=verify_cert, auth=(idrac_username, idrac_password))
     data = response.json()
-    drive_list=[]
+    drive_list = []
     if data['Drives'] == []:
-        print("\n- WARNING, no drives detected for %s" % args["e"])
-        sys.exit()
+        logging.warning("\n- WARNING, no drives detected for %s" % args["get_disk_encryption"])
+        sys.exit(0)
     else:
         for i in data['Drives']:
             for ii in i.items():
                 disk = ii[1].split("/")[-1]
                 drive_list.append(disk)
-    print("\n - WARNING, Disk FQDD, encryption ability status for controller %s disk(s)\n" % args["e"])
+    logging.info("\n - INFO, Disk FQDD/encryption ability status for controller %s disk(s)\n" % args["get_disk_encryption"])
     for i in drive_list:
-      response = requests.get('https://%s/redfish/v1/Systems/System.Embedded.1/Storage/Drives/%s' % (idrac_ip, i),verify=False,auth=(idrac_username, idrac_password))
+      if args["x"]:
+          response = requests.get('https://%s/redfish/v1/Systems/System.Embedded.1/Storage/Drives/%s' % (idrac_ip, i),verify=verify_cert, headers={'X-Auth-Token': args["x"]})
+      else:
+          response = requests.get('https://%s/redfish/v1/Systems/System.Embedded.1/Storage/Drives/%s' % (idrac_ip, i),verify=verify_cert, auth=(idrac_username, idrac_password))
       data = response.json()
       for ii in data.items():
           if ii[0] == "EncryptionAbility":
               print("%s: EncryptionAbility: %s" % (i,ii[1]))
              
-
-def get_virtual_disks():
-    test_valid_controller_FQDD_string(args["v"])
-    response = requests.get('https://%s/redfish/v1/Systems/System.Embedded.1/Storage/%s/Volumes' % (idrac_ip, args["v"]),verify=False,auth=(idrac_username, idrac_password))
-    data = response.json()
-    vd_list=[]
-    if data['Members'] == []:
-        print("\n- WARNING, no volume(s) detected for %s" % args["v"])
-        sys.exit()
-    else:
-        for i in data['Members']:
-            for ii in i.items():
-                vd = ii[1].split("/")[-1]
-                vd_list.append(vd)
-    print("\n- Volume(s) detected for %s controller -\n" % args["v"])
-    for ii in vd_list:
-        response = requests.get('https://%s/redfish/v1/Systems/System.Embedded.1/Storage/Volumes/%s' % (idrac_ip, ii),verify=False,auth=(idrac_username, idrac_password))
-        data = response.json()
-        for i in data.items():
-            if i[0] == "VolumeType":
-                print("%s, Volume type: %s" % (ii, i[1]))
-    sys.exit()
-
-def get_virtual_disk_details():
-    test_valid_controller_FQDD_string(args["vv"])
-    response = requests.get('https://%s/redfish/v1/Systems/System.Embedded.1/Storage/%s/Volumes' % (idrac_ip, args["vv"]),verify=False,auth=(idrac_username, idrac_password))
-    data = response.json()
-    vd_list=[]
-    if data['Members'] == []:
-        print("\n- WARNING, no volume(s) detected for %s" % args["vv"])
-        sys.exit()
-    else:
-        print("\n- Volume(s) detected for %s controller -\n" % args["vv"])
-        for i in data['Members']:
-            for ii in i.items():
-                vd = ii[1].split("/")[-1]
-                vd_list.append(vd)
-                print(vd)
-    for ii in vd_list:
-        response = requests.get('https://%s/redfish/v1/Systems/System.Embedded.1/Storage/Volumes/%s' % (idrac_ip, ii),verify=False,auth=(idrac_username, idrac_password))
-        data = response.json()
-        print("\n - Detailed Volume information for %s -\n" % ii)
-        for i in data.items():
-            print("%s: %s" % (i[0],i[1]))
-                
-    sys.exit()
-
 def check_lock_VDs():
-    test_valid_controller_FQDD_string(args["cl"])
-    response = requests.get('https://%s/redfish/v1/Systems/System.Embedded.1/Storage/%s/Volumes' % (idrac_ip, args["cl"]),verify=False,auth=(idrac_username, idrac_password))
+    test_valid_controller_FQDD_string(args["check_locked_vds"])
+    if args["x"]:
+        response = requests.get('https://%s/redfish/v1/Systems/System.Embedded.1/Storage/%s/Volumes' % (idrac_ip, args["check_locked_vds"]),verify=verify_cert, headers={'X-Auth-Token': args["x"]})
+    else:
+        response = requests.get('https://%s/redfish/v1/Systems/System.Embedded.1/Storage/%s/Volumes' % (idrac_ip, args["check_locked_vds"]),verify=verify_cert, auth=(idrac_username, idrac_password))
     data = response.json()
-    vd_list=[]
+    vd_list = []
     if data['Members'] == []:
-        print("\n- WARNING, no volume(s) detected for %s" % args["cl"])
+        print("\n- WARNING, no volume(s) detected for %s" % args["check_locked_vds"])
         sys.exit()
     else:
         for i in data['Members']:
             for ii in i.items():
                 vd = ii[1].split("/")[-1]
                 vd_list.append(vd)
-    print("\n- Volume(s) detected for %s controller -\n" % args["cl"])
+    logging.info("\n- Volume(s) detected for %s controller -\n" % args["check_locked_vds"])
     for ii in vd_list:
-        response = requests.get('https://%s/redfish/v1/Systems/System.Embedded.1/Storage/Volumes/%s' % (idrac_ip, ii),verify=False,auth=(idrac_username, idrac_password))
+        if args["x"]:
+            response = requests.get('https://%s/redfish/v1/Systems/System.Embedded.1/Storage/Volumes/%s' % (idrac_ip, ii),verify=verify_cert, headers={'X-Auth-Token': args["x"]})
+        else:
+            response = requests.get('https://%s/redfish/v1/Systems/System.Embedded.1/Storage/Volumes/%s' % (idrac_ip, ii),verify=verify_cert, auth=(idrac_username, idrac_password))
         data = response.json()
         for i in data.items():
             if i[0] == "Encrypted":
                 print("%s, Encrypted(Lock) Status: %s" % (ii, i[1]))
-    sys.exit()
-
+    sys.exit(0)
 
 def lock_VD():
     global job_id
     method = "LockVirtualDisk"
     url = 'https://%s/redfish/v1/Dell/Systems/System.Embedded.1/DellRaidService/Actions/DellRaidService.LockVirtualDisk' % (idrac_ip)
-    headers = {'content-type': 'application/json'}
-    payload={"TargetFQDD": args["l"]}
-    response = requests.post(url, data=json.dumps(payload), headers=headers, verify=False,auth=(idrac_username,idrac_password))
+    payload={"TargetFQDD": args["lock"]}
+    if args["x"]:
+        headers = {'content-type': 'application/json', 'X-Auth-Token': args["x"]}
+        response = requests.post(url, data=json.dumps(payload), headers=headers, verify=verify_cert)
+    else:
+        headers = {'content-type': 'application/json'}
+        response = requests.post(url, data=json.dumps(payload), headers=headers, verify=verify_cert,auth=(idrac_username,idrac_password))
     data = response.json()
     if response.status_code == 202:
-        print("\n-PASS: POST command passed to lock virtual disk \"%s\"" % args["l"])
+        logging.info("\n- PASS: POST command passed to lock virtual disk \"%s\"" % args["lock"])
         try:
             job_id = response.headers['Location'].split("/")[-1]
         except:
-            print("- FAIL, unable to locate job ID in JSON headers output")
-            sys.exit()
-        print("- Job ID %s successfully created for storage method \"%s\"" % (job_id, method)) 
+            logging.error("- FAIL, unable to locate job ID in JSON headers output")
+            sys.exit(0)
+        logging.info("- Job ID %s successfully created for storage method \"%s\"" % (job_id, method)) 
     else:
-        print("\n-FAIL, POST command failed to lock virtual disk \"%s\"" % args["l"])
-        data = response.json()
-        print("\n-POST command failure results:\n %s" % data)
-        sys.exit()
-
-def check_vd_lock_status():
-    response = requests.get('https://%s/redfish/v1/Systems/System.Embedded.1/Storage/Volumes/%s' % (idrac_ip, args["l"]),verify=False,auth=(idrac_username, idrac_password))
-    data = response.json()
-    for i in data.items():
-        if i[0] == "Encrypted":
-            if i[1] == True:
-                print("\n- PASS, virtual disk %s is now locked and encrypted" % args["l"])
-            elif i[1] == False:
-                print("\n- FAIL, virtual disk %s is NOT locked and encrypted" % args["l"])
+        logging.error("\n- FAIL, POST command failed to lock virtual disk \"%s\"" % args["lock"])
+        logging.error("\n- POST command failure results:\n %s" % data)
+        sys.exit(0)
 
 def loop_job_status():
-    start_time=datetime.now()
+    start_time = datetime.now()
     while True:
-        req = requests.get('https://%s/redfish/v1/Managers/iDRAC.Embedded.1/Jobs/%s' % (idrac_ip, job_id), auth=(idrac_username, idrac_password), verify=False)
-        current_time=(datetime.now()-start_time)
-        statusCode = req.status_code
-        if statusCode == 200:
-            pass
+        if args["x"]:
+            response = requests.get('https://%s/redfish/v1/Managers/iDRAC.Embedded.1/Jobs/%s' % (idrac_ip, job_id), verify=verify_cert, headers={'X-Auth-Token': args["x"]})
         else:
-            print("\n- FAIL, Command failed to check job status, return code is %s" % statusCode)
-            print("Extended Info Message: {0}".format(req.json()))
-            sys.exit()
-        data = req.json()
+            response = requests.get('https://%s/redfish/v1/Managers/iDRAC.Embedded.1/Jobs/%s' % (idrac_ip, job_id), verify=verify_cert,auth=(idrac_username, idrac_password))
+        current_time = (datetime.now()-start_time)
+        if response.status_code != 200:
+            logging.error("\n- FAIL, GET command failed to check job status, return code is %s" % statusCode)
+            logging.error("Extended Info Message: {0}".format(req.json()))
+            sys.exit(0)
+        data = response.json()
         if str(current_time)[0:7] >= "2:00:00":
-            print("\n- FAIL: Timeout of 2 hours has been hit, script stopped\n")
-            sys.exit()
+            logging.error("\n- FAIL: Timeout of 2 hours has been hit, script stopped\n")
+            sys.exit(0)
         elif "Fail" in data['Message'] or "fail" in data['Message'] or data['JobState'] == "Failed":
-            print("- FAIL: job ID %s failed, failed message is: %s" % (job_id, data['Message']))
-            sys.exit()
+            logging.error("- FAIL: job ID %s failed, failed message is: %s" % (job_id, data['Message']))
+            sys.exit(0)
         elif data['JobState'] == "Completed":
-            print("\n--- PASS, Final Detailed Job Status Results ---\n")
+            logging.info("\n--- PASS, Final Detailed Job Status Results ---\n")
             for i in data.items():
-                if "odata" in i[0] or "MessageArgs" in i[0] or "TargetSettingsURI" in i[0]:
-                    pass
-                else:
+                if "odata" not in i[0] or "MessageArgs" not in i[0] or "TargetSettingsURI" not in i[0]:
                     print("%s: %s" % (i[0],i[1]))
             break
         else:
-            print("- WARNING, JobStatus not completed, current status: \"%s\", percent complete: \"%s\"" % (data['Message'],data['PercentComplete']))
+            logging.info("- INFO, job not completed, current status: \"%s\"" % data['Message'].strip("."))
             time.sleep(3)
-
-def test_valid_controller_FQDD_string(x):
-    response = requests.get('https://%s/redfish/v1/Systems/System.Embedded.1/Storage/%s' % (idrac_ip, x),verify=False,auth=(idrac_username, idrac_password))
-    if response.status_code != 200:
-        print("\n- FAIL, either controller FQDD does not exist or typo in FQDD string name (FQDD controller string value is case sensitive)")
-        sys.exit()
-    else:
-        pass    
     
 
 if __name__ == "__main__":
-    check_supported_idrac_version()
-    if args["c"]:
+    if args["script_examples"]:
+        script_examples()
+    if args["ip"] or args["ssl"] or args["u"] or args["p"] or args["x"]:
+        idrac_ip = args["ip"]
+        idrac_username = args["u"]
+        if args["p"]:
+            idrac_password = args["p"]
+        if not args["p"] and not args["x"] and args["u"]:
+            idrac_password = getpass.getpass("\n- Argument -p not detected, pass in iDRAC user %s password: " % args["u"])
+        if args["ssl"]:
+            if args["ssl"].lower() == "true":
+                verify_cert = True
+            elif args["ssl"].lower() == "false":
+                verify_cert = False
+            else:
+                verify_cert = False
+        else:
+                verify_cert = False
+        check_supported_idrac_version()
+    else:
+        logging.error("\n- FAIL, invalid argument values or not all required parameters passed in. See help text or argument --script-examples for more details.")
+        sys.exit(0)
+    if args["get_controllers"]:
         get_storage_controllers()
-    elif args["v"]:
+    elif args["get_virtualdisks"]:
         get_virtual_disks()
-    elif args["vv"]:
+    elif args["get_virtualdisk_details"]:
         get_virtual_disk_details()
-    elif args["d"] or args["dd"]:
+    elif args["get_disks"]:
         get_pdisks()
-    elif args["e"]:
+    elif args["get_disk_encryption"]:
         check_drive_capabiity()
-    elif args["cl"]:
+    elif args["check_locked_vds"]:
         check_lock_VDs()
-    elif args["l"]:
+    elif args["lock"]:
         lock_VD()
         loop_job_status()
-        check_vd_lock_status()
     else:
-        print("\n- FAIL, either missing parameter(s) or incorrect parameter(s) passed in. If needed, execute script with -h for script help")
+        logging.error("\n- FAIL, invalid argument values or not all required parameters passed in. See help text or argument --script-examples for more details.")
         
 
-    
-        
-    
-    
         
             
         
