@@ -4,7 +4,7 @@
 # BootToNetworkIsoOsdREDFISH. Python script using Redfish API with OEM extension to either get network ISO attach status, boot to network ISO or detach network ISO
 #
 # _author_ = Texas Roemer <Texas_Roemer@Dell.com>
-# _version_ = 2.0
+# _version_ = 3.0
 #
 # Copyright (c) 2019, Dell, Inc.
 #
@@ -41,7 +41,7 @@ parser.add_argument('--ssl', help='SSL cert verification for all Redfish calls, 
 parser.add_argument('--script-examples', help='Get executing script examples', action="store_true", dest="script_examples", required=False)
 parser.add_argument('--get-attach-status', help='Get attach status for network ISO', action="store_true", dest="get_attach_status", required=False)
 parser.add_argument('--boot-iso', help='Boot to network ISO. Make sure to also pass in network share arguments, see examples for more details', action="store_true", dest="boot_iso", required=False)
-parser.add_argument('--ipaddress', help='Pass in the IP address of the network share', required=False)
+parser.add_argument('--shareip', help='Pass in the IP address of the network share', required=False)
 parser.add_argument('--sharetype', help='Pass in the share type of the network share. Supported values are NFS and CIFS', required=False)
 parser.add_argument('--sharename', help='Pass in the network share share name', required=False)
 parser.add_argument('--username', help='Pass in the CIFS username', required=False)
@@ -55,7 +55,7 @@ logging.basicConfig(format='%(message)s', stream=sys.stdout, level=logging.INFO)
 
 def script_examples():
     print("""\n- BootToNetworkIsoOsdREDFISH.py -ip 192.168.0.120 -u root -p calvin --get-attach-status, this example to get current network ISO attach status.
-    \n- BootToNetworkIsoOsdREDFISH.py -ip 192.168.0.120 -u root -p calvin --boot-iso --ipaddress 192.168.0.130 --sharetype NFS --sharename /nfs --imagename ESXi.iso, this example will boot to network ISO on NFS share
+    \n- BootToNetworkIsoOsdREDFISH.py -ip 192.168.0.120 -u root -p calvin --boot-iso --shareip 192.168.0.130 --sharetype NFS --sharename /nfs --imagename ESXi.iso, this example will boot to network ISO on NFS share
     \n- BootToNetworkIsoOsdREDFISH.py -ip 192.168.0.120 -u root -p calvin --detach-iso, this example will detach attached ISO.""")
     sys.exit(0)
     
@@ -101,8 +101,8 @@ def boot_to_network_iso():
     logging.info("\n- INFO, starting %s operation which may take 5-10 seconds to create the task" % method)
     url = 'https://%s/redfish/v1/Dell/Systems/System.Embedded.1/DellOSDeploymentService/Actions/DellOSDeploymentService.BootToNetworkISO' % (idrac_ip)
     payload={}
-    if args["ipaddress"]:
-        payload["IPAddress"] = args["ipaddress"]
+    if args["shareip"]:
+        payload["IPAddress"] = args["shareip"]
     if args["sharetype"]:
         payload["ShareType"] = args["sharetype"]
     if args["sharename"]:
@@ -240,7 +240,7 @@ if __name__ == "__main__":
         sys.exit(0)
     if args["get_attach_status"]:
         get_attach_status()
-    elif args["boot_iso"] and args["ipaddress"] and args["sharetype"] and args["sharename"]:
+    elif args["boot_iso"] and args["shareip"] and args["sharetype"] and args["sharename"]:
         boot_to_network_iso()
         check_concrete_job_status()
         check_attach_status("Attached")
