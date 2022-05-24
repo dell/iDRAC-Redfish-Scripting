@@ -4,7 +4,7 @@
 # CreateVirtualDiskREDFISH. Python script using Redfish API to either get controllers / disks / virtual disks / supported RAID levels or create virtual disk.
 #
 # _author_ = Texas Roemer <Texas_Roemer@Dell.com>
-# _version_ = 18.0
+# _version_ = 19.0
 #
 # Copyright (c) 2018, Dell, Inc.
 #
@@ -40,6 +40,7 @@ parser.add_argument('--ssl', help='SSL cert verification for all Redfish calls, 
 parser.add_argument('--script-examples', help='Get executing script examples', action="store_true", dest="script_examples", required=False) 
 parser.add_argument('--get-controllers', help='Get server storage controller FQDDs', action="store_true", dest="get_controllers", required=False)
 parser.add_argument('--get-disks', help='Get server storage controller disk FQDDs and their raid status, pass in storage controller FQDD, Example "\RAID.Integrated.1-1\"', dest="get_disks", required=False)
+parser.add_argument('--get-disk-details', help='Get detailed disk information, pass in storage controller FQDD, Example "\RAID.Integrated.1-1\"', dest="get_disk_details", required=False)
 parser.add_argument('--get-virtualdisks', help='Get current server storage controller virtual disk(s) and virtual disk type, pass in storage controller FQDD, Example "\RAID.Integrated.1-1\"', dest="get_virtualdisks", required=False)
 parser.add_argument('--get-virtualdisk-details', help='Get complete details for all virtual disks behind storage controller, pass in storage controller FQDD, Example "\RAID.Integrated.1-1\"', dest="get_virtualdisk_details", required=False)
 parser.add_argument('--supported-raid-levels', help='Get current supported volume types (RAID levels) for your controller, pass in controller FQDD', dest="supported_raid_levels", required=False)
@@ -49,8 +50,7 @@ parser.add_argument('--raid-level', help='Pass in the RAID level you want to cre
 parser.add_argument('--size', help='Pass in the size(CapacityBytes) in bytes for VD creation. This is OPTIONAL, if you don\'t pass in the size, VD creation will use full disk size to create the VD', required=False)
 parser.add_argument('--stripesize', help='Pass in the stripesize(OptimumIOSizeBytes) in bytes for VD creation. This is OPTIONAL, if you don\'t pass in stripesize, controller will use the default value', required=False)
 parser.add_argument('--name', help='Pass in the name for VD creation. This is OPTIONAL, if you don\'t pass in name, controller will use the default value', required=False)
-
-args=vars(parser.parse_args())
+args = vars(parser.parse_args())
 logging.basicConfig(format='%(message)s', stream=sys.stdout, level=logging.INFO)
 
 def script_examples():
@@ -92,7 +92,7 @@ def get_storage_controllers():
         response = requests.get('https://%s/redfish/v1/Systems/System.Embedded.1/Storage' % idrac_ip,verify=verify_cert,auth=(idrac_username, idrac_password))
     data = response.json()
     logging.info("\n- Server controller(s) detected -\n")
-    controller_list=[]
+    controller_list = []
     for i in data['Members']:
         controller_list.append(i['@odata.id'].split("/")[-1])
         print(i['@odata.id'].split("/")[-1])
@@ -124,6 +124,33 @@ def get_pdisks():
           response = requests.get('https://%s/redfish/v1/Systems/System.Embedded.1/Storage/Drives/%s' % (idrac_ip, i), verify=verify_cert,auth=(idrac_username, idrac_password))
       data = response.json()
       logging.info(" - Disk: %s, Raidstatus: %s" % (i, data['Oem']['Dell']['DellPhysicalDisk']['RaidStatus']))
+
+def get_pdisk_details():
+    test_valid_controller_FQDD_string(args["get_disk_details"])
+    if args["x"]:
+        response = requests.get('https://%s/redfish/v1/Systems/System.Embedded.1/Storage/%s' % (idrac_ip, args["get_disk_details"]), verify=verify_cert, headers={'X-Auth-Token': args["x"]})   
+    else:
+        response = requests.get('https://%s/redfish/v1/Systems/System.Embedded.1/Storage/%s' % (idrac_ip, args["get_disk_details"]), verify=verify_cert,auth=(idrac_username, idrac_password))
+    data = response.json()
+    if response.status_code != 200:
+        logging.error("\n- FAIL, GET command failed, return code %s" % response.status_code)
+        logging.error("Extended Info Message: {0}".format(response.json()))
+        sys.exit(0)
+    drive_list = []
+    if data['Drives'] == []:
+        logging.warning("\n- WARNING, no drives detected for %s" % args["get_disk_details"])
+        sys.exit(0)
+    else:
+        for i in data['Drives']:
+            drive_list.append(i['@odata.id'].split("/")[-1])
+    for i in drive_list:
+        logging.info("\n- Detailed information for %s -\n" % i)
+        if args["x"]:
+          response = requests.get('https://%s/redfish/v1/Systems/System.Embedded.1/Storage/Drives/%s' % (idrac_ip, i), verify=verify_cert, headers={'X-Auth-Token': args["x"]})   
+        else:
+          response = requests.get('https://%s/redfish/v1/Systems/System.Embedded.1/Storage/Drives/%s' % (idrac_ip, i), verify=verify_cert,auth=(idrac_username, idrac_password))
+        data = response.json()
+        pprint(data)
 
 def get_virtual_disks():
     test_valid_controller_FQDD_string(args["get_virtualdisks"])
@@ -426,11 +453,11 @@ def reboot_server():
 if __name__ == "__main__":
     if args["script_examples"]:
         script_examples()
-    if args["ip"] and args["ssl"] or args["u"] or args["p"] or args["x"]:
-        idrac_ip=args["ip"]
-        idrac_username=args["u"]
+    if args["ip"] or args["ssl"] or args["u"] or args["p"] or args["x"]:
+        idrac_ip = args["ip"]
+        idrac_username = args["u"]
         if args["p"]:
-            idrac_password=args["p"]
+            idrac_password = args["p"]
         if not args["p"] and not args["x"] and args["u"]:
             idrac_password = getpass.getpass("\n- Argument -p not detected, pass in iDRAC user %s password: " % args["u"])
         if args["ssl"]:
@@ -450,6 +477,8 @@ if __name__ == "__main__":
         get_storage_controllers()
     elif args["get_disks"]:
         get_pdisks()
+    elif args["get_disk_details"]:
+        get_pdisk_details()
     elif args["get_virtualdisks"]:
         get_virtual_disks()
     elif args["get_virtualdisk_details"]:
