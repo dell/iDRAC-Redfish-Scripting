@@ -186,7 +186,7 @@ def support_assist_register():
         sys.exit(0)
 
 
-def export_support_assist_colection_network_share():
+def export_support_assist_collection_network_share():
     global job_id
     if args["export_network"]:
         url = 'https://%s/redfish/v1/Dell/Managers/iDRAC.Embedded.1/DellLCService/Actions/DellLCService.SupportAssistCollection' % (idrac_ip)
@@ -327,7 +327,7 @@ if __name__ == "__main__":
         logging.error("\n- FAIL, invalid argument values or not all required parameters passed in. See help text or argument --script-examples for more details.")
         sys.exit(0)
     if args["export_network"] or args["export_last"]:
-        export_support_assist_colection_network_share()
+        export_support_assist_collection_network_share()
         loop_job_status()
     elif args["accept"]:
         support_assist_accept_EULA()
