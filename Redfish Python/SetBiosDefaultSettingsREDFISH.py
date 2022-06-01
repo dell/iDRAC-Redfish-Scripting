@@ -1,7 +1,7 @@
+#!/usr/bin/python
+#!/usr/bin/python3
 #
-# SetBiosDefaultSettingsREDFISH. Python script using Redfish API to set BIOS to default settings
-#
-# NOTE: For reboot_now option, pass in "y" if you want to reboot the server now or "n" which will still set the flag to set BIOS to default settings but not reboot the server now. Reset to default will get applied when the next manual reboot of the server occurs.
+# SetBiosDefaultSettingsREDFISH. Python script using Redfish API to set BIOS to default settings.
 #
 # _author_ = Texas Roemer <Texas_Roemer@Dell.com>
 # _version_ = 3.0
@@ -16,96 +16,188 @@
 # http://www.gnu.org/licenses/old-licenses/gpl-2.0.txt.
 #
 
-import requests, json, sys, re, time, warnings, os
+import argparse
+import getpass
+import json
+import logging
+import os
+import re
+import requests
+import sys
+import time
+import warnings
 
 from datetime import datetime
+from pprint import pprint
 
 warnings.filterwarnings("ignore")
 
-try:
-    idrac_ip = sys.argv[1]
-    idrac_username = sys.argv[2]
-    idrac_password = sys.argv[3]
-    reboot_now = sys.argv[4].lower()
-except:
-    print("- FAIL: You must pass in script name along with iDRAC IP / iDRAC username / iDRAC password / reboot now choice. Example: \"script_name.py 192.168.0.120 root calvin y\"")
-    sys.exit()
+parser=argparse.ArgumentParser(description="Python script using Redfish API to reset BIOS to default settings. Server reboot is needed to apply these changes.")
+parser.add_argument('-ip',help='iDRAC IP address', required=False)
+parser.add_argument('-u', help='iDRAC username', required=False)
+parser.add_argument('-p', help='iDRAC password. If you do not pass in argument -p, script will prompt to enter user password which will not be echoed to the screen.', required=False)
+parser.add_argument('-x', help='Pass in X-Auth session token for executing Redfish calls. All Redfish calls will use X-Auth token instead of username/password', required=False)
+parser.add_argument('--ssl', help='SSL cert verification for all Redfish calls, pass in value \"true\" or \"false\". By default, this argument is not required and script ignores validating SSL cert for all Redfish calls.', required=False)
+parser.add_argument('--script-examples', help='Get executing script examples', action="store_true", dest="script_examples", required=False) 
+parser.add_argument('--reboot', help='Reboot server now to reset BIOS to default settings. If you do not pass in this argument, flag is still set to reset BIOS to default settings on next server manual reboot.', action="store_true", required=False)
+args = vars(parser.parse_args())
+logging.basicConfig(format='%(message)s', stream=sys.stdout, level=logging.INFO)
 
-  
-### Function to set BIOS reset to default flag, will be applied on next server reboot
+def script_examples():
+    print("""\n- SetBiosDefaultSettingsREDFISH.py -ip 192.168.0.120 -u root -p calvin --reboot, this example will reboot the server now to reset BIOS to default settings.""")
+    sys.exit(0)
+
+def check_supported_idrac_version():
+    if args["x"]:
+        response = requests.get('https://%s/redfish/v1/Systems/System.Embedded.1/Bios' % idrac_ip, verify=verify_cert, headers={'X-Auth-Token': args["x"]})
+    else:
+        response = requests.get('https://%s/redfish/v1/Systems/System.Embedded.1/Bios' % idrac_ip, verify=verify_cert, auth=(idrac_username, idrac_password))
+    data = response.json()
+    if response.status_code == 401:
+        logging.warning("\n- WARNING, status code %s returned. Incorrect iDRAC username/password or invalid privilege detected." % response.status_code)
+        sys.exit(0)
+    elif response.status_code != 200:
+        logging.warning("\n- WARNING, iDRAC version installed does not support this feature using Redfish API")
+        sys.exit(0)
 
 def set_bios_reset_to_default():
     url = "https://%s/redfish/v1/Systems/System.Embedded.1/Bios/Actions/Bios.ResetBios/" % idrac_ip
-    headers = {'content-type': 'application/json'}
-    response = requests.post(url, headers=headers, verify=False,auth=(idrac_username, idrac_password))
+    if args["x"]:
+        headers = {'content-type': 'application/json', 'X-Auth-Token': args["x"]}
+        response = requests.post(url, headers=headers, verify=verify_cert)
+    else:
+        headers = {'content-type': 'application/json'}
+        response = requests.post(url, headers=headers, verify=verify_cert,auth=(idrac_username,idrac_password))
     data = response.json()
-    statusCode = response.status_code
-    if statusCode == 200:
-        print("\n- PASS: status code %s returned, flag set for BIOS reset to defaults which will get applied on next server reboot\n" % statusCode)
+    if response.status_code == 200:
+        logging.info("\n- PASS: status code %s returned, flag set to reset BIOS to default settings" % response.status_code)
     else:
-        print("\n- FAIL, Command failed, error code is %s" % statusCode)
-        detail_message=str(response.__dict__)
-        print(detail_message)
-        sys.exit()
+        logging.error("\n- FAIL, Command failed, errror code is %s" % response.status_code)
+        detail_message = str(response.__dict__)
+        logging.error(detail_message)
+        sys.exit(0)
     
-### Function to check if reboot server is needed
-                                                                          
 def reboot_server():
-    if reboot_now == "y" or reboot_now == "yes":
-        print("\n- WARNING, user selected to automatically reboot the server now")
-        response = requests.get('https://%s/redfish/v1/Systems/System.Embedded.1/' % idrac_ip,verify=False,auth=(idrac_username, idrac_password))
-        data = response.json()
-        print("- WARNING, Current server power state is: %s\n" % data[u'PowerState'])
-        if data[u'PowerState'] == "On":
-            url = 'https://%s/redfish/v1/Systems/System.Embedded.1/Actions/ComputerSystem.Reset' % idrac_ip
-            payload = {'ResetType': 'ForceOff'}
-            headers = {'content-type': 'application/json'}
-            response = requests.post(url, data=json.dumps(payload), headers=headers, verify=False, auth=(idrac_username,idrac_password))
-            statusCode = response.status_code
-            if statusCode == 204:
-                print("- PASS, Command passed to power OFF server, code return is %s\n" % statusCode)
-            else:
-                print("\n- FAIL, Command failed to power OFF server, status code is: %s\n" % statusCode)
-                print("Extended Info Message: {0}".format(response.json()))
-                sys.exit()
-            time.sleep(30)
-            payload = {'ResetType': 'On'}
-            headers = {'content-type': 'application/json'}
-            response = requests.post(url, data=json.dumps(payload), headers=headers, verify=False, auth=(idrac_username,idrac_password))
-            statusCode = response.status_code
-            if statusCode == 204:
-                print("- PASS, Command passed to power ON server, code return is %s\n" % statusCode)
-            else:
-                print("\n- FAIL, Command failed to power ON server, status code is: %s\n" % statusCode)
-                print("Extended Info Message: {0}".format(response.json()))
-                sys.exit()
-        else:
-            url = 'https://%s/redfish/v1/Systems/System.Embedded.1/Actions/ComputerSystem.Reset' % idrac_ip
-            payload = {'ResetType': 'On'}
-            headers = {'content-type': 'application/json'}
-            response = requests.post(url, data=json.dumps(payload), headers=headers, verify=False, auth=(idrac_username,idrac_password))
-            statusCode = response.status_code
-            if statusCode == 204:
-                print("- PASS, Command passed to power ON server, code return is %s\n" % statusCode)
-            else:
-                print("- FAIL, Command failed to power ON server, status code is: %s\n" % statusCode)
-                print("Extended Info Message: {0}".format(response.json()))
-                sys.exit()
-    elif reboot_now == "n" or reboot_now == "no":
-        print("\n- WARNING, user selected to not automatically reboot the server now, BIOS reset to defaults will be applied on next server reboot")
-        sys.exit()
+    if args["x"]:
+        response = requests.get('https://%s/redfish/v1/Systems/System.Embedded.1' % idrac_ip, verify=verify_cert, headers={'X-Auth-Token': args["x"]})   
     else:
-        print("\n- WARNING, invalid reboot_now option, server will not reboot but flag is still set to reset BIOS to default settings. Will be applied on next server reboot")
-        sys.exit()
-
-
-### Run code
+        response = requests.get('https://%s/redfish/v1/Systems/System.Embedded.1' % idrac_ip, verify=verify_cert,auth=(idrac_username, idrac_password))
+    data = response.json()
+    logging.info("\n- INFO, Current server power state is: %s" % data['PowerState'])
+    if data['PowerState'] == "On":
+        url = 'https://%s/redfish/v1/Systems/System.Embedded.1/Actions/ComputerSystem.Reset' % idrac_ip
+        payload = {'ResetType': 'GracefulShutdown'}
+        if args["x"]:
+            headers = {'content-type': 'application/json', 'X-Auth-Token': args["x"]}
+            response = requests.post(url, data=json.dumps(payload), headers=headers, verify=verify_cert)
+        else:
+            headers = {'content-type': 'application/json'}
+            response = requests.post(url, data=json.dumps(payload), headers=headers, verify=verify_cert,auth=(idrac_username,idrac_password))
+        if response.status_code == 204:
+            logging.info("- PASS, POST command passed to gracefully power OFF server, status code return is %s" % response.status_code)
+            logging.info("- INFO, script will now verify the server was able to perform a graceful shutdown. If the server was unable to perform a graceful shutdown, forced shutdown will be invoked in 5 minutes")
+            time.sleep(15)
+            start_time = datetime.now()
+        else:
+            logging.error("\n- FAIL, Command failed to gracefully power OFF server, status code is: %s\n" % response.status_code)
+            logging.error("Extended Info Message: {0}".format(response.json()))
+            sys.exit(0)
+        while True:
+            if args["x"]:
+                response = requests.get('https://%s/redfish/v1/Systems/System.Embedded.1' % idrac_ip, verify=verify_cert, headers={'X-Auth-Token': args["x"]})   
+            else:
+                response = requests.get('https://%s/redfish/v1/Systems/System.Embedded.1' % idrac_ip, verify=verify_cert,auth=(idrac_username, idrac_password))
+            data = response.json()
+            current_time = str(datetime.now() - start_time)[0:7]
+            if data['PowerState'] == "Off":
+                logging.info("- PASS, GET command passed to verify graceful shutdown was successful and server is in OFF state")
+                break
+            elif current_time == "0:05:00":
+                logging.info("- INFO, unable to perform graceful shutdown, server will now perform forced shutdown")
+                payload = {'ResetType': 'ForceOff'}
+                if args["x"]:
+                    headers = {'content-type': 'application/json', 'X-Auth-Token': args["x"]}
+                    response = requests.post(url, data=json.dumps(payload), headers=headers, verify=verify_cert)
+                else:
+                    headers = {'content-type': 'application/json'}
+                    response = requests.post(url, data=json.dumps(payload), headers=headers, verify=verify_cert,auth=(idrac_username,idrac_password))
+                if response.status_code == 204:
+                    logging.info("- PASS, POST command passed to perform forced shutdown, status code return is %s" % response.status_code)
+                    time.sleep(15)
+                    if args["x"]:
+                        response = requests.get('https://%s/redfish/v1/Systems/System.Embedded.1' % idrac_ip, verify=verify_cert, headers={'X-Auth-Token': args["x"]})   
+                    else:
+                        response = requests.get('https://%s/redfish/v1/Systems/System.Embedded.1' % idrac_ip, verify=verify_cert,auth=(idrac_username, idrac_password))
+                    data = response.json()
+                    if data['PowerState'] == "Off":
+                        logging.info("- PASS, GET command passed to verify forced shutdown was successful and server is in OFF state")
+                        break
+                    else:
+                        logging.error("- FAIL, server not in OFF state, current power status is %s" % data['PowerState'])
+                        sys.exit(0)    
+            else:
+                continue 
+        payload = {'ResetType': 'On'}
+        if args["x"]:
+            headers = {'content-type': 'application/json', 'X-Auth-Token': args["x"]}
+            response = requests.post(url, data=json.dumps(payload), headers=headers, verify=verify_cert)
+        else:
+            headers = {'content-type': 'application/json'}
+            response = requests.post(url, data=json.dumps(payload), headers=headers, verify=verify_cert,auth=(idrac_username,idrac_password))
+        if response.status_code == 204:
+            logging.info("- PASS, Command passed to power ON server, status code return is %s" % response.status_code)
+        else:
+            logging.error("\n- FAIL, Command failed to power ON server, status code is: %s\n" % response.status_code)
+            logging.error("Extended Info Message: {0}".format(response.json()))
+            sys.exit(0)
+    elif data['PowerState'] == "Off":
+        url = 'https://%s/redfish/v1/Systems/System.Embedded.1/Actions/ComputerSystem.Reset' % idrac_ip
+        payload = {'ResetType': 'On'}
+        if args["x"]:
+            headers = {'content-type': 'application/json', 'X-Auth-Token': args["x"]}
+            response = requests.post(url, data=json.dumps(payload), headers=headers, verify=verify_cert)
+        else:
+            headers = {'content-type': 'application/json'}
+            response = requests.post(url, data=json.dumps(payload), headers=headers, verify=verify_cert,auth=(idrac_username,idrac_password))
+        if response.status_code == 204:
+            logging.info("- PASS, Command passed to power ON server, code return is %s" % response.status_code)
+        else:
+            logging.error("\n- FAIL, Command failed to power ON server, status code is: %s\n" % response.status_code)
+            logging.error("Extended Info Message: {0}".format(response.json()))
+            sys.exit(0)
+    else:
+        logging.error("- FAIL, unable to get current server power state to perform either reboot or power on")
+        sys.exit(0)
 
 if __name__ == "__main__":
+    if args["script_examples"]:
+        script_examples()
+    if args["ip"] or args["ssl"] or args["u"] or args["p"] or args["x"]:
+        idrac_ip = args["ip"]
+        idrac_username = args["u"]
+        if args["p"]:
+            idrac_password = args["p"]
+        if not args["p"] and not args["x"] and args["u"]:
+            idrac_password = getpass.getpass("\n- Argument -p not detected, pass in iDRAC user %s password: " % args["u"])
+        if args["ssl"]:
+            if args["ssl"].lower() == "true":
+                verify_cert = True
+            elif args["ssl"].lower() == "false":
+                verify_cert = False
+            else:
+                verify_cert = False
+        else:
+            verify_cert = False
+        check_supported_idrac_version()
+    else:
+        logging.error("\n- FAIL, invalid argument values or not all required parameters passed in. See help text or argument --script-examples for more details.")
+        sys.exit(0)
     set_bios_reset_to_default()
-    reboot_server()
-    print("\n- WARNING, system will now POST and reset the BIOS to default settings, automatically reboot one more time to complete the process.")
-    print("  Once the server is back in idle state, execute the GET bios attributes script to view the default BIOS settings.")
+    if args["reboot"]:
+        logging.info("- INFO, rebooting server now to reset BIOS to default settings")
+        reboot_server()
+    else:
+        logging.info("- INFO, argument --reboot not detected. Flag is still set to reset BIOS to default settings and this will get applied on next server manual reboot.")
 
 
 
