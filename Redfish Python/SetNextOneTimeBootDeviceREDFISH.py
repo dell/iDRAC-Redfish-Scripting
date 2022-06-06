@@ -40,7 +40,7 @@ parser.add_argument('-x', help='Pass in X-Auth session token for executing Redfi
 parser.add_argument('--ssl', help='SSL cert verification for all Redfish calls, pass in value \"true\" or \"false\". By default, this argument is not required and script ignores validating SSL cert for all Redfish calls.', required=False)
 parser.add_argument('--script-examples', help='Get executing script examples', action="store_true", dest="script_examples", required=False)
 parser.add_argument('--get', help='Get current next boot onetime boot setting and possible values', action="store_true", required=False)
-parser.add_argument('--device', help='Pass in the string onetime boot device you want to set for next reboot. NOTE: This value is case sensitive so pass in exact value as stated in possible values for -c option', required=False, type=str)
+parser.add_argument('--device', help='Pass in the string onetime boot device you want to set for next reboot. This value is case sensitive, pass in exact value as stated in possible values for --get. Note: By passing in value Cd, this will onetime boot to virtual CD device if attached.', required=False, type=str)
 parser.add_argument('--set-uefi-target', help='Set UEFI target path. This will be used with --device option if you pass in UefiTarget value. ', dest="set_uefi_target", required=False)
 parser.add_argument('--get-uefi-target', help='Get UEFI target path values for each boot order entry', action="store_true", dest="get_uefi_target", required=False)
 parser.add_argument('--reboot', help='Pass in this argument if you want the server to reboot now once you set next boot onetime boot device.', action="store_true", required=False)
