@@ -4,7 +4,7 @@
 # GetIdracSelLogsREDFISH. Python script using Redfish API to get iDRAC System Event Logs (SEL) logs.
 #
 # _author_ = Texas Roemer <Texas_Roemer@Dell.com>
-# _version_ = 2.0
+# _version_ = 3.0
 #
 # Copyright (c) 2020, Dell, Inc.
 #
@@ -46,6 +46,22 @@ def script_examples():
     print("""\n- GetIdracSelLogsREDFISH.py -ip 192.168.0.120 -u root -p calvin, this example will get the complete iDRAC system event log.""")
     sys.exit(0)
 
+def get_iDRAC_version():
+    global iDRAC_version
+    response = requests.get('https://%s/redfish/v1/Managers/iDRAC.Embedded.1' % idrac_ip, verify=False,auth=(idrac_username,idrac_password))
+    data = response.json()
+    if response.status_code == 401:
+        print("- ERROR, status code 401 detected, check to make sure your iDRAC script session has correct username/password credentials or if using X-auth token, confirm the session is still active.")
+        return
+    elif response.status_code != 200:
+        print("\n- WARNING, unable to get current iDRAC version installed")
+        sys.exit(0)
+    server_generation = int(data["Model"].split(" ")[0].replace("G",""))
+    if server_generation <= 13:
+        iDRAC_version = "old"
+    else:
+        iDRAC_version = "new"
+
 def check_supported_idrac_version():
     if args["x"]:
         response = requests.get('https://%s/redfish/v1/Managers/iDRAC.Embedded.1/LogServices/Sel/Entries' % idrac_ip, verify=verify_cert, headers={'X-Auth-Token': args["x"]})
@@ -69,10 +85,14 @@ def get_SEL_logs():
     current_date_time = "- Data collection timestamp: %s-%s-%s  %s:%s:%s\n" % (date_timestamp.month, date_timestamp.day, date_timestamp.year, date_timestamp.hour, date_timestamp.minute, date_timestamp.second)
     open_file.writelines(current_date_time)
     open_file.writelines("\n\n")
+    if iDRAC_version == "old":
+        uri = "/redfish/v1/Managers/iDRAC.Embedded.1/Logs/Sel"
+    elif iDRAC_version == "new":
+        uri = "/redfish/v1/Managers/iDRAC.Embedded.1/LogServices/Sel/Entries"
     if args["x"]:
-        response = requests.get('https://%s/redfish/v1/Managers/iDRAC.Embedded.1/LogServices/Sel/Entries' % idrac_ip, verify=verify_cert, headers={'X-Auth-Token': args["x"]})
+        response = requests.get('https://%s%s' % (idrac_ip, uri), verify=verify_cert, headers={'X-Auth-Token': args["x"]})
     else:
-        response = requests.get('https://%s/redfish/v1/Managers/iDRAC.Embedded.1/LogServices/Sel/Entries' % idrac_ip, verify=verify_cert, auth=(idrac_username, idrac_password))
+        response = requests.get('https://%s%s' % (idrac_ip, uri), verify=verify_cert, auth=(idrac_username, idrac_password))
     if response.status_code != 200:
         logging.error("\n- ERROR, GET command failed to get iDRAC SEL entries, status code %s returned" % response.status_code)
         sys.exit(0)
@@ -124,6 +144,7 @@ if __name__ == "__main__":
         else:
             verify_cert = False
         check_supported_idrac_version()
+        get_iDRAC_version()
     else:
         logging.error("\n- FAIL, invalid argument values or not all required parameters passed in. See help text or argument --script-examples for more details.")
         sys.exit(0)
