@@ -4,7 +4,7 @@
 # GetIdracLcLogsREDFISH. Python script using Redfish API to get iDRAC LC logs.
 #
 # _author_ = Texas Roemer <Texas_Roemer@Dell.com>
-# _version_ = 4.0
+# _version_ = 5.0
 #
 # Copyright (c) 2017, Dell, Inc.
 #
@@ -94,6 +94,10 @@ def get_LC_logs():
         else:
             response = requests.get('https://%s/redfish/v1/Managers/iDRAC.Embedded.1/Logs/Lclog?$skip=%s' % (idrac_ip, seq), verify=verify_cert, auth=(idrac_username, idrac_password))
         data = response.json()
+        if response.status_code == 500:
+            open_file.close()
+            logging.info("\n- INFO, Lifecycle logs also captured in \"lc_logs.txt\" file")
+            sys.exit(0)
         if response.status_code != 200:
             if "query parameter $skip is out of range" in data["error"]["@Message.ExtendedInfo"][0]["Message"]:
                 open_file.close()
@@ -149,15 +153,19 @@ def get_LC_log_failures():
         else:
             response = requests.get('https://%s/redfish/v1/Managers/iDRAC.Embedded.1/Logs/Lclog?$skip=%s' % (idrac_ip, seq), verify=verify_cert, auth=(idrac_username, idrac_password))
         data = response.json()
+        if response.status_code == 500:
+            open_file.close()
+            logging.info("\n- INFO, Lifecycle logs also captured in \"lc_logs.txt\" file")
+            sys.exit(0)
         if response.status_code != 200:
-            if "query parameter $skip is out of range" in data["error"]["@Message.ExtendedInfo"][0]["Message"]:
+            if "query parameter $skip is out of range" in data["error"]["@Message.ExtendedInfo"][0]["Message"] or "internal error" in data["error"]["@Message.ExtendedInfo"][0]["Message"]:
                 open_file.close()
                 logging.info("\n- INFO, Lifecycle logs also captured in \"lc_logs.txt\" file")
                 sys.exit(0)
             else:
-                logging.error("\n- FAIL, GET request failed using skip query parameter, status code %s returned. Detailed error results: \n%s" % (response.status_code,data))    
+                logging.error("\n- FAIL, GET request failed using skip query parameter, status code %s returned. Detailed error results: \n%s" % (response.status_code, data))    
                 sys.exit(0)
-        if "Members" not in data or data["Members"] == [] or response.status_code == 400:
+        if "Members" not in data or data["Members"] == [] or response.status_code == 400 or response.status_code == 500:
             break
         for i in data['Members']:
             for ii in i.items():
