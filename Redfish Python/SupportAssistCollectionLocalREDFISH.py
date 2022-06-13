@@ -157,11 +157,10 @@ def support_assist_accept_EULA():
         headers = {'content-type': 'application/json'}
         response = requests.post(url, data=json.dumps(payload), headers=headers, verify=verify_cert,auth=(idrac_username,idrac_password))
     if response.status_code != 202:
-        logging.info("\n- PASS, %s method passed and End User License Agreement (EULA) has been accepted" % method)
-    else:
         data = response.json()
         logging.error("\n- FAIL, status code %s returned, detailed error information:\n %s" % (response.status_code, data))
         sys.exit(0)
+    logging.info("\n- PASS, %s method passed and End User License Agreement (EULA) has been accepted" % method)
 
 def support_assist_get_EULA_status():
     logging.info("\n- Current Support Assist End User License Agreement Information -\n")
