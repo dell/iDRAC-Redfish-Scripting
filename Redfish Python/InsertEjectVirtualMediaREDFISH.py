@@ -55,7 +55,7 @@ def script_examples():
     \n- InsertEjectVirtualMediaREDFISH.py -ip 192.168.0.120 -x 748547616c93fbf446fd4155995731a2 --action insert --device removabledisk --uri 192.168.0.140:/nfs/idsdm.img, this example using X-auth token session will attach removabledisk image on NFS share.
     \n- InsertEjectVirtualMediaREDFISH.py -ip 192.168.0.120 -u root --device removabledisk, this example will first prompt to enter iDRAC password, then detach removabledisk image.
     \n- InsertEjectVirtualMediaREDFISH.py -ip 192.168.0.120 -u root -p calvin --action insert --device cd --uri 192.168.0.140:/nfs/esxi_5u1.iso, this example will attach ISO on NFS share.
-    \n- InsertEjectVirtualMediaREDFISH.py -ip 192.168.0.120 -u root -p calvin --action insert --device cd --uri //192.168.0.150/cifs_share/esxi_5u1.iso, this example will attach ISO on CIFS share.""")
+    \n- InsertEjectVirtualMediaREDFISH.py -ip 192.168.0.120 -u root -p calvin --action insert --device cd --uri //192.168.0.150/cifs_share/esxi_5u1.iso --username administrator --password Passw0rd, this example will attach ISO on CIFS share.""")
     sys.exit(0)
 
 def check_supported_idrac_version():
