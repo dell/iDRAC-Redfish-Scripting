@@ -4,7 +4,7 @@
 # InsertEjectVirtualMediaREDFISH. Python script using Redfish API DMTF to either get virtual media information, insert or eject virtual media
 #
 # _author_ = Texas Roemer <Texas_Roemer@Dell.com>
-# _version_ = 5.0
+# _version_ = 6.0
 #
 # Copyright (c) 2019, Dell, Inc.
 #
@@ -55,7 +55,8 @@ def script_examples():
     \n- InsertEjectVirtualMediaREDFISH.py -ip 192.168.0.120 -x 748547616c93fbf446fd4155995731a2 --action insert --device removabledisk --uri 192.168.0.140:/nfs/idsdm.img, this example using X-auth token session will attach removabledisk image on NFS share.
     \n- InsertEjectVirtualMediaREDFISH.py -ip 192.168.0.120 -u root --device removabledisk, this example will first prompt to enter iDRAC password, then detach removabledisk image.
     \n- InsertEjectVirtualMediaREDFISH.py -ip 192.168.0.120 -u root -p calvin --action insert --device cd --uri 192.168.0.140:/nfs/esxi_5u1.iso, this example will attach ISO on NFS share.
-    \n- InsertEjectVirtualMediaREDFISH.py -ip 192.168.0.120 -u root -p calvin --action insert --device cd --uri //192.168.0.150/cifs_share/esxi_5u1.iso --username administrator --password Passw0rd, this example will attach ISO on CIFS share.""")
+    \n- InsertEjectVirtualMediaREDFISH.py -ip 192.168.0.120 -u root -p calvin --action insert --device cd --uri //192.168.0.150/cifs_share/esxi_5u1.iso --username root --password Passw0rd, this example will attach ISO on CIFS share.
+    \n- InsertEjectVirtualMediaREDFISH.py -ip 192.168.0.120 -u root --action insert --device cd --uri //192.168.0.150/cifs_share/esxi_5u1.iso --username root, this example will first prompt to enter iDRAC password, then prompt to enter CIFS share passowrd and attach ISO on CIFS share.""")
     sys.exit(0)
 
 def check_supported_idrac_version():
@@ -108,12 +109,14 @@ def insert_virtual_media():
     else:
         logging.error("- FAIL, invalid value passed in for argument --device")
         sys.exit()
-    logging.info("\n - INFO, insert(attached) \"%s\" virtual media device \"%s\"" % (media_device, args["uri"]))
+    logging.info("\n- INFO, insert(attached) \"%s\" virtual media device \"%s\"" % (media_device, args["uri"]))
     payload = {'Image': args["uri"], 'Inserted':True,'WriteProtected':True}
     if args["username"]:
         payload["UserName"] = args["username"]
-    if args["password"]:
-        payload["Password"] = args["password"]
+        if args["password"]:
+            payload["Password"] = args["password"]
+        else:
+            payload["Password"] = getpass.getpass("\n- INFO, argument --password not detected, pass in network share password: ")    
     if args["x"]:
         headers = {'content-type': 'application/json', 'X-Auth-Token': args["x"]}
         response = requests.post(url, data=json.dumps(payload), headers=headers, verify=verify_cert)
@@ -190,7 +193,7 @@ if __name__ == "__main__":
         if args["p"]:
             idrac_password = args["p"]
         if not args["p"] and not args["x"] and args["u"]:
-            idrac_password = getpass.getpass("\n- Argument -p not detected, pass in iDRAC user %s password: " % args["u"])
+            idrac_password = getpass.getpass("\n- INFO, argument -p not detected, pass in iDRAC user %s password: " % args["u"])
         if args["ssl"]:
             if args["ssl"].lower() == "true":
                 verify_cert = True
