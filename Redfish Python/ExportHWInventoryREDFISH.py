@@ -6,7 +6,7 @@
 #
 # _author_ = Texas Roemer <Texas_Roemer@Dell.com>
 # _author_ = Grant Curell <grant_curell@dell.com>
-# _version_ = 10.0
+# _version_ = 11.0
 #
 # Copyright (c) 2022, Dell, Inc.
 #
@@ -26,6 +26,7 @@ import re
 import requests
 import sys
 import time
+import urllib.parse
 import warnings
 import webbrowser
 
@@ -83,7 +84,7 @@ def export_hw_inventory():
     if args["shareip"]:
         payload["IPAddress"] = args["shareip"]
     if args["sharetype"]:
-        if args["sharetype"].lower() == "local":
+        if args["sharetype"] == "local" or args["sharetype"] == "Local":
             payload["ShareType"] = args["sharetype"].title()
             logging.info("\n- INFO, collecting data for exporting server hardware inventory, this may take 15-30 seconds to complete")
         else:
@@ -127,7 +128,11 @@ def export_hw_inventory():
                     logging.error("- FAIL, unable to get current python version, manually run GET on URI \"%s\" to download exported hardware inventory file" % response.headers['Location'])
                     sys.exit(0)
                 if str(request).lower() == "y":
-                    webbrowser.open('https://%s%s' % (idrac_ip, response.headers['Location']))
+                    if args["x"]:
+                        logging.info("\n- INFO, X-auth token detected, if you have never logged into this iDRAC using a browser session, it will prompt to enter iDRAC username and password in browser session to download")
+                        webbrowser.open('https://%s%s' % (idrac_ip, response.headers['Location']))
+                    else:
+                        webbrowser.open('https://%s:%s@%s%s' % (idrac_username, urllib.parse.quote(idrac_password), idrac_ip, response.headers['Location']))
                     logging.info("\n- INFO, check you default browser session for downloaded exported hardware inventory file")
                     sys.exit(0)
                 elif str(request).lower() == "n":
@@ -158,7 +163,7 @@ def loop_job_status():
             response = requests.get('https://%s/redfish/v1/Managers/iDRAC.Embedded.1/Jobs/%s' % (idrac_ip, job_id), verify=verify_cert,auth=(idrac_username, idrac_password))
         current_time = (datetime.now() - start_time)
         if response.status_code != 200:
-            logging.error("\n- FAIL, GET command failed to check job status, return code %s" % response.status_code)
+            logging.error("\n- FAIL, Command failed to check job status, return code is %s" % response.status_code)
             logging.error("Extended Info Message: {0}".format(response.json()))
             sys.exit(0)
         data = response.json()

@@ -1,11 +1,10 @@
-#
 #!/usr/bin/python
 #!/usr/bin/python3
 #
 # SupportAssistCollectionLocalREDFISH. Python script using Redfish API with OEM extension to perform Support Assist operations.
 #
 # _author_ = Texas Roemer <Texas_Roemer@Dell.com>
-# _version_ = 10.0
+# _version_ = 12.0
 #
 # Copyright (c) 2020, Dell, Inc.
 #
@@ -26,6 +25,7 @@ import re
 import requests
 import sys
 import time
+import urllib.parse
 import warnings
 import webbrowser
 
@@ -41,7 +41,7 @@ parser.add_argument('-p', help='iDRAC password. If you do not pass in argument -
 parser.add_argument('-x', help='Pass in X-Auth session token for executing Redfish calls. All Redfish calls will use X-Auth token instead of username/password', required=False)
 parser.add_argument('--ssl', help='SSL cert verification for all Redfish calls, pass in value \"true\" or \"false\". By default, this argument is not required and script ignores validating SSL cert for all Redfish calls.', required=False)
 parser.add_argument('--script-examples', help='Get executing script examples', action="store_true", dest="script_examples", required=False)
-parser.add_argument('--export', help='Export support assist collection locally. You must also use agrument -d with -l. Note, once the job is marked completed, you will be prompted to download the SA zip uisng your default browser. Select \"y\" to download or \"n\" to not download.', action="store_true", required=False)
+parser.add_argument('--export', help='Export support assist collection locally. You must also use agrument --data. Note, once the job is marked completed, you will be prompted to download the SA zip uisng your default browser. Select \"y\" to download or \"n\" to not download.', action="store_true", required=False)
 parser.add_argument('--accept', help='Accept support assist end user license agreement (EULA)', action="store_true", required=False)
 parser.add_argument('--get', help='Get support assist end user license agreement (EULA)', action="store_true", required=False)
 parser.add_argument('--register', help='Register SupportAssist for iDRAC. NOTE: You must also pass in city, company name, country, email, first name, last name, phone number, street, state and zip arguments to register. NOTE: ISM must be installed and running on the operating system before you register SA.', action="store_true", required=False)
@@ -69,7 +69,8 @@ def script_examples():
     print("""\n- SupportAssistCollectionLocalREDFISH.py -ip 192.168.0.120 -u root -p calvin --get, this example will get SA EULA current status.
     \n- SupportAssistCollectionLocalREDFISH.py -ip 192.168.0.120 -u root --accept, this example will first prompt to enter iDRAC user password, then accept SA EULA.
     \n- SupportAssistCollectionLocalREDFISH.py -ip 192.168.0.120 -x bd48034369f6e5f7424e9aea88f94123 --export --data 0,3, this example using X-auth token session will export SA logs locally. The SA log will only include debug and TTY logs.
-    \n- SupportAssistCollectionLocalREDFISH.py -ip 192.168.0.120 -u root -p calvin --register --city Austin --state Texas --zip 78665 --companyname Dell --country US --firstname test --lastname tester --phonenumber "512-123-4567" --first-email \"tester1@yahoo.com\" --second-email \"tester2@gmail.com\" --street \"1234 One Dell Way\", this example shows registering SupportAssist.""")
+    \n- SupportAssistCollectionLocalREDFISH.py -ip 192.168.0.120 -u root -p calvin --register --city Austin --state Texas --zip 78665 --companyname Dell --country US --firstname test --lastname tester --phonenumber "512-123-4567" --first-email \"tester1@yahoo.com\" --second-email \"tester2@gmail.com\" --street \"1234 One Dell Way\", this example shows registering SupportAssist.
+    \n- SupportAssistCollectionLocalREDFISH.py -ip 192.168.0.120 -u root -p calvin --export --data 1, this example will export SA collection locally which contains only hardware data.""")
     sys.exit(0)
 
 def check_supported_idrac_version():
@@ -269,9 +270,13 @@ def loop_job_status():
                         logging.error("- FAIL, unable to get current python version, manually run GET on URI \"%s\" to get Support Assist logs capture" % response.headers['Location'])
                         sys.exit(0)
                     if str(request).lower() == "y":
-                        webbrowser.open('https://%s%s' % (idrac_ip, response.headers['Location']))
-                        logging.info("\n- INFO, check you default browser session for downloaded Support Assist logs")
-                        return
+                        if args["x"]:
+                            logging.info("\n- INFO, X-auth token detected, if you have never logged into this iDRAC using a browser session, it will prompt to enter iDRAC username and password in browser session to download")
+                            webbrowser.open('https://%s%s' % (idrac_ip, response.headers['Location']))
+                        else:
+                            webbrowser.open('https://%s:%s@%s%s' % (idrac_username, urllib.parse.quote(idrac_password), idrac_ip, response.headers['Location']))
+                        logging.info("\n- INFO, check you default browser session for downloaded SupportAssist file")
+                        sys.exit(0)
                     elif str(request).lower() == "n":
                         sys.exit(0)
                     else:

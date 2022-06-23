@@ -2,7 +2,7 @@
 #!/usr/bin/python3
 #
 # _author_ = Texas Roemer <Texas_Roemer@Dell.com>
-# _version_ = 5.0
+# _version_ = 6.0
 #
 # Copyright (c) 2019, Dell, Inc.
 #
@@ -23,6 +23,7 @@ import re
 import requests
 import sys
 import time
+import urllib.parse
 import warnings
 import webbrowser
 
@@ -54,9 +55,6 @@ def script_examples():
     print("""\n- ExportLCLogREDFISH.py -ip 192.168.0.120 -u root -p calvin --shareip 192.168.0.130 --sharetype CIFS --sharename cifs_share_vm --username administrator --password pass --filename idrac_lc_logs.xml, this example will export iDRAC LC logs to a CIFS share.
     \n- ExportLCLogREDFISH.py -ip 192.168.0.120 -u root -p calvin --sharetype local, this example will export the iDRAC Lifecycle Logs to local directory in XML file format.""")
     sys.exit(0)
-
-    
-
 
 def check_supported_idrac_version():
     if args["x"]:
@@ -123,7 +121,11 @@ def export_lc_logs():
                     logging.error("- FAIL, unable to get current python version, manually run GET on URI \"%s\" to download exported LC log file" % response.headers['Location'])
                     sys.exit(0)
                 if str(request).lower() == "y":
-                    webbrowser.open('https://%s%s' % (idrac_ip, response.headers['Location']))
+                    if args["x"]:
+                        logging.info("\n- INFO, X-auth token detected, if you have never logged into this iDRAC using a browser session, it will prompt to enter iDRAC username and password in browser session to download")
+                        webbrowser.open('https://%s%s' % (idrac_ip, response.headers['Location']))
+                    else:
+                        webbrowser.open('https://%s:%s@%s%s' % (idrac_username, urllib.parse.quote(idrac_password), idrac_ip, response.headers['Location']))
                     logging.info("\n- INFO, check you default browser session for downloaded exported LC log file")
                     sys.exit(0)
                 elif str(request).lower() == "n":
