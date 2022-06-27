@@ -4,7 +4,7 @@
 # ExportImportSSLCertificateREDFISH.py   Python script using Redfish API with OEM extension to either export or import SSL certificate.
 #
 # _author_ = Texas Roemer <Texas_Roemer@Dell.com>
-# _version_ = 8.0
+# _version_ = 9.0
 #
 # Copyright (c) 2019, Dell, Inc.
 #
@@ -155,7 +155,7 @@ def import_SSL_cert():
     data = response.json()
     if response.status_code == 200:
         logging.info("\n- PASS: POST command passed for %s method, status code 202 returned\n" % method)
-        user_response = input(str("- INFO, iDRAC reboot is needed to apply the new certificate, pass in \"y\" to reboot iDRAC now or \"n\" to not reboot: "))
+        user_response = input(str("- INFO, iDRAC reboot is needed to apply the new certificate if using version older than 6.00.00, pass in \"y\" to reboot iDRAC now or \"n\" to not reboot: "))
         if user_response.lower() == "n":
             sys.exit(0)
         elif user_response.lower() == "y":
