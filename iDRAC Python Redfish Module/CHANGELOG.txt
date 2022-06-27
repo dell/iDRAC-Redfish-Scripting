@@ -13,4 +13,10 @@ Added support for DMTF actions VirtualMedia.InsertMedia and VirtualMedia.EjectMe
 - 0.0.4 (04/08/2022)
 Updated readme
 
+- 0.0.5 (06/27/2022)
+Updated create_virtual_disk() function for 6.00.00 support. Now you can either secure the VD or set disk/read and write cache VD attributes during VD creation.
+Updated insert_eject_virtual_media() function for 6.00.00 support. Now with 6.00.00. you can attach multiple virtual media devices at the same time.
+Added new function change_virtual_disk_attributes() for 6.00.00 support. PATCH command is now supported to change VD disk/read and write cache policy attributes.
+ 
+
 

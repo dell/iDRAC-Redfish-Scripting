@@ -1,11 +1,8 @@
 #!/usr/bin/python
 #!/usr/bin/python3
 #
-#
-#
-#
 #_author_ = Texas Roemer <Texas_Roemer@Dell.com>
-# _version_ = 4.0
+# _version_ = 5.0
 #
 # Copyright (c) 2022, Dell, Inc.
 #
@@ -15,9 +12,6 @@
 # FOR A PARTICULAR PURPOSE. You should have received a copy of GPLv2
 # along with this software; if not, see
 # http://www.gnu.org/licenses/old-licenses/gpl-2.0.txt.
-#
-#
-#
 #
 # Python module for iDRAC Redfish support to perform multiple workflows. 
 
@@ -386,6 +380,57 @@ def reset_controller(script_examples="", controller_fqdd=""):
             logging.info("- INFO, realtime config job created, job will get applied in real time with no server reboot needed")
         loop_job_status_final()
 
+def change_virtual_disk_attributes(script_examples="", vd_fqdd="", diskcachepolicy="", readcachepolicy="", writecachepolicy=""):
+    """Function to change virtual disk attributes. Supported function arguments: vd_fqdd (possible value: VD FQDD), diskcachepolicy (possible values: Enabled and Disabled), readcachepolicy (Off, ReadAhead and AdaptiveReadAhead), writecachepolicy (ProtectedWriteBack, UnprotectedWriteBack and WriteThrough)."""
+    global job_id
+    if script_examples:
+        print("\n- IdracRedfishSupport.change_virtual_disk_attributes(vd_fqdd=\"Disk.Virtual.3:RAID.Mezzanine.1-1\", diskcachepolicy=\"Disabled\",writecachepolicy=\"UnprotectedWriteBack\",readcachepolicy=\"Off\"), this example shows changing VD disk, read and write cache policy attributes.")
+    else:
+        payload = {"@Redfish.SettingsApplyTime":{"ApplyTime":"Immediate"}}
+        if diskcachepolicy:
+            payload["Oem"]={"Dell":{"DellVolume":{"DiskCachePolicy": diskcachepolicy}}}
+        if readcachepolicy:
+            payload["ReadCachePolicy"] = readcachepolicy
+        if writecachepolicy:
+            payload["WriteCachePolicy"] = writecachepolicy
+        url = "https://%s/redfish/v1/Systems/System.Embedded.1/Storage/%s/Volumes/%s/Settings" % (creds["idrac_ip"], vd_fqdd.split(":")[-1], vd_fqdd)
+        if x_auth_token == "yes":
+            headers = {'content-type': 'application/json', 'X-Auth-Token': creds["idrac_x_auth_token"]}
+            response = requests.patch(url, data=json.dumps(payload), headers=headers, verify=creds["verify_cert"])
+        else:
+            headers = {'content-type': 'application/json'}
+            response = requests.patch(url, data=json.dumps(payload), headers=headers, verify=creds["verify_cert"],auth=(creds["idrac_username"],creds["idrac_password"]))
+        if response.status_code == 401:
+            logging.error("- ERROR, status code 401 detected, check to make sure your iDRAC script session has correct username/password credentials or if using X-auth token, confirm the session is still active.")
+            return
+        elif response.status_code == 202:
+            logging.info("\n- PASS: PATCH command passed to change VD attributes, status code %s returned" % response.status_code)
+            try:
+                job_id = response.headers['Location'].split("/")[-1]
+            except:
+                logging.error("- ERROR, unable to locate job ID in JSON headers output")
+                return
+            logging.info("- INFO, Job ID %s successfully created" % job_id)
+        else:
+            logging.error("\n- ERROR, PATCH command failed to change VD attributes, status code %s returned" % response.status_code)
+            data = response.json()
+            logging.info("\n- POST command failure results:\n %s" % data)
+            return
+        time.sleep(5)
+        if x_auth_token == "yes":
+            response = requests.get('https://%s/redfish/v1/Managers/iDRAC.Embedded.1/Jobs/%s' % (creds["idrac_ip"], job_id),verify=creds["verify_cert"],headers={'X-Auth-Token': creds["idrac_x_auth_token"]})    
+        else:
+            response = requests.get('https://%s/redfish/v1/Managers/iDRAC.Embedded.1/Jobs/%s' % (creds["idrac_ip"], job_id),verify=creds["verify_cert"],auth=(creds["idrac_username"], creds["idrac_password"]))
+        data = response.json()
+        if response.status_code != 200:
+            logging.error("- ERROR, GET command failed, detailed error information: %s" % data)
+            return
+        if data['JobType'] == "RAIDConfiguration":
+            logging.info("- INFO, staged config job created, server will now reboot to execute the config job")
+        elif data['JobType'] == "RealTimeNoRebootConfiguration":
+            logging.info("- INFO, realtime config job created, job will get applied in real time with no server reboot needed")
+        loop_job_status_final()
+
 
 def loop_job_status_final():
     """Function to loop checking final job status, this function cannot be called individually and is leveraged only by other functions after POST action is executed to create a job ID"""
@@ -421,11 +466,11 @@ def loop_job_status_final():
                     print("%s: %s" % (i[0],i[1]))
             break
         else:
-            logging.info("- INFO, job status not completed, current status: \"%s\"" % (data['Message']))
+            logging.info("- INFO, job status not completed, current status: \"%s\"" % (data['Message'].strip(".")))
             time.sleep(3)
             
-def create_virtual_disk(script_examples="", controller_fqdd="", disk_fqdds="", raid_level="", vd_name="default", vd_size=0, vd_stripesize=0):
-    """Function to create virtual disk. Function arguments: storage controller FQDD, disk FQDDs (if you\'re passing in multiple drives for VD creation, pass them in as a list), raid_level, supported integer values: 0, 1, 5, 6, 10, 50 and 60 (not all RAID levels are supported on each storage contoller), VD name is optional (if not passed in, controller will set using default name), VD size is optional (integer value in bytes) and if not passed in VD creation will use the full disk size, VD stripesize is optional (integer value in bytes) and if not passed in controller will assign the default stripesize for the RAID level."""
+def create_virtual_disk(script_examples="", controller_fqdd="", disk_fqdds="", raid_level="", vd_name="", vd_size="", vd_stripesize="", secure="", diskcachepolicy="", readcachepolicy="", writecachepolicy=""):
+    """Function to create virtual disk. Function arguments: controller_fqdd, disk_fqdds (if you\'re passing in multiple drives for VD creation, pass them in as a list), raid_level, supported integer values: 0, 1, 5, 6, 10, 50 and 60 (not all RAID levels are supported on each storage contoller), vd_name is optional (if not passed in, controller will set using default name), vd_size is optional (integer value in bytes) and if not passed in VD creation will use the full disk size, vd_stripesize is optional (integer value in bytes) and if not passed in controller will assign the default stripesize for the RAID level, secure is optional (pass in value of True to secure the VD during VD creation), diskcachepolicy is optional (possible values: Enabled and Disabled), readcachepolicy is optional (Off, ReadAhead and AdaptiveReadAhead), writecachepolicy (ProtectedWriteBack, UnprotectedWriteBack and WriteThrough)."""
     global job_id
     global job_type
     if script_examples:
@@ -472,18 +517,20 @@ def create_virtual_disk(script_examples="", controller_fqdd="", disk_fqdds="", r
             payload = {"VolumeType":volume_type,"Drives":final_disks_list}
         elif get_version >= 440:
             payload = {"RAIDType":volume_type,"Drives":final_disks_list}
-        if vd_size != 0:
-            payload["CapacityBytes"]=vd_size
-        else:
-            pass
-        if vd_stripesize != 0:
-            payload["OptimumIOSizeBytes"]=vd_stripesize
-        else:
-            pass
-        if vd_name != "default":
-            payload["Name"]=vd_name
-        else:
-            pass
+        if vd_size:
+            payload["CapacityBytes"] = vd_size
+        if vd_stripesize:
+            payload["OptimumIOSizeBytes"] = vd_stripesize
+        if vd_name:
+            payload["Name"] = vd_name
+        if secure:
+            payload["Encrypted"] = True
+        if diskcachepolicy:
+            payload["Oem"]={"Dell":{"DellVolume":{"DiskCachePolicy": diskcachepolicy}}}
+        if readcachepolicy:
+            payload["ReadCachePolicy"] = readcachepolicy
+        if writecachepolicy:
+            payload["WriteCachePolicy"] = writecachepolicy
         if x_auth_token == "yes":
             headers = {'content-type': 'application/json', 'X-Auth-Token': creds["idrac_x_auth_token"]}
             response = requests.post(url, data=json.dumps(payload), headers=headers, verify=creds["verify_cert"])
@@ -495,6 +542,7 @@ def create_virtual_disk(script_examples="", controller_fqdd="", disk_fqdds="", r
             return
         elif response.status_code == 202:
             logging.info("\n- PASS: POST command passed to create \"%s\" virtual disk, status code 202 returned" % volume_type)
+            time.sleep(5)
         else:
             logging.error("\n- ERROR, POST command failed, status code %s returned" % response.status_code)
             data = response.json()
@@ -743,6 +791,7 @@ def delete_virtual_disk(script_examples="", virtual_disk_fqdd=""):
             return
         elif response.status_code == 202:
             logging.info("\n- PASS: DELETE command passed to delete \"%s\" virtual disk, status code 202 returned" % virtual_disk_fqdd)
+            time.sleep(5)
         else:
             logging.error("\n- ERROR, DELETE command failed, status code %s returned" % response.status_code)
             data = response.json()
@@ -821,6 +870,7 @@ def initialize_virtual_disk(script_examples="", virtual_disk_fqdd="", init_type=
             return
         elif response.status_code == 202:
             logging.info("\n- PASS: POST command passed to initialize \"%s\" virtual disk, status code 202 returned" % virtual_disk_fqdd)
+            time.sleep(5)
         else:
             logging.error("\n- ERROR, POST command failed, status code %s returned" % response.status_code)
             data = response.json()
@@ -898,6 +948,7 @@ def secure_erase_disk(script_examples="", controller_fqdd="", disk_fqdd=""):
             return
         elif response.status_code == 202:
             logging.info("\n- PASS: POST command passed to secure erase disk \"%s\", status code 202 returned" % disk_fqdd)
+            time.sleep(5)
         else:
             logging.error("\n- ERROR, POST command failed, status code %s returned" % response.status_code)
             data = response.json()
@@ -978,6 +1029,7 @@ def assign_disk_hotspare(script_examples="", hotspare_type="", disk_fqdd="", vir
             return
         elif response.status_code == 202:
             logging.info("\n- PASS: POST command passed to set disk \"%s\" as \"%s\" hot spare" % (disk_fqdd, hotspare_type))
+            time.sleep(5)
             try:
                 job_id = response.headers['Location'].split("/")[-1]
             except:
@@ -1023,6 +1075,7 @@ def unassign_disk_hotspare(script_examples="", disk_fqdd=""):
             return
         elif response.status_code == 202:
             logging.info("\n- PASS: POST command passed to unassign disk \"%s\" as hotspare" % (disk_fqdd))
+            time.sleep(5)
             try:
                 job_id = response.headers['Location'].split("/")[-1]
             except:
@@ -1079,6 +1132,7 @@ def set_storage_controller_key(script_examples="", controller_fqdd="", key_id=""
             return
         elif response.status_code == 202:
             logging.info("\n- PASS: POST command passed to set the controller key for controller %s" % controller_fqdd)
+            time.sleep(5)
             try:
                 job_id = response.headers['Location'].split("/")[-1]
             except:
@@ -1143,6 +1197,7 @@ def rekey_storage_controller_key(script_examples="", controller_fqdd="", encrypt
             return
         elif response.status_code == 202:
             logging.info("\n- PASS: POST command passed to rekey the controller for %s" % controller_fqdd)
+            time.sleep(5)
             try:
                 job_id = response.headers['Location'].split("/")[-1]
             except:
@@ -1198,6 +1253,7 @@ def remove_storage_controller_key(script_examples="", controller_fqdd=""):
             return
         elif response.status_code == 202:
             print("\n- PASS: POST command passed to remove controller key for controller %s" % controller_fqdd)
+            time.sleep(5)
             try:
                 job_id = response.headers['Location'].split("/")[-1]
             except:
@@ -1253,6 +1309,7 @@ def check_consistency_virtual_disk(script_examples="", virtual_disk_fqdd=""):
             return
         elif response.status_code == 202:
             logging.info("\n- PASS: POST command passed to check consistency for virtual disk %s, status code 202 returned" % (virtual_disk_fqdd))
+            time.sleep(5)
         else:
             logging.error("\n- FAIL, POST command failed, status code is %s" % response.status_code)
             data = response.json()
@@ -1340,6 +1397,7 @@ def secure_virtual_disk(script_examples="", virtual_disk_fqdd=""):
             return
         elif response.status_code == 202:
             logging.info("\n- PASS: POST command passed to secure virtual disk %s" % virtual_disk_fqdd)
+            time.sleep(5)
             try:
                 job_id = response.headers['Location'].split("/")[-1]
             except:
@@ -1385,6 +1443,7 @@ def set_controller_boot_virtual_disk(script_examples="", controller_fqdd="", vir
             return
         elif response.status_code == 202:
             logging.info("\n- PASS: POST command passed to set boot virtual disk %s" % virtual_disk_fqdd)
+            time.sleep(5)
             try:
                 job_id = response.headers['Location'].split("/")[-1]
             except:
@@ -1429,6 +1488,7 @@ def rename_virtual_disk(script_examples="", virtual_disk_fqdd="", vd_name=""):
             return
         elif response.status_code == 202:
             logging.info("\n- PASS: POST command passed to rename boot virtual disk %s" % virtual_disk_fqdd)
+            time.sleep(5)
             try:
                 job_id = response.headers['Location'].split("/")[-1]
             except:
@@ -6126,41 +6186,69 @@ def install_from_repository(script_examples="", get_fw_inventory="", get_repo_up
         return
 
 def insert_eject_virtual_media(script_examples="", get_attach_status="", insert_virtual_media="", eject_virtual_media="", image_path=""):
-    """Function to either get current virtual media attach status or insert/eject virtual media. Supported arguments and possible values: get_attach_status (supported value: True), insert_virtual_media (supported values: cd and removeabledisk), eject_virtual_media (supported values: cd and removeabledisk) and image_path (pass in image path location of the virtual device to insert. Supported network share types: HTTP, HTTPS, NFS and CIFS.""" 
+    """Function to either get current virtual media attach status or insert/eject virtual media. With iDRAC 6.00.00 or newer you can now attach multiple virtual media devices at the same time based off index ID (see script examples for more help). Supported arguments and possible values: get_attach_status (supported value: True), insert_virtual_media (supported values: cd and removeabledisk (iDRAC 5.10.10 or older), 1 and 2 (iDRAC 6.00.00 or newer)), eject_virtual_media (supported values: cd and removeabledisk (iDRAC 5.10.10 or older), 1 and 2 (iDRAC 6.00.00 or newer)) and image_path (pass in image path location of the virtual device to insert. Supported network share types: HTTP, HTTPS, NFS and CIFS.""" 
     if script_examples:
         print("""\n- IdracRedfishSupport.insert_eject_virtual_media(get_attach_status=True), this example will return current attach status details all virtual media devices.)
-        \n- IdracRedfishSupport.insert_eject_virtual_media(insert_virtual_media="cd", image_path="192.168.0.120:/nfs/ESXi7.iso"), this example will insert(attach) virtual media ISO image using NFS share.
-        \n- IdracRedfishSupport.insert_eject_virtual_media(eject_virtual_media="cd"), this example will eject(detach) virtual media CD device attached.
-        \n- IdracRedfishSupport.insert_eject_virtual_media(insert_virtual_media="cd", image_path="//administrator:Passw0rd123@192.168.0.130/cifs_share_vm/ESXi7.iso"), this example will insert(attach) virtual media ISO image using CIFS share.
-        \n- IdracRedfishSupport.insert_eject_virtual_media(insert_virtual_media="cd", image_path="https://https_user:Password123@192.168.0.130/https_share/VMware-ESXi-7.iso", this example will insert(attach) virtual media ISO image using HTTPS share with auth.
-        \n- IdracRedfishSupport.insert_eject_virtual_media(insert_virtual_media="cd", image_path="https://3.137.219.52/centos/7/isos/x86_64/CentOS-7-live-GNOME-x86_64.iso"), this example will insert(attach) virutl media ISO image using HTTPS share with no auth.
-        \n- IdracRedfishSupport.insert_eject_virtual_media(insert_virtual_media="removeabledisk", image_path="192.168.0.140:/nfs/idsdm.img"), this example will insert(attach) virtual media IMG image using NFS share.""")
-
-    elif get_attach_status:
-        virtual_media_uris = []
+        \n- IdracRedfishSupport.insert_eject_virtual_media(insert_virtual_media="cd", image_path="192.168.0.120:/nfs/ESXi7.iso"), this example using iDRAC 5.10.10 will insert(attach) virtual media ISO image using NFS share.
+        \n- IdracRedfishSupport.insert_eject_virtual_media(eject_virtual_media="cd"), this example using iDRAC 5.10.10 will eject(detach) virtual media CD device attached.
+        \n- IdracRedfishSupport.insert_eject_virtual_media(insert_virtual_media="cd", image_path="//administrator:Passw0rd123@192.168.0.130/cifs_share_vm/ESXi7.iso"), this example using iDRAC 5.10.10 will insert(attach) virtual media ISO image using CIFS share.
+        \n- IdracRedfishSupport.insert_eject_virtual_media(insert_virtual_media="cd", image_path="https://https_user:Password123@192.168.0.130/https_share/VMware-ESXi-7.iso", this example using iDRAC 5.10.10 will insert(attach) virtual media ISO image using HTTPS share with auth.
+        \n- IdracRedfishSupport.insert_eject_virtual_media(insert_virtual_media="cd", image_path="https://3.137.219.52/centos/7/isos/x86_64/CentOS-7-live-GNOME-x86_64.iso"), this example using iDRAC 5.10.10 will insert(attach) virutl media ISO image using HTTPS share with no auth.
+        \n- IdracRedfishSupport.insert_eject_virtual_media(insert_virtual_media="removeabledisk", image_path="192.168.0.140:/nfs/idsdm.img"), this example using iDRAC 5.10.10 will insert(attach) virtual media IMG image using NFS share.
+        \n- IdracRedfishSupport.insert_eject_virtual_media(insert_virtual_media=1, image_path="192.168.0.130:/nfs/boot.iso"), this example using iDRAC 6.00.00 shows attaching virtual media ISO for index 1 device.
+        \n- IdracRedfishSupport.insert_eject_virtual_media(insert_virtual_media=2, image_path="192.168.0.130:/nfs/RHEL8.4.iso"), this example using iDRAC 6.00.00 shows attaching virtual media ISO for index 2 device.
+        \n- IdracRedfishSupport.insert_eject_virtual_media(eject_virtual_media=1), this example using iDRAC 6.00.00 shows ejecting virtual media index 1 device.
+        \n- IdracRedfishSupport.insert_eject_virtual_media(eject_virtual_media=2), this example using iDRAC 6.00.00 shows ejecting virtual media index 2 device.""")
+    else:
         if x_auth_token == "yes":
-            response = requests.get('https://%s/redfish/v1/Managers/iDRAC.Embedded.1/VirtualMedia?$expand=*($levels=1)' % creds["idrac_ip"], verify=creds["verify_cert"],headers={'X-Auth-Token': creds["idrac_x_auth_token"]})    
+            response = requests.get('https://%s/redfish/v1/Managers/iDRAC.Embedded.1?$select=FirmwareVersion' % creds["idrac_ip"], verify=creds["verify_cert"],headers={'X-Auth-Token': creds["idrac_x_auth_token"]})    
         else:
-            response = requests.get('https://%s/redfish/v1/Managers/iDRAC.Embedded.1/VirtualMedia?$expand=*($levels=1)' % creds["idrac_ip"], verify=creds["verify_cert"],auth=(creds["idrac_username"], creds["idrac_password"]))
+            response = requests.get('https://%s/redfish/v1/Managers/iDRAC.Embedded.1?$select=FirmwareVersion' % creds["idrac_ip"], verify=creds["verify_cert"],auth=(creds["idrac_username"], creds["idrac_password"]))
+        data = response.json()
+        if response.status_code == 401:
+            logging.error("- ERROR, status code 401 detected, check to make sure your iDRAC script session has correct username/password credentials or if using X-auth token, confirm the session is still active.")
+            return
+        elif response.status_code != 200:
+            logging.warning("\n- WARNING, unable to get current iDRAC version installed")
+            sys.exit(0)
+        if int(data["FirmwareVersion"].replace(".","")) >= 6000000:
+            iDRAC_version = "new"
+        else:
+            iDRAC_version = "old"
+
+    if get_attach_status:
+        virtual_media_uris = []
+        if iDRAC_version == "old":
+            if x_auth_token == "yes":
+                response = requests.get('https://%s/redfish/v1/Managers/iDRAC.Embedded.1/VirtualMedia?$expand=*($levels=1)' % creds["idrac_ip"], verify=creds["verify_cert"],headers={'X-Auth-Token': creds["idrac_x_auth_token"]})    
+            else:
+                response = requests.get('https://%s/redfish/v1/Managers/iDRAC.Embedded.1/VirtualMedia?$expand=*($levels=1)' % creds["idrac_ip"], verify=creds["verify_cert"],auth=(creds["idrac_username"], creds["idrac_password"]))
+        if iDRAC_version == "new":
+            if x_auth_token == "yes":
+                response = requests.get('https://%s/redfish/v1/Systems/System.Embedded.1/VirtualMedia?$expand=*($levels=1)' % creds["idrac_ip"], verify=creds["verify_cert"],headers={'X-Auth-Token': creds["idrac_x_auth_token"]})    
+            else:
+                response = requests.get('https://%s/redfish/v1/Systems/System.Embedded.1/VirtualMedia?$expand=*($levels=1)' % creds["idrac_ip"], verify=creds["verify_cert"],auth=(creds["idrac_username"], creds["idrac_password"]))   
         data = response.json()
         if response.status_code != 200:
             logging.error("\n- ERROR, GET command failed to get virtual media attach status details, status code %s returned" % response.status_code)
             logging.error(data)
             return
-        for i in data.items():
+        print("\n")
+        for i in data["Members"]:
             pprint(i)
+            print("\n")
 
     elif insert_virtual_media:
-        if insert_virtual_media.lower() == "cd":
-            url = "https://%s/redfish/v1/Managers/iDRAC.Embedded.1/VirtualMedia/CD/Actions/VirtualMedia.InsertMedia" % creds["idrac_ip"]
-            media_device = "CD"
-        elif insert_virtual_media.lower() == "removeabledisk":
-            url = "https://%s/redfish/v1/Managers/iDRAC.Embedded.1/VirtualMedia/RemovableDisk/Actions/VirtualMedia.InsertMedia" % creds["idrac_ip"]
-            media_device = "Removable Disk"
-        else:
-            logging.error("- FAIL, invalid value passed in for argument insert_virtual_media.")
-            return
-        logging.info("\n - INFO, insert(attached) \"%s\" virtual media device \"%s\"" % (media_device, image_path))
+        if iDRAC_version == "old":
+            if insert_virtual_media.lower() == "cd":
+                url = "https://%s/redfish/v1/Managers/iDRAC.Embedded.1/VirtualMedia/CD/Actions/VirtualMedia.InsertMedia" % creds["idrac_ip"]
+            elif insert_virtual_media.lower() == "removeabledisk":
+                url = "https://%s/redfish/v1/Managers/iDRAC.Embedded.1/VirtualMedia/RemovableDisk/Actions/VirtualMedia.InsertMedia" % creds["idrac_ip"]
+            else:
+                logging.error("- FAIL, invalid value passed in for argument insert_virtual_media.")
+                return
+        if iDRAC_version == "new":
+            url = "https://%s/redfish/v1/Systems/System.Embedded.1/VirtualMedia/%s/Actions/VirtualMedia.InsertMedia" % (creds["idrac_ip"], insert_virtual_media)
         payload = {'Image': image_path, 'Inserted':True,'WriteProtected':True}
         if x_auth_token == "yes":
             headers = {'content-type': 'application/json', 'X-Auth-Token': creds["idrac_x_auth_token"]}
@@ -6170,21 +6258,22 @@ def insert_eject_virtual_media(script_examples="", get_attach_status="", insert_
             response = requests.post(url, data=json.dumps(payload), headers=headers, verify=creds["verify_cert"],auth=(creds["idrac_username"],creds["idrac_password"]))
         data = response.__dict__
         if response.status_code != 204:
-            logging.error("\n- FAIL, POST command InsertMedia action failed, detailed error message: %s" % response._content)
+            logging.error("\n- FAIL, POST command failed to insert virtual media, detailed error message: %s" % response._content)
             return
         else:
-            logging.info("\n- PASS, POST command passed to successfully insert(attached) %s media, status code %s returned" % (media_device, response.status_code))
+            logging.info("\n- PASS, POST command passed to successfully insert(attached) virtual media, status code %s returned" % response.status_code)
 
     elif eject_virtual_media:
-        if eject_virtual_media.lower() == "cd":
-            url = "https://%s/redfish/v1/Managers/iDRAC.Embedded.1/VirtualMedia/CD/Actions/VirtualMedia.EjectMedia" % creds["idrac_ip"]
-            media_device = "CD"
-        elif eject_virtual_media.lower() == "removeabledisk":
-            url = "https://%s/redfish/v1/Managers/iDRAC.Embedded.1/VirtualMedia/RemovableDisk/Actions/VirtualMedia.EjectMedia" % creds["idrac_ip"]
-            media_device = "Removable Disk"
-        else:
-            logging.error("- FAIL, invalid value passed in for argument eject_virtual_media.")
-            return
+        if iDRAC_version == "old":
+            if insert_virtual_media.lower() == "cd":
+                url = "https://%s/redfish/v1/Managers/iDRAC.Embedded.1/VirtualMedia/CD/Actions/VirtualMedia.EjectMedia" % creds["idrac_ip"]
+            elif insert_virtual_media.lower() == "removeabledisk":
+                url = "https://%s/redfish/v1/Managers/iDRAC.Embedded.1/VirtualMedia/RemovableDisk/Actions/VirtualMedia.EjectMedia" % creds["idrac_ip"]
+            else:
+                logging.error("- FAIL, invalid value passed in for argument insert_virtual_media.")
+                return
+        if iDRAC_version == "new":
+            url = "https://%s/redfish/v1/Systems/System.Embedded.1/VirtualMedia/%s/Actions/VirtualMedia.EjectMedia" % (creds["idrac_ip"], eject_virtual_media)
         payload = {}
         if x_auth_token == "yes":
             headers = {'content-type': 'application/json', 'X-Auth-Token': creds["idrac_x_auth_token"]}
@@ -6194,10 +6283,10 @@ def insert_eject_virtual_media(script_examples="", get_attach_status="", insert_
             response = requests.post(url, data=json.dumps(payload), headers=headers, verify=creds["verify_cert"],auth=(creds["idrac_username"],creds["idrac_password"]))
         data = response.__dict__
         if response.status_code != 204:
-            logging.error("\n- FAIL, POST command EjectMedia action failed, detailed error message: %s" % response._content)
+            logging.error("\n- FAIL, POST command failed to eject virtual media, detailed error message: %s" % response._content)
             return
         else:
-            logging.info("\n- PASS, POST command passed to successfully eject(detach) %s media, status code %s returned" % (media_device, response.status_code))
+            logging.info("\n- PASS, POST command passed to successfully eject(detach) virtual media, status code %s returned" % response.status_code)
 
 
 
