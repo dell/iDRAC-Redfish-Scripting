@@ -4,7 +4,7 @@
 # CreateVirtualDiskREDFISH. Python script using Redfish API to either get controllers / disks / virtual disks / supported RAID levels or create virtual disk.
 #
 # _author_ = Texas Roemer <Texas_Roemer@Dell.com>
-# _version_ = 19.0
+# _version_ = 21.0
 #
 # Copyright (c) 2018, Dell, Inc.
 #
@@ -50,6 +50,10 @@ parser.add_argument('--raid-level', help='Pass in the RAID level you want to cre
 parser.add_argument('--size', help='Pass in the size(CapacityBytes) in bytes for VD creation. This is OPTIONAL, if you don\'t pass in the size, VD creation will use full disk size to create the VD', required=False)
 parser.add_argument('--stripesize', help='Pass in the stripesize(OptimumIOSizeBytes) in bytes for VD creation. This is OPTIONAL, if you don\'t pass in stripesize, controller will use the default value', required=False)
 parser.add_argument('--name', help='Pass in the name for VD creation. This is OPTIONAL, if you don\'t pass in name, controller will use the default value', required=False)
+parser.add_argument('--diskcachepolicy', help='Pass in disk cache policy setting for VD creation, supported values: Enabled and Disabled. This is OPTIONAL, if you don\'t pass in this argument for VD creation, controller will use the default value', required=False)
+parser.add_argument('--readcachepolicy', help='Pass in read cache policy setting for VD creation, supported values: Off, ReadAhead and AdaptiveReadAhead. This is OPTIONAL, if you don\'t pass in this argument for VD creation, controller will use the default value', required=False)
+parser.add_argument('--writecachepolicy', help='Pass in write cache policy setting for VD creation, supported values: ProtectedWriteBack, UnprotectedWriteBack and WriteThrough. This is OPTIONAL, if you don\'t pass in this argument for VD creation, controller will use the default value', required=False)
+parser.add_argument('--secure', help='Secure virtual disk for VD creation. Note: Make sure your controller already has encryption enabled and using encryption capable drives.', action="store_true", required=False)
 args = vars(parser.parse_args())
 logging.basicConfig(format='%(message)s', stream=sys.stdout, level=logging.INFO)
 
@@ -59,7 +63,9 @@ def script_examples():
     \n- CreateVirtualDiskREDFISH.py -ip 192.168.0.120 -u root -p calvin --supported-raid-levels RAID.Integrated.1-1, this example will return supported RAID levels for controller RAID.Integrated.1-1.
     \n- CreateVirtualDiskREDFISH.py -ip 192.168.0.120 -u root --create RAID.Mezzanine.1-1 --raid-level 0 --disks Disk.Bay.1:Enclosure.Internal.0-1:RAID.Mezzanine.1-1, this example will first prompt to enter iDRAC user password, then create one disk RAID 0.
     \n- CreateVirtualDiskREDFISH.py -ip 192.168.0.120 -u root -p calvin --create RAID.Mezzanine.1-1 --raid-level 0 --disks  Disk.Bay.1:Enclosure.Internal.0-1:RAID.Mezzanine.1-1,Disk.Bay.7:Enclosure.Internal.0-1:RAID.Mezzanine.1-1 --name RAID_1_OS, this example will create RAID 1 with VD name RAID_1_OS.
-    \n- CreateVirtualDiskREDFISH.py -ip 192.168.0.120 -u root -p calvin --create RAID.Mezzanine.1-1 --raid-level 0 --disks  Disk.Bay.1:Enclosure.Internal.0-1:RAID.Mezzanine.1-1,Disk.Bay.7:Enclosure.Internal.0-1:RAID.Mezzanine.1-1 --name RAID_1_OS --size 107374182400 --stripesize 131072, this example will create 100GB size, 128KB stripesize RAID 1 virtual disk.""")
+    \n- CreateVirtualDiskREDFISH.py -ip 192.168.0.120 -u root -p calvin --create RAID.Mezzanine.1-1 --raid-level 0 --disks  Disk.Bay.1:Enclosure.Internal.0-1:RAID.Mezzanine.1-1,Disk.Bay.7:Enclosure.Internal.0-1:RAID.Mezzanine.1-1 --name RAID_1_OS --size 107374182400 --stripesize 131072, this example will create 100GB size, 128KB stripesize RAID 1 virtual disk.
+    \n- CreateVirtualDiskREDFISH.py -ip 192.168.0.120 -u root -p calvin --create RAID.SL.3-1 --raid-level 1 --disks Disk.Bay.2:Enclosure.Internal.0-1:RAID.SL.3-1,Disk.Bay.3:Enclosure.Internal.0-1:RAID.SL.3-1 --diskcachepolicy Disabled --readcachepolicy Off --writecachepolicy UnprotectedWriteBack, this example shows creating a RAID 1 volume setting disk, read and write cache policies.
+    \n- CreateVirtualDiskREDFISH.py -ip 192.168.0.120 -u root -p calvin --create RAID.Mezzanine.1-1 --raid-level 0 --disks Disk.Bay.2:Enclosure.Internal.0-1:RAID.Mezzanine.1-1 --secure, this example shows creating secured RAID 0 virtual disk.""")
     sys.exit(0)
 
 
@@ -75,7 +81,7 @@ def check_supported_idrac_version():
     elif response.status_code != 200:
         logging.warning("\n- WARNING, iDRAC version installed does not support this feature using Redfish API")
         sys.exit(0)
-
+        
 def test_valid_controller_FQDD_string(x):
     if args["x"]:
         response = requests.get('https://%s/redfish/v1/Systems/System.Embedded.1/Storage/%s' % (idrac_ip, x),verify=verify_cert, headers={'X-Auth-Token': args["x"]})
@@ -96,7 +102,6 @@ def get_storage_controllers():
     for i in data['Members']:
         controller_list.append(i['@odata.id'].split("/")[-1])
         print(i['@odata.id'].split("/")[-1])
-
 
 def get_pdisks():
     test_valid_controller_FQDD_string(args["get_disks"])
@@ -146,11 +151,11 @@ def get_pdisk_details():
     for i in drive_list:
         logging.info("\n- Detailed information for %s -\n" % i)
         if args["x"]:
-          response = requests.get('https://%s/redfish/v1/Systems/System.Embedded.1/Storage/Drives/%s' % (idrac_ip, i), verify=verify_cert, headers={'X-Auth-Token': args["x"]})   
+            response = requests.get('https://%s/redfish/v1/Systems/System.Embedded.1/Storage/Drives/%s' % (idrac_ip, i), verify=verify_cert, headers={'X-Auth-Token': args["x"]})   
         else:
-          response = requests.get('https://%s/redfish/v1/Systems/System.Embedded.1/Storage/Drives/%s' % (idrac_ip, i), verify=verify_cert,auth=(idrac_username, idrac_password))
+            response = requests.get('https://%s/redfish/v1/Systems/System.Embedded.1/Storage/Drives/%s' % (idrac_ip, i), verify=verify_cert,auth=(idrac_username, idrac_password))
         data = response.json()
-        pprint(data)
+        pprint(data), print("\n")
 
 def get_virtual_disks():
     test_valid_controller_FQDD_string(args["get_virtualdisks"])
@@ -263,6 +268,14 @@ def create_raid_vd():
         payload["OptimumIOSizeBytes"] = int(args["stripesize"])
     if args["name"]:
         payload["Name"] = vd_name
+    if args["secure"]:
+        payload["Encrypted"] = True
+    if args["diskcachepolicy"]:
+        payload["Oem"]={"Dell":{"DellVolume":{"DiskCachePolicy": args["diskcachepolicy"]}}}
+    if args["readcachepolicy"]:
+        payload["ReadCachePolicy"] = args["readcachepolicy"]
+    if args["writecachepolicy"]:
+        payload["WriteCachePolicy"] = args["writecachepolicy"]
     if args["x"]:
         headers = {'content-type': 'application/json', 'X-Auth-Token': args["x"]}
         response = requests.post(url, data=json.dumps(payload), headers=headers, verify=verify_cert)
