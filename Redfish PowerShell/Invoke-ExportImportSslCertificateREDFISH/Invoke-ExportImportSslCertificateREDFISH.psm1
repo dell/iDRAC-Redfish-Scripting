@@ -25,7 +25,7 @@ http://www.gnu.org/licenses/old-licenses/gpl-2.0.txt
    - idrac_password: Pass in iDRAC password
    - x_auth_token: Pass in iDRAC X-Auth token session to execute cmdlet instead of username / password (recommended)
    - export_ssl_cert: Export SSL, pass in the type of cert you want to export. To get supported values, execute argument -get_supported_ssl_cert_types. NOTE: This value is case sensitive, make sure to pass in exact string syntax. 
-   - import_ssl_cert: Import SSL, pass in the type of cert you want to import. To get supported values, execute argument -get_supported_ssl_cert_types. NOTE: This value is case sensitive, make sure to pass in exact string syntax. 
+   - import_ssl_cert: Import SSL, pass in the type of cert you want to import. To get supported values, execute argument -get_supported_ssl_cert_types. NOTE: This value is case sensitive, make sure to pass in exact string syntax. NOTE: If using iDRAC 6.00.00 or newer, once you import the cert, you're no longer required to reboot the iDRAC to apply it. 
    - get_supported_ssl_cert_types: Pass in "y" to get supported ssl cert types which will be used for either export or import operations. 
    - cert_filename: Pass in SSL cert filename. For export, you'll be passing in an unique filename which the SSL cert contents will get copied to. For import, passed in the signed SSL cert filename. 
 
