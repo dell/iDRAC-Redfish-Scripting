@@ -45,6 +45,8 @@ parser.add_argument('--get-cert-types', help='Get current cert type values suppo
 parser.add_argument('--cert-type', help='Pass in SSL cert type value for export or import (note: this value is case sensitive). If needed, use argument --get-cert-types to get supported values.', dest="cert_type", required=False)
 parser.add_argument('--filename', help='Pass in the file name which contains the certificate to import. Cert file should be a base64 encoded string of the XML Certificate file. For importing CSC certificate, convert PKCS file to base64 format. The CTC file content has to be in PEM format (base64 encoded).', required=False)
 parser.add_argument('--passphrase', help='Pass in passphrase string if the cert you are importing is passpharse protected.', required=False)
+parser.add_argument('--reboot', help='Reboot the iDrac after importing the certificate.', action="store_true", dest="reboot", required=False, default=None)
+parser.add_argument('--skip-reboot', help='Do not reboot the iDrac after importing the certificate.', action="store_false", dest="reboot", required=False, default=None)
 
 args=vars(parser.parse_args())
 logging.basicConfig(format='%(message)s', stream=sys.stdout, level=logging.INFO) 
@@ -155,10 +157,19 @@ def import_SSL_cert():
     data = response.json()
     if response.status_code == 200:
         logging.info("\n- PASS: POST command passed for %s method, status code 202 returned\n" % method)
-        user_response = input(str("- INFO, iDRAC reboot is needed to apply the new certificate if using version older than 6.00.00, pass in \"y\" to reboot iDRAC now or \"n\" to not reboot: "))
-        if user_response.lower() == "n":
+        reboot = args["reboot"]
+        if reboot is None:
+            user_response = input(str("- INFO, iDRAC reboot is needed to apply the new certificate if using version older than 6.00.00, pass in \"y\" to reboot iDRAC now or \"n\" to not reboot: "))
+            if user_response.lower() == "n":
+                reboot = False
+            elif user_response.lower() == "y":
+                reboot = True
+            else:
+                logging.error("- ERROR, invalid value entered for user response")
+                sys.exit(0)                  
+        if not reboot:
             sys.exit(0)
-        elif user_response.lower() == "y":
+        else:
             url = "https://%s/redfish/v1/Managers/iDRAC.Embedded.1/Actions/Manager.Reset/" % idrac_ip
             payload={"ResetType":"GracefulRestart"}
             if args["x"]:
@@ -175,9 +186,6 @@ def import_SSL_cert():
                 sys.exit(0)
             time.sleep(15)
             logging.info("- INFO, iDRAC will now reboot and be back online within a few minutes.")
-        else:
-            logging.error("- ERROR, invalid value entered for user response")
-            sys.exit(0)                  
     else:
         logging.error("\n- FAIL, POST command failed for %s method, status code is %s" % (method, response.status_code))
         data = response.json()
