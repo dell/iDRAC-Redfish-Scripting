@@ -4,7 +4,7 @@
 # SupportAssistCollectionLocalREDFISH. Python script using Redfish API with OEM extension to perform Support Assist operations.
 #
 # _author_ = Texas Roemer <Texas_Roemer@Dell.com>
-# _version_ = 12.0
+# _version_ = 13.0
 #
 # Copyright (c) 2020, Dell, Inc.
 #
@@ -34,14 +34,14 @@ from pprint import pprint
 
 warnings.filterwarnings("ignore")
 
-parser=argparse.ArgumentParser(description="Python script using Redfish API with OEM extension to perform Support Assist(SA) operations. These include export SA report locally, accept End User License Agreement(EULA) or register SA for iDRAC.")
+parser = argparse.ArgumentParser(description="Python script using Redfish API with OEM extension to perform Support Assist(SA) operations. These include export SA report locally, accept End User License Agreement(EULA) or register SA for iDRAC.")
 parser.add_argument('-ip',help='iDRAC IP address', required=False)
 parser.add_argument('-u', help='iDRAC username', required=False)
 parser.add_argument('-p', help='iDRAC password. If you do not pass in argument -p, script will prompt to enter user password which will not be echoed to the screen.', required=False)
 parser.add_argument('-x', help='Pass in X-Auth session token for executing Redfish calls. All Redfish calls will use X-Auth token instead of username/password', required=False)
 parser.add_argument('--ssl', help='SSL cert verification for all Redfish calls, pass in value \"true\" or \"false\". By default, this argument is not required and script ignores validating SSL cert for all Redfish calls.', required=False)
 parser.add_argument('--script-examples', help='Get executing script examples', action="store_true", dest="script_examples", required=False)
-parser.add_argument('--export', help='Export support assist collection locally. You must also use agrument --data. Note, once the job is marked completed, you will be prompted to download the SA zip uisng your default browser. Select \"y\" to download or \"n\" to not download.', action="store_true", required=False)
+parser.add_argument('--export', help='Export support assist collection locally. You must also use agrument --data. Note, also pass in argument --download to auto download the SA collection file once the job ID is marked completed.', action="store_true", required=False)
 parser.add_argument('--accept', help='Accept support assist end user license agreement (EULA)', action="store_true", required=False)
 parser.add_argument('--get', help='Get support assist end user license agreement (EULA)', action="store_true", required=False)
 parser.add_argument('--register', help='Register SupportAssist for iDRAC. NOTE: You must also pass in city, company name, country, email, first name, last name, phone number, street, state and zip arguments to register. NOTE: ISM must be installed and running on the operating system before you register SA.', action="store_true", required=False)
@@ -61,8 +61,9 @@ parser.add_argument('--state', help='Pass in state to register Support Assist', 
 parser.add_argument('--zip', help='Pass in zipcode to register Support Assist', required=False)
 parser.add_argument('--data', help='Pass in a value for the type of data you want to collect for Support Assist collection. Supported values are: pass in 0 for \"DebugLogs\", pass in 1 for "HWData\", pass in 2 for \"OSAppData\", pass in 3 for \"TTYLogs\", pass in 4 for \"TelemetryReports\". Note: If you do not pass in this argument, default settings will collect HWData. Note: You can pass in one value or multiple values to collect. If you pass in multiple values, use comma separator for the values (Example: 0,3)', required=False)
 parser.add_argument('--filter', help='Filter personal identification information (PII) for Support Assist collection. Supported values are: 0 for \"No\" and 1 for \"Yes\". NOTE: If you don\'t pass in this argument, no filtering is performed for the collection.', required=False)
+parser.add_argument('--download', help='Pass in this argument to auto download SA collection locally once the job ID is marked completed', action="store_true", required=False)
 
-args=vars(parser.parse_args())
+args = vars(parser.parse_args())
 logging.basicConfig(format='%(message)s', stream=sys.stdout, level=logging.INFO)
 
 def script_examples():
@@ -70,7 +71,7 @@ def script_examples():
     \n- SupportAssistCollectionLocalREDFISH.py -ip 192.168.0.120 -u root --accept, this example will first prompt to enter iDRAC user password, then accept SA EULA.
     \n- SupportAssistCollectionLocalREDFISH.py -ip 192.168.0.120 -x bd48034369f6e5f7424e9aea88f94123 --export --data 0,3, this example using X-auth token session will export SA logs locally. The SA log will only include debug and TTY logs.
     \n- SupportAssistCollectionLocalREDFISH.py -ip 192.168.0.120 -u root -p calvin --register --city Austin --state Texas --zip 78665 --companyname Dell --country US --firstname test --lastname tester --phonenumber "512-123-4567" --first-email \"tester1@yahoo.com\" --second-email \"tester2@gmail.com\" --street \"1234 One Dell Way\", this example shows registering SupportAssist.
-    \n- SupportAssistCollectionLocalREDFISH.py -ip 192.168.0.120 -u root -p calvin --export --data 1, this example will export SA collection locally which contains only hardware data.""")
+    \n- SupportAssistCollectionLocalREDFISH.py -ip 192.168.0.120 -u root -p calvin --export --data 1 --download, this example will export SA collection locally which contains only hardware data. Once th job ID is marked completed, SA collection will be auto downloaded using browser session.""")
     sys.exit(0)
 
 def check_supported_idrac_version():
@@ -262,26 +263,20 @@ def loop_job_status():
                 logging.info("- PASS, job ID successfully marked completed. Support Assist logs filename: \"%s\"" % response.headers['Location'].split("/")[-1])
                 python_version = sys.version_info
                 while True:
-                    if python_version.major <= 2:
-                        request = raw_input("\n* Would you like to open browser session to download Support Assist file? Type \"y\" to download or \"n\" to not download: ")
-                    elif python_version.major >= 3:
-                        request = input("\n* Would you like to open browser session to download Support Assist file? Type \"y\" to download or \"n\" to not download: ")
-                    else:
-                        logging.error("- FAIL, unable to get current python version, manually run GET on URI \"%s\" to get Support Assist logs capture" % response.headers['Location'])
-                        sys.exit(0)
-                    if str(request).lower() == "y":
+                    if args["download"]:
                         if args["x"]:
                             logging.info("\n- INFO, X-auth token detected, if you have never logged into this iDRAC using a browser session, it will prompt to enter iDRAC username and password in browser session to download")
                             webbrowser.open('https://%s%s' % (idrac_ip, response.headers['Location']))
                         else:
                             webbrowser.open('https://%s:%s@%s%s' % (idrac_username, urllib.parse.quote(idrac_password), idrac_ip, response.headers['Location']))
-                        logging.info("\n- INFO, check you default browser session for downloaded SupportAssist file")
-                        sys.exit(0)
-                    elif str(request).lower() == "n":
+                        logging.info("\n- INFO, check you default browser session for downloaded SA collection file")
                         sys.exit(0)
                     else:
-                        logging.error("- FAIL, incorrect value passed in for request, try again")
-                        continue
+                        logging.warning("- WARNING, argument --download not detected to auto download the file. Run GET on URI \"%s\" to manually download the file" % response.headers['Location'])
+                        sys.exit(0)
+            else:
+                logging.error("- ERROR, unable to locate SA collection URI in headers output")
+                sys.exit(0)
         except:
             if str(current_time)[0:7] >= "0:30:00":
                 logging.error("\n- FAIL: Timeout of 30 minutes has been hit, script stopped\n")
