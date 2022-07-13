@@ -4,7 +4,7 @@
 # ExportServerConfigurationNetworkShareREDFISH. Python script using Redfish API to export server configuration profile to a supported network share.
 #
 # _author_ = Texas Roemer <Texas_Roemer@Dell.com>
-# _version_ = 11.0
+# _version_ = 13.0
 #
 # Copyright (c) 2017, Dell, Inc.
 #
@@ -31,20 +31,21 @@ from pprint import pprint
 
 warnings.filterwarnings("ignore")
 
-parser=argparse.ArgumentParser(description="Python script using Redfish API to export server configuration profile (SCP) to a supported network share")
+parser = argparse.ArgumentParser(description="Python script using Redfish API to export server configuration profile (SCP) to a supported network share")
 parser.add_argument('-ip',help='iDRAC IP address', required=False)
 parser.add_argument('-u', help='iDRAC username', required=False)
 parser.add_argument('-p', help='iDRAC password. If you do not pass in argument -p, script will prompt to enter user password which will not be echoed to the screen.', required=False)
 parser.add_argument('-x', help='Pass in X-Auth session token for executing Redfish calls. All Redfish calls will use X-Auth token instead of username/password', required=False)
 parser.add_argument('--ssl', help='SSL cert verification for all Redfish calls, pass in value \"true\" or \"false\". By default, this argument is not required and script ignores validating SSL cert for all Redfish calls.', required=False)
 parser.add_argument('--script-examples', action="store_true", help='Prints script examples')
+parser.add_argument('--get-target-values', help='Get supported values for --target argument', action="store_true", dest="get_target_values", required=False)
+parser.add_argument('--target', help='Pass in Target value to get component attributes. You can pass in \"ALL" to get all component attributes or pass in specific component(s) to get only those attributes. If you pass in multiple values use a comma separator. To get all supported values, use argument --get-target-values', required=False)
 parser.add_argument('--shareip', help='Pass in the IP address of the network share', required=False)
 parser.add_argument('--sharetype', help='Pass in the share type of the network share. Supported values: NFS, CIFS, HTTP and HTTPS.', required=False)
 parser.add_argument('--sharename', help='Pass in the network share name', required=False)
 parser.add_argument('--username', help='Pass in the network share username if your share is setup for auth.', required=False)
 parser.add_argument('--password', help='Pass in the network share username password if your share is setup for auth', required=False)
 parser.add_argument('--workgroup', help='Pass in the workgroup of your CIFS network share. This argument is optional', required=False)
-parser.add_argument('--target', help='Pass in Target value to get component attributes. You can pass in \"ALL" to get all component attributes or pass in a specific component to get only those attributes. Supported values are: ALL, System, BIOS, IDRAC, NIC, FC, LifecycleController, RAID.', required=False)
 parser.add_argument('--export-use', help='Pass in ExportUse value. Supported values are Default, Clone and Replace. If you don\'t use this parameter, default setting is Default or Normal export.', dest="export_use", required=False)
 parser.add_argument('--include', help='Pass in IncludeInExport value. Supported values are 0 for \"Default\", 1 for \"IncludeReadOnly\", 2 for \"IncludePasswordHashValues\" or 3 for \"IncludeReadOnly,IncludePasswordHashValues\". If you don\'t use this parameter, default setting is Default for IncludeInExport.', required=False)
 parser.add_argument('--filename', help='Pass in unique filename for the SCP file which will get created on the network share', required=False)
@@ -56,6 +57,7 @@ logging.basicConfig(format='%(message)s', stream=sys.stdout, level=logging.INFO)
 
 def script_examples():
     print("""\n- ExportSystemConfigurationNetworkShareREDFISH.py -ip 192.168.0.120 -u root -p calvin --target ALL --format-type XML --shareip 192.168.0.130 --sharetype NFS --sharename /nfs --filename SCP_export_R740, this example is going to export attributes for all devices in a default XML SCP file to a NFS share.
+    \n- ExportSystemConfigurationNetworkShareREDFISH.py -ip 192.168.0.120 -u root -p calvin --get-target-values, this example will return supported values to pass in for --target argument.
     \n- ExportSystemConfigurationNetworkShareREDFISH.py -ip 192.168.0.120 -u root -p calvin --target BIOS --format-type JSON --shareip 192.168.0.140 --sharetype CIFS --sharename cifs_share_vm --filename R740_scp_file --export-use Clone --username administrator --password password, this example is going to export only BIOS attributes in a clone JSON SCP file to a CIFS share.""")
     sys.exit(0)
 
@@ -71,6 +73,20 @@ def check_supported_idrac_version():
     if response.status_code != 200:
         logging.warning("\n- WARNING, GET command failed to check supported iDRAC version, status code %s returned" % response.status_code)
         sys.exit(0)
+
+def get_target_values():
+    if args["x"]:
+        response = requests.get('https://%s/redfish/v1/Managers/iDRAC.Embedded.1' % idrac_ip, verify=verify_cert, headers={'X-Auth-Token': args["x"]})
+    else:
+        response = requests.get('https://%s/redfish/v1/Managers/iDRAC.Embedded.1' % idrac_ip, verify=verify_cert, auth=(idrac_username, idrac_password))
+    data = response.json()
+    if response.status_code != 200:
+        logging.warning("\n- WARNING, GET command failed to get supported target values, status code %s returned" % response.status_code)
+        print(data)
+        sys.exit(0)
+    logging.info("\n- INFO, supported values for --target argument\n")
+    for i in data["Actions"]["Oem"]["#OemManager.v1_4_0.OemManager#OemManager.ExportSystemConfiguration"]["ShareParameters"]["Target@Redfish.AllowableValues"]:
+        print(i)
 
 def export_server_configuration_profile():
     global job_id
@@ -177,7 +193,9 @@ if __name__ == "__main__":
     else:
         logging.error("\n- FAIL, invalid argument values or not all required parameters passed in. See help text or argument --script-examples for more details.")
         sys.exit(0)
-    if args["target"] and args["format_type"] and args["filename"] and args["shareip"] and args["sharetype"]:
+    if args["get_target_values"]:
+        get_target_values()
+    elif args["target"] and args["format_type"] and args["filename"] and args["shareip"] and args["sharetype"]:
         export_server_configuration_profile()
         loop_job_status()
     else:

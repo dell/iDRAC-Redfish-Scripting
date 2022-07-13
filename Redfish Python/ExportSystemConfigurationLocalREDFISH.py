@@ -3,10 +3,8 @@
 #
 # ExportServerConfigurationLocalREDFISH. Python script using Redfish API with OEM extension to export the system configuration locally. By default, POST command print all attributes to the screen. This script will also capture these attributes into a file.
 #
-# 
-#
 # _author_ = Texas Roemer <Texas_Roemer@Dell.com>
-# _version_ = 9.0
+# _version_ = 10.0
 #
 # Copyright (c) 2017, Dell, Inc.
 #
@@ -36,24 +34,26 @@ from pprint import pprint
 
 warnings.filterwarnings("ignore")
 
-parser=argparse.ArgumentParser(description="Python script using Redfish API with OEM extension to export the host server configuration profile locally in either XML or JSON format.")
+parser = argparse.ArgumentParser(description="Python script using Redfish API with OEM extension to export the host server configuration profile locally in either XML or JSON format.")
 parser.add_argument('-ip',help='iDRAC IP address', required=False)
 parser.add_argument('-u', help='iDRAC username', required=False)
 parser.add_argument('-p', help='iDRAC password. If you do not pass in argument -p, script will prompt to enter user password which will not be echoed to the screen.', required=False)
 parser.add_argument('-x', help='Pass in X-Auth session token for executing Redfish calls. All Redfish calls will use X-Auth token instead of username/password', required=False)
 parser.add_argument('--ssl', help='SSL cert verification for all Redfish calls, pass in value \"true\" or \"false\". By default, this argument is not required and script ignores validating SSL cert for all Redfish calls.', required=False)
 parser.add_argument('--script-examples', action="store_true", help='Prints script examples')
-parser.add_argument('--target', help='Pass in Target value to get component attributes. You can pass in \"ALL" to get all component attributes or pass in a specific component to get only those attributes. Supported values are: ALL, System, BIOS, IDRAC, NIC, FC, LifecycleController, RAID, EventFilters.', required=False)
+parser.add_argument('--get-target-values', help='Get supported values for --target argument', action="store_true", dest="get_target_values", required=False)
+parser.add_argument('--target', help='Pass in Target value to get component attributes. You can pass in \"ALL" to get all component attributes or pass in specific component(s) to get only those attributes. If you pass in multiple values use a comma separator. To get all supported values, use argument --get-target-values', required=False)
 parser.add_argument('--export-use', help='Pass in ExportUse value. Supported values are Default, Clone and Replace. If you don\'t use this parameter, default setting is Default or Normal export.', dest="export_use", required=False)
 parser.add_argument('--include', help='Pass in IncludeInExport value. Supported values are 1 for \"Default\", 2 for \"IncludeReadOnly\", 3 for \"IncludePasswordHashValues\" 4 for \"IncludeReadOnly,IncludePasswordHashValues\" or 5 for \"IncludeCustomTelemetry\". If you don\'t use this parameter, default setting is Default for IncludeInExport.', required=False)
 parser.add_argument('--format-type', help='Pass in Export format type, either \"XML\" or \"JSON\". Note, If you don\'t pass in this argument, default setting is XML', dest="format_type", required=False)
 parser.add_argument('--directory-path', help='Pass in directory path where you want the SCP file saved to. If you don\'t pass in this argument, SCP file will be saved to the directory you are executing the script from.', dest="directory_path", required=False)
 
-args=vars(parser.parse_args())
+args = vars(parser.parse_args())
 logging.basicConfig(format='%(message)s', stream=sys.stdout, level=logging.INFO)
 
 def script_examples():
     print("""\n- ExportSystemConfigurationLocalREDFISH.py -ip 192.168.0.120 -u root -p calvin --target ALL, this example will export all components locally in XML format.
+    \n- ExportSystemConfigurationLocalREDFISH.py -ip 192.168.0.120 -u root -p calvin --get-target-values, this example will return supported values to pass in for --target argument.
     \n- ExportSystemConfigurationLocalREDFISH.py -ip 192.168.0.120 -u root -p calvin --target BIOS --format-type JSON, this example will export only BIOS attributes in JSON format.
     \n- ExportSystemConfigurationLocalREDFISH.py -ip 192.168.0.120 -u root -p calvin --target IDRAC,BIOS --format-type JSON --include 2, this example will only export iDRAC, BIOS attributes and also read only attributes for these components in JSON format.""")
     sys.exit(0)
@@ -70,6 +70,20 @@ def check_supported_idrac_version():
     if response.status_code != 200:
         logging.warning("\n- WARNING, GET command failed to check supported iDRAC version, status code %s returned" % response.status_code)
         sys.exit(0)
+
+def get_target_values():
+    if args["x"]:
+        response = requests.get('https://%s/redfish/v1/Managers/iDRAC.Embedded.1' % idrac_ip, verify=verify_cert, headers={'X-Auth-Token': args["x"]})
+    else:
+        response = requests.get('https://%s/redfish/v1/Managers/iDRAC.Embedded.1' % idrac_ip, verify=verify_cert, auth=(idrac_username, idrac_password))
+    data = response.json()
+    if response.status_code != 200:
+        logging.warning("\n- WARNING, GET command failed to get supported target values, status code %s returned" % response.status_code)
+        print(data)
+        sys.exit(0)
+    logging.info("\n- INFO, supported values for --target argument\n")
+    for i in data["Actions"]["Oem"]["#OemManager.v1_4_0.OemManager#OemManager.ExportSystemConfiguration"]["ShareParameters"]["Target@Redfish.AllowableValues"]:
+        print(i)
 
 def export_scp_file_locally():
     url = 'https://%s/redfish/v1/Managers/iDRAC.Embedded.1/Actions/Oem/EID_674_Manager.ExportSystemConfiguration' % idrac_ip
@@ -232,7 +246,9 @@ if __name__ == "__main__":
     else:
         logging.error("\n- FAIL, invalid argument values or not all required parameters passed in. See help text or argument --script-examples for more details.")
         sys.exit(0)
-    if args["target"]:
+    if args["get_target_values"]:
+        get_target_values()
+    elif args["target"]:
         export_scp_file_locally()
     else:
         logging.error("\n- FAIL, invalid argument values or not all required parameters passed in. See help text or argument --script-examples for more details.")
