@@ -4,7 +4,7 @@
 # SupportAssistCollectionLocalREDFISH. Python script using Redfish API with OEM extension to perform Support Assist operations.
 #
 # _author_ = Texas Roemer <Texas_Roemer@Dell.com>
-# _version_ = 13.0
+# _version_ = 14.0
 #
 # Copyright (c) 2020, Dell, Inc.
 #
@@ -158,7 +158,9 @@ def support_assist_accept_EULA():
     else:
         headers = {'content-type': 'application/json'}
         response = requests.post(url, data=json.dumps(payload), headers=headers, verify=verify_cert,auth=(idrac_username,idrac_password))
-    if response.status_code != 202:
+    if response.status_code == 202 or response.status_code == 200:
+        logging.debug("- PASS, POST command passed to accept EULA")
+    else:
         data = response.json()
         logging.error("\n- FAIL, status code %s returned, detailed error information:\n %s" % (response.status_code, data))
         sys.exit(0)
