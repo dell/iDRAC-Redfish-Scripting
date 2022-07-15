@@ -4,7 +4,7 @@
 # GetSetBiosAttributesREDFISH. Python script using Redfish API DMTF to either get or set BIOS attributes using Redfish SettingApplyTime.
 #
 # _author_ = Texas Roemer <Texas_Roemer@Dell.com>
-# _version_ = 16.0
+# _version_ = 17.0
 #
 # Copyright (c) 2019, Dell, Inc.
 #
@@ -323,8 +323,8 @@ def loop_job_status_final():
             continue
         current_time = (datetime.now()-start_time)
         if response.status_code != 200:
-            logging.error("\n- FAIL, GET command failed to check job status, return code is %s" % statusCode)
-            logging.error("Extended Info Message: {0}".format(req.json()))
+            logging.error("\n- FAIL, GET command failed to check job status, return code is %s" % response.status_code)
+            logging.error("Extended Info Message: {0}".format(response.json()))
             sys.exit(0)
         data = response.json()
         if str(current_time)[0:7] >= "2:00:00":

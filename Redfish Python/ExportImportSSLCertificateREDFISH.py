@@ -4,7 +4,7 @@
 # ExportImportSSLCertificateREDFISH.py   Python script using Redfish API with OEM extension to either export or import SSL certificate.
 #
 # _author_ = Texas Roemer <Texas_Roemer@Dell.com>
-# _version_ = 9.0
+# _version_ = 10.0
 #
 # Copyright (c) 2019, Dell, Inc.
 #
@@ -45,6 +45,7 @@ parser.add_argument('--get-cert-types', help='Get current cert type values suppo
 parser.add_argument('--cert-type', help='Pass in SSL cert type value for export or import (note: this value is case sensitive). If needed, use argument --get-cert-types to get supported values.', dest="cert_type", required=False)
 parser.add_argument('--filename', help='Pass in the file name which contains the certificate to import. Cert file should be a base64 encoded string of the XML Certificate file. For importing CSC certificate, convert PKCS file to base64 format. The CTC file content has to be in PEM format (base64 encoded).', required=False)
 parser.add_argument('--passphrase', help='Pass in passphrase string if the cert you are importing is passpharse protected.', required=False)
+parser.add_argument('--reboot-idrac', help='Pass in this argument to reboot the iDRAC now to apply the new cert imported. Note: Starting in iDRAC 6.00.00 version, iDRAC reboot is no longer required after the new cert is imported.', dest="reboot_idrac", action="store_true", required=False)
 
 args=vars(parser.parse_args())
 logging.basicConfig(format='%(message)s', stream=sys.stdout, level=logging.INFO) 
@@ -53,7 +54,8 @@ def script_examples():
     print("""\n- ExportImportSSLCertificateREDFISH.py -ip 192.168.0.120 -u root -p calvin --get-current-certs, this example will return current detected/installed certificates.
     \n- ExportImportSSLCertificateREDFISH.py -ip 192.168.0.120 -u root -p calvin --get-cert-types, this example will return current cert type supported values for export or import cert operations.
     \n- ExportImportSSLCertificateREDFISH.py -ip 192.168.0.120 -u root -p calvin --export --cert-type Server, this example will export current iDRAC Server certificate.
-    \n- ExportImportSSLCertificateREDFISH.py -ip 192.168.0.120 -u root -p calvin --import --cert-type CSC --filename signed_cert_R740.pem --passphrase Test1234#, this example will import signed p12 file with a passphrase.
+    \n- ExportImportSSLCertificateREDFISH.py -ip 192.168.0.120 -u root -p calvin --import --cert-type CustomCertificate --filename signed_cert_R740.pem --passphrase Test1234#, this example using iDRAC 6.00 will import custom signed p12 cert with a passphrase.
+    \n- ExportImportSSLCertificateREDFISH.py -ip 192.168.0.120 -u root -p calvin --import --cert-type CSC --filename signed_cert_R740.pem --reboot-idrac, this example using iDRAC 5.10 will import signed p12 file and reboot the iDRAC.
     \n- ExportImportSSLCertificateREDFISH.py -ip 192.168.0.120 --export --cert-type Server -ssl true -x 52396c8ac35e15f7b2de4b18673b111f, this example shows validating ssl cert for all Redfish calls to export server cert using X-auth token session.""")
     sys.exit(0)
 
@@ -155,10 +157,8 @@ def import_SSL_cert():
     data = response.json()
     if response.status_code == 200:
         logging.info("\n- PASS: POST command passed for %s method, status code 202 returned\n" % method)
-        user_response = input(str("- INFO, iDRAC reboot is needed to apply the new certificate if using version older than 6.00.00, pass in \"y\" to reboot iDRAC now or \"n\" to not reboot: "))
-        if user_response.lower() == "n":
-            sys.exit(0)
-        elif user_response.lower() == "y":
+        if args["reboot_idrac"]:
+            logging.info("- INFO: user selected to reboot iDRAC now to apply the new imported cert")
             url = "https://%s/redfish/v1/Managers/iDRAC.Embedded.1/Actions/Manager.Reset/" % idrac_ip
             payload={"ResetType":"GracefulRestart"}
             if args["x"]:
@@ -176,10 +176,10 @@ def import_SSL_cert():
             time.sleep(15)
             logging.info("- INFO, iDRAC will now reboot and be back online within a few minutes.")
         else:
-            logging.error("- ERROR, invalid value entered for user response")
+            logging.info("- INFO, argument --reboot-idrac not detected, if using iDRAC version older than 6.00.00, iDRAC reboot is required to apply the new cert after import.")
             sys.exit(0)                  
     else:
-        logging.error("\n- FAIL, POST command failed for %s method, status code is %s" % (method, response.status_code))
+        logging.error("\n- FAIL, POST command failed for %s method, status code %s returned" % (method, response.status_code))
         data = response.json()
         logging.error("\n- POST command failure results:\n %s" % data)
         sys.exit(0)
@@ -220,7 +220,4 @@ if __name__ == "__main__":
         logging.error("\n- FAIL, invalid argument values or not all required parameters passed in. See help text or argument --script-examples for more details.")
     
     
-        
-            
-        
         

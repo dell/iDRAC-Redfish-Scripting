@@ -4,7 +4,7 @@
 # SupportAssistCollectionNetworkShareREDFISH. Python script using Redfish API with OEM extension to export Support Assist collection to a network share
 #
 # _author_ = Texas Roemer <Texas_Roemer@Dell.com>
-# _version_ = 10.0
+# _version_ = 11.0
 #
 # Copyright (c) 2020, Dell, Inc.
 #
@@ -103,12 +103,13 @@ def support_assist_accept_EULA():
     else:
         headers = {'content-type': 'application/json'}
         response = requests.post(url, data=json.dumps(payload), headers=headers, verify=verify_cert,auth=(idrac_username,idrac_password))
-    if response.status_code != 202:
-        logging.info("\n- PASS, %s method passed and End User License Agreement (EULA) has been accepted" % method)
+    if response.status_code == 202 or response.status_code == 200:
+        logging.debug("- PASS, POST command passed to accept EULA")
     else:
         data = response.json()
         logging.error("\n- FAIL, status code %s returned, detailed error information:\n %s" % (response.status_code, data))
         sys.exit(0)
+    logging.info("\n- PASS, %s method passed and End User License Agreement (EULA) has been accepted" % method)
 
 def support_assist_get_EULA_status():
     logging.info("\n- Current Support Assist End User License Agreement Information -\n")
@@ -186,7 +187,7 @@ def support_assist_register():
         sys.exit(0)
 
 
-def export_support_assist_collection_network_share():
+def export_support_assist_colection_network_share():
     global job_id
     if args["export_network"]:
         url = 'https://%s/redfish/v1/Dell/Managers/iDRAC.Embedded.1/DellLCService/Actions/DellLCService.SupportAssistCollection' % (idrac_ip)
@@ -327,7 +328,7 @@ if __name__ == "__main__":
         logging.error("\n- FAIL, invalid argument values or not all required parameters passed in. See help text or argument --script-examples for more details.")
         sys.exit(0)
     if args["export_network"] or args["export_last"]:
-        export_support_assist_collection_network_share()
+        export_support_assist_colection_network_share()
         loop_job_status()
     elif args["accept"]:
         support_assist_accept_EULA()
