@@ -2,7 +2,7 @@
 #!/usr/bin/python3
 #
 # _author_ = Texas Roemer <Texas_Roemer@Dell.com>
-# _version_ = 2.0
+# _version_ = 3.0
 #
 # Copyright (c) 2020, Dell, Inc.
 #
@@ -79,8 +79,12 @@ def set_inlet_temp():
     if args["min"]:
         logging.info("\n- INFO, setting LowerCaution property to %s reading" % args["min"])
         payload = {"Thresholds":{"LowerCaution":{"Reading":int(args["min"])}}}
-        headers = {'content-type': 'application/json'}
-        response = requests.patch(url, data=json.dumps(payload), headers=headers, verify=False,auth=(idrac_username, idrac_password))
+        if args["x"]:
+            headers = {'content-type': 'application/json', 'X-Auth-Token': args["x"]}
+            response = requests.patch(url, data=json.dumps(payload), headers=headers, verify=verify_cert)
+        else:
+            headers = {'content-type': 'application/json'}
+            response = requests.patch(url, data=json.dumps(payload), headers=headers, verify=verify_cert,auth=(idrac_username,idrac_password))
         data = response.json()
         if response.status_code == 200:
             logging.info("- PASS, PATCH operation passed to set LowerCaution property")
