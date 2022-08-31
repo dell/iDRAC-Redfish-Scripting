@@ -4,7 +4,7 @@
 # DeleteVirtualDiskREDFISH. Python script using Redfish API to either get controllers / current virtual disks or delete virtual disk.
 #
 # _author_ = Texas Roemer <Texas_Roemer@Dell.com>
-# _version_ = 6.0
+# _version_ = 7.0
 #
 # Copyright (c) 2018, Dell, Inc.
 #
@@ -161,20 +161,34 @@ def delete_vd():
     except:
         logging.error("- FAIL, unable to locate job ID in JSON headers output")
         sys.exit(0)   
-    if args["x"]:
-        response = requests.get('https://%s/redfish/v1/Managers/iDRAC.Embedded.1/Jobs/%s' % (idrac_ip, job_id), verify=verify_cert, headers={'X-Auth-Token': args["x"]})
-    else:
-        response = requests.get('https://%s/redfish/v1/Managers/iDRAC.Embedded.1/Jobs/%s' % (idrac_ip, job_id), verify=verify_cert,auth=(idrac_username, idrac_password))
-    data = response.json()
-    if data['JobType'] == "RAIDConfiguration":
-        job_type = "staged"
-    elif data['JobType'] == "RealTimeNoRebootConfiguration":
-        job_type = "realtime"
+    retry_count = 1
+    while True:
+        if retry_count == 5:
+            logging.error("- WARNING, retry count of 5 has been hit to determine job type. Manually check the job queue for job status")
+            sys.exit(0)
+        if args["x"]:
+            response = requests.get('https://%s/redfish/v1/Managers/iDRAC.Embedded.1/Jobs/%s' % (idrac_ip, job_id), verify=verify_cert, headers={'X-Auth-Token': args["x"]})
+        else:
+            response = requests.get('https://%s/redfish/v1/Managers/iDRAC.Embedded.1/Jobs/%s' % (idrac_ip, job_id), verify=verify_cert,auth=(idrac_username, idrac_password))
+        data = response.json()
+        if "JobType" not in data.keys():
+            logging.error("- WARNING, unable to determine job type, retry in 10 seconds")
+            time.sleep(10)
+            retry_count += 1
+            continue
+        if data['JobType'] == "RAIDConfiguration":
+            job_type = "staged"
+            logging.info("- PASS, staged job ID \"%s\" successfully created. Server will now reboot to apply the configuration changes" % job_id)
+            break
+        elif data['JobType'] == "RealTimeNoRebootConfiguration":
+            job_type = "realtime"
+            logging.info("- PASS, realtime job ID \"%s\" successfully created. Server will apply the configuration changes in real time, no server reboot needed" % job_id)
+            break
 
 def get_job_status_scheduled():
-    count = 0
+    retry_count = 0
     while True:
-        if count == 5:
+        if retry_count == 5:
             logging.error("- FAIL, GET job status retry count of 5 has been reached, script will exit")
             sys.exit(0)
         try:
@@ -186,7 +200,7 @@ def get_job_status_scheduled():
             logging.error(error_message)
             logging.info("\n- INFO, GET request will try again to poll job status")
             time.sleep(5)
-            count += 1
+            retry_count += 1
             continue
         if response.status_code == 200:
             time.sleep(5)
@@ -199,27 +213,29 @@ def get_job_status_scheduled():
             logging.info("- INFO, staged config job marked as scheduled, rebooting the system")
             break
         else:
-            logging.info("- INFO: job status not scheduled, current status: %s\n" % data['Message'])
+            logging.info("- INFO: job status not scheduled, current status: %s\n" % data['Message'].strip("."))
 
 def loop_job_status_final():
     start_time = datetime.now()
-    if args["x"]:
-        response = requests.get('https://%s/redfish/v1/Managers/iDRAC.Embedded.1/Jobs/%s' % (idrac_ip, job_id), verify=verify_cert, headers={'X-Auth-Token': args["x"]})
-    else:
-        response = requests.get('https://%s/redfish/v1/Managers/iDRAC.Embedded.1/Jobs/%s' % (idrac_ip, job_id), verify=verify_cert,auth=(idrac_username, idrac_password))
-    data = response.json()
-    if data['JobType'] == "RAIDConfiguration":
-        logging.info("- PASS, staged jid \"%s\" successfully created. Server will now reboot to apply the configuration changes" % job_id)
-    elif data['JobType'] == "RealTimeNoRebootConfiguration":
-        logging.info("- PASS, realtime jid \"%s\" successfully created. Server will apply the configuration changes in real time, no server reboot needed" % job_id)
+    retry_count = 0
     while True:
-        if args["x"]:
-            response = requests.get('https://%s/redfish/v1/Managers/iDRAC.Embedded.1/Jobs/%s' % (idrac_ip, job_id), verify=verify_cert, headers={'X-Auth-Token': args["x"]})
-        else:
-            response = requests.get('https://%s/redfish/v1/Managers/iDRAC.Embedded.1/Jobs/%s' % (idrac_ip, job_id), verify=verify_cert,auth=(idrac_username, idrac_password))
+        if retry_count == 10:
+            logging.error("- FAIL, GET job status retry count of 10 has been reached, script will exit")
+            sys.exit(0)
+        try:
+            if args["x"]:
+                response = requests.get('https://%s/redfish/v1/Managers/iDRAC.Embedded.1/Jobs/%s' % (idrac_ip, job_id), verify=verify_cert, headers={'X-Auth-Token': args["x"]})
+            else:
+                response = requests.get('https://%s/redfish/v1/Managers/iDRAC.Embedded.1/Jobs/%s' % (idrac_ip, job_id), verify=verify_cert,auth=(idrac_username, idrac_password))
+        except requests.ConnectionError as error_message:
+            logging.error(error_message)
+            logging.error("\n- WARNING, GET request failed to check job status, retry again")
+            time.sleep(5)
+            retry_count += 1
+            continue
         current_time = (datetime.now()-start_time)
         if response.status_code != 200:
-            logging.error("\n- FAIL, GET command failed to check job status, return code is %s" % statusCode)
+            logging.error("\n- FAIL, GET command failed to check job status, return code %s" % response.status_code)
             logging.error("Extended Info Message: {0}".format(req.json()))
             sys.exit(0)
         data = response.json()
@@ -235,7 +251,7 @@ def loop_job_status_final():
                 pprint(i)
             break
         else:
-            logging.info("- INFO, job status not completed, current status: \"%s\"" % data['Message'])
+            logging.info("- INFO, job not completed, current status: \"%s\"" % data['Message'].strip("."))
             time.sleep(10)
 
 def reboot_server():
