@@ -168,7 +168,7 @@ def set_attributes():
             logging.warning("- WARNING, error detected for one or more of the attribute(s) being set, detailed error results:\n\n %s" % data["error"])
             logging.info("\n- INFO, for attributes that detected no error, these will still get applied")
     else:
-        logging.error("\n- FAIL, Command failed to set %s attributes(s), status code is: %s\n" % (args["set"].upper(),statusCode))
+        logging.error("\n- FAIL, Command failed to set %s attributes(s), status code is: %s\n" % (args["set"].upper(),response.status_code))
         logging.error("Extended Info Message: {0}".format(response.json()))
         sys.exit(0)
 
