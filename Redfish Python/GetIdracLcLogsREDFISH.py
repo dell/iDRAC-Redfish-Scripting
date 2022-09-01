@@ -143,7 +143,7 @@ def get_LC_log_failures():
         os.remove("lc_log_failures.txt")
     except:
         logging.info("- INFO, unable to locate file %s, skipping step to delete" % "lc_log_failures.txt")
-    logging.info("\n- INFO, checking iDRAC LC logs for failed entries, this may take awhile to complete depending on log size -\n")
+    logging.info("\n- INFO, checking iDRAC LC logs for failed entries, this may take up to 1 minute to complete depending on log size -\n")
     time.sleep(2)
     open_file = open("lc_log_failures.txt","w")
     current_timestamp = datetime.now()
@@ -224,7 +224,7 @@ def get_message_id():
         os.remove("message_id_entries.txt")
     except:
         logging.info("- INFO, unable to locate file %s, skipping step to delete" % "message_id_entries.txt")
-    logging.info("\n- INFO, checking iDRAC LC logs for message ID(s) %s, this may take awhile to complete depending on log size -\n" % args["get_message_id"])
+    logging.info("\n- INFO, checking iDRAC LC logs for message ID(s) %s, this may take up to 1 minute to complete depending on log size -\n" % args["get_message_id"])
     time.sleep(2)
     open_file = open("message_id_entries.txt","w")
     current_timestamp = datetime.now()
