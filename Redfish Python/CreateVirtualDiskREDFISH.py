@@ -4,7 +4,7 @@
 # CreateVirtualDiskREDFISH. Python script using Redfish API to either get controllers / disks / virtual disks / supported RAID levels or create virtual disk.
 #
 # _author_ = Texas Roemer <Texas_Roemer@Dell.com>
-# _version_ = 21.0
+# _version_ = 22.0
 #
 # Copyright (c) 2018, Dell, Inc.
 #
@@ -18,6 +18,7 @@
 
 import argparse
 import getpass
+import itertools
 import json
 import logging
 import re
@@ -220,6 +221,20 @@ def get_supported_RAID_levels():
 def create_raid_vd():
     global job_id
     global job_type
+    global current_vd_list
+    current_vd_list = []
+    if args["x"]:
+        response = requests.get('https://%s/redfish/v1/Systems/System.Embedded.1/Storage/%s/Volumes' % (idrac_ip, args["create"]),verify=verify_cert, headers={'X-Auth-Token': args["x"]})
+    else:
+        response = requests.get('https://%s/redfish/v1/Systems/System.Embedded.1/Storage/%s/Volumes' % (idrac_ip, args["create"]),verify=verify_cert,auth=(idrac_username, idrac_password))
+    if response.status_code != 200:
+        logging.error("\n- FAIL, GET command failed to check job status, return code %s" % response.status_code)
+        logging.error("Extended Info Message: {0}".format(response.json()))
+        sys.exit(0)
+    data = response.json()
+    for i in data["Members"]:
+        for ii in i.items():
+            current_vd_list.append(ii[1])
     if args["x"]:
         response = requests.get('https://%s/redfish/v1/Managers/iDRAC.Embedded.1' % idrac_ip, verify=verify_cert, headers={'X-Auth-Token': args["x"]})
     else:
@@ -370,7 +385,7 @@ def loop_job_status_final():
         current_time = (datetime.now()-start_time)
         if response.status_code != 200:
             logging.error("\n- FAIL, GET command failed to check job status, return code %s" % response.status_code)
-            logging.error("Extended Info Message: {0}".format(req.json()))
+            logging.error("Extended Info Message: {0}".format(response.json()))
             sys.exit(0)
         data = response.json()
         if str(current_time)[0:7] >= "2:00:00":
@@ -383,6 +398,21 @@ def loop_job_status_final():
             logging.info("\n--- PASS, Final Detailed Job Status Results ---\n")
             for i in data.items():
                 pprint(i)
+            if args["x"]:
+                response = requests.get('https://%s/redfish/v1/Systems/System.Embedded.1/Storage/%s/Volumes' % (idrac_ip, args["create"]),verify=verify_cert, headers={'X-Auth-Token': args["x"]})
+            else:
+                response = requests.get('https://%s/redfish/v1/Systems/System.Embedded.1/Storage/%s/Volumes' % (idrac_ip, args["create"]),verify=verify_cert,auth=(idrac_username, idrac_password))
+            if response.status_code != 200:
+                logging.error("\n- FAIL, GET command failed to check job status, return code %s" % response.status_code)
+                logging.error("Extended Info Message: {0}".format(response.json()))
+                sys.exit(0)
+            new_vd_list = []
+            data = response.json()
+            for i in data["Members"]:
+                for ii in i.items():
+                    new_vd_list.append(ii[1])
+            get_new_VD_fqdd = list(itertools.filterfalse(set(current_vd_list).__contains__, new_vd_list))
+            logging.info("\n- INFO, new VD FQDD created: %s" % get_new_VD_fqdd[0].split("/")[-1])
             break
         else:
             logging.info("- INFO, job not completed, current status: \"%s\"" % data['Message'].strip("."))
