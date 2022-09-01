@@ -193,7 +193,7 @@ def reboot_server():
             if data['PowerState'] == "Off":
                 logging.info("- PASS, GET command passed to verify graceful shutdown was successful and server is in OFF state")
                 break
-            elif current_time == "0:05:00":
+            elif current_time >= "0:05:00":
                 logging.info("- INFO, unable to perform graceful shutdown, server will now perform forced shutdown")
                 payload = {'ResetType': 'ForceOff'}
                 if args["x"]:
