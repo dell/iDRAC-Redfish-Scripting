@@ -168,28 +168,41 @@ def check_consistency():
         headers = {'content-type': 'application/json'}
         response = requests.post(url, data=json.dumps(payload), headers=headers, verify=verify_cert,auth=(idrac_username,idrac_password))
     if response.status_code == 202:
-        logging.info("\n- PASS: POST command passed to check consistency virtual disk, status code %s returned" % response.status_code)
-        try:
-            job_id = response.headers['Location'].split("/")[-1]
-        except:
-            logging.error("- FAIL, unable to locate job ID in JSON headers output")
-            sys.exit(0)
-        logging.info("- Job ID %s successfully created for RAID method \"%s\"" % (job_id, method))
+        logging.info("\n- PASS: POST command passed to create \"%s\" virtual disk, status code 202 returned" % volume_type)
     else:
-        logging.error("\n- FAIL, POST command failed to reset storage controller %s, status code %s returned" % (args["reset_controller"], response.status_code))
+        logging.error("\n- FAIL, POST command failed, status code is %s" % response.status_code)
         data = response.json()
-        logging.error("\n- POST command failure results:\n %s" % data)
-        sys.exit(0)    
-    if args["x"]:
-        response = requests.get('https://%s/redfish/v1/Managers/iDRAC.Embedded.1/Jobs/%s' % (idrac_ip, job_id), verify=verify_cert, headers={'X-Auth-Token': args["x"]})
-    else:
-        response = requests.get('https://%s/redfish/v1/Managers/iDRAC.Embedded.1/Jobs/%s' % (idrac_ip, job_id), verify=verify_cert,auth=(idrac_username, idrac_password))
-    data = response.json()
-    if data['JobType'] == "RAIDConfiguration":
-        job_type = "staged"
-    elif data['JobType'] == "RealTimeNoRebootConfiguration":
-        job_type = "realtime"
-    logging.info("\n- PASS, \"%s\" %s jid successfully created for check consistency virtual disk\n" % (job_type, job_id))
+        logging.error("\n- POST command failure is:\n %s" % data)
+        sys.exit(0)
+    try:
+        job_id = response.headers['Location'].split("/")[-1]
+    except:
+        logging.error("- FAIL, unable to locate job ID in JSON headers output")
+        sys.exit(0)
+    time.sleep(10)
+    retry_count = 1
+    while True:
+        if retry_count == 5:
+            logging.error("- WARNING, retry count of 5 has been hit to determine job type. Manually check the job queue for %s job status" % job_id)
+            sys.exit(0)
+        if args["x"]:
+            response = requests.get('https://%s/redfish/v1/Managers/iDRAC.Embedded.1/Jobs/%s' % (idrac_ip, job_id), verify=verify_cert, headers={'X-Auth-Token': args["x"]})
+        else:
+            response = requests.get('https://%s/redfish/v1/Managers/iDRAC.Embedded.1/Jobs/%s' % (idrac_ip, job_id), verify=verify_cert,auth=(idrac_username, idrac_password))
+        data = response.json()
+        if "JobType" not in data.keys():
+            logging.error("- WARNING, unable to determine job type, retry in 10 seconds")
+            time.sleep(10)
+            retry_count += 1
+            continue
+        if data['JobType'] == "RAIDConfiguration":
+            job_type = "staged"
+            logging.info("- PASS, staged job ID \"%s\" successfully created. Server will now reboot to apply the configuration changes" % job_id)
+            break
+        elif data['JobType'] == "RealTimeNoRebootConfiguration":
+            job_type = "realtime"
+            logging.info("- PASS, realtime job ID \"%s\" successfully created. Server will apply the configuration changes in real time, no server reboot needed" % job_id)
+            break
 
 def get_job_status_scheduled():
     count = 0
@@ -223,15 +236,6 @@ def get_job_status_scheduled():
 
 def loop_job_status_final():
     start_time = datetime.now()
-    if args["x"]:
-        response = requests.get('https://%s/redfish/v1/Managers/iDRAC.Embedded.1/Jobs/%s' % (idrac_ip, job_id), verify=verify_cert, headers={'X-Auth-Token': args["x"]})
-    else:
-        response = requests.get('https://%s/redfish/v1/Managers/iDRAC.Embedded.1/Jobs/%s' % (idrac_ip, job_id), verify=verify_cert,auth=(idrac_username, idrac_password))
-    data = response.json()
-    if data['JobType'] == "RAIDConfiguration":
-        logging.info("- PASS, staged jid \"%s\" successfully created. Server will now reboot to apply the configuration changes" % job_id)
-    elif data['JobType'] == "RealTimeNoRebootConfiguration":
-        logging.info("- PASS, realtime jid \"%s\" successfully created. Server will apply the configuration changes in real time, no server reboot needed" % job_id)
     while True:
         if args["x"]:
             response = requests.get('https://%s/redfish/v1/Managers/iDRAC.Embedded.1/Jobs/%s' % (idrac_ip, job_id), verify=verify_cert, headers={'X-Auth-Token': args["x"]})
@@ -293,7 +297,7 @@ def reboot_server():
             if data['PowerState'] == "Off":
                 logging.info("- PASS, GET command passed to verify graceful shutdown was successful and server is in OFF state")
                 break
-            elif current_time == "0:05:00":
+            elif current_time >= "0:05:00":
                 logging.info("- INFO, unable to perform graceful shutdown, server will now perform forced shutdown")
                 payload = {'ResetType': 'ForceOff'}
                 if args["x"]:
