@@ -154,7 +154,6 @@ def set_attributes():
         if i[0].lower() == "IPv4Static.1.Address".lower():
             static_ip_set = "yes"
             static_ip_value = i[1]
-    headers = {'content-type': 'application/json'}
     if args["x"]:
         headers = {'content-type': 'application/json', 'X-Auth-Token': args["x"]}
         response = requests.patch(url, data=json.dumps(payload), headers=headers, verify=verify_cert)
