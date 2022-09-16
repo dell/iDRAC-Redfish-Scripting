@@ -4,7 +4,7 @@
 # GetSetBiosAttributesREDFISH. Python script using Redfish API DMTF to either get or set BIOS attributes using Redfish SettingApplyTime.
 #
 # _author_ = Texas Roemer <Texas_Roemer@Dell.com>
-# _version_ = 17.0
+# _version_ = 18.0
 #
 # Copyright (c) 2019, Dell, Inc.
 #
@@ -298,15 +298,6 @@ def get_job_status_scheduled():
 def loop_job_status_final():
     start_time = datetime.now()
     retry_count = 1
-    if args["x"]:
-        response = requests.get('https://%s/redfish/v1/Managers/iDRAC.Embedded.1/Jobs/%s' % (idrac_ip, job_id), verify=verify_cert, headers={'X-Auth-Token': args["x"]})
-    else:
-        response = requests.get('https://%s/redfish/v1/Managers/iDRAC.Embedded.1/Jobs/%s' % (idrac_ip, job_id), verify=verify_cert,auth=(idrac_username, idrac_password))
-    data = response.json()
-    if data['JobType'] == "RAIDConfiguration":
-        logging.info("- PASS, staged jid \"%s\" successfully created. Server will now reboot to apply the configuration changes" % job_id)
-    elif data['JobType'] == "RealTimeNoRebootConfiguration":
-        logging.info("- PASS, realtime jid \"%s\" successfully created. Server will apply the configuration changes in real time, no server reboot needed" % job_id)
     while True:
         if retry_count == 20:
             logging.warning("- WARNING, GET command retry count of 20 has been reached, script will exit")
