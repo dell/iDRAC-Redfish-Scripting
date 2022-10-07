@@ -6,7 +6,7 @@
 #
 # _author_ = Texas Roemer <Texas_Roemer@Dell.com>
 # _author_ = Grant Curell <grant_curell@dell.com>
-# _version_ = 12.0
+# _version_ = 13.0
 #
 # Copyright (c) 2022, Dell, Inc.
 #
@@ -28,7 +28,6 @@ import sys
 import time
 import urllib.parse
 import warnings
-import webbrowser
 
 from datetime import datetime
 from pprint import pprint
@@ -48,16 +47,15 @@ parser.add_argument('--sharename', help='Pass in the network share name', requir
 parser.add_argument('--username', help='Pass in the network share username if your share is setup for auth.', required=False)
 parser.add_argument('--password', help='Pass in the network share username password if your share is setup for auth', required=False)
 parser.add_argument('--workgroup', help='Pass in the workgroup of your CIFS network share. This argument is optional', required=False)
-parser.add_argument('--filename', help='Pass in unique filename for export hardware file which will get created on the network share. File details will be exported in XML format. Note: This argument is only required for exporting to network share.', required=False)
+parser.add_argument('--filename', help='Pass in unique filename for export hardware inventory file, file extension must be .xml. This argument is required for export to network share but optional for local export. Default filename for local export is hwinv.xml if argument is not passed.', required=False, default='hwinv.xml')
 parser.add_argument('--ignorecertwarning', help='Supported values are Enabled and Disabled. This argument is only required if using HTTPS for share type', required=False)
-parser.add_argument('--download', help='Pass in this argument to auto download HW inventory file locally once the job ID is marked completed', action="store_true", required=False)
 
 args = vars(parser.parse_args())
 logging.basicConfig(format='%(message)s', stream=sys.stdout, level=logging.INFO)
 
 def script_examples():
     print("""\n- ExportHWInventoryREDFISH.py -ip 192.168.0.120 -u root -p calvin --shareip 192.168.0.130 --sharetype CIFS --sharename cifs_share_vm --username administrator --password pass --filename R650_export_hw_inv.xml, this example will export the server hardware inventory to CIFS share.
-    \n- ExportHWInventoryREDFISH.py -ip 192.168.0.120 -u root -p calvin --sharetype local --download, this example will export the HW configuration locally to an XML file and auto download it using a browser session.
+    \n- ExportHWInventoryREDFISH.py -ip 192.168.0.120 -u root -p calvin --sharetype local, this example will export the HW configuration locally using default filename hwinv.xml.
     \n- ExportHWInventoryREDFISH.py -ip 192.168.0.120 -x 442b945cf658fbcebb6ba1ffdcf6c6f8 --sharetype NFS --shareip 192.168.0.180 --sharename /nfs --filename R650_hw.xml, this example using X-auth token session will export server hardware inventory to NFS share.""")
     sys.exit(0)
 
@@ -118,22 +116,20 @@ def export_hw_inventory():
         sys.exit(0)
     if args["sharetype"].lower() == "local":
         if response.headers['Location'] == "/redfish/v1/Dell/hwinv.xml":
-            logging.info("- INFO, export server hardware inventory filename: \"%s\"" % response.headers['Location'])
-            python_version = sys.version_info
-            while True:
-                if args["download"]:
-                    if args["x"]:
-                        logging.info("\n- INFO, X-auth token detected, if you have never logged into this iDRAC using a browser session, it will prompt to enter iDRAC username and password in browser session to download")
-                        webbrowser.open('https://%s%s' % (idrac_ip, response.headers['Location']))
-                    else:
-                        webbrowser.open('https://%s:%s@%s%s' % (idrac_username, urllib.parse.quote(idrac_password), idrac_ip, response.headers['Location']))
-                    logging.info("\n- INFO, check you default browser session for downloaded exported hardware inventory file")
-                    sys.exit(0)
-                else:
-                    logging.warning("- WARNING, argument --download not detected to auto download the file. Run GET on URI \"%s\" to manually download the file" % response.headers['Location'])
-                    sys.exit(0)
+            if args["x"]:
+                response = requests.get('https://%s%s' % (idrac_ip, response.headers['Location']), verify=verify_cert, headers={'X-Auth-Token': args["x"]})   
+            else:
+                response = requests.get('https://%s%s' % (idrac_ip, response.headers['Location']), verify=verify_cert,auth=(idrac_username, idrac_password))
+            if args["filename"]:
+                export_filename = args["filename"]
+            else:
+                export_filename = "hwinv.xml"    
+            with open(export_filename, "wb") as output:
+                output.write(response.content)
+            logging.info("\n- INFO, check your local directory for hardware inventory XML file \"%s\"" % export_filename)
+            sys.exit(0)
         else:
-            logging.error("- ERROR, unable to locate exported hardware inventory URI in headers output")
+            logging.error("- ERROR, unable to locate exported hardware inventory URI in headers output. Manually run GET on URI %s to see if file can be exported." % response.headers['Location'])
             sys.exit(0)
     else:
         try:
