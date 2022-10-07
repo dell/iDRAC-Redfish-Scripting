@@ -62,6 +62,7 @@ parser.add_argument('--zip', help='Pass in zipcode to register Support Assist', 
 parser.add_argument('--data', help='Pass in a value for the type of data you want to collect for Support Assist collection. Supported values are: pass in 0 for \"DebugLogs\", pass in 1 for "HWData\", pass in 2 for \"OSAppData\", pass in 3 for \"TTYLogs\", pass in 4 for \"TelemetryReports\". Note: If you do not pass in this argument, default settings will collect HWData. Note: You can pass in one value or multiple values to collect. If you pass in multiple values, use comma separator for the values (Example: 0,3)', required=False)
 parser.add_argument('--filter', help='Filter personal identification information (PII) for Support Assist collection. Supported values are: 0 for \"No\" and 1 for \"Yes\". NOTE: If you don\'t pass in this argument, no filtering is performed for the collection.', required=False)
 parser.add_argument('--download', help='Pass in this argument to auto download SA collection locally once the job ID is marked completed', action="store_true", required=False)
+parser.add_argument('--filename', help='Change the default file name, sacollect.zip,  to a custom file name.', required=False, default='sacollect.zip')
 
 args = vars(parser.parse_args())
 logging.basicConfig(format='%(message)s', stream=sys.stdout, level=logging.INFO)
@@ -181,6 +182,7 @@ def support_assist_get_EULA_status():
     for i in data.items():
         if not "ExtendedInfo" in i[0]:
             print("%s: %s" % (i[0],i[1]))
+    return data['Interface']
 
 def support_assist_register():
     url = 'https://%s/redfish/v1/Managers/iDRAC.Embedded.1/Attributes' % idrac_ip
@@ -270,8 +272,10 @@ def loop_job_status():
                             logging.info("\n- INFO, X-auth token detected, if you have never logged into this iDRAC using a browser session, it will prompt to enter iDRAC username and password in browser session to download")
                             webbrowser.open('https://%s%s' % (idrac_ip, response.headers['Location']))
                         else:
-                            webbrowser.open('https://%s:%s@%s%s' % (idrac_username, urllib.parse.quote(idrac_password), idrac_ip, response.headers['Location']))
-                        logging.info("\n- INFO, check you default browser session for downloaded SA collection file")
+                            resp = requests.get('https://%s/redfish/v1/Dell/sacollect.zip' % (idrac_ip), verify=verify_cert, auth=(idrac_username, idrac_password))
+                            with open(args['filename'], "wb") as output:
+                                output.write(resp.content)
+                        logging.info("\n- INFO, check your local directory for a zip file called sacollect.zip")
                         sys.exit(0)
                     else:
                         logging.warning("- WARNING, argument --download not detected to auto download the file. Run GET on URI \"%s\" to manually download the file" % response.headers['Location'])
@@ -328,11 +332,14 @@ if __name__ == "__main__":
     else:
         logging.error("\n- FAIL, invalid argument values or not all required parameters passed in. See help text or argument --script-examples for more details.")
         sys.exit(0)
+
+    if args["accept"]:
+        if not support_assist_get_EULA_status():
+            support_assist_accept_EULA()
+
     if args["export"] and args["data"]:
         support_assist_collection()
         loop_job_status()
-    elif args["accept"]:
-        support_assist_accept_EULA()
     elif args["get"]:
         support_assist_get_EULA_status()
     elif args["register"] and args["city"] and args["companyname"] and args["country"] and args["firstname"] and args["lastname"] and args["phonenumber"] and args["state"] and args["street"] and args["zip"]:
