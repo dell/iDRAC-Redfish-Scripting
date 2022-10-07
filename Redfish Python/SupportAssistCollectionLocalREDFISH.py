@@ -4,7 +4,7 @@
 # SupportAssistCollectionLocalREDFISH. Python script using Redfish API with OEM extension to perform Support Assist operations.
 #
 # _author_ = Texas Roemer <Texas_Roemer@Dell.com>
-# _version_ = 14.0
+# _version_ = 15.0
 #
 # Copyright (c) 2020, Dell, Inc.
 #
@@ -14,8 +14,6 @@
 # FOR A PARTICULAR PURPOSE. You should have received a copy of GPLv2
 # along with this software; if not, see
 # http://www.gnu.org/licenses/old-licenses/gpl-2.0.txt.
-#
-
 
 import argparse
 import getpass
@@ -27,7 +25,6 @@ import sys
 import time
 import urllib.parse
 import warnings
-import webbrowser
 
 from datetime import datetime
 from pprint import pprint
@@ -59,10 +56,9 @@ parser.add_argument('--second-email', help='Pass in email address of the seconda
 parser.add_argument('--street', help='Pass in street name to register Support Assist', required=False)
 parser.add_argument('--state', help='Pass in state to register Support Assist', required=False)
 parser.add_argument('--zip', help='Pass in zipcode to register Support Assist', required=False)
-parser.add_argument('--data', help='Pass in a value for the type of data you want to collect for Support Assist collection. Supported values are: pass in 0 for \"DebugLogs\", pass in 1 for "HWData\", pass in 2 for \"OSAppData\", pass in 3 for \"TTYLogs\", pass in 4 for \"TelemetryReports\". Note: If you do not pass in this argument, default settings will collect HWData. Note: You can pass in one value or multiple values to collect. If you pass in multiple values, use comma separator for the values (Example: 0,3)', required=False)
+parser.add_argument('--data', help='Pass in a value for the type of data you want to collect for Support Assist collection. Supported values are: pass in 0 for \"DebugLogs\", pass in 1 for "HWData\", pass in 2 for \"OSAppData\", pass in 3 for \"TTYLogs(storage logs)\", pass in 4 for \"TelemetryReports\". Note: If you do not pass in this argument, default settings will collect HWData. Note: You can pass in one value or multiple values to collect. If you pass in multiple values, use comma separator for the values (Example: 0,3)', required=False)
 parser.add_argument('--filter', help='Filter personal identification information (PII) for Support Assist collection. Supported values are: 0 for \"No\" and 1 for \"Yes\". NOTE: If you don\'t pass in this argument, no filtering is performed for the collection.', required=False)
-parser.add_argument('--download', help='Pass in this argument to auto download SA collection locally once the job ID is marked completed', action="store_true", required=False)
-parser.add_argument('--filename', help='Change the default file name, sacollect.zip,  to a custom file name.', required=False, default='sacollect.zip')
+parser.add_argument('--filename', help='Change default filename for SupportAssist collection file. Default filename: sacollect.zip. NOTE: If using this argument make sure to give the filename .zip extension', required=False, default='sacollect.zip')
 
 args = vars(parser.parse_args())
 logging.basicConfig(format='%(message)s', stream=sys.stdout, level=logging.INFO)
@@ -72,7 +68,8 @@ def script_examples():
     \n- SupportAssistCollectionLocalREDFISH.py -ip 192.168.0.120 -u root --accept, this example will first prompt to enter iDRAC user password, then accept SA EULA.
     \n- SupportAssistCollectionLocalREDFISH.py -ip 192.168.0.120 -x bd48034369f6e5f7424e9aea88f94123 --export --data 0,3, this example using X-auth token session will export SA logs locally. The SA log will only include debug and TTY logs.
     \n- SupportAssistCollectionLocalREDFISH.py -ip 192.168.0.120 -u root -p calvin --register --city Austin --state Texas --zip 78665 --companyname Dell --country US --firstname test --lastname tester --phonenumber "512-123-4567" --first-email \"tester1@yahoo.com\" --second-email \"tester2@gmail.com\" --street \"1234 One Dell Way\", this example shows registering SupportAssist.
-    \n- SupportAssistCollectionLocalREDFISH.py -ip 192.168.0.120 -u root -p calvin --export --data 1 --download, this example will export SA collection locally which contains only hardware data. Once th job ID is marked completed, SA collection will be auto downloaded using browser session.""")
+    \n- SupportAssistCollectionLocalREDFISH.py -ip 192.168.0.120 -u root -p calvin --export --data 1, this example will export SA collection locally which contains only hardware data. Once th job ID is marked completed, SA collection will be saved locally to default filename sacollect.zip.
+    \n- SupportAssistCollectionLocalREDFISH.py -ip 192.168.0.120 -u root -p calvin --accept --export --data 1 --filename R640_SA_collection.zip, this example will first attempt to accept EULA, then export SA collection and saved locally to a custom file named R640_SA_collection.zip""")
     sys.exit(0)
 
 def check_supported_idrac_version():
@@ -166,9 +163,10 @@ def support_assist_accept_EULA():
         logging.error("\n- FAIL, status code %s returned, detailed error information:\n %s" % (response.status_code, data))
         sys.exit(0)
     logging.info("\n- PASS, %s method passed and End User License Agreement (EULA) has been accepted" % method)
+    return
 
 def support_assist_get_EULA_status():
-    logging.info("\n- Current Support Assist End User License Agreement Information -\n")
+    global accept_interface
     url = 'https://%s/redfish/v1/Dell/Managers/iDRAC.Embedded.1/DellLCService/Actions/DellLCService.SupportAssistGetEULAStatus' % (idrac_ip)
     method = "SupportAssistGetEULAStatus"
     payload = {}
@@ -179,10 +177,14 @@ def support_assist_get_EULA_status():
         headers = {'content-type': 'application/json'}
         response = requests.post(url, data=json.dumps(payload), headers=headers, verify=verify_cert,auth=(idrac_username,idrac_password))
     data = response.json()
-    for i in data.items():
-        if not "ExtendedInfo" in i[0]:
-            print("%s: %s" % (i[0],i[1]))
-    return data['Interface']
+    if args["accept"]:
+        accept_interface = data["Interface"]
+    else:
+        logging.info("\n- Current Support Assist End User License Agreement Information -\n")
+        for i in data.items():
+            if not "ExtendedInfo" in i[0]:
+                print("%s: %s" % (i[0],i[1]))
+    
 
 def support_assist_register():
     url = 'https://%s/redfish/v1/Managers/iDRAC.Embedded.1/Attributes' % idrac_ip
@@ -243,8 +245,6 @@ def support_assist_register():
         logging.error("\n- FAIL, Support Assist not registered, current status is: %s" % data["IsRegistered"])
         sys.exit(0)
 
-    
-
 def loop_job_status():
     loop_count = 0
     while True:
@@ -264,24 +264,21 @@ def loop_job_status():
             continue
         try:
             if response.headers['Location'] == "/redfish/v1/Dell/sacollect.zip" or response.headers['Location'] == "/redfish/v1/Oem/Dell/sacollect.zip":
-                logging.info("- PASS, job ID successfully marked completed. Support Assist logs filename: \"%s\"" % response.headers['Location'].split("/")[-1])
-                python_version = sys.version_info
-                while True:
-                    if args["download"]:
-                        if args["x"]:
-                            logging.info("\n- INFO, X-auth token detected, if you have never logged into this iDRAC using a browser session, it will prompt to enter iDRAC username and password in browser session to download")
-                            webbrowser.open('https://%s%s' % (idrac_ip, response.headers['Location']))
-                        else:
-                            resp = requests.get('https://%s/redfish/v1/Dell/sacollect.zip' % (idrac_ip), verify=verify_cert, auth=(idrac_username, idrac_password))
-                            with open(args['filename'], "wb") as output:
-                                output.write(resp.content)
-                        logging.info("\n- INFO, check your local directory for a zip file called sacollect.zip")
-                        sys.exit(0)
-                    else:
-                        logging.warning("- WARNING, argument --download not detected to auto download the file. Run GET on URI \"%s\" to manually download the file" % response.headers['Location'])
-                        sys.exit(0)
+                logging.info("- PASS, job ID %s successfully marked completed" % job_id)
+                if args["x"]:
+                    response = requests.get('https://%s%s' % (idrac_ip, response.headers['Location']), verify=verify_cert, headers={'X-Auth-Token': args["x"]})   
+                else:
+                    response = requests.get('https://%s%s' % (idrac_ip, response.headers['Location']), verify=verify_cert,auth=(idrac_username, idrac_password))
+                if args["filename"]:
+                    SA_export_filename = args["filename"]
+                else:
+                    SA_export_filename = "sacollect.zip"    
+                with open(SA_export_filename, "wb") as output:
+                    output.write(response.content)
+                logging.info("\n- INFO, check your local directory for SupportAssist collection zip file \"%s\"" % SA_export_filename)
+                sys.exit(0)
             else:
-                logging.error("- ERROR, unable to locate SA collection URI in headers output")
+                logging.error("- ERROR, unable to locate SA collection URI in headers output, JSON response: \n%s" % data)
                 sys.exit(0)
         except:
             if str(current_time)[0:7] >= "0:30:00":
@@ -293,7 +290,7 @@ def loop_job_status():
             elif "Fail" in data['Message'] or "fail" in data['Message'] or data['JobState'] == "Failed" or "error" in data['Message'] or "Error" in data['Message']:
                 logging.error("- FAIL: job ID %s failed, failed message is: %s" % (job_id, data['Message']))
                 sys.exit(0)
-            elif data['JobState'] == "Completed" or "complete" in data['Message'] or "Complete" in data['Message']:
+            elif data['JobState'] == "Completed" or "complete" in data['Message'].lower():
                 if "local path" in data['Message']:
                     logging.info("\n--- PASS, Final Detailed Job Status Results ---\n")
                 else:
@@ -318,7 +315,7 @@ if __name__ == "__main__":
         if args["p"]:
             idrac_password = args["p"]
         if not args["p"] and not args["x"] and args["u"]:
-            idrac_password = getpass.getpass("\n- Argument -p not detected, pass in iDRAC user %s password: " % args["u"])
+            idrac_password = getpass.getpass("\n- INFO, argument -p not detected, pass in iDRAC user %s password: " % args["u"])
         if args["ssl"]:
             if args["ssl"].lower() == "true":
                 verify_cert = True
@@ -332,18 +329,24 @@ if __name__ == "__main__":
     else:
         logging.error("\n- FAIL, invalid argument values or not all required parameters passed in. See help text or argument --script-examples for more details.")
         sys.exit(0)
-
     if args["accept"]:
-        if not support_assist_get_EULA_status():
+        support_assist_get_EULA_status()
+        if accept_interface is None:
             support_assist_accept_EULA()
-
+        else:
+            logging.info("\n- WARNING, SupportAssist EULA has already been accepted")
+        if not args["export"]:
+            sys.exit(0)
     if args["export"] and args["data"]:
         support_assist_collection()
         loop_job_status()
-    elif args["get"]:
+        sys.exit(0)
+    if args["get"]:
         support_assist_get_EULA_status()
-    elif args["register"] and args["city"] and args["companyname"] and args["country"] and args["firstname"] and args["lastname"] and args["phonenumber"] and args["state"] and args["street"] and args["zip"]:
+        sys.exit(0)
+    if args["register"] and args["city"] and args["companyname"] and args["country"] and args["firstname"] and args["lastname"] and args["phonenumber"] and args["state"] and args["street"] and args["zip"]:
         support_assist_register()
+        sys.exit(0)
     else:
         logging.error("\n- FAIL, invalid argument values or not all required parameters passed in. See help text or argument --script-examples for more details.")
 
