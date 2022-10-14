@@ -4,7 +4,7 @@
 # GetIdracSelLogsREDFISH. Python script using Redfish API to get iDRAC System Event Logs (SEL) logs.
 #
 # _author_ = Texas Roemer <Texas_Roemer@Dell.com>
-# _version_ = 3.0
+# _version_ = 4.0
 #
 # Copyright (c) 2020, Dell, Inc.
 #
@@ -38,12 +38,15 @@ parser.add_argument('-u', help='iDRAC username', required=False)
 parser.add_argument('-p', help='iDRAC password. If you do not pass in argument -p, script will prompt to enter user password which will not be echoed to the screen.', required=False)
 parser.add_argument('-x', help='Pass in X-Auth session token for executing Redfish calls. All Redfish calls will use X-Auth token instead of username/password', required=False)
 parser.add_argument('--ssl', help='SSL cert verification for all Redfish calls, pass in value \"true\" or \"false\". By default, this argument is not required and script ignores validating SSL cert for all Redfish calls.', required=False)
-parser.add_argument('--script-examples', help='Get executing script examples', action="store_true", dest="script_examples", required=False) 
+parser.add_argument('--script-examples', help='Get executing script examples', action="store_true", dest="script_examples", required=False)
+parser.add_argument('--get', help='Get current iDRAC SEL log', action="store_true", required=False)
+parser.add_argument('--clear', help='Clear iDRAC SEL log', action="store_true", required=False)
 args = vars(parser.parse_args())
 logging.basicConfig(format='%(message)s', stream=sys.stdout, level=logging.INFO)
 
 def script_examples():
-    print("""\n- GetIdracSelLogsREDFISH.py -ip 192.168.0.120 -u root -p calvin, this example will get the complete iDRAC system event log.""")
+    print("""\n- GetIdracSelLogsREDFISH.py -ip 192.168.0.120 -u root -p calvin --get, this example will get the complete iDRAC system event log.
+    \n- GetIdracSelLogsREDFISH.py -ip 192.168.0.120 -u root -p calvin --clear, this example will clear iDRAC system event log.""")
     sys.exit(0)
 
 def get_iDRAC_version():
@@ -82,6 +85,7 @@ def get_SEL_logs():
         logging.info("- INFO, unable to locate file %s, skipping step" % "iDRAC_SEL_logs.txt")
     open_file = open("iDRAC_SEL_logs.txt","w")
     date_timestamp = datetime.now()
+    logging.info("\n- INFO, getting iDRAC SEL details, this may take 15-30 seconds to complete depending on log size")
     current_date_time = "- Data collection timestamp: %s-%s-%s  %s:%s:%s\n" % (date_timestamp.month, date_timestamp.day, date_timestamp.year, date_timestamp.hour, date_timestamp.minute, date_timestamp.second)
     open_file.writelines(current_date_time)
     open_file.writelines("\n\n")
@@ -104,24 +108,44 @@ def get_SEL_logs():
             open_file.writelines("%s\n" % SEL_log_entry)
         print("\n")
         open_file.writelines("\n")
-    number_list = [i for i in range (1,100001) if i % 50 == 0]
-    for seq in number_list:
-        if args["x"]:
-            response = requests.get('https://%s/redfish/v1/Managers/iDRAC.Embedded.1/LogServices/Sel/Entries?$skip=%s' % (idrac_ip, seq), verify=verify_cert, headers={'X-Auth-Token': args["x"]})
-        else:
-            response = requests.get('https://%s/redfish/v1/Managers/iDRAC.Embedded.1/LogServices/Sel/Entries?$skip=%s' % (idrac_ip, seq), verify=verify_cert, auth=(idrac_username, idrac_password))
-        data = response.json()
-        if "Members" not in data or data["Members"] == [] or response.status_code == 400:
-            break
-        for i in data['Members']:
-            for ii in i.items():
-                SEL_log_entry = ("%s: %s" % (ii[0], ii[1]))
-                print(SEL_log_entry)
-                open_file.writelines("%s\n" % SEL_log_entry)
-            print("\n")
-            open_file.writelines("\n")
+    if iDRAC_version == "old":
+        number_list = [i for i in range (1,100001) if i % 50 == 0]
+        for seq in number_list:
+            if args["x"]:
+                response = requests.get('https://%s/redfish/v1/Managers/iDRAC.Embedded.1/Logs/Sel?$skip=%s' % (idrac_ip, seq), verify=verify_cert, headers={'X-Auth-Token': args["x"]})
+            else:
+                response = requests.get('https://%s/redfish/v1/Managers/iDRAC.Embedded.1/Logs/Sel?$skip=%s' % (idrac_ip, seq), verify=verify_cert, auth=(idrac_username, idrac_password))
+            data = response.json()
+            if "Members" not in data or data["Members"] == [] or response.status_code == 400:
+                break
+            for i in data['Members']:
+                for ii in i.items():
+                    SEL_log_entry = ("%s: %s" % (ii[0], ii[1]))
+                    print(SEL_log_entry)
+                    open_file.writelines("%s\n" % SEL_log_entry)
+                print("\n")
+                open_file.writelines("\n")
     logging.info("\n- INFO, system event logs also captured in \"iDRAC_SEL_logs.txt\" file")
     open_file.close()
+    sys.exit(0)
+
+def clear_SEL():
+    url = 'https://%s/redfish/v1/Managers/iDRAC.Embedded.1/LogServices/Sel/Actions/LogService.ClearLog' % (idrac_ip)
+    payload = {}
+    if args["x"]:
+        headers = {'content-type': 'application/json', 'X-Auth-Token': args["x"]}
+        response = requests.post(url, data=json.dumps(payload), headers=headers, verify=verify_cert)
+    else:
+        headers = {'content-type': 'application/json'}
+        response = requests.post(url, data=json.dumps(payload), headers=headers, verify=verify_cert,auth=(idrac_username,idrac_password))
+    if response.status_code == 204:
+        logging.info("\n- PASS: POST command passed to clear iDRAC SEL, status code %s returned" % response.status_code)
+        sys.exit(0)
+    else:
+        logging.error("\n- FAIL, POST command failed to clear iDRAC SEL, status code is %s" % response.status_code)
+        data = response.json()
+        logging.error("\n- POST command failure results:\n %s" % data)
+        sys.exit(0)
 
 
 if __name__ == "__main__":
@@ -145,6 +169,10 @@ if __name__ == "__main__":
             verify_cert = False
         check_supported_idrac_version()
         get_iDRAC_version()
+    if args["clear"]:
+        clear_SEL()
+    elif args["get"]:
+        get_SEL_logs()
     else:
         logging.error("\n- FAIL, invalid argument values or not all required parameters passed in. See help text or argument --script-examples for more details.")
         sys.exit(0)
