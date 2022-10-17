@@ -4,7 +4,7 @@
 # SupportAssistCollectionLocalREDFISH. Python script using Redfish API with OEM extension to perform Support Assist operations.
 #
 # _author_ = Texas Roemer <Texas_Roemer@Dell.com>
-# _version_ = 15.0
+# _version_ = 16.0
 #
 # Copyright (c) 2020, Dell, Inc.
 #
@@ -38,7 +38,7 @@ parser.add_argument('-p', help='iDRAC password. If you do not pass in argument -
 parser.add_argument('-x', help='Pass in X-Auth session token for executing Redfish calls. All Redfish calls will use X-Auth token instead of username/password', required=False)
 parser.add_argument('--ssl', help='SSL cert verification for all Redfish calls, pass in value \"true\" or \"false\". By default, this argument is not required and script ignores validating SSL cert for all Redfish calls.', required=False)
 parser.add_argument('--script-examples', help='Get executing script examples', action="store_true", dest="script_examples", required=False)
-parser.add_argument('--export', help='Export support assist collection locally. You must also use agrument --data. Note, also pass in argument --download to auto download the SA collection file once the job ID is marked completed.', action="store_true", required=False)
+parser.add_argument('--export', help='Export support assist collection locally. You must also use agrument --data for export SA collection.', action="store_true", required=False)
 parser.add_argument('--accept', help='Accept support assist end user license agreement (EULA)', action="store_true", required=False)
 parser.add_argument('--get', help='Get support assist end user license agreement (EULA)', action="store_true", required=False)
 parser.add_argument('--register', help='Register SupportAssist for iDRAC. NOTE: You must also pass in city, company name, country, email, first name, last name, phone number, street, state and zip arguments to register. NOTE: ISM must be installed and running on the operating system before you register SA.', action="store_true", required=False)
