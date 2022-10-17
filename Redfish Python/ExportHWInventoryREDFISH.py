@@ -6,7 +6,7 @@
 #
 # _author_ = Texas Roemer <Texas_Roemer@Dell.com>
 # _author_ = Grant Curell <grant_curell@dell.com>
-# _version_ = 13.0
+# _version_ = 14.0
 #
 # Copyright (c) 2022, Dell, Inc.
 #
@@ -38,17 +38,17 @@ parser = argparse.ArgumentParser(description="Python script using Redfish API wi
 parser.add_argument('-ip',help='iDRAC IP address', required=False)
 parser.add_argument('-u', help='iDRAC username', required=False)
 parser.add_argument('-p', help='iDRAC password. If you do not pass in argument -p, script will prompt to enter user password which will not be echoed to the screen.', required=False)
-parser.add_argument('-x', help='Pass in X-Auth session token for executing Redfish calls. All Redfish calls will use X-Auth token instead of username/password', required=False)
+parser.add_argument('-x', help='Pass in X-Auth session token for executing Redfish calls. All Redfish calls will use X-Auth token instead of username/password.', required=False)
 parser.add_argument('--ssl', help='SSL cert verification for all Redfish calls, pass in value \"true\" or \"false\". By default, this argument is not required and script ignores validating SSL cert for all Redfish calls.', required=False)
 parser.add_argument('--script-examples', action="store_true", help='Prints script examples')
 parser.add_argument('--shareip', help='Pass in the IP address of the network share', required=False)
-parser.add_argument('--sharetype', help='Pass in the share type of the network share. Supported values: Local, NFS, CIFS, HTTP and HTTPS. Note: When using Local, if you want the HW file to be auto downloaded once the job is marked completed, pass in argument --download also.', required=False)
+parser.add_argument('--sharetype', help='Pass in the share type of the network share. Supported values: Local, NFS, CIFS, HTTP and HTTPS.', required=False)
 parser.add_argument('--sharename', help='Pass in the network share name', required=False)
 parser.add_argument('--username', help='Pass in the network share username if your share is setup for auth.', required=False)
-parser.add_argument('--password', help='Pass in the network share username password if your share is setup for auth', required=False)
-parser.add_argument('--workgroup', help='Pass in the workgroup of your CIFS network share. This argument is optional', required=False)
+parser.add_argument('--password', help='Pass in the network share username password if your share is setup for auth.', required=False)
+parser.add_argument('--workgroup', help='Pass in the workgroup of your CIFS network share. This argument is optional.', required=False)
 parser.add_argument('--filename', help='Pass in unique filename for export hardware inventory file, file extension must be .xml. This argument is required for export to network share but optional for local export. Default filename for local export is hwinv.xml if argument is not passed.', required=False, default='hwinv.xml')
-parser.add_argument('--ignorecertwarning', help='Supported values are Enabled and Disabled. This argument is only required if using HTTPS for share type', required=False)
+parser.add_argument('--ignorecertwarning', help='Supported values are Enabled and Disabled. This argument is only required if using HTTPS for share type.', required=False)
 
 args = vars(parser.parse_args())
 logging.basicConfig(format='%(message)s', stream=sys.stdout, level=logging.INFO)
