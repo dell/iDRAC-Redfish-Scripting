@@ -6,7 +6,7 @@
 # to delete the downloaded payload.
 #
 # _author_ = Texas Roemer <Texas_Roemer@Dell.com>
-# _version_ = 3.0
+# _version_ = 4.0
 #
 # Copyright (c) 2017, Dell, Inc.
 #
@@ -132,10 +132,10 @@ def delete_all_available_entries():
     available_entries = []
     for i in data['Members']:
         for ii in i.items():
-            if "Available" in ii[1]:
+            if "/available" in ii[1].lower():
                 available_entries.append(ii[1])
     if available_entries == []:
-        logigng.warning("\n- WARNING, no AVAILABLE entries for deleting payload")
+        logging.warning("\n- WARNING, no AVAILABLE entries for deleting payload")
         sys.exit(0)
     else:
         logging.info("\n- INFO, available URI entries for deleting payload:\n")
@@ -172,7 +172,7 @@ def delete_all_available_entries():
     data = response.json()
     for i in data['Members']:
         for ii in i.items():
-            if "Available" in ii[1]:
+            if "/available" in ii[1].lower():
                 available_entries.append(ii[1])
     if available_entries == []:
         logging.info("- PASS, all AVAILABLE firmware entries successfully deleted")
