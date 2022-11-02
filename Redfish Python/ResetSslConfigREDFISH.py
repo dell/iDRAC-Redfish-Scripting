@@ -3,7 +3,7 @@
 #
 # 
 # _author_ = Texas Roemer <Texas_Roemer@Dell.com>
-# _version_ = 1.0
+# _version_ = 2.0
 #
 # Copyright (c) 2022, Dell, Inc.
 #
@@ -27,7 +27,7 @@ import warnings
 
 warnings.filterwarnings("ignore")
 
-parser = argparse.ArgumentParser(description='Python script using Redfish API with OEM extension to restore the web-server certificate to factory defaults. Once this POST action is invoked, iDRAC reboot is needed to apply this reset change.')
+parser = argparse.ArgumentParser(description='Python script using Redfish API with OEM extension to restore the web-server certificate to factory defaults.')
 parser.add_argument('-ip',help='iDRAC IP address', required=False)
 parser.add_argument('-u', help='iDRAC username', required=False)
 parser.add_argument('-p', help='iDRAC password. If you do not pass in argument -p, script will prompt to enter user password which will not be echoed to the screen.', required=False)
@@ -35,13 +35,14 @@ parser.add_argument('-x', help='Pass in X-Auth session token for executing Redfi
 parser.add_argument('--ssl', help='SSL cert verification for all Redfish calls, pass in value \"true\" or \"false\". By default, this argument is not required and script ignores validating SSL cert for all Redfish calls.', required=False)
 parser.add_argument('--script-examples', help='Get executing script examples', action="store_true", dest="script_examples", required=False)
 parser.add_argument('--reset-ssl', help='Reset SSL or web server certificates back to factory default settings', action="store_true", dest="reset_ssl", required=False)
-parser.add_argument('--reboot-idrac', help='Reboot iDRAC to apply the reset cert change', action="store_true", dest="reboot_idrac", required=False)
+parser.add_argument('--reboot-idrac', help='Reboot iDRAC to apply the reset cert change. NOTE: This is only required if using iDRAC version older than 5.10.00. Starting in 5.10.00, iDRAC reboot is no longer required.', action="store_true", dest="reboot_idrac", required=False)
 
 args = vars(parser.parse_args())
 logging.basicConfig(format='%(message)s', stream=sys.stdout, level=logging.INFO)
 
 def script_examples():
-    print("""\n- """)
+    print("""\n- ResetSslConfigREDFISH.py -ip 192.168.0.120 -u root -p calvin --reset-ssl, this example on iDRAC 6.00.02 shows reset SSL certs back to factory default.
+    \n- ResetSslConfigREDFISH.py -ip 192.168.0.120 -u root -p calvin --reset-ssl --reboot-idrac, this example on iDRAC 5.00.00 shows reset SSL certs back to factory default, reboot iDRAC to apply the reset changes.""")
     sys.exit(0)
 
 def check_supported_idrac_version():
