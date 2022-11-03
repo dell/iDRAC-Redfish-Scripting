@@ -122,7 +122,7 @@ if __name__ == "__main__":
             logging.info("- INFO, iDRAC will now reboot to apply the reset cert changes")
             reboot_idrac()
         else:
-            logging.info("- INFO, argument --reboot-idrac not detected. Changes for reset cert will not be applied until iDRAC has been rebooted.")        
+            logging.info("- INFO, argument --reboot-idrac not detected. If using iDRAC version older than 6.00.02, changes for reset cert will not be applied until iDRAC has been rebooted.")        
     else:
         logging.error("\n- FAIL, invalid argument values or not all required parameters passed in. See help text or argument --script-examples for more details.")
         sys.exit(0)
