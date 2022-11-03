@@ -35,7 +35,7 @@ parser.add_argument('-x', help='Pass in X-Auth session token for executing Redfi
 parser.add_argument('--ssl', help='SSL cert verification for all Redfish calls, pass in value \"true\" or \"false\". By default, this argument is not required and script ignores validating SSL cert for all Redfish calls.', required=False)
 parser.add_argument('--script-examples', help='Get executing script examples', action="store_true", dest="script_examples", required=False)
 parser.add_argument('--reset-ssl', help='Reset SSL or web server certificates back to factory default settings', action="store_true", dest="reset_ssl", required=False)
-parser.add_argument('--reboot-idrac', help='Reboot iDRAC to apply the reset cert change. NOTE: This is only required if using iDRAC version older than 5.10.00. Starting in 5.10.00, iDRAC reboot is no longer required.', action="store_true", dest="reboot_idrac", required=False)
+parser.add_argument('--reboot-idrac', help='Reboot iDRAC to apply the reset cert change. NOTE: This is only required if using iDRAC version older than 6.00.02. Starting in 6.00.02, iDRAC reboot is no longer required.', action="store_true", dest="reboot_idrac", required=False)
 
 args = vars(parser.parse_args())
 logging.basicConfig(format='%(message)s', stream=sys.stdout, level=logging.INFO)
