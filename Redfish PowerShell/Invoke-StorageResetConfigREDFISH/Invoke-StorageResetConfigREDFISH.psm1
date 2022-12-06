@@ -579,7 +579,7 @@ try
     }
     else
     {
-    [String]::Format("- FAIL, statuscode {0} returned to create virtual disk",$result1.StatusCode)
+    [String]::Format("- FAIL, statuscode {0} returned to reset controller",$result1.StatusCode)
     return
     }
 
