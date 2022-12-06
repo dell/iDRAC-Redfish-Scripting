@@ -1,6 +1,6 @@
 ﻿<#
 _author_ = Texas Roemer <Texas_Roemer@Dell.com>
-_version_ = 7.0
+_version_ = 8.0
 Copyright (c) 2019, Dell, Inc.
 
 This software is licensed to you under the GNU General Public License,
@@ -23,22 +23,23 @@ http://www.gnu.org/licenses/old-licenses/gpl-2.0.txt
    - idrac_username: Pass in iDRAC username
    - idrac_password: Pass in iDRAC username password
    - x_auth_token: Pass in iDRAC X-Auth token session to execute cmdlet instead of username / password (recommended)
-   - get_storage_controllers: Pass in "y" to get current storage controller FQDDs for the server. Pass in "yy" to get detailed information for each storage controller
+   - get_storage_controllers: Get current storage controller FQDDs for the server
+   - get_storage_controller_details: Get detailed information for all storage controllers detected
    - get_virtual_disks: Pass in the controller FQDD to get current virtual disks. Example, pass in "RAID.Integrated.1-1" to get current virtual disks for integrated storage controller
    - get_virtual_disks_details: Pass in the virtual disk FQDD to get detailed VD information. Example, pass in "Disk.Virtual.0:RAID.Slot.6-1" to get detailed virtual disk information
    - reset_storage_controller: Pass in the controller FQDD. Example, pass in "RAID.Slot.6-1".
    
 .EXAMPLE
-    .\Invoke-StorageResetConfigREDFISH.ps1 -idrac_ip 192.168.0.120 -idrac_username root -idrac_password calvin -get_storage_controllers y
+    Invoke-StorageResetConfigREDFISH -idrac_ip 192.168.0.120 -idrac_username root -idrac_password calvin -get_storage_controllers 
    This example will return storage controller FQDDs for the server.
 .EXAMPLE
-    .\Invoke-StorageResetConfigREDFISH.ps1 -idrac_ip 192.168.0.120 -get_storage_controllers y
+    Invoke-StorageResetConfigREDFISH -idrac_ip 192.168.0.120 -get_storage_controllers 
    This example will first prompt for iDRAC username / password using Get-Credential, then return storage controller FQDDs for the server.
 .EXAMPLE
-    .\Invoke-StorageResetConfigREDFISH.ps1 -idrac_ip 192.168.0.120 -get_storage_controllers y -x_auth_token 7bd9bb9a8727ec366a9cef5bc83b2708
+    Invoke-StorageResetConfigREDFISH -idrac_ip 192.168.0.120 -get_storage_controllers  -x_auth_token 7bd9bb9a8727ec366a9cef5bc83b2708
    This example will return storage controller FQDDs for the server using iDRAC x-auth token session
 .EXAMPLE
-   .\Invoke-StorageResetConfigREDFISH.ps1 -idrac_ip 192.168.0.120 -idrac_username root -idrac_password calvin -reset_storage_controller RAID.Mezzanine.1-1
+   Invoke-StorageResetConfigREDFISH -idrac_ip 192.168.0.120 -idrac_username root -idrac_password calvin -reset_storage_controller RAID.Mezzanine.1-1
    This example will reset the storage controller RAID.Mezzanine.1-1
 #>
 
@@ -54,7 +55,9 @@ param(
     [Parameter(Mandatory=$False)]
     [string]$x_auth_token,
     [Parameter(Mandatory=$False)]
-    [string]$get_storage_controllers,
+    [switch]$get_storage_controllers,
+    [Parameter(Mandatory=$False)]
+    [switch]$get_storage_controller_details,
     [Parameter(Mandatory=$False)]
     [string]$get_virtual_disks,
     [Parameter(Mandatory=$False)]
@@ -1059,11 +1062,11 @@ else
 	    }
 
 
-if ($get_storage_controllers -eq "y" -or $get_storage_controllers -eq "Y")
+if ($get_storage_controllers)
 {
 get_storage_controllers
 }
-elseif ($get_storage_controllers -eq "yy" -or $get_storage_controllers -eq "YY")
+elseif ($get_storage_controller_details)
 {
 get_storage_controller_details
 }
