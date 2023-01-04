@@ -54,8 +54,8 @@ See iDRAC whitepapers below for more information about overview of Redfish suppo
 - [Implementation of the DMTF Redfish API on Dell PowerEdge Servers](http://en.community.dell.com/techcenter/extras/m/white_papers/20442330)
 - [RESTful Server Configuration with iDRAC REST API](http://en.community.dell.com/techcenter/extras/m/white_papers/20443207)
 - [iDRAC RACADM to Redfish Mapping](https://dl.dell.com/content/manual9969682-idrac9-racadm-to-redfish-mapping.pdf?language=en-us)
-- [iDRAC User Interface to Redfish Mapping(https://dl.dell.com/content/manual24821844-idrac9-user-interface-to-redfish-mapping.pdf?language=en-us)
-- [iDRAC Redfish FAQ(https://dl.dell.com/content/manual16004247-idrac-redfish-faq.pdf?language=en-us)
+- [iDRAC User Interface to Redfish Mapping](https://dl.dell.com/content/manual24821844-idrac9-user-interface-to-redfish-mapping.pdf?language=en-us)
+- [iDRAC Redfish FAQ](https://dl.dell.com/content/manual16004247-idrac-redfish-faq.pdf?language=en-us)
 
 For details on the DMTF Redfish standard, visit https://www.dmtf.org/standards/redfish 
 
