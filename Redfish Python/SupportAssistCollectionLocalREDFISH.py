@@ -278,6 +278,7 @@ def loop_job_status():
                 logging.info("\n- INFO, check your local directory for SupportAssist collection zip file \"%s\"" % SA_export_filename)
                 sys.exit(0)
             else:
+                data = response.json()
                 logging.error("- ERROR, unable to locate SA collection URI in headers output, JSON response: \n%s" % data)
                 sys.exit(0)
         except:
