@@ -1,7 +1,3 @@
-#!/usr/bin/python
-#!/usr/bin/python3
-#
-# DeviceFirmwareSimpleUpdateREDFISH. Python script using Redfish API to check firmware version difference and update firmware with DMTF action SimpleUpdate.
 #
 # _author_ = Texas Roemer <Texas_Roemer@Dell.com>
 # _version_ = 1.0
