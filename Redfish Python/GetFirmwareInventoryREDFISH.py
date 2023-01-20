@@ -1,10 +1,8 @@
-#!/usr/bin/python
-#!/usr/bin/python3
 #
 # GetFirmwareInventoryREDFISH. Python script using Redfish API DMTF method to get current firmware version for all devices iDRAC supports for updates. 
 #
 # _author_ = Texas Roemer <Texas_Roemer@Dell.com>
-# _version_ = 7.0
+# _version_ = 8.0
 #
 # Copyright (c) 2018, Dell, Inc.
 #
@@ -68,9 +66,7 @@ def get_FW_inventory():
     if response.status_code != 200:
         logging.error("\n- ERROR, GET request failed to get firmware inventory, error: \n%s" % data)
         sys.exit(0)
-    installed_devices = []
-    for i in data['Members']:
-        pprint(i), print("\n")  
+    print(json.dumps(data['Members'], indent=4))
         
 
 
