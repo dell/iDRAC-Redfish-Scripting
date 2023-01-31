@@ -13,7 +13,7 @@ LONG_DESCRIPTION = "Python module for iDRAC Redfish support to allow the user to
 # Setting up
 setup(
         name="IdracRedfishSupport", 
-        version="0.0.5",
+        version="0.0.6",
         license='GPLv2',
         author="Texas Roemer",
         author_email="texas_roemer@dell.com",
@@ -23,12 +23,5 @@ setup(
         packages=["IdracRedfishSupport"],
         url='',
         install_requires=["requests"],
-        keywords=["python", "Redfish", "IDRAC"],
-        classifiers= [
-            "Intended Audience :: End Users/Desktop",
-            "Programming Language :: Python :: 3",
-            "Operating System :: Microsoft :: Windows",
-            "Operating System :: Unix",
-            "License :: OSI Approved :: GNU General Public License v2 or later (GPLv2+)",
-        ]
+        keywords=["python", "Redfish", "IDRAC"]
 )

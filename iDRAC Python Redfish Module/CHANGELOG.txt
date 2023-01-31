@@ -17,6 +17,17 @@ Updated readme
 Updated create_virtual_disk() function for 6.00.00 support. Now you can either secure the VD or set disk/read and write cache VD attributes during VD creation.
 Updated insert_eject_virtual_media() function for 6.00.00 support. Now with 6.00.00. you can attach multiple virtual media devices at the same time.
 Added new function change_virtual_disk_attributes() for 6.00.00 support. PATCH command is now supported to change VD disk/read and write cache policy attributes.
- 
+
+- 0.0.6 (01/31/2023)
+Updated export_server_factory_configuration() to automatically download the file locally, browser download no longer used.
+Updated export_server_video_log() to automatically download the file locally, browser download no longer used.
+Updated export_iDRAC_lifecycle_logs() to automatically download the file locally, browser download no longer used.
+Updated export_hardware_inventory() to automatically download the file locally, browser download no longer used.
+Added new function change_disk_state_virtualdisk()
+Added new function set_boot_virtualdisk()
+Added new function blink_unblink_storage_device()
+Added new function cancel_check_consistency_virtual_disk()
+Added new function expand_virtualdisk()
+Added new function raidlevel_migration()
 
 

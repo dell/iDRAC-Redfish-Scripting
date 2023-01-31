@@ -95,7 +95,7 @@ Python module for iDRAC Redfish support to allow the user to perform multiple wo
         Function to export server thermal history to a network share. Supported function arguments: get_supported_share_types (possible value: True), export_thermal_history (possible value: True), share_type, share_ip, share_name, share_username (required for CIFS only), share_userpassword (required for CIFS only), filename (pass in unique failename), file_type (pass in file type for exported file, either CSV or XML.
 
     export_server_video_log(script_examples='', file_type='')
-        Function to export server video log saved by iDRAC. Supported function argument: file_type(supported values: BootCaptureVideo and CrashCaptureVideo. NOTE: make sure to pass in the exact case value). Note: script will prompt you to save the zip file locally using your default browser. Extract the video files(dvc format) from the zip to view them.
+        Function to export server video log saved by iDRAC. Supported function argument: file_type(supported values: BootCaptureVideo and CrashCaptureVideo. NOTE: make sure to pass in the exact case value). Extract the video files(dvc format) from the zip to view them.
 
     export_support_assist_collection(script_examples='', get_supported_share_types='', export_collection='', share_ip='', share_type='', share_name='', share_username='', share_password='', filter_pii='', data_selector='')
         Function to export SupportAssist collection either locally or to a network share. Supported function arguments: get_supported_share_types (supported value: True), export_collection (supported value: True), share_ip, share_type, share_name, share_username, share_password, filter_pii (supported values: No and Yes) and data_selector (supported values: DebugLogs, HWData, OSAppData, TTYLogs and TelemetryReports. You can pass in one or multiple values. If passing in multiple, use a comma separator. Supported values are also case sensitive).
@@ -254,7 +254,25 @@ Python module for iDRAC Redfish support to allow the user to perform multiple wo
     
     insert_eject_virtual_media(script_examples="", get_attach_status="", insert_virtual_media="", eject_virtual_media="", image_path="")
 
-## Executing the module example
+    change_disk_state_virtualdisk(script_examples="", disk="", state=""):
+    	Function to change the PD state of a disk part of a virtual disk, either set the disk to offline or bring back online. NOTE: Only RAID volumes which support parity are supported for this feature. Supported function arguments: disk (possible values: pass in disk FQDD) and state (possible values: offline and online).
+
+    set_boot_virtualdisk(script_examples="", controller="", boot_vd=""):
+    	Function to set boot virtual disk for storage controller. Supported function arguments: controller (pass in controller FQDD) and boot_vd (possible value: pass in virtual disk FQDD).
+
+    blink_unblink_storage_device(script_examples="", blink="", unblink=""):
+    	Function to blink or unblink either hard drive or virtual disk. Possible function arguments: blink (pass in drive or virtual disk FQDD string) and unblink (pass in drive or virtual disk FQDD string).
+
+    cancel_check_consistency_virtual_disk(script_examples="", virtual_disk_fqdd=""):
+    	Function to cancel check consistency operation running on a virtual disk. Supported function argument: virtual_disk_fqdd (pass in virtual disk FQDD).
+
+    expand_virtualdisk(script_examples="", pdisks="", expand="", size=""):
+        Function to expand storage virtual disk, either add a disk or expand current size. Supported function arguments: expand (pass in virtual disk FQDD), pdisks (possible value: Pass in disk(s) you want to add to the virtual disk. If you pass in multiple disk FQDDs use a comma separator between FQDDs.) and size (possible value: Pass in new VD size you want to expand to in MB).
+
+    raidlevel_migration(script_examples="", pdisks="", migrate="", new_raid_level=""):
+        Function to add additional hard drive(s) to the existing RAID Level to migrate to a new RAID level. Supported function arguments: migrate (pass in virtual disk FQDD), pdisks (possible value: Pass in disk(s) you want to add to the virtual disk. If you pass in multiple disk FQDDs use a comma separator between FQDDs.) and new_raid_level (possible values: RAID0, RAID1, RAID5, RAID6, RAID10, RAID50 and RAID60).
+
+## Executing the module example:
 
 1. At the python prompt, type "import IdracRedfishSupport" to load the module.
 
