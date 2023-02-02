@@ -45,6 +45,7 @@ parser.add_argument('--change', help='Pass in virtual disk FQDD to change cache 
 parser.add_argument('--diskcachepolicy', help='Pass in disk cache policy setting for VD creation, supported values: Enabled and Disabled. This is OPTIONAL, if you don\'t pass in this argument for VD creation, controller will use the default value', required=False)
 parser.add_argument('--readcachepolicy', help='Pass in read cache policy setting for VD creation, supported values: Off, ReadAhead and AdaptiveReadAhead. This is OPTIONAL, if you don\'t pass in this argument for VD creation, controller will use the default value', required=False)
 parser.add_argument('--writecachepolicy', help='Pass in write cache policy setting for VD creation, supported values: ProtectedWriteBack, UnprotectedWriteBack and WriteThrough. This is OPTIONAL, if you don\'t pass in this argument for VD creation, controller will use the default value', required=False)
+parser.add_argument('--encrypted', help='Sets wheter a virtual disk is encrypted or not. Make sure a valid key has been set before trying to enable encryption, supported values: True or False. This is OPTIONAL, if you don\'t pass in this argument for VD change, nothing changes on encryption', required=False)
 parser.add_argument('--job-type', help='Pass in job type to create. Pass in \"r\" to create realtime config job which gets applied immediately, no server reboot. Pass in \"l\" to schedule the config job which will get applied on next server manual reboot.', dest="job_type", required=False)
 args = vars(parser.parse_args())
 logging.basicConfig(format='%(message)s', stream=sys.stdout, level=logging.INFO)
@@ -168,6 +169,8 @@ def change_vd_attributes():
         payload["ReadCachePolicy"] = args["readcachepolicy"]
     if args["writecachepolicy"]:
         payload["WriteCachePolicy"] = args["writecachepolicy"]
+    if args["encrypted"]:
+        payload["Encrypted"] = args["encrypted"]
     controller_fqdd = args["change"].split(":")[-1]
     url = "https://%s/redfish/v1/Systems/System.Embedded.1/Storage/%s/Volumes/%s/Settings" % (idrac_ip, args["change"].split(":")[-1], args["change"])
     if args["x"]:
