@@ -171,7 +171,6 @@ def change_vd_attributes():
         payload["WriteCachePolicy"] = args["writecachepolicy"]
     if args["encrypted"]:
         payload["Encrypted"] = True
-    controller_fqdd = args["change"].split(":")[-1]
     url = "https://%s/redfish/v1/Systems/System.Embedded.1/Storage/%s/Volumes/%s/Settings" % (idrac_ip, args["change"].split(":")[-1], args["change"])
     if args["x"]:
         headers = {'content-type': 'application/json', 'X-Auth-Token': args["x"]}
@@ -248,8 +247,8 @@ def loop_job_status_final():
         if str(current_time)[0:7] >= "2:00:00":
             logging.error("\n- FAIL: Timeout of 2 hours has been hit, script stopped\n")
             sys.exit(0)
-        elif "Fail" in data['Message'] or "fail" in data['Message'] or data['JobState'] == "Failed":
-            logging.error("- FAIL: job ID %s failed, failed message is: %s" % (job_id, data['Message']))
+        elif "fail" in data['Message'].lower() or data['JobState'] == "Failed":
+            logging.error("- FAIL: job ID %s failed, failed message: %s" % (job_id, data['Message']))
             sys.exit(0)
         elif data['JobState'] == "Completed":
             logging.info("\n--- PASS, Final Detailed Job Status Results ---\n")
