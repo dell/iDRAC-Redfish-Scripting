@@ -82,7 +82,7 @@ def set_next_onetime_boot_device_virtual_media():
         task_uri = response.__dict__["headers"]["Location"]
     except:
         logging.error("\n- FAIL: status code %s returned" % response.status_code)
-        logging.error("- Detailed error information: %s" % response_dict)
+        logging.error("- Detailed error information: %s" % response.__dict__)
         sys.exit(0)
     start_time = datetime.now()
     while True:
