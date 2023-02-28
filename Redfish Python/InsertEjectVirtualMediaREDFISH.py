@@ -173,7 +173,7 @@ def eject_virtual_media():
         logging.info("\n- PASS, POST command passed to successfully eject virtual media, status code %s returned" % response.status_code)
 
 
-if __name__ == "__main__":
+def main():
     if args["script_examples"]:
         script_examples()
     if args["ip"] or args["ssl"] or args["u"] or args["p"] or args["x"]:
@@ -204,3 +204,6 @@ if __name__ == "__main__":
         eject_virtual_media()
     else:
         logging.error("\n- FAIL, invalid argument values or not all required parameters passed in. See help text or argument --script-examples for more details.")
+
+if __name__ == "__main__":
+    main()
