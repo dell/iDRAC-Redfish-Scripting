@@ -20,8 +20,12 @@ setup(
         description=DESCRIPTION,
         long_description_content_type="text/markdown",
         long_description=long_description,
-        packages=["IdracRedfishSupport"],
+        packages=find_packages(),
         url='',
         install_requires=["requests"],
-        keywords=["python", "Redfish", "IDRAC"]
+        keywords=["python", "Redfish", "IDRAC"],
+        entry_points={
+            'console_scripts': [
+                "redfish-insert-eject-virtual-media = IdracRedfishSupport.cli.InsertEjectVirtualMediaREDFISH:main",
+        ]},
 )

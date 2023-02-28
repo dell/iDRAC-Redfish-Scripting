@@ -174,6 +174,7 @@ def eject_virtual_media():
 
 
 def main():
+    global idrac_ip, idrac_username, idrac_password, verify_cert
     if args["script_examples"]:
         script_examples()
     if args["ip"] or args["ssl"] or args["u"] or args["p"] or args["x"]:
