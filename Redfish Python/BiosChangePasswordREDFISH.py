@@ -1,5 +1,3 @@
-#!/usr/bin/python
-#!/usr/bin/python3
 #
 # BiosChangePasswordREDFISH. Python script using Redfish API to set / change or delete either BIOS setup or system password
 #
@@ -53,8 +51,7 @@ def script_examples():
     \n- BiosChangePasswordREDFISH.py -ip 192.168.0.120 -u root -p calvin --type 2 --old "p@ssw0rd" --new "", this example will reboot the server now to clear BIOS setup password.
     \n- BiosChangePasswordREDFISH.py -ip 192.168.0.120 -u root -p calvin --type 1 --old "", this example will prompt to the screen to enter BIOS system password to set, reboot server now to apply.
     \n- BiosChangePasswordREDFISH.py -ip 192.168.0.120 -u root -p calvin --type 1, this example will prompt to the screen to enter current BIOS system password, then prompt to enter new system password to set, reboot server now to apply.
-    \n- BiosChangePasswordREDFISH.py -ip 192.168.0.120 -u root -p calvin --type 1 --new "", this example will prompt to the screen to enter current BIOS system password, then clear it, reboot server now to apply.
-    """)
+    \n- BiosChangePasswordREDFISH.py -ip 192.168.0.120 -u root -p calvin --type 1 --new "", this example will prompt to the screen to enter current BIOS system password, then clear it, reboot server now to apply.""")
     sys.exit(0)
 
 def check_supported_idrac_version():
@@ -281,9 +278,7 @@ def check_job_status_final():
         else:
             logging.info("- INFO, job status not complete, current status: \"%s\"" % data['Message'])
             time.sleep(30)
-
-
-
+            
 if __name__ == "__main__":
     if args["script_examples"]:
         script_examples()
@@ -320,8 +315,3 @@ if __name__ == "__main__":
     else:
         logging.error("\n- FAIL, invalid argument values or not all required parameters passed in. See help text or argument --script-examples for more details.")
         sys.exit(0)
-        
-        
-
-
-
