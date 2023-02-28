@@ -2,7 +2,7 @@
 # AssignHotSpareREDFISH. Python script using Redfish API to either assign dedicated or global hot spare
 #
 # _author_ = Texas Roemer <Texas_Roemer@Dell.com>
-# _version_ = 5.0
+# _version_ = 6.0
 #
 # Copyright (c) 2018, Dell, Inc.
 #
@@ -29,7 +29,7 @@ from pprint import pprint
 
 warnings.filterwarnings("ignore")
 
-parser=argparse.ArgumentParser(description="Python script using Redfish API with OEM extension to assign either dedicated or global hot spare. Supported ways to execute the script are: passing in iDRAC username/password (arguments -u and -p), pass in only iDRAC username (argument -u only) which will prompt to the screen to enter iDRAC password, will not be returned in clear text or use X-Auth token session (argument -x). By default, the script ignores SSL cert verification. Use --ssl argument if you want to perform SSL cert verification for all Redfish calls.")
+parser = argparse.ArgumentParser(description="Python script using Redfish API with OEM extension to assign either dedicated or global hot spare. Supported ways to execute the script are: passing in iDRAC username/password (arguments -u and -p), pass in only iDRAC username (argument -u only) which will prompt to the screen to enter iDRAC password, will not be returned in clear text or use X-Auth token session (argument -x). By default, the script ignores SSL cert verification. Use --ssl argument if you want to perform SSL cert verification for all Redfish calls.")
 parser.add_argument('-ip',help='iDRAC IP address', required=False)
 parser.add_argument('-u', help='iDRAC username', required=False)
 parser.add_argument('-p', help='iDRAC password', required=False)
@@ -44,8 +44,7 @@ parser.add_argument('--get-virtualdisk-details', help='Get complete details for 
 parser.add_argument('--hotspare-type', help='Pass in the type of hot spare you want to assign. Supported values are \"dedicated\" and \"global\"', dest="hotspare_type", required=False)
 parser.add_argument('--assign-disk', help='Assign global or dedicated hot spare, pass in disk FQDD, Example \"Disk.Bay.0:Enclosure.Internal.0-1:RAID.Slot.6-1\"', dest="assign_disk", required=False)
 parser.add_argument('--assign-virtualdisk', help='Pass in virtual disk FQDD you want to assign the dedicated hot spare disk', dest="assign_virtualdisk", required=False)
-
-args=vars(parser.parse_args())
+args = vars(parser.parse_args())
 logging.basicConfig(format='%(message)s', stream=sys.stdout, level=logging.INFO) 
 
 def script_examples():
@@ -56,7 +55,7 @@ def script_examples():
     \n- AssignHotSpareREDFISH.py -ip 192.168.0.120 -u root -p calvin --get-hotspare-drive RAID.Mezzanine.1-1, this example will return hotspare status for each drive.
     \n- AssignHotSpareREDFISH.py -ip 192.168.0.120 -u root -p calvin --assign Disk.Bay.4:Enclosure.Internal.0-1:RAID.Integrated.1-1 --hotspare-type global, this example will assign disk 4 as global hotspare.""")
     sys.exit(0)
-
+    
 def check_supported_idrac_version():
     if args["x"]:
         response = requests.get('https://%s/redfish/v1/Dell/Systems/System.Embedded.1/DellRaidService' % idrac_ip,verify=verify_cert, headers={'X-Auth-Token': args["x"]})
@@ -248,7 +247,11 @@ def test_valid_controller_FQDD_string(x):
         logging.error("\n- FAIL, either controller FQDD does not exist or typo in FQDD string name (FQDD controller string value is case sensitive)")
         sys.exit(0)
 
-if __name__ == "__main__":
+def main():
+    global idrac_ip
+    global idrac_username
+    global idrac_password
+    global verify_cert
     if args["script_examples"]:
         script_examples()
     if args["ip"] and args["ssl"] or args["u"] or args["p"] or args["x"]:
@@ -287,3 +290,6 @@ if __name__ == "__main__":
     else:
         logging.error("\n- FAIL, invalid argument values or not all required parameters passed in. See help text or argument --script-examples for more details.")
         sys.exit(0)
+
+if __name__ == "__main__":
+    main()  
