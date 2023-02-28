@@ -52,8 +52,8 @@ def script_examples():
     \n- InsertEjectVirtualMediaREDFISH.py -ip 192.168.0.120 -u root -p calvin --action insert --index 2 --uripath //192.168.0.130/cifs/VMware-700-A01.iso --username administrator --password P@ssword, this example shows attaching CD ISO image for virtual device index 2 (this example is only valid for iDRAC 6.00 or newer)
     \n- InsertEjectVirtualMediaREDFISH.py -ip 192.168.0.120 -u root -p calvin --action insert --uripath //192.168.0.130/cifs/VMware-700-A01.iso --username administrator --password P@ssword- --device cd, this example shows attaching CD ISO image (this example is only valid for iDRAC 5.10 or older).
     \n- InsertEjectVirtualMediaREDFISH.py -ip 192.168.0.120 -u root -p calvin --action insert --uripath //192.168.0.130/cifs/idsdm.img --username administrator --password P@ssword- --device removabledisk, this example shows attaching IMG image (this example is only valid for iDRAC 5.10 or older).
-    \n- InsertEjectVirtualMediaREDFISH.py -ip 192.168.0.120 -u root -p calvin --action eject --index 1, this example shows ejecting virtual media device index 1 (this example is only valid for iDRAC 6.00 or newer). 
-    \n- InsertEjectVirtualMediaREDFISH.py -ip 192.168.0.120 -u root -p calvin --action eject --device cd, this example shows ejecting virtual media CD ISO image (this example is only valid for iDRAC 5.10 or older). 
+    \n- InsertEjectVirtualMediaREDFISH.py -ip 192.168.0.120 -u root -p calvin --action eject --index 1, this example shows ejecting virtual media device index 1 (this example is only valid for iDRAC 6.00 or newer).
+    \n- InsertEjectVirtualMediaREDFISH.py -ip 192.168.0.120 -u root -p calvin --action eject --device cd, this example shows ejecting virtual media CD ISO image (this example is only valid for iDRAC 5.10 or older).
     """)
     sys.exit(0)
 
@@ -74,7 +74,7 @@ def get_iDRAC_version():
         iDRAC_version = "new"
     else:
         iDRAC_version = "old"
-            
+
 def get_virtual_media_info():
     if iDRAC_version == "new":
         if args["x"]:
@@ -97,7 +97,7 @@ def get_virtual_media_info():
     for i in data['Members']:
         pprint(i)
         print("\n")
-        
+
 def insert_virtual_media():
     if iDRAC_version == "old":
         if args["index"]:
@@ -172,7 +172,7 @@ def eject_virtual_media():
     else:
         logging.info("\n- PASS, POST command passed to successfully eject virtual media, status code %s returned" % response.status_code)
 
-    
+
 if __name__ == "__main__":
     if args["script_examples"]:
         script_examples()
@@ -204,9 +204,3 @@ if __name__ == "__main__":
         eject_virtual_media()
     else:
         logging.error("\n- FAIL, invalid argument values or not all required parameters passed in. See help text or argument --script-examples for more details.")
-    
-    
-        
-            
-        
-        
