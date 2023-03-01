@@ -1,6 +1,4 @@
-#!/usr/bin/python
-#!/usr/bin/python3
-#
+
 # ExportVideoLogREDFISH. Python script using Redfish API with OEM extension to export either boot capture videos or crash capture video locally.
 #
 # _author_ = Texas Roemer <Texas_Roemer@Dell.com>
@@ -15,7 +13,6 @@
 # along with this software; if not, see
 # http://www.gnu.org/licenses/old-licenses/gpl-2.0.txt.
 #
-
 
 import argparse
 import getpass
@@ -112,7 +109,6 @@ def export_video_log():
             logging.error("\n- FAIL, incorrect value passed in for request, try again")
             continue
 
-
 if __name__ == "__main__":
     if args["script_examples"]:
         script_examples()
@@ -140,10 +136,3 @@ if __name__ == "__main__":
         export_video_log()
     else:
         logging.error("\n- FAIL, invalid argument values or not all required parameters passed in. See help text or argument --script-examples for more details.")
-
-    
-    
-        
-            
-        
-        
