@@ -1,6 +1,4 @@
-#!/usr/bin/python
-#!/usr/bin/python3
-#
+
 # ResetConfigStorageREDFISH. Python script using Redfish API with OEM extension to reset the storage controller
 #
 # _author_ = Texas Roemer <Texas_Roemer@Dell.com>
@@ -64,7 +62,6 @@ def check_supported_idrac_version():
         logging.warning("\n- WARNING, iDRAC version installed does not support this feature using Redfish API")
         sys.exit(0)
 
-
 def get_storage_controllers():
     if args["x"]:
         response = requests.get('https://%s/redfish/v1/Systems/System.Embedded.1/Storage' % idrac_ip, verify=verify_cert, headers={'X-Auth-Token': args["x"]})   
@@ -77,7 +74,6 @@ def get_storage_controllers():
         controller_list.append(i['@odata.id'].split("/")[-1])
         print(i['@odata.id'].split("/")[-1])
     
-
 def get_virtual_disks():
     test_valid_controller_FQDD_string(args["get_virtualdisks"])
     if args["x"]:
@@ -178,7 +174,6 @@ def loop_job_status():
             logging.info("- INFO, job status not completed, current status: \"%s\"" % data['Message'].strip("."))
             time.sleep(3)
             
-
 if __name__ == "__main__":
     if args["script_examples"]:
         script_examples()
@@ -211,10 +206,3 @@ if __name__ == "__main__":
         loop_job_status()
     else:
         logging.error("\n- FAIL, invalid argument values or not all required parameters passed in. See help text or argument --script-examples for more details.")
-        
-    
-    
-        
-            
-        
-        
