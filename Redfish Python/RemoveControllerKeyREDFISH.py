@@ -1,6 +1,4 @@
-#!/usr/bin/python
-#!/usr/bin/python3
-#
+
 # RemoveControllerKeyREDFISH. Python script using Redfish API with OEM extension to remove the storage controller key (remove encryption)
 #
 # _author_ = Texas Roemer <Texas_Roemer@Dell.com>
@@ -15,7 +13,6 @@
 # along with this software; if not, see
 # http://www.gnu.org/licenses/old-licenses/gpl-2.0.txt.
 #
-
 
 import argparse
 import getpass
@@ -81,7 +78,6 @@ def get_storage_controllers():
         controller_list.append(i['@odata.id'].split("/")[-1])
         print(i['@odata.id'].split("/")[-1])
     
-
 def get_virtual_disks():
     test_valid_controller_FQDD_string(args["get_virtualdisks"])
     if args["x"]:
@@ -106,7 +102,6 @@ def get_virtual_disks():
         for i in data.items():
             if i[0] == "VolumeType":
                 print("%s, Volume type: %s" % (ii, i[1]))
-
 
 def get_virtual_disks_details():
     test_valid_controller_FQDD_string(args["get_virtualdisk_details"])
@@ -240,7 +235,6 @@ def test_valid_controller_FQDD_string(x):
         logging.error("\n- FAIL, either controller FQDD does not exist or typo in FQDD string name (FQDD controller string value is case sensitive)")
         sys.exit(0)
     
-
 if __name__ == "__main__":
     if args["script_examples"]:
         script_examples()
@@ -280,9 +274,3 @@ if __name__ == "__main__":
     else:
         logging.error("\n- FAIL, invalid argument values or not all required parameters passed in. See help text or argument --script-examples for more details.")
         sys.exit(0)
-    
-    
-        
-            
-        
-        
