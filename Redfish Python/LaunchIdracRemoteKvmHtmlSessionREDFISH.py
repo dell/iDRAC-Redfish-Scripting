@@ -1,6 +1,4 @@
-#!/usr/bin/python
-#!/usr/bin/python3
-#
+
 # _author_ = Texas Roemer <Texas_Roemer@Dell.com>
 # _version_ = 2.0
 #
@@ -193,11 +191,6 @@ def launch_KVM_session():
     except:
         logging.debug("- INFO, unable to locate ssl_cert.txt file, skipping step to delete file")
 
-
-
-
-
-
 if __name__ == "__main__":
     if args["script_examples"]:
         script_examples()
@@ -234,12 +227,3 @@ if __name__ == "__main__":
     export_ssl_cert()
     get_KVM_session_info()
     launch_KVM_session()
-
-
-
-
-
-
-
-
-    
