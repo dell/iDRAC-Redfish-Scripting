@@ -1,6 +1,4 @@
-#!/usr/bin/python
-#!/usr/bin/python3
-#
+
 # ImportSystemConfigurationLocalFilenameREDFISH. Python script using Redfish API to import system configuration profile attributes locally from a configuration file.
 #
 # _author_ = Texas Roemer <Texas_Roemer@Dell.com>
@@ -213,8 +211,6 @@ def import_SCP_local_filename():
                 start_job_message = current_job_message
                 continue
             
-
-
 if __name__ == "__main__":
     if args["script_examples"]:
         script_examples()
@@ -243,4 +239,3 @@ if __name__ == "__main__":
         import_SCP_local_filename()
     else:
         logging.error("\n- FAIL, invalid argument values or not all required parameters passed in. See help text or argument --script-examples for more details.")
-    
