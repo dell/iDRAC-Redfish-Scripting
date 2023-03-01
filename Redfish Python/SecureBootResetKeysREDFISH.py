@@ -1,6 +1,4 @@
-#!/usr/bin/python
-#!/usr/bin/python3
-#
+
 # SecureBootResetKeysREDFISH. Python script using Redfish API to either get supported reset key types or reset secure boot keys.
 #
 # _author_ = Texas Roemer <Texas_Roemer@Dell.com>
@@ -328,8 +326,6 @@ def reboot_server():
         logging.error("- FAIL, unable to get current server power state to perform either reboot or power on")
         sys.exit(0)
     
-
-
 if __name__ == "__main__":
     if args["script_examples"]:
         script_examples()
@@ -372,5 +368,3 @@ if __name__ == "__main__":
             logging.info("\n- INFO, server will not automatically reboot. Reset secure boot keys process will be complete on next manual server reboot.")
     else:
         logging.error("\n- FAIL, invalid argument values or not all required parameters passed in. See help text or argument --script-examples for more details.")
-        
-
