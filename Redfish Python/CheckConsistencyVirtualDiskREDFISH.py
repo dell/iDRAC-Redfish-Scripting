@@ -1,6 +1,4 @@
-#!/usr/bin/python
-#!/usr/bin/python3
-#
+
 # CheckConsistencyVirtualDiskREDFISH. Python script using Redfish API to either get controllers / current virtual disks or check consistency virtual disk.
 #
 # _author_ = Texas Roemer <Texas_Roemer@Dell.com>
@@ -354,7 +352,6 @@ def reboot_server():
         logging.error("- FAIL, unable to get current server power state to perform either reboot or power on")
         sys.exit(0)
             
-
 if __name__ == "__main__":
     if args["script_examples"]:
         script_examples()
