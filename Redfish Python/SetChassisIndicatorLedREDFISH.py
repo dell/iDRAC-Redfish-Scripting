@@ -36,8 +36,6 @@ parser.add_argument('--set', help='Set chassis indicator LED state, pass in one 
 args = vars(parser.parse_args())
 logging.basicConfig(format='%(message)s', stream=sys.stdout, level=logging.INFO)
 
-
-
 def script_examples():
     print("""\nSetChassisIndicatorLedREDFISH.py -ip 192.168.0.120 -u root -p calvin --get, this example will return current chassis LED state.
     \nSetChassisIndicatorLedREDFISH.py -ip 192.168.0.120 -u root -p calvin --set Lit, this example will disable blinking and set chassis LED state to Lit.
@@ -87,7 +85,6 @@ def set_current_chassis_indicator_LED_state():
         logging.error("\n- ERROR, status code %s returned, detailed failure results:\n%s" % (response.status_code, response.__dict__))
         sys.exit(0)
         
-
 if __name__ == "__main__":
     if args["script_examples"]:
         script_examples()
@@ -117,7 +114,3 @@ if __name__ == "__main__":
         set_current_chassis_indicator_LED_state()
     else:
         logging.error("\n- FAIL, invalid argument values or not all required parameters passed in. See help text or argument --script-examples for more details.")
-        
-        
-
-
