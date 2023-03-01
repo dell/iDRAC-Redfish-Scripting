@@ -134,10 +134,6 @@ def delete_x_auth_session():
         logging.info("\n- FAIL, unable to delete iDRAC session, status code %s returned, detailed error results:\n %s" % (response.status_code, data))
         sys.exit(0)
 
-
-
-
-
 if __name__ == "__main__":
     if args["script_examples"]:
         script_examples()
@@ -169,6 +165,3 @@ if __name__ == "__main__":
         delete_x_auth_session()
     else:
         logging.error("\n- FAIL, invalid argument values or not all required parameters passed in. See help text or argument --script-examples for more details.")
-        
-        
-
