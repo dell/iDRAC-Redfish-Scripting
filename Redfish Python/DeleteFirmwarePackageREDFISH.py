@@ -1,6 +1,4 @@
-#!/usr/bin/python
-#!/usr/bin/python3
-#
+
 # DeleteFirmwarePackageREDFISH. Python script using Redfish API to delete a downloaded package which has not been applied yet.
 # To delete the downloaded package, you must first find out the AVAILABLE URI entry for the download, then the Etag for this URI. You will need to pass in both the complete AVAILABLE URI and Etag
 # to delete the downloaded payload.
@@ -118,8 +116,6 @@ def delete_payload():
         logging.error("\n- FAIL, command failed to delete AVAILABLE URI %s, error: \n%s" % (args["uri"], data))
         sys.exit(0)
     
-
-
 def delete_all_available_entries():
     if args["x"]:
         response = requests.get('https://%s/redfish/v1/UpdateService/FirmwareInventory' % idrac_ip, verify=verify_cert, headers={'X-Auth-Token': args["x"]})   
@@ -180,8 +176,6 @@ def delete_all_available_entries():
         logging.error("- FAIL, available firmware entries still detected. Entries are: %s" % available_entries)
         sys.exit(0)
     
-
-
 if __name__ == "__main__":
     if args["script_examples"]:
         script_examples()
@@ -215,6 +209,3 @@ if __name__ == "__main__":
         delete_all_available_entries()         
     else:
         logging.error("\n- FAIL, invalid argument values or not all required parameters passed in. See help text or argument --script-examples for more details.")
-    
-
-
