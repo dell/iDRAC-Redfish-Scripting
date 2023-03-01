@@ -1,6 +1,4 @@
-#!/usr/bin/python
-#!/usr/bin/python3
-#
+
 # InstallFromRepositoryREDFISH. Python script using Redfish API with OEM extension to either get firmware version for all devices, get repository update list or install firmware from a repository on a network share.
 #
 # _author_ = Texas Roemer <Texas_Roemer@Dell.com>
@@ -384,7 +382,6 @@ def check_schedule_update_job():
             logging.info("Job ID: %s, Job Name: %s, Job Message: %s" % (x, data['Name'], data['Message']))
         sys.exit(0)
     
-
 if __name__ == "__main__":
     if args["script_examples"]:
         script_examples()
@@ -426,5 +423,3 @@ if __name__ == "__main__":
             loop_job_status(i)
     else:
         logging.error("\n- FAIL, invalid argument values or not all required parameters passed in. See help text or argument --script-examples for more details.")
-    
-          
