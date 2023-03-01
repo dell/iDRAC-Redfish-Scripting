@@ -201,7 +201,6 @@ def install_image_payload():
         sys.exit(0)
     logging.info("- PASS, update job ID %s successfully created, script will now loop polling the job status" % job_id)
 
-
 def check_job_status():
     # Loop job status to validate if job is marked failed, scheduled or completed. Completed status will only occur if device can apply firmware update with no reboot needed. 
     retry_count = 1
@@ -469,8 +468,6 @@ def validate_new_version_installed():
                         else:
                             logging.error("- FAIL, %s not updated to version %s, current installed version detected %s" % (installed_entry_details["Name"], available_entry_details["Version"], installed_entry_details["Version"]))
         
-
-
 if __name__ == "__main__":
     if args["script_examples"]:
         script_examples()
@@ -509,9 +506,3 @@ if __name__ == "__main__":
         validate_new_version_installed()
     else:
         logging.error("\n- FAIL, invalid argument values or not all required parameters passed in. See help text or argument --script-examples for more details.")
-
-
-
-
-
-
