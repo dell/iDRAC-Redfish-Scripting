@@ -1,6 +1,4 @@
-#!/usr/bin/python
-#!/usr/bin/python3
-#
+
 # GetDiskOperationREDFISH. Python script using Redfish API DMTF to get check a disk if any operations are in progress.
 #
 # _author_ = Texas Roemer <Texas_Roemer@Dell.com>
@@ -161,10 +159,3 @@ if __name__ == "__main__":
         get_storage_controllers()
     else:
         logging.error("\n- FAIL, invalid argument values or not all required parameters passed in. See help text or argument --script-examples for more details.")
-    
-    
-    
-        
-            
-        
-        
