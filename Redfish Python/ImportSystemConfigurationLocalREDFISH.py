@@ -1,6 +1,4 @@
-#!/usr/bin/python
-#!/usr/bin/python3
-#
+
 # ImportSystemConfigurationLocalREDFISH. Python script using Redfish API to import system configuration attributes locally from the python script. Using ImportBuffer parameter, pass in the correct open, closed tags along with FQDDs, attributes in XML format. Use payload dictionary example below for the correct format.
 #
 # NOTE: Local import is recommended to use if setting one or few attributes. If yo're setting a large amount of attributes, use import file from a network share or import file locally script.
@@ -62,7 +60,6 @@ def check_supported_idrac_version():
     if response.status_code != 200:
         logging.warning("\n- WARNING, GET command failed to check supported iDRAC version, status code %s returned" % response.status_code)
         sys.exit(0)
-
 
 def scp_import_local():
     url = 'https://%s/redfish/v1/Managers/iDRAC.Embedded.1/Actions/Oem/EID_674_Manager.ImportSystemConfiguration' % idrac_ip
@@ -199,8 +196,6 @@ def scp_import_local():
                 start_job_message = current_job_message
                 continue
             
-
-
 if __name__ == "__main__":
     if args["script_examples"]:
         script_examples()
