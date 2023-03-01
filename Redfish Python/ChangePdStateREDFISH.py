@@ -1,6 +1,4 @@
-#!/usr/bin/python
-#!/usr/bin/python3
-#
+
 # _author_ = Texas Roemer <Texas_Roemer@Dell.com>
 # _version_ = 2.0
 #
@@ -220,9 +218,6 @@ def loop_job_status():
             logging.info("- INFO, job status not completed, current status: \"%s\"" % data['Message'])
             time.sleep(3)
     
-
-    
-
 if __name__ == "__main__":
     if args["script_examples"]:
         script_examples()
@@ -259,10 +254,3 @@ if __name__ == "__main__":
         loop_job_status()
     else:
         logging.error("\n- FAIL, invalid argument values or not all required parameters passed in. See help text or argument --script-examples for more details.")
-        
-    
-    
-        
-            
-        
-        
