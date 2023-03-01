@@ -1,6 +1,4 @@
-#!/usr/bin/python
-#!/usr/bin/python3
-#
+
 # ChangeBiosBootOrderREDFISH. Python script using Redfish API DMTF standard to change the BIOS boot order
 #
 #
@@ -250,8 +248,6 @@ def reboot_server():
         logging.error("- FAIL, unable to get current server power state to perform either reboot or power on")
         sys.exit(0)
 
-   
-
 def loop_job_status_final():
     start_time = datetime.now()
     if args["x"]:
@@ -284,7 +280,6 @@ def loop_job_status_final():
         else:
             logging.info("- INFO, job status not completed, current status: \"%s\"" % data['Message'])
             time.sleep(30)
-
 
 if __name__ == "__main__":
     if args["script_examples"]:
@@ -323,5 +318,3 @@ if __name__ == "__main__":
             get_current_boot_order()
     else:
         logging.error("\n- FAIL, invalid argument values or not all required parameters passed in. See help text or argument --script-examples for more details.")
-
-
