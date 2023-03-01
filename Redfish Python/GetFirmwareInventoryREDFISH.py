@@ -68,8 +68,6 @@ def get_FW_inventory():
         sys.exit(0)
     print(json.dumps(data['Members'], indent=4))
         
-
-
 if __name__ == "__main__":
     if args["script_examples"]:
         script_examples()
@@ -94,5 +92,3 @@ if __name__ == "__main__":
         logging.error("\n- FAIL, invalid argument values or not all required parameters passed in. See help text or argument --script-examples for more details.")
         sys.exit(0)
     get_FW_inventory()
-
-
