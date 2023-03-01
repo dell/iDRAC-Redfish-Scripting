@@ -1,6 +1,4 @@
-#!/usr/bin/python
-#!/usr/bin/python3
-#
+
 # GetRAIDLevelsREDFISH. Python script using Redfish API with OEM extension to get supported RAID levels for storage controller
 #
 # _author_ = Texas Roemer <Texas_Roemer@Dell.com>
@@ -15,7 +13,6 @@
 # along with this software; if not, see
 # http://www.gnu.org/licenses/old-licenses/gpl-2.0.txt.
 #
-
 
 import argparse
 import getpass
@@ -195,7 +192,6 @@ def get_supported_RAID_levels():
     for i in data['VDRAIDEnumArray']:
         print(i)
         
-
 if __name__ == "__main__":
     if args["script_examples"]:
         script_examples()
@@ -227,4 +223,3 @@ if __name__ == "__main__":
         get_supported_RAID_levels()
     else:
         logging.error("\n- FAIL, invalid argument values or not all required parameters passed in. See help text or argument --script-examples for more details.")
-  
