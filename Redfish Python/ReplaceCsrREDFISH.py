@@ -1,6 +1,4 @@
-#!/usr/bin/python
-#!/usr/bin/python3
-#
+
 # _author_ = Texas Roemer <Texas_Roemer@Dell.com>
 # _version_ = 3.0
 #
@@ -128,7 +126,6 @@ def reset_idrac():
     time.sleep(15)
     logging.info("- INFO, iDRAC will now reset and be back online within a few minutes.")
 
-
 if __name__ == "__main__":
     if args["script_examples"]:
         script_examples()
@@ -164,6 +161,3 @@ if __name__ == "__main__":
         reset_idrac()
     else:
         logging.error("\n- FAIL, invalid argument values or not all required parameters passed in. See help text or argument --script-examples for more details.")
-    
-
-
