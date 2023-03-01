@@ -1,6 +1,4 @@
-#!/usr/bin/python
-#!/usr/bin/python3
-#
+
 # DeleteVirtualDiskREDFISH. Python script using Redfish API to either get controllers / current virtual disks or delete virtual disk.
 #
 # _author_ = Texas Roemer <Texas_Roemer@Dell.com>
@@ -52,7 +50,6 @@ def script_examples():
     \n- DeleteVirtualDiskREDFISH.py -ip 192.168.0.120 -u root --delete Disk.Virtual.2:RAID.Mezzanine.1-1, this example will first prompt to enter iDRAC user password, then delete virtual disk 2.""")
     sys.exit(0)
     
-
 def check_supported_idrac_version():
     if args["x"]:
         response = requests.get('https://%s/redfish/v1/Systems/System.Embedded.1/Storage' % idrac_ip, verify=verify_cert, headers={'X-Auth-Token': args["x"]})
@@ -346,7 +343,6 @@ def reboot_server():
         logging.error("- FAIL, unable to get current server power state to perform either reboot or power on")
         sys.exit(0)
         
-
 if __name__ == "__main__":
     if args["script_examples"]:
         script_examples()
@@ -386,4 +382,3 @@ if __name__ == "__main__":
             loop_job_status_final()
     else:
         logging.error("\n- FAIL, invalid argument values or not all required parameters passed in. See help text or argument --script-examples for more details.")
-
