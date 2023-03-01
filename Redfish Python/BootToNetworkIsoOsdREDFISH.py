@@ -90,8 +90,6 @@ def get_attach_status():
         logging.error("\n- POST command failure results:\n %s" % data)
         sys.exit()
     logging.info("- INFO, current ISO attach status: %s" % data['ISOAttachStatus'])
-
-
     
 def boot_to_network_iso():
     global concrete_job_uri
@@ -210,11 +208,7 @@ def check_attach_status(x):
     else:
         logging.error("- FAIL, ISO attach status not successfully identified as %s" % x)
         sys.exit(0)
-
-
-
-    
-
+        
 if __name__ == "__main__":
     if args["script_examples"]:
         script_examples()
@@ -249,14 +243,4 @@ if __name__ == "__main__":
         check_attach_status("NotAttached")
     else:
         logging.error("\n- FAIL, invalid argument values or not all required parameters passed in. See help text or argument --script-examples for more details.")
-        sys.exit(0)
-        
-    
-        
-        
-    
-    
-        
-            
-        
-        
+        sys.exit(0)   
