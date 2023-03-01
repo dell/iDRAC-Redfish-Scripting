@@ -1,6 +1,4 @@
-#!/usr/bin/python
-#!/usr/bin/python3
-#
+
 # SubscriptionManagementREDFISH. Python script using Redfish API to either get event service properties, get event
 # subscriptions, create / delete subscriptions or submit test event.
 #
@@ -48,7 +46,7 @@ parser.add_argument('--destination-uri', help='Pass in destination HTTPS URI pat
 parser.add_argument('--format-type', help='Pass in Event Format Type for creating a subscription. Supported values: Event, MetricReport or None', required=False, dest='format_type')
 parser.add_argument('--event-type', help='The EventType value for either create subscription or send test event. Supported values: StatusChange, ResourceUpdated, ResourceAdded, ResourceRemoved, Alert or MetricReport.', required=False, dest='event_type')
 parser.add_argument('--message-id', help='Pass in MessageID for sending test event. Example: TMP0118', required=False, dest='message_id')
-parser.add_argument('--delete', help='Pass in complete service subscription URI to delete. Execute -s argument if needed to get subscription URIs', required=False)
+parser.add_argument('--delete', help='Pass in complete service subscription URI to delete. Execute --get-subscriptions argument if needed to get subscription URIs', required=False)
 
 args = vars(parser.parse_args())
 logging.basicConfig(format='%(message)s', stream=sys.stdout, level=logging.INFO)
@@ -236,7 +234,6 @@ def submit_test_event():
         logging.error("\n- FAIL, POST command failed to submit test event, status code %s returned, error: %s" % (response.status_code, response.__dict__["_content"]))
         sys.exit(0)
     
-
 if __name__ == "__main__":
     if args["script_examples"]:
         script_examples()
@@ -273,5 +270,3 @@ if __name__ == "__main__":
         delete_subscriptions()
     else:
         logging.error("\n- FAIL, invalid argument values or not all required parameters passed in. See help text or argument --script-examples for more details.")
-
-
