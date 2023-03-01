@@ -1,6 +1,4 @@
-#!/usr/bin/python
-#!/usr/bin/python3
-#
+
 # IdracRecurringJobOemREDFISH. Python script using Redfish API with OEM to create recurring job for iDRAC or storage operation.
 #
 #
@@ -238,8 +236,6 @@ def create_recurring_job():
         print(response.json())
         sys.exit(0)
 
-
-
 if __name__ == "__main__":
     if args["script_examples"]:
         script_examples()
@@ -281,6 +277,3 @@ if __name__ == "__main__":
         delete_recurring_job()
     else:
         logging.error("\n- FAIL, invalid argument values or not all required parameters passed in. See help text or argument --script-examples for more details.")
-        
-   
-
