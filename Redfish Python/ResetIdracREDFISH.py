@@ -1,6 +1,4 @@
-#!/usr/bin/python
-#!/usr/bin/python3
-#
+
 # ResetIdracREDFISH. Python script using Redfish API to reset iDRAC.
 #
 # NOTE: Once the script is complete, iDRAC will reset to complete the process and you will lose network connection. iDRAC should be back up within a few minutes.
@@ -75,7 +73,6 @@ def reset_idrac():
     time.sleep(15)
     logging.info("- INFO, iDRAC will now reset and be back online within a few minutes.")
     
-
 if __name__ == "__main__":
     if args["script_examples"]:
         script_examples()
@@ -100,4 +97,3 @@ if __name__ == "__main__":
         logging.error("\n- FAIL, invalid argument values or not all required parameters passed in. See help text or argument --script-examples for more details.")
         sys.exit(0)
     reset_idrac()
-
