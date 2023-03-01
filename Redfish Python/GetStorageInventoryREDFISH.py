@@ -1,6 +1,4 @@
-#!/usr/bin/python
-#!/usr/bin/python3
-#
+
 # GetStorageInventoryREDFISH. Python script using Redfish API DMTF to get storage inventory: controllers, disks and backplanes.
 #
 # _author_ = Texas Roemer <Texas_Roemer@Dell.com>
@@ -157,9 +155,6 @@ def get_virtualdisks():
                 pprint(i)
             print("\n")
                 
-    
-
-
 if __name__ == "__main__":
     if args["script_examples"]:
         script_examples()
@@ -193,5 +188,3 @@ if __name__ == "__main__":
         get_virtualdisks()
     else:
         logging.error("\n- FAIL, invalid argument values or not all required parameters passed in. See help text or argument --script-examples for more details.")
-
-
