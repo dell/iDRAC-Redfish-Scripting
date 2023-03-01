@@ -1,6 +1,4 @@
-#!/usr/bin/python
-#!/usr/bin/python3
-#
+
 # ImportSystemConfigurationPreviewLocalFilenameREDFISH. Python script using Redfish API to preview a local system configuration file. 
 #
 # _author_ = Texas Roemer <Texas_Roemer@Dell.com>
@@ -177,8 +175,6 @@ def loop_job_status():
                 start_job_message = current_job_message
                 continue
         
-
-
 if __name__ == "__main__":
     if args["script_examples"]:
         script_examples()
@@ -207,10 +203,3 @@ if __name__ == "__main__":
         loop_job_status()
     else:
         logging.warning("\n- WARNING, arguments --filename, --sharename, --sharetype and --shareip are required for import. See help text or argument --script-examples for more details.")
-
-    
-
-
-
-
-
