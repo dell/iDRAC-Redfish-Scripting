@@ -1,6 +1,4 @@
-#!/usr/bin/python
-#!/usr/bin/python3
-#
+
 # DeviceFirmwareRollbackREDFISH. Python script using Redfish API with OEM extension to rollback firmware for a device iDRAC supports. 
 #
 # _author_ = Texas Roemer <Texas_Roemer@Dell.com>
@@ -373,7 +371,6 @@ def check_idrac_connection():
                     continue
                 break
 
-
 if __name__ == "__main__":
     if args["script_examples"]:
         script_examples()
@@ -413,9 +410,3 @@ if __name__ == "__main__":
             sys.exit(0)
     else:
         logging.info("- INFO, argument --reboot not detected. Update job is marked as scheduled and will be applied on next server reboot")
-
-
-
-
-
-
