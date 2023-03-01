@@ -1,6 +1,4 @@
-#!/usr/bin/python
-#!/usr/bin/python3
-#
+
 # _author_ = Texas Roemer <Texas_Roemer@Dell.com>
 # _version_ = 2.0
 #
@@ -247,7 +245,6 @@ def delete_hash():
     else:
         logging.info("\n- PASS, DELETE command passed to delete certificate hash. Server reboot is required to apply the changes.")
 
-
 if __name__ == "__main__":
     if args["script_examples"]:
         script_examples()
@@ -285,6 +282,3 @@ if __name__ == "__main__":
         reboot_server()
     else:
         logging.error("\n- FAIL, invalid argument values or not all required parameters passed in. See help text or argument --script-examples for more details.")
-    
-
-
