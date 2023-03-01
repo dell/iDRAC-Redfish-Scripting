@@ -1,6 +1,4 @@
-#!/usr/bin/python
-#!/usr/bin/python3
-#
+
 # GetIdracSelLogsREDFISH. Python script using Redfish API to get iDRAC System Event Logs (SEL) logs.
 #
 # _author_ = Texas Roemer <Texas_Roemer@Dell.com>
@@ -147,7 +145,6 @@ def clear_SEL():
         logging.error("\n- POST command failure results:\n %s" % data)
         sys.exit(0)
 
-
 if __name__ == "__main__":
     if args["script_examples"]:
         script_examples()
@@ -177,5 +174,3 @@ if __name__ == "__main__":
         logging.error("\n- FAIL, invalid argument values or not all required parameters passed in. See help text or argument --script-examples for more details.")
         sys.exit(0)
     get_SEL_logs()
-
-
