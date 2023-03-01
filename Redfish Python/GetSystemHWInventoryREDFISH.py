@@ -1,6 +1,4 @@
-#!/usr/bin/python
-#!/usr/bin/python3
-#
+
 # GetSystemHWInventoryREDFISH. Python script using Redfish API to get system hardware inventory
 #
 # _author_ = Texas Roemer <Texas_Roemer@Dell.com>
@@ -602,7 +600,6 @@ def get_network_information():
                 open_file.writelines("\n")
                 print(message)
 
-
 if __name__ == "__main__":
     if args["script_examples"]:
         script_examples()
@@ -661,15 +658,3 @@ if __name__ == "__main__":
         get_backplane_information()
         get_network_information()
     open_file.close()
-        
-        
-        
-    
-
-    
-    
-    
-        
-            
-        
-        
