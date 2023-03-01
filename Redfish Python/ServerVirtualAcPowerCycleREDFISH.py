@@ -15,7 +15,6 @@
 # http://www.gnu.org/licenses/old-licenses/gpl-2.0.txt.
 #
 
-
 import argparse
 import getpass
 import json
@@ -34,7 +33,6 @@ parser.add_argument('--ssl', help='Verify SSL certificate for all Redfish calls,
 parser.add_argument('-x', help='Pass in iDRAC X-auth token session ID to execute all Redfish calls instead of passing in username/password', required=False)
 parser.add_argument('--script-examples', help='Get executing script examples', action="store_true", dest="script_examples", required=False)
 parser.add_argument('--ac-cycle', help='A/C power cycle the server', action="store_true", dest="ac_cycle", required=False)
-
 
 args = vars(parser.parse_args())
 logging.basicConfig(format='%(message)s', stream=sys.stdout, level=logging.INFO)
@@ -73,7 +71,6 @@ def ac_power_cycle():
         logging.error(response.json())
         sys.exit(0)
 
-
 if __name__ == "__main__":
     if args["script_examples"]:
         script_examples()
@@ -101,5 +98,3 @@ if __name__ == "__main__":
         ac_power_cycle()
     else:
         logging.error("\n- FAIL, invalid argument values or not all required parameters passed in. See help text or argument --script-examples for more details.")
-        
-   
