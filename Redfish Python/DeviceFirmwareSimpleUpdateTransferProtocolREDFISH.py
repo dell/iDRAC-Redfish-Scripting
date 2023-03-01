@@ -1,6 +1,4 @@
-#!/usr/bin/python
-#!/usr/bin/python3
-#
+
 # DeviceFirmwareSimpleUpdateTransferProtocolREDFISH. Python script using Redfish API to update a device firmware with DMTF standard SimpleUpdate with TransferProtocol. Only supported file image type is Windows Dell Update Packages(DUPs).
 #
 # _author_ = Texas Roemer <Texas_Roemer@Dell.com>
@@ -103,7 +101,6 @@ def get_FW_inventory():
         pprint(i)
         print("\n")  
 
-
 def get_supported_protocols():
     if args["x"]:
         response = requests.get('https://%s/redfish/v1/UpdateService' % idrac_ip, verify=verify_cert, headers={'X-Auth-Token': args["x"]})
@@ -144,7 +141,6 @@ def install_image_payload():
     logging.info("\n- PASS, update job ID %s successfully created, script will now loop polling the job status\n" % job_id)
     start_time = datetime.now()
     time.sleep(1)
-
 
 def check_job_status():
     retry_count = 1
@@ -383,8 +379,6 @@ def check_idrac_connection():
                     continue
                 break
             
-
-
 if __name__ == "__main__":
     if args["script_examples"]:
         script_examples()
@@ -429,9 +423,3 @@ if __name__ == "__main__":
             sys.exit(0)
     else:
         logging.error("\n- FAIL, invalid argument values or not all required parameters passed in. See help text or argument --script-examples for more details.")
-
-
-
-
-
-
