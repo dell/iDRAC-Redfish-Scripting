@@ -1,6 +1,4 @@
-#!/usr/bin/python
-#!/usr/bin/python3
-#
+
 # GetIdracLcLogsREDFISH. Python script using Redfish API to get iDRAC LC logs.
 #
 # _author_ = Texas Roemer <Texas_Roemer@Dell.com>
@@ -307,7 +305,6 @@ def get_message_id():
         logging.info("\n- INFO, Lifecycle log entries also captured in \"message_id_entries.txt\" file")
         open_file.close()
 
-
 if __name__ == "__main__":
     if args["script_examples"]:
         script_examples()
@@ -340,6 +337,3 @@ if __name__ == "__main__":
         get_message_id()
     else:
         logging.error("\n- FAIL, invalid argument values or not all required parameters passed in. See help text or argument --script-examples for more details.")
-        
-
-
