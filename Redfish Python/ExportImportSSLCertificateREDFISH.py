@@ -1,6 +1,4 @@
-#!/usr/bin/python
-#!/usr/bin/python3
-#
+
 # ExportImportSSLCertificateREDFISH.py   Python script using Redfish API with OEM extension to either export or import SSL certificate.
 #
 # _author_ = Texas Roemer <Texas_Roemer@Dell.com>
@@ -184,7 +182,6 @@ def import_SSL_cert():
         logging.error("\n- POST command failure results:\n %s" % data)
         sys.exit(0)
 
-
 if __name__ == "__main__":
     if args["script_examples"]:
         script_examples()
@@ -218,6 +215,3 @@ if __name__ == "__main__":
         import_SSL_cert()
     else:
         logging.error("\n- FAIL, invalid argument values or not all required parameters passed in. See help text or argument --script-examples for more details.")
-    
-    
-        
