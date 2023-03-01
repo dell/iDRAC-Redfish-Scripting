@@ -1,9 +1,5 @@
-#!/usr/bin/python
-#!/usr/bin/python3
-#
+
 # ImportSystemConfigurationNetworkSharePreviewREDFISH. Python script using Redfish API to preview import server configuration profile on a network share. 
-#
-# 
 #
 # _author_ = Texas Roemer <Texas_Roemer@Dell.com>
 # _version_ = 3.0
@@ -190,9 +186,7 @@ def loop_job_status():
             if start_job_message != current_job_message:
                 logging.info("- INFO, \"%s\", percent complete: %s" % (data['Oem']['Dell']['Message'],data['Oem']['Dell']['PercentComplete']))
                 start_job_message = current_job_message
-                continue
-
-        
+                continue        
 
 if __name__ == "__main__":
     if args["script_examples"]:
@@ -222,5 +216,3 @@ if __name__ == "__main__":
         loop_job_status()
     else:
         logging.warning("\n- WARNING, arguments --filename, --sharename, --sharetype and --shareip are required for import. See help text or argument --script-examples for more details.")
-        
-        
