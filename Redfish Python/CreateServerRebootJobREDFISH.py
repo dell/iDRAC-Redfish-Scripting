@@ -150,12 +150,7 @@ def create_reboot_jobID():
         logging.error("\n- FAIL, SetupJobQueue action failed, status code %s returned" % (response.status_code))
         data = response.json()
         logging.error("\n- POST command failure:\n %s" % data)
-    
-
-    
-    
-                    
-
+        
 if __name__ == "__main__":
     if args["script_examples"]:
         script_examples()
@@ -187,6 +182,3 @@ if __name__ == "__main__":
         create_reboot_jobID()
     else:
         logging.error("\n- FAIL, invalid argument values or not all required parameters passed in. See help text or argument --script-examples for more details.")
-        
-
-
