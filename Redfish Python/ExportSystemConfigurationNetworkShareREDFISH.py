@@ -1,6 +1,4 @@
-#!/usr/bin/python
-#!/usr/bin/python3
-#
+
 # ExportServerConfigurationNetworkShareREDFISH. Python script using Redfish API to export server configuration profile to a supported network share.
 #
 # _author_ = Texas Roemer <Texas_Roemer@Dell.com>
@@ -137,7 +135,6 @@ def export_server_configuration_profile():
         sys.exit(0)
     logging.info("\n- Job ID \"%s\" successfully created for ExportSystemConfiguration method\n" % job_id)
 
-
 def loop_job_status():
     start_time = datetime.now()
     while True:
@@ -169,7 +166,6 @@ def loop_job_status():
             logging.info("- INFO, %s, percent complete: %s" % (data['Message'],data['PercentComplete']))
             time.sleep(1)
 
-
 if __name__ == "__main__":
     if args["script_examples"]:
         script_examples()
@@ -200,5 +196,3 @@ if __name__ == "__main__":
         loop_job_status()
     else:
         logging.warning("\n- WARNING, arguments --target, --format-type, --filename, --sharename, --sharetype and --shareip are required for export. See help text or argument --script-examples for more details.")
-    
-    
