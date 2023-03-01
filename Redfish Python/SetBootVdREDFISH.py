@@ -13,7 +13,6 @@
 # along with this software; if not, see
 # http://www.gnu.org/licenses/old-licenses/gpl-2.0.txt.
 
-
 import argparse
 import getpass
 import json
@@ -44,7 +43,6 @@ parser.add_argument('--set', help='Pass in controller FQDD you want to set the b
 parser.add_argument('--boot-vd', help='Pass in VD FQDD you want to set as bootable for the controller, Example "\Disk.Virtual.0:RAID.Mezzanine.1-1\"', required=False, dest="boot_vd")
 args = vars(parser.parse_args())
 logging.basicConfig(format='%(message)s', stream=sys.stdout, level=logging.INFO)
-
 
 def script_examples():
     print("""\n- SetBootVdREDFISH.py -ip 192.168.0.120 -u root -p calvin --get-controllers, this example will return all controller FQDDs detected.
@@ -83,7 +81,6 @@ def get_storage_controllers():
         controller_list.append(i['@odata.id'].split("/")[-1])
         print(i['@odata.id'].split("/")[-1])
     
-
 def get_virtual_disks():
     test_valid_controller_FQDD_string(args["get_virtualdisks"])
     if args["x"]:
@@ -149,9 +146,6 @@ def get_controller_boot_VD():
     else:
         logging.info("\n- Current boot VD for controller %s: %s" % (args["get_boot_vd"], data["Oem"]["Dell"]["DellController"]["BootVirtualDiskFQDD"]))
     
-
-
-
 def get_config_job_type():
     global job_type
     response = requests.get('https://%s/redfish/v1/Systems/System.Embedded.1/Storage/%s' % (idrac_ip, controller),verify=False,auth=(idrac_username, idrac_password))
@@ -188,7 +182,6 @@ def set_boot_vd():
         logging.error("- FAIL, unable to locate job ID in JSON headers output")
         sys.exit(0)
     logging.info("\n- PASS, %s job ID successfully created to set boot VD\n" % job_id)
-
 
 start_time = datetime.now()
 
@@ -230,7 +223,6 @@ def loop_job_status():
             logging.info("- INFO, job status not completed, current status: \"%s\"" % data['Message'].rstrip("."))
             time.sleep(3)
 
-
 if __name__ == "__main__":
     if args["script_examples"]:
         script_examples()
@@ -267,7 +259,3 @@ if __name__ == "__main__":
         loop_job_status()
     else:
         logging.error("\n- FAIL, invalid argument values or not all required parameters passed in. See help text or argument --script-examples for more details.")
-    
-
-        
-
