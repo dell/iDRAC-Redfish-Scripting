@@ -1,6 +1,4 @@
-#!/usr/bin/python
-#!/usr/bin/python3
-#
+
 # _author_ = Texas Roemer <Texas_Roemer@Dell.com>
 # _version_ = 2.0
 #
@@ -44,10 +42,3 @@ if __name__ == "__main__":
         get_idrac_oem_details_no_creds()
     except:
         logging.error("- ERROR, unable to run GET on service root URI. Confirm IP address is a valid iDRAC address")
-
-    
-    
-        
-            
-        
-        
