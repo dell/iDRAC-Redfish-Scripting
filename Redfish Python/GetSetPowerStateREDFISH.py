@@ -1,8 +1,5 @@
-#!/usr/bin/python
-#!/usr/bin/python3
-#
+
 # GetSetPowerStateREDFISH. Python script using Redfish API to change current server power state.
-#
 #
 # _author_ = Texas Roemer <Texas_Roemer@Dell.com>
 # _version_ = 8.0
@@ -16,7 +13,6 @@
 # along with this software; if not, see
 # http://www.gnu.org/licenses/old-licenses/gpl-2.0.txt.
 #
-
 
 import argparse
 import getpass
@@ -37,7 +33,6 @@ parser.add_argument('-x', help='Pass in iDRAC X-auth token session ID to execute
 parser.add_argument('--script-examples', help='Get executing script examples', action="store_true", dest="script_examples", required=False)
 parser.add_argument('--get', help='Get current server power state and possible values to set server power state', action="store_true", required=False)
 parser.add_argument('--set', help='Set server power state', required=False)
-
 
 args = vars(parser.parse_args())
 logging.basicConfig(format='%(message)s', stream=sys.stdout, level=logging.INFO)
@@ -94,7 +89,6 @@ def set_power_state():
         logging.error("\n- FAIL, Command failed, status code %s returned\n" % response.status_code)
         logging.error(response.json())
         sys.exit(0)
-
 
 if __name__ == "__main__":
     if args["script_examples"]:
