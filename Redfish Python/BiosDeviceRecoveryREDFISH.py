@@ -16,7 +16,6 @@
 # http://www.gnu.org/licenses/old-licenses/gpl-2.0.txt.
 #
 
-
 import argparse
 import getpass
 import json
@@ -82,7 +81,6 @@ def bios_device_recovery():
         logging.error("\n- POST command failure results:\n %s" % data)
         sys.exit(0)
     
-
 def get_idrac_time():
     global current_idrac_time
     url = 'https://%s/redfish/v1/Dell/Managers/iDRAC.Embedded.1/DellTimeService/Actions/DellTimeService.ManageTime' % (idrac_ip)
@@ -108,7 +106,6 @@ def get_idrac_time():
     strip_timezone=current_idrac_time.find("-", strip_timezone+1)
     current_idrac_time = current_idrac_time[:strip_timezone]
     time.sleep(10)
-
 
 def validate_process_started():
     global start_time
@@ -183,10 +180,6 @@ def validate_process_completed():
             count += 1
             time.sleep(30)
     
-            
-
-    
-
 if __name__ == "__main__":
     if args["script_examples"]:
         script_examples()
@@ -214,9 +207,3 @@ if __name__ == "__main__":
     bios_device_recovery()
     validate_process_started()
     validate_process_completed()
-    
-    
-        
-            
-        
-        
