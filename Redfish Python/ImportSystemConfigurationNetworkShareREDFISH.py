@@ -1,6 +1,4 @@
-#!/usr/bin/python
-#!/usr/bin/python3
-#
+
 # ImportSystemConfigurationNetworkShareREDFISH. Python script using Redfish API to import server configuration profile from a network share. 
 #
 # _author_ = Texas Roemer <Texas_Roemer@Dell.com>
@@ -227,8 +225,6 @@ def check_job_status():
                 start_job_message = current_job_message
                 continue
 
-            
-
 if __name__ == "__main__":
     if args["script_examples"]:
         script_examples()
@@ -257,4 +253,3 @@ if __name__ == "__main__":
         check_job_status()
     else:
         logging.warning("\n- WARNING, arguments --target, --filename, --sharename, --sharetype and --shareip are required for import. See help text or argument --script-examples for more details.")
-        
