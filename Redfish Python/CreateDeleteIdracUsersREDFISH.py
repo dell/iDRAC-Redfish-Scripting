@@ -1,6 +1,4 @@
-#!/usr/bin/python
-#!/usr/bin/python3
-#
+
 # CreateDeleteIdracUsersREDFISH.py Python script using Redfish API to either create or delete iDRAC user account.
 #
 # _author_ = Texas Roemer <Texas_Roemer@Dell.com>
@@ -149,8 +147,6 @@ def get_iDRAC_user_account_info():
         pprint(i)
         print("\n")
         
-    
-
 if __name__ == "__main__":
     if args["script_examples"]:
         script_examples()
@@ -182,5 +178,3 @@ if __name__ == "__main__":
         get_iDRAC_user_account_info()   
     else:
         logging.error("\n- FAIL, invalid argument values or not all required parameters passed in. See help text or argument --script-examples for more details.")
-        
-
