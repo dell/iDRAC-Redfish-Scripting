@@ -213,7 +213,6 @@ def loop_job_status():
         else:
             logging.info("- INFO, job status not completed, execution time: \"%s\"" % (str(current_time)[0:7]))
 
-
 if __name__ == "__main__":
     if args["script_examples"]:
         script_examples()
@@ -252,7 +251,3 @@ if __name__ == "__main__":
         delete_idrac_license()
     else:
         logging.error("\n- FAIL, invalid argument values or not all required parameters passed in. See help text or argument --script-examples for more details.")
-        
-    
-
-
