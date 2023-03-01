@@ -1,6 +1,4 @@
-#!/usr/bin/python
-#!/usr/bin/python3
-#
+
 # _author_ = Texas Roemer <Texas_Roemer@Dell.com>
 # _version_ = 2.0
 #
@@ -135,7 +133,6 @@ def clear_serial_data():
         logging.error("\n- POST command failure results:\n %s" % response.__dict__)
         sys.exit(0)
         
-
 if __name__ == "__main__":
     if args["script_examples"]:
         script_examples()
@@ -169,6 +166,3 @@ if __name__ == "__main__":
         enable_disable_iDRAC_attributes_enable_capture_serial("Disabled")
     else:
         logging.error("\n- FAIL, invalid argument values or not all required parameters passed in. See help text or argument --script-examples for more details.")
-    
-    
-        
