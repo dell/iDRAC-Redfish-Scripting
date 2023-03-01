@@ -1,6 +1,4 @@
-#!/usr/bin/python
-#!/usr/bin/python3
-#
+
 # GetSetBiosAttributesREDFISH. Python script using Redfish API DMTF to either get or set BIOS attributes using Redfish SettingApplyTime.
 #
 # _author_ = Texas Roemer <Texas_Roemer@Dell.com>
@@ -15,7 +13,6 @@
 # along with this software; if not, see
 # http://www.gnu.org/licenses/old-licenses/gpl-2.0.txt.
 #
-
 
 import argparse
 import getpass
@@ -60,7 +57,6 @@ def script_examples():
     \n- GetSetBiosAttributesREDFISH.py -ip 192.168.0.120 -u root -p calvin --attribute-names MemTest --attribute-values Disabled --maintenance-reboot autoreboot --start-time "2018-10-30T20:10:10-05:00" --duration-time 600, this example shows setting BIOS attribute using scheduled start time with maintenance window. Once the scheduled time has elapsed, server will auto reboot to execute config job.
     \n- GetSetBiosAttributesREDFISH.py -ip 192.168.0.120 -u root -p calvin --attribute-names EmbSata,NvmeMode --attribute-values RaidMode,Raid --reboot, this example shows setting multiple BIOS attributes with reboot now to apply.""")
     sys.exit(0)
-
 
 def check_supported_idrac_version():
     if args["x"]:
@@ -429,8 +425,6 @@ def reboot_server():
         logging.error("- FAIL, unable to get current server power state to perform either reboot or power on")
         sys.exit(0)
 
-
-
 if __name__ == "__main__":
     if args["script_examples"]:
         script_examples()
@@ -477,7 +471,3 @@ if __name__ == "__main__":
             logging.info("- INFO, argument --reboot not detected, server will not auto reboot. Config job is still scheduled and will execute on next server manual reboot.")
     else:
         logging.error("\n- FAIL, invalid argument values or not all required parameters passed in. See help text or argument --script-examples for more details.")
-        
-            
-        
-
