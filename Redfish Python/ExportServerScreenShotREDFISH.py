@@ -1,6 +1,4 @@
-#!/usr/bin/python
-#!/usr/bin/python3
-#
+
 # ExportServerScreenShotOemREDFISH. Python script using Redfish API with OEM extension to export current server screen shot
 #
 # _author_ = Texas Roemer <Texas_Roemer@Dell.com>
@@ -95,14 +93,6 @@ def export_server_screen_shot():
         open_file.writelines(data['ServerScreenShotFile'])
     logging.info("\n- PASS, screenshot exported locally to file \"export_screenshot.txt\". Take the contents and copy to a utility which can convert base64 into PNG file to view the screenshot")
     
-    
-
-
-
-            
-
-    
-
 if __name__ == "__main__":
     if args["script_examples"]:
         script_examples()
@@ -130,9 +120,3 @@ if __name__ == "__main__":
         export_server_screen_shot()
     else:
         logging.error("\n- FAIL, invalid argument values or not all required parameters passed in. See help text or argument --script-examples for more details.")
-    
-    
-        
-            
-        
-        
