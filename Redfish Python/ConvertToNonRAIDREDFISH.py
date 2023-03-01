@@ -42,7 +42,6 @@ parser.add_argument('--get-virtualdisks', help='Get current server storage contr
 parser.add_argument('--get-disks', help='Get server storage controller disk FQDDs and their raid status only (check for foreign disks), pass in storage controller FQDD, Example "\RAID.Integrated.1-1\"', dest="get_disks", required=False)
 parser.add_argument('--convert-nonraid', help='Convert drive to non RAID(not ready state), pass in the disk FQDD, Example \"Disk Disk.Bay.4:Enclosure.Internal.0-1:RAID.Slot.6-1\"', dest="convert_nonraid", required=False)
 
-
 args=vars(parser.parse_args())
 logging.basicConfig(format='%(message)s', stream=sys.stdout, level=logging.INFO)
 
@@ -197,7 +196,6 @@ def test_valid_controller_FQDD_string(x):
         logging.error("\n- FAIL, either controller FQDD does not exist or typo in FQDD string name (FQDD controller string value is case sensitive)")
         sys.exit(0)
     
-
 if __name__ == "__main__":
     if args["script_examples"]:
         script_examples()
@@ -233,10 +231,3 @@ if __name__ == "__main__":
     else:
         logging.error("\n- FAIL, invalid argument values or not all required parameters passed in. See help text or argument --script-examples for more details.")
         sys.exit(0)
-        
-    
-    
-        
-            
-        
-        
