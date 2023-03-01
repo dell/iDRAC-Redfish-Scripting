@@ -1,6 +1,4 @@
-#!/usr/bin/python
-#!/usr/bin/python3
-#
+
 # PrepareToRemoveREDFISH. Python script using Redfish API with OEM extension to safely prepare to remove PCIeSSD / NVMe drive.
 #
 # _author_ = Texas Roemer <Texas_Roemer@Dell.com>
@@ -190,8 +188,6 @@ def loop_job_status():
             logging.info("- INFO, job not completed, current status: \"%s\"" % data['Message'].strip("."))
             time.sleep(3)
 
-
-
 if __name__ == "__main__":
     if args["script_examples"]:
         script_examples()
@@ -226,7 +222,3 @@ if __name__ == "__main__":
         loop_job_status()    
     else:
         logging.error("\n- FAIL, invalid argument values or not all required parameters passed in. See help text or argument --script-examples for more details.")
-    
-             
-        
-        
