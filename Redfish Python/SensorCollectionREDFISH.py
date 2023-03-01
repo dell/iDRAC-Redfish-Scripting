@@ -1,7 +1,5 @@
-#!/usr/bin/python
-#!/usr/bin/python3
-#
-# AggregationMetricValueCollectionREDFISH. Python script using Redfish API OEM extensoion to get iDRAC sensor collection data.
+
+# SensorCollectionREDFISH. Python script using Redfish API OEM extensoion to get iDRAC sensor collection data.
 #
 # _author_ = Texas Roemer <Texas_Roemer@Dell.com>
 # _version_ = 2.0
@@ -131,7 +129,6 @@ def get_sensor_data():
     logging.info("\n- INFO, \"%s\" data also captured in \"sensor_collection.txt\" file" % sensor_key)
     open_file.close()
         
-
 if __name__ == "__main__":
     if args["script_examples"]:
         script_examples()
@@ -159,5 +156,3 @@ if __name__ == "__main__":
         get_sensor_data()
     else:
         logging.error("\n- FAIL, invalid argument values or not all required parameters passed in. See help text or argument --script-examples for more details.")
-    
-
