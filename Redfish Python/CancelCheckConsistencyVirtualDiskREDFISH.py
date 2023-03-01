@@ -1,6 +1,3 @@
-#!/usr/bin/python
-#!/usr/bin/python3
-#
 # CancelCheckConsistencyREDFISH. Python script using Redfish API with OEM extension to cancel check consistency on virtual disk
 #
 # _author_ = Texas Roemer <Texas_Roemer@Dell.com>
@@ -15,7 +12,6 @@
 # along with this software; if not, see
 # http://www.gnu.org/licenses/old-licenses/gpl-2.0.txt.
 #
-
 
 import argparse
 import getpass
@@ -208,7 +204,6 @@ def loop_job_status():
             logging.info("- INFO, job status not completed, current status: \"%s\"" % data['Message'])
             time.sleep(10)
             
-
 if __name__ == "__main__":
     if args["script_examples"]:
         script_examples()
@@ -243,9 +238,3 @@ if __name__ == "__main__":
         loop_job_status()
     else:
         logging.error("\n- FAIL, invalid argument values or not all required parameters passed in. See help text or argument --script-examples for more details.")
-    
-    
-        
-            
-        
-        
