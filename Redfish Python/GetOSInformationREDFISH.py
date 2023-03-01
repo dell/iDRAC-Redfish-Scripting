@@ -1,6 +1,4 @@
-#!/usr/bin/python
-#!/usr/bin/python3
-#
+
 # GetOSInformationREDFISH. Python script using Redfish API with OEM extension to get OS information using Server Configuration Profile feature
 #
 # _author_ = Texas Roemer <Texas_Roemer@Dell.com>
@@ -112,7 +110,6 @@ def get_OS_info():
                 time.sleep(3)
                 continue
 
-
 if __name__ == "__main__":
     if args["script_examples"]:
         script_examples()
@@ -137,6 +134,3 @@ if __name__ == "__main__":
         logging.error("\n- FAIL, invalid argument values or not all required parameters passed in. See help text or argument --script-examples for more details.")
         sys.exit(0)
     get_OS_info()
-
-
-       
