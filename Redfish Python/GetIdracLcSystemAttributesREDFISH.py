@@ -1,6 +1,4 @@
-#!/usr/bin/python
-#!/usr/bin/python3
-#
+
 # GetIdracLcSystemAttributesREDFISH. Python script using Redfish API to get either iDRAC, lifecycle controller or system attributes.
 #
 # NOTE: Recommended to run this script first to get attributes with current values before you execute SetIdracLcSystemAttributesREDFISH script.
@@ -162,11 +160,7 @@ def get_specific_attribute():
             logging.info("\nAttribute Name: %s, Current Value: %s" % (i, attributes_dict[i]))
             sys.exit(0)
     logging.error("\n- FAIL, unable to locate attribute \"%s\". Either current iDRAC version installed doesn\'t support this attribute or iDRAC missing required license" % args["attribute_name"])
-
-    
-
-
-    
+  
 if __name__ == "__main__":
     if args["script_examples"]:
         script_examples()
@@ -200,5 +194,3 @@ if __name__ == "__main__":
         get_attribute_group()
     else:
         logging.error("\n- FAIL, invalid argument values or not all required parameters passed in. See help text or argument --script-examples for more details.")
-        
-        
