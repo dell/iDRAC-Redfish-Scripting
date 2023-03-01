@@ -14,7 +14,6 @@
 # http://www.gnu.org/licenses/old-licenses/gpl-2.0.txt.
 #
 
-
 import argparse
 import getpass
 import json
@@ -118,6 +117,3 @@ if __name__ == "__main__":
         get_specific_uri_info()
     else:
         logging.error("\n- FAIL, invalid argument values or not all required parameters passed in. See help text or argument --script-examples for more details.")
-        
-         
-        
