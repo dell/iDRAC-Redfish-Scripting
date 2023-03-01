@@ -1,6 +1,4 @@
-#!/usr/bin/python
-#!/usr/bin/python3
-#
+
 # InitializeVirtualDiskREDFISH. Python script using Redfish API to either get controllers / current virtual disks or initialize virtual disk.
 #
 # _author_ = Texas Roemer <Texas_Roemer@Dell.com>
@@ -14,7 +12,6 @@
 # FOR A PARTICULAR PURPOSE. You should have received a copy of GPLv2
 # along with this software; if not, see
 # http://www.gnu.org/licenses/old-licenses/gpl-2.0.txt.
-
 
 import argparse
 import getpass
@@ -199,7 +196,6 @@ def init_vd():
             logging.info("- PASS, realtime job ID \"%s\" successfully created. Server will apply the configuration changes in real time, no server reboot needed" % job_id)
             break
         
-
 def get_job_status_scheduled():
     retry_count = 0
     while True:
@@ -360,52 +356,7 @@ def reboot_server():
     else:
         logging.error("- FAIL, unable to get current server power state to perform either reboot or power on")
         sys.exit(0)
-
-
-def test():
-    global job_id
-    global job_type
-    idrac_ip = "100.65.84.70"
-    idrac_username = "root"
-    idrac_password = "C@lv1n##"
-    init_type = "Fast"
-    controller = "RAID.Mezzanine.1-1"
-    virtual_disk = "Disk.Virtual.1:RAID.Mezzanine.1-1"
-    response = requests.get('https://%s/redfish/v1/Systems/System.Embedded.1/Storage/Volumes/%s' % (idrac_ip, virtual_disk),verify=False,auth=(idrac_username, idrac_password))
-    data = response.json()
-    for i in data.items():
-        if i[0] == "Operations":
-            if i[1] != []:
-                for ii in i[1]:
-                    print("\n- FAIL, Unable to run Initialization due to operation already executing on VD. Current operation executing is: %s, PrecentComplete %s" % (ii[u'OperationName'],ii[u'PercentageComplete']))
-                    sys.exit()
-    url = 'https://%s/redfish/v1/Systems/System.Embedded.1/Storage/%s/Volumes/%s/Actions/Volume.Initialize' % (idrac_ip, controller, virtual_disk)
-    payload={"InitializeType":init_type}
-    headers = {'content-type': 'application/json'}
-    response = requests.post(url, data=json.dumps(payload), headers=headers, verify=False,auth=(idrac_username,idrac_password))
-    if response.status_code == 202:
-        print("\n- PASS: POST command passed to %s initialize \"%s\" virtual disk, status code 202 returned" % (init_type, virtual_disk))
-    else:
-        print("\n- FAIL, POST command failed, status code is %s" % response.status_code)
-        data = response.json()
-        print("\n- POST command failure is:\n %s" % data)
-        sys.exit()
-    x=response.headers["Location"]
-    try:
-        job_id=re.search("JID.+",x).group()
-    except:
-        print("\n- FAIL, unable to create job ID")
-        sys.exit()
-
-    req = requests.get('https://%s/redfish/v1/Managers/iDRAC.Embedded.1/Jobs/%s' % (idrac_ip, job_id), auth=(idrac_username, idrac_password), verify=False)
-    data = req.json()
-    if data['JobType'] == "RAIDConfiguration":
-        job_type="staged"
-    elif data['JobType'] == "RealTimeNoRebootConfiguration":
-        job_type="realtime"
-    print("\n- PASS, \"%s\" %s jid successfully created for initialize virtual disk\n" % (job_type, job_id))
-
-
+        
 if __name__ == "__main__":
     if args["script_examples"]:
         script_examples()
@@ -445,4 +396,3 @@ if __name__ == "__main__":
             loop_job_status_final()
     else:
         logging.error("\n- FAIL, invalid argument values or not all required parameters passed in. See help text or argument --script-examples for more details.")
-
