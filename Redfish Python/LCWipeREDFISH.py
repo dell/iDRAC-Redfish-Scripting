@@ -1,6 +1,4 @@
-#!/usr/bin/python
-#!/usr/bin/python3
-#
+
 # LCWipeREDFISH. Python script using Redfish API with OEM extension to delete all configurations from the iDRAC LifecycleController.
 #
 # _author_ = Texas Roemer <Texas_Roemer@Dell.com>
@@ -15,7 +13,6 @@
 # along with this software; if not, see
 # http://www.gnu.org/licenses/old-licenses/gpl-2.0.txt.
 #
-
 
 import argparse
 import getpass
@@ -267,9 +264,6 @@ def final_server_state():
     current_time = str(datetime.now()-start_time)[0:7]
     logging.info("- LC Wipe process completion time: %s" % str(current_time)[0:7])
         
-
-    
-
 if __name__ == "__main__":
     if args["script_examples"]:
         script_examples()
@@ -298,9 +292,3 @@ if __name__ == "__main__":
     reboot_server()
     get_remote_service_api_status()
     final_server_state()
-    
-    
-        
-            
-        
-        
