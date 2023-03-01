@@ -1,6 +1,4 @@
-#!/usr/bin/python
-#!/usr/bin/python3
-#
+
 # GetPCIeDeviceInventoryREDFISH. Python script using Redfish API to get either PCIe device or function inventory.
 #
 # _author_ = Texas Roemer <Texas_Roemer@Dell.com>
@@ -81,8 +79,6 @@ def get_pcie_device_function_inventory(function_value):
                 response = requests.get('https://%s%s' % (idrac_ip, ii[1]), verify=verify_cert, auth=(idrac_username, idrac_password))
             pprint(response.json())
             
-
-
 if __name__ == "__main__":
     if args["script_examples"]:
         script_examples()
@@ -112,5 +108,3 @@ if __name__ == "__main__":
         get_pcie_device_function_inventory("PCIeFunctions")
     else:
       logging.error("\n- FAIL, invalid argument values or not all required parameters passed in. See help text or argument --script-examples for more details.")
-
-
