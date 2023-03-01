@@ -118,7 +118,6 @@ def download_image_create_update_job(firmware_image_device):
             sys.exit(0)
         logging.info("- PASS, update job ID %s successfully created for firmware package \"%s\"" % (job_id, firmware_image_device.split("\\")[-1]))
             
-
 def idrac_update(firmware_image_device):
     global idrac_update_job_id
     logging.info("- INFO, downloading update package \"%s\" to create update job, this may take a few minutes depending on firmware image size" % firmware_image_device.split("\\")[-1])
@@ -366,7 +365,6 @@ def check_idrac_connection():
                     continue
                 break
 
-
 if __name__ == "__main__":
     if args["script_examples"]:
         script_examples()
@@ -411,9 +409,3 @@ if __name__ == "__main__":
             check_job_status(idrac_update_job_id)
     else:
         logging.error("\n- FAIL, invalid argument values or not all required parameters passed in. See help text or argument --script-examples for more details.")
-
-
-
-
-
-
