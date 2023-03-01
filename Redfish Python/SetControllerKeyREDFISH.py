@@ -1,6 +1,4 @@
-#!/usr/bin/python
-#!/usr/bin/python3
-#
+
 # SetControllerKeyREDFISH. Python script using Redfish API with OEM extension to set the storage controller key (enable encryption)
 #
 # _author_ = Texas Roemer <Texas_Roemer@Dell.com>
@@ -15,7 +13,6 @@
 # along with this software; if not, see
 # http://www.gnu.org/licenses/old-licenses/gpl-2.0.txt.
 #
-
 
 import argparse
 import getpass
@@ -179,7 +176,6 @@ def test_valid_controller_FQDD_string(x):
         logging.error("\n- FAIL, either controller FQDD does not exist or typo in FQDD string name (FQDD controller string value is case sensitive)")
         sys.exit(0)
     
-
 if __name__ == "__main__":
     if args["script_examples"]:
         script_examples()
@@ -212,9 +208,3 @@ if __name__ == "__main__":
         loop_job_status()
     else:
         logging.error("\n- FAIL, invalid argument values or not all required parameters passed in. See help text or argument --script-examples for more details.")
-        
-    
-        
-            
-        
-        
