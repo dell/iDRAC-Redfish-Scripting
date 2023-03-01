@@ -1,6 +1,4 @@
-#!/usr/bin/python
-#!/usr/bin/python3
-#
+
 # ImportForeignConfigREDFISH. Python script using Redfish API with OEM extension to import storage controller foreign configuration
 #
 # _author_ = Texas Roemer <Texas_Roemer@Dell.com>
@@ -15,7 +13,6 @@
 # along with this software; if not, see
 # http://www.gnu.org/licenses/old-licenses/gpl-2.0.txt.
 #
-
 
 import argparse
 import getpass
@@ -65,7 +62,6 @@ def check_supported_idrac_version():
         logging.warning("\n- WARNING, iDRAC version installed does not support this feature using Redfish API")
         sys.exit(0)
 
-
 def get_storage_controllers():
     response = requests.get('https://%s/redfish/v1/Systems/System.Embedded.1/Storage' % idrac_ip,verify=False,auth=(idrac_username, idrac_password))
     data = response.json()
@@ -75,8 +71,6 @@ def get_storage_controllers():
         controller_list.append(i['@odata.id'].split("/")[-1])
         print(i['@odata.id'].split("/")[-1])
     
-
-
 def get_storage_controllers():
     if args["x"]:
         response = requests.get('https://%s/redfish/v1/Systems/System.Embedded.1/Storage' % idrac_ip,verify=verify_cert, headers={'X-Auth-Token': args["x"]})   
@@ -89,8 +83,6 @@ def get_storage_controllers():
         controller_list.append(i['@odata.id'].split("/")[-1])
         print(i['@odata.id'].split("/")[-1])
     
-
-
 def get_pdisks_check_foreign_status():
     test_valid_controller_FQDD_string(args["get_disks"])
     if args["x"]:
@@ -229,10 +221,3 @@ if __name__ == "__main__":
     else:
         logging.error("\n- FAIL, invalid argument values or not all required parameters passed in. See help text or argument --script-examples for more details.")
         sys.exit(0)
-        
-    
-    
-        
-            
-        
-        
