@@ -1,6 +1,4 @@
-#!/usr/bin/python
-#!/usr/bin/python3
-#
+
 # CreateVirtualDiskREDFISH. Python script using Redfish API to either get controllers / disks / virtual disks / supported RAID levels or create virtual disk.
 #
 # _author_ = Texas Roemer <Texas_Roemer@Dell.com>
@@ -68,7 +66,6 @@ def script_examples():
     \n- CreateVirtualDiskREDFISH.py -ip 192.168.0.120 -u root -p calvin --create RAID.SL.3-1 --raid-level 1 --disks Disk.Bay.2:Enclosure.Internal.0-1:RAID.SL.3-1,Disk.Bay.3:Enclosure.Internal.0-1:RAID.SL.3-1 --diskcachepolicy Disabled --readcachepolicy Off --writecachepolicy UnprotectedWriteBack, this example shows creating a RAID 1 volume setting disk, read and write cache policies.
     \n- CreateVirtualDiskREDFISH.py -ip 192.168.0.120 -u root -p calvin --create RAID.Mezzanine.1-1 --raid-level 0 --disks Disk.Bay.2:Enclosure.Internal.0-1:RAID.Mezzanine.1-1 --secure, this example shows creating secured RAID 0 virtual disk.""")
     sys.exit(0)
-
 
 def check_supported_idrac_version():
     if args["x"]:
@@ -216,7 +213,6 @@ def get_supported_RAID_levels():
     data = response.json()
     logging.info("\n- Supported RAID levels for controller %s -\n" % args["supported_raid_levels"])
     print(data["StorageControllers"][0]["SupportedRAIDTypes"])    
-
 
 def create_raid_vd():
     global job_id
@@ -555,8 +551,3 @@ if __name__ == "__main__":
             loop_job_status_final()
     else:
         logging.error("\n- FAIL, invalid argument values or not all required parameters passed in. See help text or argument --script-examples for more details.")
-    
-        
-            
-        
-        
