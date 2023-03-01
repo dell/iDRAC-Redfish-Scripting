@@ -1,6 +1,4 @@
-#!/usr/bin/python
-#!/usr/bin/python3
-#
+
 # GetSchemaPrivilegesREDFISH. Python script using Redfish API DMTF to get schema privileges.
 #
 # _author_ = Texas Roemer <Texas_Roemer@Dell.com>
@@ -95,6 +93,3 @@ if __name__ == "__main__":
         logging.error("\n- FAIL, invalid argument values or not all required parameters passed in. See help text or argument --script-examples for more details.")
         sys.exit(0)
     get_privileges()
-    
-
-
