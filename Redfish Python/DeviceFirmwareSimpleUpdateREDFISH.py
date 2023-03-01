@@ -1,6 +1,4 @@
-#!/usr/bin/python
-#!/usr/bin/python3
-#
+
 # DeviceFirmwareSimpleUpdateREDFISH. Python script using Redfish API to update a device firmware with DMTF action SimpleUpdate. Supported file image types are Windows DUPs, d7/d9 image or pm files.
 #
 # _author_ = Texas Roemer <Texas_Roemer@Dell.com>
@@ -161,7 +159,6 @@ def install_image_payload():
         logging.error("- FAIL, unable to locate job ID in header")
         sys.exit(0)
     logging.info("- PASS, update job ID %s successfully created, script will now loop polling the job status\n" % job_id)
-
 
 def check_job_status():
     retry_count = 1
@@ -417,8 +414,6 @@ def shutdown_server():
         logging.error("Extended Info Message: {0}".format(response.json()))
         sys.exit(0)
         
-
-
 if __name__ == "__main__":
     if args["script_examples"]:
         script_examples()
@@ -460,9 +455,3 @@ if __name__ == "__main__":
                 shutdown_server()
     else:
         logging.error("\n- FAIL, invalid argument values or not all required parameters passed in. See help text or argument --script-examples for more details.")
-
-
-
-
-
-
