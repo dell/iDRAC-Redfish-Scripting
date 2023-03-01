@@ -1,6 +1,4 @@
-#!/usr/bin/python
-#!/usr/bin/python3
-#
+
 # _author_ = Texas Roemer <Texas_Roemer@Dell.com>
 # _version_ = 4.0
 #
@@ -13,7 +11,6 @@
 # along with this software; if not, see
 # http://www.gnu.org/licenses/old-licenses/gpl-2.0.txt.
 #
-
 
 import argparse
 import getpass
@@ -639,9 +636,3 @@ if __name__ == "__main__":
             if system_lockdown_not_supported != "yes":
                 logging.info("- INFO, iDRAC attribute \"Lockdown.1.SystemLockdown\" already set to Disabled , skipping PATCH command")
     logging.info("\n- PASS, script completed hardening workflow")
-    
-    
-    
-        
-
-
