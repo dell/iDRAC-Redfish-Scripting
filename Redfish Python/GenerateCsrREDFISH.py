@@ -1,6 +1,4 @@
-#!/usr/bin/python
-#!/usr/bin/python3
-#
+
 # _author_ = Texas Roemer <Texas_Roemer@Dell.com>
 # _version_ = 5.0
 #
@@ -129,8 +127,6 @@ def generate_CSR():
         open_file.writelines(data_post["CSRString"])
     logging.info("\n- INFO, Generated CSR also copied to file \"%s\"" % filename)
     
-
-
 if __name__ == "__main__":
     if args["script_examples"]:
         script_examples()
@@ -160,6 +156,3 @@ if __name__ == "__main__":
         get_current_iDRAC_certs()
     else:
         logging.error("\n- FAIL, invalid argument values or not all required parameters passed in. See help text or argument --script-examples for more details.")
-    
-
-
