@@ -1,6 +1,4 @@
-#!/usr/bin/python
-#!/usr/bin/python3
-#
+
 # GetIdracServerSlotInformationREDFISH. Python script using Redfish API with OEM extension to get iDRAC server slot information.
 #
 # _author_ = Texas Roemer <Texas_Roemer@Dell.com>
@@ -185,7 +183,6 @@ def get_server_slot_info_xml():
     open_file.writelines("\n</CIM>")
     open_file.close()
     
-
 if __name__ == "__main__":
     if args["script_examples"]:
         script_examples()
@@ -215,5 +212,3 @@ if __name__ == "__main__":
         get_server_slot_info_xml()
     else:
         logging.error("\n- FAIL, invalid argument values or not all required parameters passed in. See help text or argument --script-examples for more details.")
-
-
