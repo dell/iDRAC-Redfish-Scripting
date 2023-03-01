@@ -1,6 +1,4 @@
-#!/usr/bin/python
-#!/usr/bin/python3
-#
+
 # ChangeVirtualDiskAttributesREDFISH. Python script using Redfish API to either get controllers, get virtual disks or change virtual disk read, write or disk cache policy settings.
 #
 # _author_ = Texas Roemer <Texas_Roemer@Dell.com>
@@ -56,7 +54,6 @@ def script_examples():
     \n- ChangeVirtualDiskAttributesREDFISH.py -ip 192.168.0.120 -u root -p calvin --change Disk.Virtual.1:RAID.SL.3-1 --readcachepolicy Off --job-type r, this example shows creating a realtime config job to change VD read cache policy now.
     \n- ChangeVirtualDiskAttributesREDFISH.py -ip 192.168.0.120 -u root -p calvin --change Disk.Virtual.1:RAID.SL.3-1 --diskcachepolicy Enabled --writecachepolicy WriteThrough --job-type r, this example shows creating a realtime config job to change VD disk and write cache policies.""")
     sys.exit(0)
-
 
 def check_supported_idrac_version():
     if args["x"]:
@@ -259,7 +256,6 @@ def loop_job_status_final():
             logging.info("- INFO, job status not completed, current status: \"%s\"" % data['Message'].strip("."))
             time.sleep(10)
 
-
 if __name__ == "__main__":
     if args["script_examples"]:
         script_examples()
@@ -297,8 +293,3 @@ if __name__ == "__main__":
             get_job_status_scheduled()
     else:
         logging.error("\n- FAIL, invalid argument values or not all required parameters passed in. See help text or argument --script-examples for more details.")
-    
-        
-            
-        
-        
