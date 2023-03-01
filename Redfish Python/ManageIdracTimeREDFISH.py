@@ -1,6 +1,4 @@
-#!/usr/bin/python
-#!/usr/bin/python3
-#
+
 # ManageIdracTimeREDFISH. Python script using Redfish API with OEM extension to either GET or SET iDRAC time
 #
 # _author_ = Texas Roemer <Texas_Roemer@Dell.com>
@@ -15,7 +13,6 @@
 # along with this software; if not, see
 # http://www.gnu.org/licenses/old-licenses/gpl-2.0.txt.
 #
-
 
 import argparse
 import getpass
@@ -47,7 +44,6 @@ def script_examples():
     print("""\n- ManageIdracTimeREDFISH.py -ip 192.168.0.120 -u root -p calvin --get, this example will get current iDRAC time.
     \n- ManageIdracTimeREDFISH.py -ip 192.168.0.120 -u root -p calvin --set 2019-11-18T17:00:10-06:00, this example sets iDRAC current time.""")
     sys.exit(0)
-
 
 def check_supported_idrac_version():
     if args["x"]:
@@ -101,10 +97,6 @@ def set_idrac_time():
         logging.error("\n- POST command failure results:\n %s" % data)
         sys.exit(0)
 
-    
-
-    
-
 if __name__ == "__main__":
     if args["script_examples"]:
         script_examples()
@@ -134,10 +126,3 @@ if __name__ == "__main__":
         set_idrac_time()
     else:
         logging.error("\n- FAIL, invalid argument values or not all required parameters passed in. See help text or argument --script-examples for more details.")
-    
-    
-    
-        
-            
-        
-        
