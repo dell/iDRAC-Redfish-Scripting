@@ -1,6 +1,4 @@
-#!/usr/bin/python
-#!/usr/bin/python3
-#
+
 # GetIdracMessageRegistryREDFISH. Python script using Redfish API with OEM extension to get iDRAC message registry.
 #
 # _author_ = Texas Roemer <Texas_Roemer@Dell.com>
@@ -101,8 +99,6 @@ def get_specific_message_id():
             sys.exit(0)
     logging.error("\n - FAIL, either invalid message ID was passed in or message ID does not exist on this iDRAC version")
     
-    
-
 if __name__ == "__main__":
     if args["script_examples"]:
         script_examples()
@@ -132,7 +128,3 @@ if __name__ == "__main__":
         get_specific_message_id()
     else:
         logging.error("\n- FAIL, invalid argument values or not all required parameters passed in. See help text or argument --script-examples for more details.")
-
-        
-
-
