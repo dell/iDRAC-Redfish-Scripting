@@ -1,8 +1,8 @@
 Metadata-Version: 2.1
 Name: IdracRedfishSupport
-Version: 0.0.6
+Version: 0.0.7
 Summary: iDRAC Redfish API support for multiple iDRAC workflows.
-Home-page: UNKNOWN
+Home-page: https://github.com/dell/iDRAC-Redfish-Scripting
 Author: Texas Roemer
 Author-email: texas_roemer@dell.com
 License: GPLv2
@@ -27,6 +27,7 @@ Python module for iDRAC Redfish support to allow the user to perform multiple wo
 
 - pip3 install IdracRedfishSupport
 
+Note: Besides IdracRedfishSupport module getting installed pip3 will also install all standalone python scripts from the Python directory on GitHub. 
 
 ## Supported Module Functions
 
