@@ -1,6 +1,6 @@
 Metadata-Version: 2.1
 Name: IdracRedfishSupport
-Version: 0.0.7
+Version: 0.0.8
 Summary: iDRAC Redfish API support for multiple iDRAC workflows.
 Home-page: https://github.com/dell/iDRAC-Redfish-Scripting
 Author: Texas Roemer
