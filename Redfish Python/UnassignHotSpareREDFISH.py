@@ -102,7 +102,6 @@ def get_pdisks():
             drive_list.append(i['@odata.id'].split("/")[-1])
             print(i['@odata.id'].split("/")[-1])
 
-
 def get_pdisks_hot_spare_type():
     disk_used_created_vds=[]
     available_disks=[]
@@ -247,7 +246,6 @@ def test_valid_controller_FQDD_string(x):
         logging.error("\n- FAIL, either controller FQDD does not exist or typo in FQDD string name (FQDD controller string value is case sensitive)")
         sys.exit(0)
 
-
 if __name__ == "__main__":
     if args["script_examples"]:
         script_examples()
@@ -287,10 +285,3 @@ if __name__ == "__main__":
     else:
         logging.error("\n- FAIL, invalid argument values or not all required parameters passed in. See help text or argument --script-examples for more details.")
         sys.exit(0)
-        
-    
-    
-        
-            
-        
-        
