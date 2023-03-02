@@ -1,6 +1,4 @@
-#!/usr/bin/python
-#!/usr/bin/python3
-#
+
 # _author_ = Texas Roemer <Texas_Roemer@Dell.com>
 # _version_ = 3.0
 #
@@ -107,7 +105,6 @@ def set_inlet_temp():
             logging.error("- FAIL, PATCH command failed to set UpperCaution property, status code %s returned, detailed error results: \n%s" % (response.status_code, data))
             sys.exit(0)
             
-
 if __name__ == "__main__":
     if args["script_examples"]:
         script_examples()
@@ -137,6 +134,3 @@ if __name__ == "__main__":
         set_inlet_temp()
     else:
         logging.error("\n- FAIL, invalid argument values or not all required parameters passed in. See help text or argument --script-examples for more details.")
-    
-
-
