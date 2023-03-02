@@ -13,6 +13,7 @@ Python module for iDRAC Redfish support to allow the user to perform multiple wo
 
 - pip3 install IdracRedfishSupport
 
+Note: Besides IdracRedfishSupport module getting installed pip3 will also install all standalone python scripts from the Python directory on GitHub. 
 
 ## Supported Module Functions
 

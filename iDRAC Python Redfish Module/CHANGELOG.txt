@@ -30,4 +30,7 @@ Added new function cancel_check_consistency_virtual_disk()
 Added new function expand_virtualdisk()
 Added new function raidlevel_migration()
 
+- 0.0.7 (03/02/2023)
+Updated setup.py file to now install all standlone scripts from Python GitHub directory besides installing the module when you run "pip install IdracRedfishSupport".
+
 
