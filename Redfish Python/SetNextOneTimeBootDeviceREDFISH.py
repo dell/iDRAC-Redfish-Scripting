@@ -1,8 +1,5 @@
-#!/usr/bin/python
-#!/usr/bin/python3
-#
+
 # SetNextOneTimeBootDeviceREDFISH. Python script using Redfish API to set next reboot one time boot device.
-#
 #
 # _author_ = Texas Roemer <Texas_Roemer@Dell.com>
 # _version_ = 6.0
@@ -120,7 +117,6 @@ def set_next_boot_onetime_boot_device():
       logging.error(detail_message)
       sys.exit(0)
 
-
 def reboot_server():
     if args["x"]:
         response = requests.get('https://%s/redfish/v1/Systems/System.Embedded.1' % idrac_ip, verify=verify_cert, headers={'X-Auth-Token': args["x"]})   
@@ -213,8 +209,6 @@ def reboot_server():
         logging.error("- FAIL, unable to get current server power state to perform either reboot or power on")
         sys.exit(0)
 
-        
-
 if __name__ == "__main__":
     if args["script_examples"]:
         script_examples()
@@ -252,6 +246,3 @@ if __name__ == "__main__":
             sys.exit(0)
     else:
         logging.error("\n- FAIL, invalid argument values or not all required parameters passed in. See help text or argument --script-examples for more details.")
-
-
-
