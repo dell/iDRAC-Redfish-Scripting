@@ -1,6 +1,4 @@
-#!/usr/bin/python
-#!/usr/bin/python3
-#
+
 # SetIdracLcSystemAttributesREDFISH. Python script using Redfish API to set either iDRAC, lifecycle controller or system attributes.
 #
 # NOTE: Recommended to run script GetIdracLcSystemAttributesREDFISH first to return attributes with current values. 
@@ -212,7 +210,6 @@ def get_new_attribute_values():
             else:
                 logging.info("- INFO, attribute %s current value is not set to %s, current value: %s" % (i[0], i[1], attributes_dict[i[0]]))
         
-
 if __name__ == "__main__":
     if args["script_examples"]:
         script_examples()
@@ -248,6 +245,3 @@ if __name__ == "__main__":
             get_new_attribute_values()
     else:
         logging.error("\n- FAIL, invalid argument values or not all required parameters passed in. See help text or argument --script-examples for more details.")
-    
-
-
