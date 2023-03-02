@@ -1,6 +1,4 @@
-#!/usr/bin/python
-#!/usr/bin/python3
-#
+
 # SupportAssistCollectionLocalREDFISH. Python script using Redfish API with OEM extension to perform Support Assist operations.
 #
 # _author_ = Texas Roemer <Texas_Roemer@Dell.com>
@@ -185,7 +183,6 @@ def support_assist_get_EULA_status():
             if not "ExtendedInfo" in i[0]:
                 print("%s: %s" % (i[0],i[1]))
     
-
 def support_assist_register():
     url = 'https://%s/redfish/v1/Managers/iDRAC.Embedded.1/Attributes' % idrac_ip
     payload = {"Attributes":{"OS-BMC.1.AdminState":"Enabled"}}
@@ -304,9 +301,6 @@ def loop_job_status():
                 logging.info("- INFO, Job status not marked completed, polling job status again, execution time: %s" % str(current_time)[0:7])
                 time.sleep(5)
             
-
-    
-
 if __name__ == "__main__":
     if args["script_examples"]:
         script_examples()
@@ -350,10 +344,3 @@ if __name__ == "__main__":
         sys.exit(0)
     else:
         logging.error("\n- FAIL, invalid argument values or not all required parameters passed in. See help text or argument --script-examples for more details.")
-
-    
-    
-        
-            
-        
-        
