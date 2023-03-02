@@ -1,4 +1,5 @@
-
+#!/usr/bin/python3
+#
 # CreateDeleteIdracUsersREDFISH.py Python script using Redfish API to either create or delete iDRAC user account.
 #
 # _author_ = Texas Roemer <Texas_Roemer@Dell.com>

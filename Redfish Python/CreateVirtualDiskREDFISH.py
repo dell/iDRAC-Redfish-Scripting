@@ -1,4 +1,5 @@
-
+#!/usr/bin/python3
+#
 # CreateVirtualDiskREDFISH. Python script using Redfish API to either get controllers / disks / virtual disks / supported RAID levels or create virtual disk.
 #
 # _author_ = Texas Roemer <Texas_Roemer@Dell.com>

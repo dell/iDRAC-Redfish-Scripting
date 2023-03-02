@@ -1,9 +1,6 @@
-#!/usr/bin/python
 #!/usr/bin/python3
 #
 # BiosResetToDefaultsREDFISH. Python script using Redfish API DMTF action to reset BIOS to default settings
-#
-# 
 #
 # _author_ = Texas Roemer <Texas_Roemer@Dell.com>
 # _version_ = 3.0

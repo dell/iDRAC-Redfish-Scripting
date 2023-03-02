@@ -1,4 +1,5 @@
-
+#!/usr/bin/python3
+#
 # EnableDisableBiosBootOrderDevicesREDFISH. Python script using Redfish API to enable or disable BIOS boot order devices.
 #
 #

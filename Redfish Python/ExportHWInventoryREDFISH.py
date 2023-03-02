@@ -1,4 +1,5 @@
-
+#!/usr/bin/python3
+#
 # ExportHWInventoryREDFISH. Python script using Redfish API with OEM extension to export server hardware(HW)
 # inventory to either local directory or network share
 #

@@ -1,4 +1,3 @@
-#!/usr/bin/python
 #!/usr/bin/python3
 #
 # BiosDeviceRecoveryREDFISH. Python script using Redfish API with OEM extension to recover the BIOS

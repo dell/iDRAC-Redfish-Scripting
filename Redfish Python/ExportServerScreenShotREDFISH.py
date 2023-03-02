@@ -1,4 +1,5 @@
-
+#!/usr/bin/python3
+#
 # ExportServerScreenShotOemREDFISH. Python script using Redfish API with OEM extension to export current server screen shot
 #
 # _author_ = Texas Roemer <Texas_Roemer@Dell.com>

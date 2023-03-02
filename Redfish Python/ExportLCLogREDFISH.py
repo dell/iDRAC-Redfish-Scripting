@@ -1,4 +1,5 @@
-
+#!/usr/bin/python3
+#
 # _author_ = Texas Roemer <Texas_Roemer@Dell.com>
 # _version_ = 9.0
 #
@@ -11,6 +12,7 @@
 # along with this software; if not, see
 # http://www.gnu.org/licenses/old-licenses/gpl-2.0.txt.
 #
+
 
 import argparse
 import getpass
@@ -161,6 +163,7 @@ def loop_job_status():
             logging.info("- INFO, job state not marked completed, current job status is running, polling again")
             time.sleep(2)
 
+
 if __name__ == "__main__":
     if args["script_examples"]:
         script_examples()
@@ -186,3 +189,8 @@ if __name__ == "__main__":
         sys.exit(0)
     export_lc_logs()
     loop_job_status()
+    
+        
+            
+        
+        

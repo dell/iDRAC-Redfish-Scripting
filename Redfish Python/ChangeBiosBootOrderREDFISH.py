@@ -1,4 +1,5 @@
-
+#!/usr/bin/python3
+#
 # ChangeBiosBootOrderREDFISH. Python script using Redfish API DMTF standard to change the BIOS boot order
 #
 #

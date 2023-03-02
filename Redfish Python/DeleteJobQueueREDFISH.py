@@ -1,4 +1,5 @@
-
+#!/usr/bin/python3
+#
 # DeleteJobQueueREDFISH.py  Python script using Redfish API with OEM extension to get either delete single job ID, delete complete job queue or delete job queue and restart Lifecycle Controller services.
 #
 # _author_ = Texas Roemer <Texas_Roemer@Dell.com>

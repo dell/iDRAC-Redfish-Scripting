@@ -1,4 +1,5 @@
-
+#!/usr/bin/python3
+#
 # DeviceFirmwareRollbackREDFISH. Python script using Redfish API with OEM extension to rollback firmware for a device iDRAC supports. 
 #
 # _author_ = Texas Roemer <Texas_Roemer@Dell.com>

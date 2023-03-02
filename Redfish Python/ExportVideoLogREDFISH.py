@@ -1,4 +1,5 @@
-
+#!/usr/bin/python3
+#
 # ExportVideoLogREDFISH. Python script using Redfish API with OEM extension to export either boot capture videos or crash capture video locally.
 #
 # _author_ = Texas Roemer <Texas_Roemer@Dell.com>

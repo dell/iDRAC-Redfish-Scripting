@@ -1,3 +1,4 @@
+#!/usr/bin/python3
 #
 # BiosChangePasswordREDFISH. Python script using Redfish API to set / change or delete either BIOS setup or system password
 #

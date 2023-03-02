@@ -1,4 +1,5 @@
-
+#!/usr/bin/python3
+#
 # DeviceFirmwareMultipartUploadREDFISH.py. Python script using Redfish API to update a device firmware with DMTF MultipartUpload. Supported file image types are Windows DUPs, d7/d9 image or pm files.
 #
 # _author_ = Texas Roemer <Texas_Roemer@Dell.com>

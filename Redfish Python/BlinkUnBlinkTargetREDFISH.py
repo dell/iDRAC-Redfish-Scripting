@@ -1,3 +1,4 @@
+#!/usr/bin/python3
 #
 # BlinkUnBlinkTargetREDFISH. Python script using Redfish API with OEM extension to either blink or unblink storage device (drives or virtual disk)
 #
@@ -51,6 +52,8 @@ def script_examples():
     \n- BlinkUnBlinkTargetREDFISH.py -ip 192.168.0.120 -u root -p calvin --blink Disk.Bay.0:Enclosure.Internal.0-1:RAID.Mezzanine.1-1, this example shows blinking a drive.
     \n- BlinkUnBlinkTargetREDFISH.py -ip 192.168.0.120 -u root --unblink Disk.Virtual.0:RAID.Mezzanine.1-1, this example shows unblink a VD.""")
     sys.exit(0)
+
+    
 
 def check_supported_idrac_version():
     if args["x"]:
@@ -113,6 +116,7 @@ def get_pdisks():
       data = response.json()
       logging.info(" - Disk: %s, Raidstatus: %s" % (i, data['Oem']['Dell']['DellPhysicalDisk']['RaidStatus']))
     
+
 def get_virtual_disks():
     test_valid_controller_FQDD_string(args["get_virtualdisks"])
     if args["x"]:
@@ -162,6 +166,9 @@ def blink_unblink_device():
         logging.error("\n- POST command failure results:\n %s" % data)
         sys.exit(0)
     
+
+    
+
 if __name__ == "__main__":
     if args["script_examples"]:
         script_examples()
@@ -197,3 +204,9 @@ if __name__ == "__main__":
         blink_unblink_device()
     else:
         logging.error("\n- FAIL, invalid argument values or not all required parameters passed in. See help text or argument --script-examples for more details.")
+    
+    
+        
+            
+        
+        

@@ -1,4 +1,5 @@
-
+#!/usr/bin/python3
+#
 # CheckConsistencyVirtualDiskREDFISH. Python script using Redfish API to either get controllers / current virtual disks or check consistency virtual disk.
 #
 # _author_ = Texas Roemer <Texas_Roemer@Dell.com>

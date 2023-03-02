@@ -1,4 +1,5 @@
-
+#!/usr/bin/python3
+#
 # ClearForeignConfigREDFISH. Python script using Redfish API with OEM extension to clear a storage controller foreign configuration
 #
 # _author_ = Texas Roemer <Texas_Roemer@Dell.com>

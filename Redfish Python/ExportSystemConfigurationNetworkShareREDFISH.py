@@ -1,4 +1,5 @@
-
+#!/usr/bin/python3
+#
 # ExportServerConfigurationNetworkShareREDFISH. Python script using Redfish API to export server configuration profile to a supported network share.
 #
 # _author_ = Texas Roemer <Texas_Roemer@Dell.com>

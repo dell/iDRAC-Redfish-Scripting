@@ -1,4 +1,5 @@
-
+#!/usr/bin/python3
+#
 # DeleteFirmwarePackageREDFISH. Python script using Redfish API to delete a downloaded package which has not been applied yet.
 # To delete the downloaded package, you must first find out the AVAILABLE URI entry for the download, then the Etag for this URI. You will need to pass in both the complete AVAILABLE URI and Etag
 # to delete the downloaded payload.

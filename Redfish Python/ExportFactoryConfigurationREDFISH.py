@@ -1,4 +1,5 @@
-
+#!/usr/bin/python3
+#
 # ExportFactoryConfigurationREDFISH. Python script using Redfish API with OEM extension to export server factory configuration to a network share
 #
 # _author_ = Texas Roemer <Texas_Roemer@Dell.com>

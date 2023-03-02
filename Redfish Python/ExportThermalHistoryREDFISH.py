@@ -1,4 +1,5 @@
-
+#!/usr/bin/python3
+#
 # ExportThermalHistoryREDFISH. Python script using Redfish API with OEM extension to export server thermal history to a network share
 #
 # _author_ = Texas Roemer <Texas_Roemer@Dell.com>
