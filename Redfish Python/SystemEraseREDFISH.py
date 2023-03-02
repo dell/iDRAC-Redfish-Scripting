@@ -1,6 +1,4 @@
-#!/usr/bin/python
-#!/usr/bin/python3
-#
+
 # SystemEraseREDFISH. Python script using Redfish API with OEM extension to perform iDRAC System Erase feature.
 #
 # _author_ = Texas Roemer <Texas_Roemer@Dell.com>
@@ -273,7 +271,6 @@ def loop_job_status():
                 start_job_status_message = new_job_status_message
             continue
             
-
 if __name__ == "__main__":
     if args["script_examples"]:
         script_examples()
@@ -304,9 +301,3 @@ if __name__ == "__main__":
         get_components()
     else:
         logging.error("\n- FAIL, invalid argument values or not all required parameters passed in. See help text or argument --script-examples for more details.")
-    
-    
-        
-            
-        
-        
