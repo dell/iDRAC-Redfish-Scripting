@@ -8,6 +8,8 @@ Powershell cmdlets can also be installed from Powershell gallery using Install-M
 
 For Python, you can leverage either individual python scripts or install iDRAC Python Redfish module. This module is an interactive session with an iDRAC which allows you to perform multiple workflows like firwmare updates or configuration changes to BIOS, NIC or Storage. You can install this module by running "pip3 install IdracRedfishSupport". 
 
+Note: When you install IdracRedfishSupport module using pip3, this will also install all standalone python scripts from the GitHub Python directory. 
+
 When executing any script or cmdlet, if your username or password has special characters or passing in domain name along with username, make sure to surround the argument value with double quotes. 
 
 Examples:
