@@ -1,6 +1,4 @@
-#!/usr/bin/python
-#!/usr/bin/python3
-#
+
 # SupportAssistCollectionLocalREDFISH. Python script using Redfish API with OEM extension to perform scheduled auto SupportAssist collection.
 #
 # _author_ = Texas Roemer <Texas_Roemer@Dell.com>
@@ -130,7 +128,6 @@ def set_support_assist_auto_collection():
         logging.error("\n- ERROR, status code %s returned, detailed error information:\n %s" % (response.status_code, data))
         sys.exit(0)
             
-
 if __name__ == "__main__":
     if args["script_examples"]:
         script_examples()
@@ -162,10 +159,3 @@ if __name__ == "__main__":
         set_support_assist_auto_collection()
     else:
         logging.error("\n- FAIL, invalid argument values or not all required parameters passed in. See help text or argument --script-examples for more details.")
-
-    
-    
-        
-            
-        
-        
