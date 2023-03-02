@@ -1,6 +1,4 @@
-#!/usr/bin/python
-#!/usr/bin/python3
-#
+
 # SupportAssistCollectionNetworkShareREDFISH. Python script using Redfish API with OEM extension to export Support Assist collection to a network share
 #
 # _author_ = Texas Roemer <Texas_Roemer@Dell.com>
@@ -186,7 +184,6 @@ def support_assist_register():
         logging.error("\n- FAIL, Support Assist not registered, current status is: %s" % data["IsRegistered"])
         sys.exit(0)
 
-
 def export_support_assist_colection_network_share():
     global job_id
     if args["export_network"]:
@@ -301,9 +298,6 @@ def loop_job_status():
             else:
                 continue
             
-
-    
-
 if __name__ == "__main__":
     if args["script_examples"]:
         script_examples()
@@ -338,9 +332,3 @@ if __name__ == "__main__":
         support_assist_register()
     else:
         logging.error("\n- FAIL, invalid argument values or not all required parameters passed in. See help text or argument --script-examples for more details.")
-    
-    
-        
-            
-        
-        
