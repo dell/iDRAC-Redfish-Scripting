@@ -222,8 +222,7 @@ def reboot_server():
     else:
         logging.error("- FAIL, unable to get current server power state to perform either reboot or power on")
         sys.exit(0)
-
-        
+   
 if __name__ == "__main__":
     if args["script_examples"]:
         script_examples()
