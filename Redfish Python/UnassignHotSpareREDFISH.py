@@ -46,8 +46,6 @@ parser.add_argument('--unassign-disk', help='Unassign hotspare, pass in disk FQD
 args=vars(parser.parse_args())
 logging.basicConfig(format='%(message)s', stream=sys.stdout, level=logging.INFO) 
 
-
-
 def script_examples():
     print("""\n- UnassignHotSpareREDFISH.py -ip 192.168.0.120 -u root -p calvin --get-controllers, this example will get current storage controllers.
     \n- UnassignHotSpareREDFISH.py -ip 192.168.0.120 -u root --get-disks RAID.Integrated.1-1, this example will prompt to the screen asking for iDRAC username password which will not be passed in clear text. Command will then execute to get current disks for this controller FQDD.
@@ -69,7 +67,6 @@ def check_supported_idrac_version():
         logging.warning("\n- WARNING, iDRAC version installed does not support this feature using Redfish API")
         sys.exit(0)
 
-
 def get_storage_controllers():
     if args["x"]:
         response = requests.get('https://%s/redfish/v1/Systems/System.Embedded.1/Storage' % idrac_ip,verify=verify_cert, headers={'X-Auth-Token': args["x"]})   
@@ -81,7 +78,6 @@ def get_storage_controllers():
     for i in data['Members']:
         controller_list.append(i['@odata.id'].split("/")[-1])
         print(i['@odata.id'].split("/")[-1])
-
 
 def get_pdisks():
     disk_used_created_vds=[]
