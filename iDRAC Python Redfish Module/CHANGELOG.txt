@@ -33,4 +33,7 @@ Added new function raidlevel_migration()
 - 0.0.7 (03/02/2023)
 Updated setup.py file to now install all standlone scripts from Python GitHub directory besides installing the module when you run "pip install IdracRedfishSupport".
 
+- 0.0.8 (03/02/2023)
+Added shebang to all standalone scripts uploaded. 
+
 
