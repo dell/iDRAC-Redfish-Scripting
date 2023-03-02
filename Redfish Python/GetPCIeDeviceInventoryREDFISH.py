@@ -1,4 +1,5 @@
-
+#!/usr/bin/python3
+#
 # GetPCIeDeviceInventoryREDFISH. Python script using Redfish API to get either PCIe device or function inventory.
 #
 # _author_ = Texas Roemer <Texas_Roemer@Dell.com>

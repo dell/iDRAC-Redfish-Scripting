@@ -1,4 +1,5 @@
-
+#!/usr/bin/python3
+#
 # SetBiosDefaultSettingsREDFISH. Python script using Redfish API to set BIOS to default settings.
 #
 # _author_ = Texas Roemer <Texas_Roemer@Dell.com>
@@ -196,3 +197,6 @@ if __name__ == "__main__":
         reboot_server()
     else:
         logging.info("- INFO, argument --reboot not detected. Flag is still set to reset BIOS to default settings and this will get applied on next server manual reboot.")
+
+
+

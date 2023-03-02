@@ -1,4 +1,5 @@
-
+#!/usr/bin/python3
+#
 # SensorCollectionREDFISH. Python script using Redfish API OEM extensoion to get iDRAC sensor collection data.
 #
 # _author_ = Texas Roemer <Texas_Roemer@Dell.com>

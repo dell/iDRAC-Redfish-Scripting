@@ -1,4 +1,5 @@
-
+#!/usr/bin/python3
+#
 # ImportSystemConfigurationLocalFilenameREDFISH. Python script using Redfish API to import system configuration profile attributes locally from a configuration file.
 #
 # _author_ = Texas Roemer <Texas_Roemer@Dell.com>

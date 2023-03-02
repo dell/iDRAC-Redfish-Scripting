@@ -1,4 +1,5 @@
-
+#!/usr/bin/python3
+#
 # UnpackAndAttachOsdREDFISH. Python script using Redfish API with OEM extension to either get driver pack information, unpack and attach driver pack or detach driver pack
 #
 # _author_ = Texas Roemer <Texas_Roemer@Dell.com>

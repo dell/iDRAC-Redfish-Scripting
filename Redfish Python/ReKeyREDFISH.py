@@ -1,4 +1,5 @@
-
+#!/usr/bin/python3
+#
 # RekeyREDFISH. Python script using Redfish API with OEM extension to rekey or change the controller encryption key
 #
 # _author_ = Texas Roemer <Texas_Roemer@Dell.com>

@@ -1,3 +1,4 @@
+#!/usr/bin/python3
 #
 # IdracLicenseManagementREDFISH. Python script using DMTF Redfish API to manage iDRAC licenses.
 #

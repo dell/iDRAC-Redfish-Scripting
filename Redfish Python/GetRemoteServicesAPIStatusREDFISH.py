@@ -1,4 +1,5 @@
-
+#!/usr/bin/python3
+#
 # GetRemoteServicesAPIStatusREDFISH. Python script using Redfish API with OEM extension to get the server remote services status
 #
 # _author_ = Texas Roemer <Texas_Roemer@Dell.com>

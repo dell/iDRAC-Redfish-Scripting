@@ -1,4 +1,5 @@
-
+#!/usr/bin/python3
+#
 # RunDiagnosticsREDFISH. Python script using Redfish API with OEM extension to run remote diagnostics on the server.
 #
 # _author_ = Texas Roemer <Texas_Roemer@Dell.com>

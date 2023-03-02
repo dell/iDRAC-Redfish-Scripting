@@ -1,4 +1,5 @@
-
+#!/usr/bin/python3
+#
 # GetEthernetInterfacesREDFISH. Python script using Redfish API to get ethernet interface information.
 #
 # _author_ = Texas Roemer <Texas_Roemer@Dell.com>

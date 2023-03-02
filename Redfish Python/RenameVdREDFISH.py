@@ -1,3 +1,4 @@
+#!/usr/bin/python3
 #
 # RenameVdREDFISH. Python script using Redfish API with OEM extension to either get controllers / current virtual disks or rename virtual disk.
 #

@@ -1,4 +1,5 @@
-
+#!/usr/bin/python3
+#
 # IdracLicenseManagementOemREDFISH. Python script using Redfish API with OEM extension to manage iDRAC license(s).
 #
 # _author_ = Texas Roemer <Texas_Roemer@Dell.com>

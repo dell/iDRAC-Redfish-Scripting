@@ -1,4 +1,5 @@
-
+#!/usr/bin/python3
+#
 # SupportAssistCollectionLocalREDFISH. Python script using Redfish API with OEM extension to perform scheduled auto SupportAssist collection.
 #
 # _author_ = Texas Roemer <Texas_Roemer@Dell.com>

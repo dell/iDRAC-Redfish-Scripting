@@ -1,4 +1,5 @@
-
+#!/usr/bin/python3
+#
 # GetIdracLcSystemAttributesREDFISH. Python script using Redfish API to get either iDRAC, lifecycle controller or system attributes.
 #
 # NOTE: Recommended to run this script first to get attributes with current values before you execute SetIdracLcSystemAttributesREDFISH script.

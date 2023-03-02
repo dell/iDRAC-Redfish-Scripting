@@ -1,4 +1,5 @@
-
+#!/usr/bin/python3
+#
 # ImportSystemConfigurationLocalREDFISH. Python script using Redfish API to import system configuration attributes locally from the python script. Using ImportBuffer parameter, pass in the correct open, closed tags along with FQDDs, attributes in XML format. Use payload dictionary example below for the correct format.
 #
 # NOTE: Local import is recommended to use if setting one or few attributes. If yo're setting a large amount of attributes, use import file from a network share or import file locally script.

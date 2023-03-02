@@ -1,4 +1,5 @@
-
+#!/usr/bin/python3
+#
 # GetIdracLcLogsREDFISH. Python script using Redfish API to get iDRAC LC logs.
 #
 # _author_ = Texas Roemer <Texas_Roemer@Dell.com>

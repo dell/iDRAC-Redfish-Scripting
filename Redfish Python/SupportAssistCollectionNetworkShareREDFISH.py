@@ -1,4 +1,5 @@
-
+#!/usr/bin/python3
+#
 # SupportAssistCollectionNetworkShareREDFISH. Python script using Redfish API with OEM extension to export Support Assist collection to a network share
 #
 # _author_ = Texas Roemer <Texas_Roemer@Dell.com>

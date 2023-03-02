@@ -1,4 +1,5 @@
-
+#!/usr/bin/python3
+#
 # GetOSInformationREDFISH. Python script using Redfish API with OEM extension to get OS information using Server Configuration Profile feature
 #
 # _author_ = Texas Roemer <Texas_Roemer@Dell.com>

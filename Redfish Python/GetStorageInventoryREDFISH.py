@@ -1,4 +1,5 @@
-
+#!/usr/bin/python3
+#
 # GetStorageInventoryREDFISH. Python script using Redfish API DMTF to get storage inventory: controllers, disks and backplanes.
 #
 # _author_ = Texas Roemer <Texas_Roemer@Dell.com>

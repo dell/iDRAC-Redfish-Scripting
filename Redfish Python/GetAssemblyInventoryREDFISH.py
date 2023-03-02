@@ -1,3 +1,4 @@
+#!/usr/bin/python3
 #
 # GetAssemblyInventoryREDFISH. Python script using Redfish API DMTF to get system assembly or hardware inventory
 #

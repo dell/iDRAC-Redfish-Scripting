@@ -1,4 +1,5 @@
-
+#!/usr/bin/python3
+#
 # IdracResetToDefaultsREDFISH. Python script using Redfish API to reset iDRAC to default settings.
 #
 # NOTE: Once the script is complete, iDRAC will reset to complete the process and you will lose network connection. iDRAC should be back up within a few minutes.

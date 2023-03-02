@@ -1,4 +1,5 @@
-
+#!/usr/bin/python3
+#
 # GetSchemaPrivilegesREDFISH. Python script using Redfish API DMTF to get schema privileges.
 #
 # _author_ = Texas Roemer <Texas_Roemer@Dell.com>

@@ -1,4 +1,5 @@
-
+#!/usr/bin/python3
+#
 # ImportSystemConfigurationNetworkShareREDFISH. Python script using Redfish API to import server configuration profile from a network share. 
 #
 # _author_ = Texas Roemer <Texas_Roemer@Dell.com>

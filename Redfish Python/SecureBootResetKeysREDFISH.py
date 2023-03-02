@@ -1,4 +1,5 @@
-
+#!/usr/bin/python3
+#
 # SecureBootResetKeysREDFISH. Python script using Redfish API to either get supported reset key types or reset secure boot keys.
 #
 # _author_ = Texas Roemer <Texas_Roemer@Dell.com>

@@ -1,4 +1,5 @@
-
+#!/usr/bin/python3
+#
 # GetNvDimmInventoryREDFISH. Python script using Redfish API DMTF to get server NVDIMM inventory.
 #
 # _author_ = Texas Roemer <Texas_Roemer@Dell.com>

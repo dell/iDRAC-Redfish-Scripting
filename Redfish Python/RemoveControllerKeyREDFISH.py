@@ -1,4 +1,5 @@
-
+#!/usr/bin/python3
+#
 # RemoveControllerKeyREDFISH. Python script using Redfish API with OEM extension to remove the storage controller key (remove encryption)
 #
 # _author_ = Texas Roemer <Texas_Roemer@Dell.com>

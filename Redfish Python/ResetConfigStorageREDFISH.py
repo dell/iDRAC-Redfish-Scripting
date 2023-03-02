@@ -1,4 +1,5 @@
-
+#!/usr/bin/python3
+#
 # ResetConfigStorageREDFISH. Python script using Redfish API with OEM extension to reset the storage controller
 #
 # _author_ = Texas Roemer <Texas_Roemer@Dell.com>

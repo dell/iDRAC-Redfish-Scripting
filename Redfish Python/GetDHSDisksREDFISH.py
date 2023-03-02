@@ -1,4 +1,5 @@
-
+#!/usr/bin/python3
+#
 # GetDHSDisksREDFISH. Python script using Redfish API with OEM extension to get available disks for dedicated hot spare(DHS) assignment
 #
 # _author_ = Texas Roemer <Texas_Roemer@Dell.com>
@@ -183,7 +184,9 @@ def get_DHS_disks():
     logging.info("\n- INFO, drives available to assign as DHS for virtual disk \"%s\" -\n" % args["get_dhs_disks"])
     for i in data['PDArray']:
             print(i)
-  
+   
+
+
 if __name__ == "__main__":
     if args["script_examples"]:
         script_examples()
@@ -217,3 +220,11 @@ if __name__ == "__main__":
         get_DHS_disks()
     else:
         logging.error("\n- FAIL, invalid argument values or not all required parameters passed in. See help text or argument --script-examples for more details.")
+        
+    
+    
+    
+        
+            
+        
+        

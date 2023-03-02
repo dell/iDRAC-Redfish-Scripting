@@ -1,4 +1,5 @@
-
+#!/usr/bin/python3
+#
 # LCWipeREDFISH. Python script using Redfish API with OEM extension to delete all configurations from the iDRAC LifecycleController.
 #
 # _author_ = Texas Roemer <Texas_Roemer@Dell.com>

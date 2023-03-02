@@ -1,4 +1,5 @@
-
+#!/usr/bin/python3
+#
 # GetIdracMessageRegistryREDFISH. Python script using Redfish API with OEM extension to get iDRAC message registry.
 #
 # _author_ = Texas Roemer <Texas_Roemer@Dell.com>

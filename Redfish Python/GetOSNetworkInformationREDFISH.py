@@ -1,4 +1,5 @@
-
+#!/usr/bin/python3
+#
 # GetOSNetworkInformationREDFISH. Python script using Redfish API to get host operating system (OS) network information.
 #
 # NOTE: iSM (iDRAC Service Module) must be installed and running in the OS for Redfish to be able to get this data. iSM is available on Dell support site under Drivers / Downloads, System Management section for your server model.

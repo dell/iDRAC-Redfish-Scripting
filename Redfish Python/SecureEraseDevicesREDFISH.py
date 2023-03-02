@@ -1,4 +1,5 @@
-
+#!/usr/bin/python3
+#
 # SecureEraseDevicesREDFISH. Python script using Redfish API to either get storage controllers/supported secure erase devices and erase supported devices.
 #
 # _author_ = Texas Roemer <Texas_Roemer@Dell.com>

@@ -1,3 +1,4 @@
+#!/usr/bin/python3
 #
 # GetFirmwareInventoryREDFISH. Python script using Redfish API DMTF method to get current firmware version for all devices iDRAC supports for updates. 
 #

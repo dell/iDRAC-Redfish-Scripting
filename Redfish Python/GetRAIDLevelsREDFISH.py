@@ -1,4 +1,5 @@
-
+#!/usr/bin/python3
+#
 # GetRAIDLevelsREDFISH. Python script using Redfish API with OEM extension to get supported RAID levels for storage controller
 #
 # _author_ = Texas Roemer <Texas_Roemer@Dell.com>

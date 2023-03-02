@@ -1,4 +1,5 @@
-
+#!/usr/bin/python3
+#
 # GetSetOemNetworkPropertiesREDFISH. Python script using Redfish API DMTF to either get or set OEM network device properties. 
 #
 # _author_ = Texas Roemer <Texas_Roemer@Dell.com>

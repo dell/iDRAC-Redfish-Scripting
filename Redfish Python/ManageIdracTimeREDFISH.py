@@ -1,4 +1,5 @@
-
+#!/usr/bin/python3
+#
 # ManageIdracTimeREDFISH. Python script using Redfish API with OEM extension to either GET or SET iDRAC time
 #
 # _author_ = Texas Roemer <Texas_Roemer@Dell.com>

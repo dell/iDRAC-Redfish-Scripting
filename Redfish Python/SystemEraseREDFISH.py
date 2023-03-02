@@ -1,4 +1,5 @@
-
+#!/usr/bin/python3
+#
 # SystemEraseREDFISH. Python script using Redfish API with OEM extension to perform iDRAC System Erase feature.
 #
 # _author_ = Texas Roemer <Texas_Roemer@Dell.com>

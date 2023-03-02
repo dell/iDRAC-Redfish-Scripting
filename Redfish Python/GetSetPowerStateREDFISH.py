@@ -1,4 +1,5 @@
-
+#!/usr/bin/python3
+#
 # GetSetPowerStateREDFISH. Python script using Redfish API to change current server power state.
 #
 # _author_ = Texas Roemer <Texas_Roemer@Dell.com>

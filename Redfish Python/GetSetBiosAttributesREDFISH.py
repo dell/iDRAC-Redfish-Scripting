@@ -1,4 +1,5 @@
-
+#!/usr/bin/python3
+#
 # GetSetBiosAttributesREDFISH. Python script using Redfish API DMTF to either get or set BIOS attributes using Redfish SettingApplyTime.
 #
 # _author_ = Texas Roemer <Texas_Roemer@Dell.com>

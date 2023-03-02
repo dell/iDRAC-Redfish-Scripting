@@ -1,4 +1,5 @@
-
+#!/usr/bin/python3
+#
 # ImportSystemConfigurationPreviewLocalFilenameREDFISH. Python script using Redfish API to preview a local system configuration file. 
 #
 # _author_ = Texas Roemer <Texas_Roemer@Dell.com>

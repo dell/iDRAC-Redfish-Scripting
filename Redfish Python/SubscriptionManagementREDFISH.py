@@ -1,4 +1,5 @@
-
+#!/usr/bin/python3
+#
 # SubscriptionManagementREDFISH. Python script using Redfish API to either get event service properties, get event
 # subscriptions, create / delete subscriptions or submit test event.
 #

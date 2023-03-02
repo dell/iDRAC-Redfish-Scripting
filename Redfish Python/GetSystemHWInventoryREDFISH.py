@@ -1,4 +1,5 @@
-
+#!/usr/bin/python3
+#
 # GetSystemHWInventoryREDFISH. Python script using Redfish API to get system hardware inventory
 #
 # _author_ = Texas Roemer <Texas_Roemer@Dell.com>

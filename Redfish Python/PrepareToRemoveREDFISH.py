@@ -1,4 +1,5 @@
-
+#!/usr/bin/python3
+#
 # PrepareToRemoveREDFISH. Python script using Redfish API with OEM extension to safely prepare to remove PCIeSSD / NVMe drive.
 #
 # _author_ = Texas Roemer <Texas_Roemer@Dell.com>
