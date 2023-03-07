@@ -3,7 +3,7 @@
 # BiosResetToDefaultsREDFISH. Python script using Redfish API DMTF action to reset BIOS to default settings
 #
 # _author_ = Texas Roemer <Texas_Roemer@Dell.com>
-# _version_ = 3.0
+# _version_ = 4.0
 #
 # Copyright (c) 2019, Dell, Inc.
 #
@@ -37,6 +37,7 @@ parser.add_argument('-p', help='iDRAC password. If you do not pass in argument -
 parser.add_argument('-x', help='Pass in X-Auth session token for executing Redfish calls. All Redfish calls will use X-Auth token instead of username/password', required=False)
 parser.add_argument('--ssl', help='SSL cert verification for all Redfish calls, pass in value \"true\" or \"false\". By default, this argument is not required and script ignores validating SSL cert for all Redfish calls.', required=False)
 parser.add_argument('--script-examples', help='Get executing script examples', action="store_true", dest="script_examples", required=False)
+parser.add_argument('--get', help='Get current flag setting for BIOS reset to defaults.', action="store_true", required=False)
 parser.add_argument('--noreboot', help='Pass in this argument to not reboot the server now to reset BIOS to default settings. Flag will still be set and reset to defaults will happen on next server reboot.', action="store_true", required=False)
 
 args=vars(parser.parse_args())
@@ -44,6 +45,7 @@ logging.basicConfig(format='%(message)s', stream=sys.stdout, level=logging.INFO)
 
 def script_examples():
     print("""\n- BiosResetToDefaultsREDFISH.py -ip 192.168.0.120 -u root -p calvin, this example will reboot the server now to perform BIOS reset to defaults operation.
+    \n- BiosResetToDefaultsREDFISH.py -ip 192.168.0.120 -u root -p calvin --get, this example will check current BIOS reset to default flag.
     \n- BiosResetToDefaultsREDFISH.py -ip 192.168.0.120 -x 7041fd6528bc5d9d88a34cdc14bf133a, this example using iDRAC X-auth token session will reboot the server now to perform BIOS reset to defaults operation.""")
     sys.exit(0)
 
@@ -59,6 +61,17 @@ def check_supported_idrac_version():
     if response.status_code != 200:
         logging.warning("\n- WARNING, iDRAC version installed does not support this feature using Redfish API")
         sys.exit(0)
+
+def check_bios_rtd_flag():
+    if args["x"]:
+        response = requests.get('https://%s/redfish/v1/Managers/LifecycleController.Embedded.1/Attributes?$select=Attributes/LCAttributes.1.BIOSRTDRequested' % idrac_ip, verify=verify_cert, headers={'X-Auth-Token': args["x"]})   
+    else:
+        response = requests.get('https://%s/redfish/v1/Managers/LifecycleController.Embedded.1/Attributes?$select=Attributes/LCAttributes.1.BIOSRTDRequested' % idrac_ip, verify=verify_cert,auth=(idrac_username, idrac_password))
+    data = response.json()
+    if response.status_code != 200:
+        logging.error("\n- FAIL, GET command failed to check BIOS reset to default flag, status code %s returned" % response.status_code)
+        sys.exit(0)
+    logging.info("\n- BIOS reset to default flag set: %s" % data["Attributes"]["LCAttributes.1.BIOSRTDRequested"])
 
 def reset_bios():
     url = "https://%s/redfish/v1/Systems/System.Embedded.1/Bios/Actions/Bios.ResetBios" % idrac_ip
@@ -194,9 +207,12 @@ if __name__ == "__main__":
     else:
         logging.error("\n- FAIL, invalid argument values or not all required parameters passed in. See help text or argument --script-examples for more details.")
         sys.exit(0)
-    reset_bios()
-    if args["noreboot"]:
-        logging.info("- INFO, --noreboot argument detected. Rest to defaults flag is still set and will happen on next server manual reboot")
+    if args["get"]:
+        check_bios_rtd_flag()
     else:
-        logging.info("- INFO, rebooting server to perform BIOS reset to defaults operation")
-        reboot_server()
+        reset_bios()
+        if args["noreboot"]:
+            logging.info("- INFO, --noreboot argument detected. Rest to defaults flag is still set and will happen on next server manual reboot")
+        else:
+            logging.info("- INFO, rebooting server to perform BIOS reset to defaults operation")
+            reboot_server()
