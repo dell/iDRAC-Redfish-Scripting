@@ -3,7 +3,7 @@
 # GetIdracLcLogsREDFISH. Python script using Redfish API to get iDRAC LC logs.
 #
 # _author_ = Texas Roemer <Texas_Roemer@Dell.com>
-# _version_ = 6.0
+# _version_ = 7.0
 #
 # Copyright (c) 2017, Dell, Inc.
 #
@@ -39,6 +39,10 @@ parser.add_argument('-x', help='Pass in X-Auth session token for executing Redfi
 parser.add_argument('--ssl', help='SSL cert verification for all Redfish calls, pass in value \"true\" or \"false\". By default, this argument is not required and script ignores validating SSL cert for all Redfish calls.', required=False)
 parser.add_argument('--script-examples', help='Get executing script examples', action="store_true", dest="script_examples", required=False)
 parser.add_argument('--get-all', help='Get all iDRAC LC logs', action="store_true", dest="get_all", required=False)
+parser.add_argument('--get-severity', help='Get only specific severity entries from LC logs. Supported values: informational, warning or critical', dest="get_severity", required=False)
+parser.add_argument('--get-date-range', help='Get only specific entries within a given date range from LC logs. You must also use arguments --start-date and --end-date to create the filter date range', dest="get_date_range", action="store_true", required=False)
+parser.add_argument('--start-date', help='Pass in the start date for the date range of LC log entries. Value must be in this format: YYYY-MM-DDTHH:MM:SS-offset (example: 2023-03-14T10:10:10-05:00). Note: If needed run --get-all argument to dump all LC logs, look at Created property to get your date time format.', dest="start_date", required=False)
+parser.add_argument('--end-date', help='Pass in the end date for the date range of LC log entries. Value must be in this format: YYYY-MM-DDTHH:MM:SS-offset (example: 2023-03-15T14:55:10-05:00)', dest="end_date", required=False)
 parser.add_argument('--get-fail', help='Get only failed entries from LC logs (searches for keywords unable, error and fail',  action="store_true", dest="get_fail", required=False)
 parser.add_argument('--get-message-id', help='Get only entries for a specific message ID. If passing in multiple message IDs use a comma separator', dest="get_message_id", required=False)
 args = vars(parser.parse_args())
@@ -47,7 +51,9 @@ logging.basicConfig(format='%(message)s', stream=sys.stdout, level=logging.INFO)
 def script_examples():
     print("""\n- GetIdracLcLogsREDFISH.py -ip 192.168.0.120 -u root -p calvin --get-all, this example will get complete iDRAC LC logs.
     \n- GetIdracLcLogsREDFISH.py -ip 192.168.0.120 -u root -p calvin --get-fail, this example will get only failed entries from LC logs.
-    \n- GetIdracLcLogsREDFISH.py -ip 192.168.0.120 -u root -p calvin --get-message-id WRK0001, this example will get only entries with message ID WRK0001.""")
+    \n- GetIdracLcLogsREDFISH.py -ip 192.168.0.120 -u root -p calvin --get-message-id WRK0001, this example will get only entries with message ID WRK0001.
+    \n- GetIdracLcLogsREDFISH.py -ip 192.168.0.120 -u root -p calvin --get-severity critical, this example will return only critical entries detected.
+    \n- GetIdracLcLogsREDFISH.py -ip 192.168.0.120 -u root -p calvin --get-date-range --start-date 2023-03-15T14:55:10-05:00 --end-date 2023-03-15T14:57:07-05:00, this example will return only LC Log entries within this start and date range.""")
     sys.exit(0)
 
 def check_supported_idrac_version():
@@ -80,6 +86,50 @@ def get_iDRAC_version():
         iDRAC_version = "new"
     else:
         iDRAC_version = "old"
+
+def get_specific_severity_logs():
+    if args["get_severity"].lower() == "informational":
+        filter_uri = "redfish/v1/Managers/iDRAC.Embedded.1/Logs/Lclog?$filter=Severity eq 'OK'"
+    elif args["get_severity"].lower() == "critical":
+        filter_uri = "redfish/v1/Managers/iDRAC.Embedded.1/Logs/Lclog?$filter=Severity eq 'Critical'"
+    elif args["get_severity"].lower() == "warning":
+        filter_uri = "redfish/v1/Managers/iDRAC.Embedded.1/Logs/Lclog?$filter=Severity eq 'Warning'"
+    else:
+        logging.error("\n- WARNING, invalid value passed in for argument --get-severity")
+        sys.exit(0)
+    if args["x"]:
+        response = requests.get('https://%s/%s' % (idrac_ip, filter_uri), verify=verify_cert, headers={'X-Auth-Token': args["x"]})
+    else:
+        response = requests.get('https://%s/%s' % (idrac_ip, filter_uri), verify=verify_cert, auth=(idrac_username, idrac_password))
+    data = response.json()
+    if response.status_code == 401:
+        logging.warning("\n- WARNING, status code %s returned. Incorrect iDRAC username/password or invalid privilege detected." % response.status_code)
+        sys.exit(0)
+    elif response.status_code != 200:
+        logging.warning("\n- WARNING, iDRAC version installed does not support this feature using Redfish API")
+        sys.exit(0)
+    if data["Members"] == []:
+        logging.info("\n- WARNING, no \"%s\" severity detected in iDRAC LC logs" % args["get_severity"])
+    else:
+        pprint(data)
+
+def get_date_range():
+    date_range_uri = "redfish/v1/Managers/iDRAC.Embedded.1/LogServices/Lclog/Entries?$filter=Created ge '%s' and Created le '%s'" % (args["start_date"], args["end_date"])
+    if args["x"]:
+        response = requests.get('https://%s/%s' % (idrac_ip, date_range_uri), verify=verify_cert, headers={'X-Auth-Token': args["x"]})
+    else:
+        response = requests.get('https://%s/%s' % (idrac_ip, date_range_uri), verify=verify_cert, auth=(idrac_username, idrac_password))
+    data = response.json()
+    if response.status_code == 401:
+        logging.warning("\n- WARNING, status code %s returned. Incorrect iDRAC username/password or invalid privilege detected." % response.status_code)
+        sys.exit(0)
+    elif response.status_code != 200:
+        logging.warning("\n- WARNING, iDRAC version installed does not support this feature using Redfish API")
+        sys.exit(0)
+    if data["Members"] == []:
+        logging.info("\n- WARNING, no iDRAC LC logs detected within the date range specified")
+    else:
+        pprint(data)
         
 def get_LC_logs():
     try:
@@ -332,6 +382,10 @@ if __name__ == "__main__":
         sys.exit(0)
     if args["get_fail"]:
         get_LC_log_failures()
+    elif args["get_date_range"] and args["start_date"] and args["end_date"]:
+        get_date_range()    
+    elif args["get_severity"]:
+        get_specific_severity_logs()
     elif args["get_all"]:
         get_LC_logs()
     elif args["get_message_id"]:
