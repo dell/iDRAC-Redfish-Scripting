@@ -152,7 +152,7 @@ def install_image_payload():
         logging.info("- PASS, POST command passed for SimpleUpdate action, status code %s returned" % response.status_code)
     else:
         logging.error("\n- FAIL, Command failed to check job status, return code is %s" % response.status_code)
-        loging.error("Extended Info Message: {0}".format(response.json()))
+        logging.error("Extended Info Message: {0}".format(response.json()))
         sys.exit(0)
     try:
         job_id = response.headers['Location'].split("/")[-1]
