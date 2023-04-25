@@ -395,6 +395,7 @@ def loop_job_status_final():
             logging.info("\n--- PASS, Final Detailed Job Status Results ---\n")
             for i in data.items():
                 pprint(i)
+            time.sleep(5)
             if args["x"]:
                 response = requests.get('https://%s/redfish/v1/Systems/System.Embedded.1/Storage/%s/Volumes' % (idrac_ip, args["create"]),verify=verify_cert, headers={'X-Auth-Token': args["x"]})
             else:
