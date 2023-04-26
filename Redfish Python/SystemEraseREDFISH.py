@@ -92,8 +92,6 @@ def get_components():
             print("CryptographicErasePD: \"Erase ISE/SED/NVMe devices\"")
         elif i == "PERCNVCache":
             print("PERCNVCache: \"Erase pinned cache on the PERC controller\"")
-        elif i == "CryptographicErasePD":
-            print("CryptographicErasePD: \"Erase ISE/SED/NVMe devices\"")
         elif i == "vFlash":
             print("vFlash: \"Erase iDRAC vFlash card\"")
         elif i == "AllApps":
