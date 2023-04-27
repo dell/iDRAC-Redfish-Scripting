@@ -201,13 +201,10 @@ return
 
 }
 
-if ($get_power_state_only -eq "n")
-{
-return
-}
-
-
 # POST command to set server power state
+
+if ($power_request_value)
+{
 
 $JsonBody = @{ "ResetType" = $power_request_value
     } | ConvertTo-Json -Compress
@@ -271,6 +268,7 @@ else
 {
     [String]::Format("- FAIL, statuscode {0} returned",$result1.StatusCode)
     return
+}
 }
 
 }
