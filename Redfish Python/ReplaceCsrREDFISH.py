@@ -35,7 +35,7 @@ parser.add_argument('-p', help='iDRAC password. If you do not pass in argument -
 parser.add_argument('-x', help='Pass in X-Auth session token for executing Redfish calls. All Redfish calls will use X-Auth token instead of username/password', required=False)
 parser.add_argument('--ssl', help='SSL cert verification for all Redfish calls, pass in value \"true\" or \"false\". By default, this argument is not required and script ignores validating SSL cert for all Redfish calls.', required=False)
 parser.add_argument('--script-examples', action="store_true", help='Prints script examples')
-parser.add_argument('--certid', help='Replace iDRAC CSR, pass in the cert ID of the cert you want to replace. If needed, execute -c argument to get the cert ID. Example: SecurityCertificate.1', required=False)
+parser.add_argument('--certid', help='Replace iDRAC CSR, pass in the cert ID of the cert you want to replace. If needed, execute -get argument to get the cert ID. Example: SecurityCertificate.1', required=False)
 parser.add_argument('--filename', help='Replace iDRAC CSR, pass in the filename of the signed CSR.', required=False)
 parser.add_argument('--get', help='Get current iDRAC certs', action="store_true", required=False)
 parser.add_argument('--reset', help='Reset iDRAC to apply the new uploaded CSR. Note: Starting in iDRAC 5.10.10, iDRAC reset is no longer required after uploading new CSR. New CSR will be applied immediately.', action="store_true", required=False)
