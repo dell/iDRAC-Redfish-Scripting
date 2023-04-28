@@ -3,7 +3,7 @@
 # GetIdracLcLogsREDFISH. Python script using Redfish API to get iDRAC LC logs.
 #
 # _author_ = Texas Roemer <Texas_Roemer@Dell.com>
-# _version_ = 7.0
+# _version_ = 8.0
 #
 # Copyright (c) 2017, Dell, Inc.
 #
@@ -40,6 +40,7 @@ parser.add_argument('--ssl', help='SSL cert verification for all Redfish calls, 
 parser.add_argument('--script-examples', help='Get executing script examples', action="store_true", dest="script_examples", required=False)
 parser.add_argument('--get-all', help='Get all iDRAC LC logs', action="store_true", dest="get_all", required=False)
 parser.add_argument('--get-severity', help='Get only specific severity entries from LC logs. Supported values: informational, warning or critical', dest="get_severity", required=False)
+parser.add_argument('--get-category', help='Get only specific category entries from LC logs. Supported values: audit, configuration, updates, systemhealth or storage', dest="get_category", required=False)
 parser.add_argument('--get-date-range', help='Get only specific entries within a given date range from LC logs. You must also use arguments --start-date and --end-date to create the filter date range', dest="get_date_range", action="store_true", required=False)
 parser.add_argument('--start-date', help='Pass in the start date for the date range of LC log entries. Value must be in this format: YYYY-MM-DDTHH:MM:SS-offset (example: 2023-03-14T10:10:10-05:00). Note: If needed run --get-all argument to dump all LC logs, look at Created property to get your date time format.', dest="start_date", required=False)
 parser.add_argument('--end-date', help='Pass in the end date for the date range of LC log entries. Value must be in this format: YYYY-MM-DDTHH:MM:SS-offset (example: 2023-03-15T14:55:10-05:00)', dest="end_date", required=False)
@@ -53,6 +54,7 @@ def script_examples():
     \n- GetIdracLcLogsREDFISH.py -ip 192.168.0.120 -u root -p calvin --get-fail, this example will get only failed entries from LC logs.
     \n- GetIdracLcLogsREDFISH.py -ip 192.168.0.120 -u root -p calvin --get-message-id WRK0001, this example will get only entries with message ID WRK0001.
     \n- GetIdracLcLogsREDFISH.py -ip 192.168.0.120 -u root -p calvin --get-severity critical, this example will return only critical entries detected.
+    \n- GetIdracLcLogsREDFISH.py -ip 192.168.0.120 -u root -p calvin --get-category systemhealth, this example will return only system health category entries detected.
     \n- GetIdracLcLogsREDFISH.py -ip 192.168.0.120 -u root -p calvin --get-date-range --start-date 2023-03-15T14:55:10-05:00 --end-date 2023-03-15T14:57:07-05:00, this example will return only LC Log entries within this start and date range.""")
     sys.exit(0)
 
@@ -135,7 +137,7 @@ def get_LC_logs():
     try:
         os.remove("lc_logs.txt")
     except:
-        logging.info("- INFO, unable to locate file %s, skipping step to delete" % "lc_logs.txt")
+        logging.debug("- INFO, unable to locate file %s, skipping step to delete" % "lc_logs.txt")
     open_file = open("lc_logs.txt","w")
     current_timestamp = datetime.now()
     current_date_time="- Data collection timestamp: %s-%s-%s  %s:%s:%s\n" % (current_timestamp.month, current_timestamp.day, current_timestamp.year, current_timestamp.hour, current_timestamp.minute, current_timestamp.second)
@@ -191,7 +193,7 @@ def get_LC_log_failures():
     try:
         os.remove("lc_log_failures.txt")
     except:
-        logging.info("- INFO, unable to locate file %s, skipping step to delete" % "lc_log_failures.txt")
+        logging.debug("- INFO, unable to locate file %s, skipping step to delete" % "lc_log_failures.txt")
     logging.info("\n- INFO, checking iDRAC LC logs for failed entries, this may take up to 1 minute to complete depending on log size -\n")
     time.sleep(2)
     open_file = open("lc_log_failures.txt","w")
@@ -272,7 +274,7 @@ def get_message_id():
     try:
         os.remove("message_id_entries.txt")
     except:
-        logging.info("- INFO, unable to locate file %s, skipping step to delete" % "message_id_entries.txt")
+        logging.debug("- INFO, unable to locate file %s, skipping step to delete" % "message_id_entries.txt")
     logging.info("\n- INFO, checking iDRAC LC logs for message ID(s) %s, this may take up to 1 minute to complete depending on log size -\n" % args["get_message_id"])
     time.sleep(2)
     open_file = open("message_id_entries.txt","w")
@@ -356,6 +358,85 @@ def get_message_id():
         logging.info("\n- INFO, Lifecycle log entries also captured in \"message_id_entries.txt\" file")
         open_file.close()
 
+def get_category_entries():
+    if args["get_category"].lower() not in ["audit", "configuration", "updates", "systemhealth", "storage"]:
+        logging.info("\n- WARNING, invalid value entered for argument --get-category, see help text for supported values")
+        sys.exit(0)
+    count = 0
+    try:
+        os.remove("category_entries.txt")
+    except:
+        logging.debug("- INFO, unable to locate file %s, skipping step to delete" % "category_entries.txt")
+    logging.info("\n- INFO, checking iDRAC LC logs for category \"%s\", this may take up to 1 minute to complete depending on log size -\n" % args["get_category"])
+    time.sleep(1)
+    open_file = open("category_entries.txt","w")
+    current_timestamp = datetime.now()
+    current_date_time="- Data collection timestamp: %s-%s-%s  %s:%s:%s\n" % (current_timestamp.month, current_timestamp.day, current_timestamp.year, current_timestamp.hour, current_timestamp.minute, current_timestamp.second)
+    open_file.writelines(current_date_time)
+    open_file.writelines("\n\n")
+    if args["x"]:
+        response = requests.get('https://%s/redfish/v1/Managers/iDRAC.Embedded.1/Logs/Lclog' % idrac_ip, verify=verify_cert, headers={'X-Auth-Token': args["x"]})
+    else:
+        response = requests.get('https://%s/redfish/v1/Managers/iDRAC.Embedded.1/Logs/Lclog' % idrac_ip, verify=verify_cert, auth=(idrac_username, idrac_password))
+    data = response.json()
+    for i in data['Members']:
+        if i["Oem"]["Dell"]["Category"].lower() == args["get_category"]:
+            pprint(i)
+            print("\n")
+            open_file.writelines(str(i))
+            open_file.writelines("\n\n")
+            count += 1
+    number_list = [i for i in range (1,100001) if i % 50 == 0]
+    for seq in number_list:
+        if args["x"]:
+            response = requests.get('https://%s/redfish/v1/Managers/iDRAC.Embedded.1/Logs/Lclog?$skip=%s' % (idrac_ip, seq), verify=verify_cert, headers={'X-Auth-Token': args["x"]})
+        else:
+            response = requests.get('https://%s/redfish/v1/Managers/iDRAC.Embedded.1/Logs/Lclog?$skip=%s' % (idrac_ip, seq), verify=verify_cert, auth=(idrac_username, idrac_password))
+        data = response.json()
+        if response.status_code == 500:
+            if count == 0:
+                logging.info("- WARNING, no %s category entries detected in LC logs" % args["get_category"])
+                open_file.close()
+                os.remove("category_entries.txt")
+            else:
+                logging.info("\n- INFO, Lifecycle log entries also captured in \"category_entries.txt\" file")
+                open_file.close()
+            sys.exit(0)
+        if response.status_code != 200:
+            if "query parameter $skip is out of range" in data["error"]["@Message.ExtendedInfo"][0]["Message"] or "internal error" in data["error"]["@Message.ExtendedInfo"][0]["Message"]:
+                open_file.close()
+                if count == 0:
+                    logging.info("- WARNING, no entries detected in LC logs for message id(s): %s" % args["get_category"])
+                    try:
+                        os.remove("category_entries.txt")
+                    except:
+                        logging.info("- INFO, unable to locate file %s, skipping step to delete" % "category_entries.txt")
+                    sys.exit(0)
+                else:
+                    logging.info("\n- INFO, Lifecycle log entries also captured in \"category_entries.txt\"")
+                    open_file.close()
+                    sys.exit(0)
+            else:
+                logging.error("\n- FAIL, GET request failed using skip query parameter, status code %s returned. Detailed error results: \n%s" % (response.status_code, data))    
+                sys.exit(0)
+        for i in data['Members']:
+            if i["Oem"]["Dell"]["Category"].lower() == args["get_category"]:
+                pprint(i)
+                print("\n")
+                open_file.writelines(str(i))
+                open_file.writelines("\n\n")
+                count += 1
+    if count == 0:
+        logging.info("- WARNING, no %s category entries detected in LC logs" % args["get_category"])
+        try:
+            os.remove("category_entries.txt")
+        except:
+            logging.info("- INFO, unable to locate file %s, skipping step to delete" % "category_entries.txt")
+        sys.exit(0)
+    else:
+        logging.info("\n- INFO, Lifecycle log entries also captured in \"category_entries.txt\" file")
+        open_file.close()
+
 if __name__ == "__main__":
     if args["script_examples"]:
         script_examples()
@@ -390,5 +471,7 @@ if __name__ == "__main__":
         get_LC_logs()
     elif args["get_message_id"]:
         get_message_id()
+    elif args["get_category"]:
+        get_category_entries()    
     else:
         logging.error("\n- FAIL, invalid argument values or not all required parameters passed in. See help text or argument --script-examples for more details.")
