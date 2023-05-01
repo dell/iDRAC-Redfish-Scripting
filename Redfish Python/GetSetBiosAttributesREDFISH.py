@@ -40,6 +40,7 @@ parser.add_argument('--script-examples', help='Get executing script examples', a
 parser.add_argument('--get', help='Get all BIOS attributes', action="store_true", required=False)
 parser.add_argument('--get-attribute', help='If you want to get only a specific BIOS attribute, pass in the attribute name you want to get the current value, Note: make sure to type the attribute name exactly due to case senstive. Example: MemTest will work but memtest will fail', dest="get_attribute", required=False)
 parser.add_argument('--get-registry', help='Get complete BIOS attribute registry', dest="get_registry", action="store_true", required=False)
+parser.add_argument('--get-registry-dependency', help='Get complete BIOS attribute registry dependency details for each attribute which supports a dependency.', dest="get_registry_dependency", action="store_true", required=False)
 parser.add_argument('--get-registry-attribute', help='Get registry information for a specific attribute, pass in the attribute name', dest="get_registry_attribute", required=False)
 parser.add_argument('--attribute-names', help='Pass in the attribute name you want to change current value, Note: make sure to type the attribute name exactly due to case senstive. Example: MemTest will work but memtest will fail. If you want to configure multiple attribute names, make sure to use a comma separator between each attribute name. Note: -r (reboot type) is required when setting attributes', dest="attribute_names", required=False)
 parser.add_argument('--attribute-values', help='Pass in the attribute value you want to change to. Note: make sure to type the attribute value exactly due to case senstive. Example: Disabled will work but disabled will fail. If you want to configure multiple attribute values, make sure to use a comma separator between each attribute value.', dest="attribute_values", required=False)
@@ -145,6 +146,34 @@ def bios_registry():
         message = "\n"
         open_file.writelines(message)
     logging.info("\n- Attribute registry is also captured in \"bios_attribute_registry.txt\" file")
+    open_file.close()
+
+def bios_registry_dependencies():
+    try:
+        os.remove("bios_attribute_dependencies.txt")
+    except:
+        pass
+    open_file = open("bios_attribute_dependencies.txt","a")
+    if args["x"]:
+        response = requests.get('https://%s/redfish/v1/Systems/System.Embedded.1/Bios/BiosRegistry' % idrac_ip, verify=verify_cert, headers={'X-Auth-Token': args["x"]})   
+    else:
+        response = requests.get('https://%s/redfish/v1/Systems/System.Embedded.1/Bios/BiosRegistry' % idrac_ip, verify=verify_cert,auth=(idrac_username, idrac_password))
+    data = response.json()
+    if response.status_code != 200:
+        logging.error("\n- FAIL, GET command failed to get BIOS attribute registry, status code %s returned" % response.status_code)
+        logging.error(data)
+        sys.exit(0)
+    for i in data['RegistryEntries']['Dependencies']:
+        for ii in i.items():
+            pprint(i)
+            print("\n")
+            message = "%s: %s" % (ii[0], ii[1])
+            open_file.writelines(message)
+            message = "\n"
+            open_file.writelines(message)
+        message = "\n"
+        open_file.writelines(message)
+    logging.info("\n- Attribute registry is also captured in \"bios_attribute_dependencies.txt\" file")
     open_file.close()
 
 def bios_registry_get_specific_attribute():
@@ -343,7 +372,8 @@ def reboot_server():
     logging.info("\n- INFO, Current server power state is: %s" % data['PowerState'])
     if data['PowerState'] == "On":
         url = 'https://%s/redfish/v1/Systems/System.Embedded.1/Actions/ComputerSystem.Reset' % idrac_ip
-        payload = {'ResetType': 'GracefulShutdown'}
+        #payload = {'ResetType': 'GracefulShutdown'}
+        payload = {'ResetType': 'ForceRestart'}
         if args["x"]:
             headers = {'content-type': 'application/json', 'X-Auth-Token': args["x"]}
             response = requests.post(url, data=json.dumps(payload), headers=headers, verify=verify_cert)
@@ -453,6 +483,8 @@ if __name__ == "__main__":
         get_bios_attributes()
     elif args["get_attribute"]:
         get_specific_bios_attribute()
+    elif args["get_registry_dependency"]:
+        bios_registry_dependencies()
     elif args["get_registry_attribute"]:
         bios_registry_get_specific_attribute()
     elif args["get_registry"]:
