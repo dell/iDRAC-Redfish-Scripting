@@ -54,7 +54,7 @@ def script_examples():
     \n- AssignHotSpareREDFISH.py -ip 192.168.0.120 -x 72f5baabc31b3c72f88aef64dec2450c --get-virtualdisks RAID.Integrated.1-1, this example will use X-auth token session to get current virtual disks for storage controller RAID.Integrated.1-1.
     \n- AssignHotSpareREDFISH.py -ip 192.168.0.120 -x 78f5baabc31b3c72f88aef64dec2450c --assign-disk Disk.Bay.3:Enclosure.Internal.0-1:RAID.Integrated.1-1 --hotspare-type dedicated --assign-virtualdisk Disk.Virtual.0:RAID.Integrated.1-1 --ssl y, this example using X-auth token session and validating SSL cert will assign disk 3 as dedicated hotspare to VD 0.
     \n- AssignHotSpareREDFISH.py -ip 192.168.0.120 -u root -p calvin --get-hotspare-drive RAID.Mezzanine.1-1, this example will return hotspare status for each drive.
-    \n- AssignHotSpareREDFISH.py -ip 192.168.0.120 -u root -p calvin --assign Disk.Bay.4:Enclosure.Internal.0-1:RAID.Integrated.1-1 --hotspare-type global, this example will assign disk 4 as global hotspare.""")
+    \n- AssignHotSpareREDFISH.py -ip 192.168.0.120 -u root -p calvin --assign-disk Disk.Bay.4:Enclosure.Internal.0-1:RAID.Integrated.1-1 --hotspare-type global, this example will assign disk 4 as global hotspare.""")
     sys.exit(0)
     
 def check_supported_idrac_version():
