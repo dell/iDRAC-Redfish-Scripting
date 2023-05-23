@@ -3,7 +3,7 @@
 # GetSystemHWInventoryREDFISH. Python script using Redfish API to get system hardware inventory
 #
 # _author_ = Texas Roemer <Texas_Roemer@Dell.com>
-# _version_ = 8.0
+# _version_ = 9.0
 #
 # Copyright (c) 2018, Dell, Inc.
 #
@@ -176,12 +176,15 @@ def get_cpu_information():
             print(message)
             for ii in sub_data.items():
                 if ii[0] == 'Oem':
-                    for iii in ii[1]['Dell']['DellProcessor'].items():
-                        if iii[0] != '@odata.context' or iii[0] != '@odata.type':
-                            message = "%s: %s" % (iii[0], iii[1])
-                            open_file.writelines(message)
-                            open_file.writelines("\n")
-                            print(message)
+                    if 'DellProcessor' not in ii[1]['Dell']:
+                        continue
+                    else:
+                        for iii in ii[1]['Dell']['DellProcessor'].items():
+                            if iii[0] != '@odata.context' or iii[0] != '@odata.type':
+                                message = "%s: %s" % (iii[0], iii[1])
+                                open_file.writelines(message)
+                                open_file.writelines("\n")
+                                print(message)
                 else:
                     message = "%s: %s" % (ii[0], ii[1])
                     open_file.writelines(message)
