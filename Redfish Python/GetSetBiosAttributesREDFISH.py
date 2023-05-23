@@ -372,8 +372,7 @@ def reboot_server():
     logging.info("\n- INFO, Current server power state is: %s" % data['PowerState'])
     if data['PowerState'] == "On":
         url = 'https://%s/redfish/v1/Systems/System.Embedded.1/Actions/ComputerSystem.Reset' % idrac_ip
-        #payload = {'ResetType': 'GracefulShutdown'}
-        payload = {'ResetType': 'ForceRestart'}
+        payload = {'ResetType': 'GracefulShutdown'}
         if args["x"]:
             headers = {'content-type': 'application/json', 'X-Auth-Token': args["x"]}
             response = requests.post(url, data=json.dumps(payload), headers=headers, verify=verify_cert)
