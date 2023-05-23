@@ -119,12 +119,11 @@ def get_remote_services(idrac_ip):
         data = response.json()
         if response.status_code != 200:
             logger.error("FAIL, POST command failed for GetRemoteServicesAPIStatus method, status code %s returned" % response.status_code)
-            get_remote_service_failure == "yes"
+            get_remote_service_failure = "yes"
             break
         elif current_time >= "0:30:00":
             logger.error("FAIL, Max timeout of 30 minutes reached to poll checking RT and LT ready status, no configuration operations executed. Make sure server is ON and outpof POST in idle state.")
-
-            get_remote_service_failure == "yes"
+            get_remote_service_failure = "yes"
             break     
         elif data["LCStatus"] == "Ready" and data["RTStatus"] == "Ready":
             logger.info("PASS, LC and RT status is ready")
