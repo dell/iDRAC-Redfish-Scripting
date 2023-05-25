@@ -1,7 +1,7 @@
 #!/usr/bin/python3
 #
 # _author_ = Texas Roemer <administrator@Dell.com>
-# _version_ = 2.0
+# _version_ = 3.0
 #
 # Copyright (c) 2023, Dell, Inc.
 #
@@ -90,12 +90,13 @@ def download_image_create_update_job(firmware_image_device):
     global job_id
     global idrac_dup_package
     global idrac_update_flag
+    global job_id_created
     if "idrac" in firmware_image_device.lower():
         logging.info("- INFO, iDRAC firmware package detected, this update will get applied at the end due to iDRAC reboot")
         idrac_update_flag = True
         idrac_dup_package = firmware_image_device
     else:
-        logging.info("- INFO, uploading update package \"%s\" to create update job, this may take a few minutes depending on firmware image size" % firmware_image_device.split("\\")[-1])                                                                                                                                                                           
+        logging.info("\n- INFO, uploading update package \"%s\" to create update job, this may take a few minutes depending on firmware image size" % firmware_image_device.split("\\")[-1])                                                                                                                                                                           
         url = "https://%s/redfish/v1/UpdateService/MultipartUpload" % idrac_ip
         payload = {"Targets": [], "@Redfish.OperationApplyTime": "OnReset", "Oem": {}}
         files = {
@@ -111,13 +112,18 @@ def download_image_create_update_job(firmware_image_device):
         if response.status_code != 202:
             data = response.json()
             logging.error("- FAIL, status code %s returned, detailed error: %s" % (response.status_code,data))
-            sys.exit(0)
+            if response.status_code == 400:
+                job_id_created = "no"
+                return
+            else:    
+                sys.exit(0)
         try:
             job_id = response.headers['Location'].split("/")[-1]
         except:
             logging.error("- FAIL, unable to locate job ID in header")
             sys.exit(0)
         logging.info("- PASS, update job ID %s successfully created for firmware package \"%s\"" % (job_id, firmware_image_device.split("\\")[-1]))
+        job_id_created = "yes"
             
 def idrac_update(firmware_image_device):
     global idrac_update_job_id
@@ -174,17 +180,19 @@ def check_job_status(download_job_id):
             sys.exit(0)
         if "fail" in data['Oem']['Dell']['Message'].lower() or "error" in data['Oem']['Dell']['Message'].lower() or "fail" in data['Oem']['Dell']['JobState'].lower():
             logging.error("- FAIL: Job ID %s failed, current message: %s" % (download_job_id, data['Oem']['Dell']['Message']))
-            sys.exit(0)
+            time.sleep(30)
+            return
         elif data["TaskState"] == "Completed" and data["Oem"]["Dell"]["JobState"] or data["TaskState"] == "Completed" or "completed successfully" in data['Oem']['Dell']['Message'].lower():
             logging.info("- PASS, job ID %s successfully marked completed" % download_job_id)
-            time.sleep(15)
+            time.sleep(30)
             break
         elif str(current_time)[0:7] >= "0:50:00":
             logging.error("\n- FAIL: Timeout of 50 minutes has been hit, update job should of already been marked completed. Check the iDRAC job queue and LC logs to debug the issue\n")
-            sys.exit(0)
+            return
         elif "schedule" in data['Oem']['Dell']['Message'].lower():
             print("- PASS, job ID %s successfully marked as scheduled, server reboot needed to apply the update" % data["Id"])
             update_jobs_need_server_reboot.append(download_job_id)
+            time.sleep(30)
             break
         else:
             logging.info("- INFO: %s job status: %s" % (download_job_id, message_string[0]["Message"].rstrip(".")))
@@ -217,10 +225,10 @@ def loop_check_final_job_status(reboot_update_job_id):
         data = response.json()
         if str(current_time)[0:7] >= "0:50:00":
             logging.error("\n- FAIL: Timeout of 50 minutes has been hit, script stopped\n")
-            sys.exit(0)
+            return
         elif "fail" in data['Message'].lower() or "fail" in data['JobState'].lower():
             logging.error("- FAIL: job ID %s failed, error results: \n%s" % (job_id, data['Message']))
-            sys.exit(0)
+            return
         elif "completed successfully" in data['Message']:
             logging.info("- PASS, job ID %s successfully marked completed" % reboot_update_job_id)
             break
@@ -403,7 +411,10 @@ if __name__ == "__main__":
             sys.exit(0)
         for i in directory_dups:
             download_image_create_update_job(i)
-            check_job_status(job_id)
+            if job_id_created == "no":
+                continue
+            else:
+                check_job_status(job_id)
         if update_jobs_need_server_reboot == []:
             logging.info("- INFO, no scheduled update jobs detected, server will not reboot")
         else:
