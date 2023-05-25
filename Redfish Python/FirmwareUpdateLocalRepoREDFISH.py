@@ -1,7 +1,7 @@
 #!/usr/bin/python3
 #
 # _author_ = Texas Roemer <administrator@Dell.com>
-# _version_ = 1.0
+# _version_ = 2.0
 #
 # Copyright (c) 2023, Dell, Inc.
 #
@@ -395,6 +395,12 @@ if __name__ == "__main__":
         update_jobs_need_server_reboot = []
         idrac_update_flag = False
         directory_dups = (glob.glob("%s\*" % args["location"]))
+        for i in directory_dups:
+            if not i.lower().endswith("exe"):
+                directory_dups.remove(i)
+        if directory_dups == []:
+            logging.error("\n- WARNING, either directory path is empty or directory contains no valid Windows Dell Update Packages.")
+            sys.exit(0)
         for i in directory_dups:
             download_image_create_update_job(i)
             check_job_status(job_id)
