@@ -191,8 +191,11 @@ def check_job_status(download_job_id):
             time.sleep(30)
             return
         elif data["TaskState"] == "Completed" and data["Oem"]["Dell"]["JobState"] or data["TaskState"] == "Completed" or "completed successfully" in data['Oem']['Dell']['Message'].lower():
-            logging.info("- PASS, %s job %s successfully marked completed" % (data["Oem"]["Dell"]["Name"].replace(":",""), download_job_id))
-            time.sleep(30)
+            try:
+                logging.info("- PASS, %s job %s successfully marked completed" % (data["Oem"]["Dell"]["Name"].replace(":",""), reboot_update_job_id))
+            except:
+                logging.info("- PASS, %s job %s successfully marked completed" % (data["Name"].replace(":",""), reboot_update_job_id))
+            time.sleep(60)
             break
         elif str(current_time)[0:7] >= "0:50:00":
             logging.error("\n- FAIL: Timeout of 50 minutes has been hit, update job should of already been marked completed. Check the iDRAC job queue and LC logs to debug the issue\n")
@@ -238,7 +241,11 @@ def loop_check_final_job_status(reboot_update_job_id):
             logging.error("- FAIL: job ID %s failed, error results: \n%s" % (job_id, data['Message']))
             return
         elif "completed successfully" in data['Message']:
-            logging.info("- PASS, %s job %s successfully marked completed" % (data["Oem"]["Dell"]["Name"].replace(":",""), reboot_update_job_id))
+            try:
+                logging.info("- PASS, %s job %s successfully marked completed" % (data["Oem"]["Dell"]["Name"].replace(":",""), reboot_update_job_id))
+            except:
+                logging.info("- PASS, %s job %s successfully marked completed" % (data["Name"].replace(":",""), reboot_update_job_id))
+            time.sleep(60)
             break
         else:
             logging.info("- INFO, %s job status not completed, current status: \"%s\"" % (reboot_update_job_id, data['Message'].rstrip(".")))
