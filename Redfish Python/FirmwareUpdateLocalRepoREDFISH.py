@@ -192,9 +192,9 @@ def check_job_status(download_job_id):
             return
         elif data["TaskState"] == "Completed" and data["Oem"]["Dell"]["JobState"] or data["TaskState"] == "Completed" or "completed successfully" in data['Oem']['Dell']['Message'].lower():
             try:
-                logging.info("- PASS, %s job %s successfully marked completed" % (data["Oem"]["Dell"]["Name"].replace(":",""), reboot_update_job_id))
+                logging.info("- PASS, %s job %s successfully marked completed" % (data["Oem"]["Dell"]["Name"].replace(":",""), download_job_id))
             except:
-                logging.info("- PASS, %s job %s successfully marked completed" % (data["Name"].replace(":",""), reboot_update_job_id))
+                logging.info("- PASS, %s job %s successfully marked completed" % (data["Name"].replace(":",""), download_job_id))
             time.sleep(60)
             break
         elif str(current_time)[0:7] >= "0:50:00":
