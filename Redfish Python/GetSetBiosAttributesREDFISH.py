@@ -16,6 +16,7 @@
 #
 
 import argparse
+import configparser
 import getpass
 import json
 import logging
@@ -37,6 +38,7 @@ parser.add_argument('-p', help='iDRAC password. If you do not pass in argument -
 parser.add_argument('-x', help='Pass in X-Auth session token for executing Redfish calls. All Redfish calls will use X-Auth token instead of username/password', required=False)
 parser.add_argument('--ssl', help='SSL cert verification for all Redfish calls, pass in value \"true\" or \"false\". By default, this argument is not required and script ignores validating SSL cert for all Redfish calls.', required=False)
 parser.add_argument('--script-examples', help='Get executing script examples', action="store_true", dest="script_examples", required=False)
+parser.add_argument('--config-ini-file-examples', help='Get config ini file examples', action="store_true", dest="config_ini_file_examples", required=False)
 parser.add_argument('--get', help='Get all BIOS attributes', action="store_true", required=False)
 parser.add_argument('--get-attribute', help='If you want to get only a specific BIOS attribute, pass in the attribute name you want to get the current value, Note: make sure to type the attribute name exactly due to case senstive. Example: MemTest will work but memtest will fail', dest="get_attribute", required=False)
 parser.add_argument('--get-registry', help='Get complete BIOS attribute registry', dest="get_registry", action="store_true", required=False)
@@ -48,6 +50,7 @@ parser.add_argument('--reboot', help='Pass in argument to reboot the server now 
 parser.add_argument('--maintenance-reboot', help='Pass in the type of maintenance window job type you want to create. Pass in \"autoreboot\" if you want the server to automatically reboot and apply the changes once the maintenance windows has been hit. Pass in \"noreboot\" if you don\'t want the server to automatically reboot once the maintenance window time has hit. If you select this option, user will have to reboot the server to apply the configuration job.', dest="maintenance_reboot", required=False)
 parser.add_argument('--start-time', help='Maintenance window start date/time, pass it in this format \"YYYY-MM-DDTHH:MM:SS(+/-)HH:MM\"', dest="start_time", required=False)
 parser.add_argument('--duration-time', help='Maintenance window duration time(amount of time allowed to execute and complete the config job), pass in a value in seconds', dest="duration_time", required=False)
+parser.add_argument('--config-file', help='Pass in the directory path and name of the config ini file. Execute --config-ini-file-examples argument to see ini file format examples.', dest="config_file", required=False)
 
 args = vars(parser.parse_args())
 logging.basicConfig(format='%(message)s', stream=sys.stdout, level=logging.INFO)
@@ -57,10 +60,34 @@ def script_examples():
     \n- GetSetBiosAttributesREDFISH.py -ip 192.168.0.120 -u root --get-attribute SetBootOrderEn, this example will first prompt to enter iDRAC user password, then return details for this specific attribute.
     \n- GetSetBiosAttributesREDFISH.py -ip 192.168.0.120 -x 3fe2401de68b718b5ce2761cb0651aac --get-registry, this example using iDRAC X-auth token session will return attribute registry details. 
     \n- GetSetBiosAttributesREDFISH.py -ip 192.168.0.120 -u root -p calvin --attribute-names MemTest --attribute-values Disabled --maintenance-reboot autoreboot --start-time "2018-10-30T20:10:10-05:00" --duration-time 600, this example shows setting BIOS attribute using scheduled start time with maintenance window. Once the scheduled time has elapsed, server will auto reboot to execute config job.
-    \n- GetSetBiosAttributesREDFISH.py -ip 192.168.0.120 -u root -p calvin --attribute-names EmbSata,NvmeMode --attribute-values RaidMode,Raid --reboot, this example shows setting multiple BIOS attributes with reboot now to apply.""")
+    \n- GetSetBiosAttributesREDFISH.py -ip 192.168.0.120 -u root -p calvin --attribute-names EmbSata,NvmeMode --attribute-values RaidMode,Raid --reboot, this example shows setting multiple BIOS attributes with reboot now to apply.
+    \n- GetSetBiosAttributesREDFISH.py --config-file C:\Python310\bios_config.ini, this example shows using config ini file to set BIOS attributes.""")
     sys.exit(0)
 
-def check_supported_idrac_version():
+def config_ini_file_examples():
+    print("""\n- INI config file examples -\n
+    [Parameters]
+    idrac_ips=192.168.0.130,192.168.0.140,192.168.0.150
+    idrac_username=root
+    idrac_password=calvin
+    bios_attributes=EmbSata,MemTest
+    bios_values=AhciMode,Enabled
+
+    This example shows passing in multiple iDRAC IPs using a comma separator setting multiple BIOS attributes. Make sure the attribute names and values align for the parameters.\n
+
+    [Parameters]
+    idrac_ips=192.168.0.130-140
+    idrac_username=root
+    idrac_password=calvin
+    bios_attributes=EmbSata
+    bios_values=AhciMode
+
+    This example shows passing in range of iDRAC IPs to set one BIOS attribute. Script will loop through IPs starting at 192.168.0.130 up to 192.168.0.140.\n
+
+    NOTES: All iDRAC IPs passed in the INI file must have the same username and password.""")
+    sys.exit(0)
+
+def check_supported_idrac_version(idrac_ip=""):
     if args["x"]:
         response = requests.get('https://%s/redfish/v1/Systems/System.Embedded.1/Bios' % idrac_ip, verify=verify_cert, headers={'X-Auth-Token': args["x"]})   
     else:
@@ -195,13 +222,17 @@ def bios_registry_get_specific_attribute():
                 return
     logging.error("\n- FAIL, unable to locate attribute \"%s\" in the registry. Make sure you typed the attribute name correct since its case sensitive" % args["get_registry_attribute"])
     
-def create_bios_attribute_dict():
+def create_bios_attribute_dict(idrac_ip="",attribute_names="", attribute_values=""):
     global bios_attribute_payload
     global start_time
     start_time = datetime.now()
     bios_attribute_payload = {"Attributes":{}}
-    attribute_names = args["attribute_names"].split(",")
-    attribute_values = args["attribute_values"].split(",")
+    if args["config_file"]:
+        attribute_names = attribute_names.split(",")
+        attribute_values = attribute_values.split(",")
+    else:
+        attribute_names = args["attribute_names"].split(",")
+        attribute_values = args["attribute_values"].split(",")
     for i,ii in zip(attribute_names, attribute_values):
         bios_attribute_payload["Attributes"][i] = ii
     if args["x"]:
@@ -218,11 +249,11 @@ def create_bios_attribute_dict():
             if i[0] in ii.values():
                 if ii['Type'] == "Integer":
                     bios_attribute_payload['Attributes'][i[0]] = int(i[1])
-    logging.info("\n- INFO, script will be setting BIOS attribute(s) -\n")
+    logging.info("\n- INFO, setting BIOS attribute(s) for iDRAC %s -\n" % idrac_ip)
     for i in bios_attribute_payload["Attributes"].items():
         logging.info("Attribute Name: %s, setting new value to: %s" % (i[0], i[1]))
     
-def create_next_boot_config_job():
+def create_next_boot_config_job(idrac_ip=""):
     global job_id
     url = 'https://%s/redfish/v1/Systems/System.Embedded.1/Bios/Settings' % (idrac_ip)
     payload = {"@Redfish.SettingsApplyTime":{"ApplyTime":"OnReset"}}
@@ -247,7 +278,7 @@ def create_next_boot_config_job():
         sys.exit(0)
     logging.info("- PASS, BIOS config job ID %s successfully created" % job_id)
 
-def create_schedule_config_job():
+def create_schedule_config_job(idrac_ip=""):
     global job_id
     url = 'https://%s/redfish/v1/Systems/System.Embedded.1/Bios/Settings' % (idrac_ip)
     if args["maintenance_reboot"] == "noreboot":
@@ -291,7 +322,7 @@ def create_schedule_config_job():
     elif args["maintenance_reboot"] == "autoreboot":
         logging.info("\n- PASS %s maintenance window config jid successfully created.\n\n- INFO, autoreboot value detected, config job will go to scheduled state once start time has elapsed and automatically reboot the server to apply the configuration job" % job_id) 
 
-def get_job_status_scheduled():
+def get_job_status_scheduled(idrac_ip=""):
     count = 0
     while True:
         if count == 5:
@@ -313,7 +344,7 @@ def get_job_status_scheduled():
         else:
             logging.error("\n- FAIL, Command failed to check job status, return code %s" % response.status_code)
             logging.error("Extended Info Message: {0}".format(response.json()))
-            sys.exit(0)
+            return
         data = response.json()
         if data['Message'] == "Task successfully scheduled.":
             logging.info("- INFO, staged config job marked as scheduled")
@@ -321,7 +352,7 @@ def get_job_status_scheduled():
         else:
             logging.info("- INFO: job status not scheduled, current status: %s" % data['Message'])
 
-def loop_job_status_final():
+def loop_job_status_final(idrac_ip=""):
     start_time = datetime.now()
     retry_count = 1
     while True:
@@ -339,21 +370,21 @@ def loop_job_status_final():
                 logging.info("- INFO, PowerCycleRequest attribute detected, virtual a/c cycle is running. Script will sleep for 180 seconds, retry")
                 time.sleep(180)
             else:
-                time.sleep(15)
+                time.sleep(60)
             retry_count += 1
             continue
         current_time = (datetime.now()-start_time)
         if response.status_code != 200:
             logging.error("\n- FAIL, GET command failed to check job status, return code is %s" % response.status_code)
             logging.error("Extended Info Message: {0}".format(req.json()))
-            sys.exit(0)
+            return
         data = response.json()
         if str(current_time)[0:7] >= "2:00:00":
             logging.error("\n- FAIL: Timeout of 2 hours has been hit, script stopped\n")
-            sys.exit(0)
+            return
         elif "Fail" in data['Message'] or "fail" in data['Message'] or data['JobState'] == "Failed":
             logging.error("- FAIL: job ID %s failed, failed message is: %s" % (job_id, data['Message']))
-            sys.exit(0)
+            return
         elif data['JobState'] == "Completed":
             logging.info("\n--- PASS, Final Detailed Job Status Results ---\n")
             for i in data.items():
@@ -363,13 +394,13 @@ def loop_job_status_final():
             logging.info("- INFO, job status not completed, current status: \"%s\"" % data['Message'])
             time.sleep(10)
 
-def reboot_server():
+def reboot_server(idrac_ip=""):
     if args["x"]:
         response = requests.get('https://%s/redfish/v1/Systems/System.Embedded.1' % idrac_ip, verify=verify_cert, headers={'X-Auth-Token': args["x"]})   
     else:
         response = requests.get('https://%s/redfish/v1/Systems/System.Embedded.1' % idrac_ip, verify=verify_cert,auth=(idrac_username, idrac_password))
     data = response.json()
-    logging.info("\n- INFO, Current server power state is: %s" % data['PowerState'])
+    logging.info("- INFO, Current server power state is: %s" % data['PowerState'])
     if data['PowerState'] == "On":
         url = 'https://%s/redfish/v1/Systems/System.Embedded.1/Actions/ComputerSystem.Reset' % idrac_ip
         payload = {'ResetType': 'GracefulShutdown'}
@@ -382,7 +413,7 @@ def reboot_server():
         if response.status_code == 204:
             logging.info("- PASS, POST command passed to gracefully power OFF server")
             logging.info("- INFO, script will now verify the server was able to perform a graceful shutdown. If the server was unable to perform a graceful shutdown, forced shutdown will be invoked in 5 minutes")
-            time.sleep(15)
+            time.sleep(60)
             start_time = datetime.now()
         else:
             logging.error("\n- FAIL, Command failed to gracefully power OFF server, status code is: %s\n" % response.status_code)
@@ -409,7 +440,7 @@ def reboot_server():
                     response = requests.post(url, data=json.dumps(payload), headers=headers, verify=verify_cert,auth=(idrac_username,idrac_password))
                 if response.status_code == 204:
                     logging.info("- PASS, POST command passed to perform forced shutdown")
-                    time.sleep(15)
+                    time.sleep(60)
                     if args["x"]:
                         response = requests.get('https://%s/redfish/v1/Systems/System.Embedded.1' % idrac_ip, verify=verify_cert, headers={'X-Auth-Token': args["x"]})   
                     else:
@@ -455,10 +486,58 @@ def reboot_server():
         logging.error("- FAIL, unable to get current server power state to perform either reboot or power on")
         sys.exit(0)
 
+def use_config_file():
+    global idrac_username
+    global idrac_password
+    global verify_cert
+    config = configparser.ConfigParser()
+    config.read("bios_config.ini")
+    config_ini_settings = config.items("Parameters")
+    idrac_ips = config.get("Parameters","idrac_ips")
+    idrac_username = config.get("Parameters","idrac_username")
+    idrac_password = config.get("Parameters","idrac_password")
+    verify_cert = config.get("Parameters","verify_cert")
+    attribute_names = config.get("Parameters","attribute_names")
+    attribute_values = config.get("Parameters","attribute_values")
+    if verify_cert.lower() == "true":
+        verify_cert = True
+    elif verify_cert.lower() == "false":
+        verify_cert = False
+    else:
+        verify_cert = False
+    if "," in idrac_ips:
+        idrac_ips = idrac_ips.split(",")
+    elif "-" in idrac_ips:
+        idrac_ips = idrac_ips.split("-")
+        build_ip_list = [idrac_ips[0]]
+        first_range_number = idrac_ips[0].split(".")[-1]
+        second_range_number = idrac_ips[1]
+        subnet = idrac_ips[0].split(".")[0]+"."+idrac_ips[0].split(".")[1]+"."+idrac_ips[0].split(".")[2]+"."
+        create_range = range(int(first_range_number)+1,int(second_range_number)+1)
+        for i in create_range:
+            create_string = subnet + str(i)
+            build_ip_list.append(create_string)
+        idrac_ips = build_ip_list
+    else:
+        idrac_ips = [idrac_ips]
+    for idrac_address in idrac_ips:
+        check_supported_idrac_version(idrac_address)
+        create_bios_attribute_dict(idrac_address,attribute_names, attribute_values)
+        create_next_boot_config_job(idrac_address)
+        get_job_status_scheduled(idrac_address)
+        reboot_server(idrac_address)
+        loop_job_status_final(idrac_address)
+        
+
 if __name__ == "__main__":
     if args["script_examples"]:
         script_examples()
-    if args["ip"] or args["ssl"] or args["u"] or args["p"] or args["x"]:
+    elif args["config_ini_file_examples"]:
+        config_ini_file_examples()
+    elif args["config_file"]:
+        use_config_file()
+        sys.exit(0)
+    elif args["ip"] or args["ssl"] or args["u"] or args["p"] or args["x"]:
         idrac_ip = args["ip"]
         idrac_username = args["u"]
         if args["p"]:
@@ -474,7 +553,7 @@ if __name__ == "__main__":
                 verify_cert = False
         else:
             verify_cert = False
-        check_supported_idrac_version()
+        check_supported_idrac_version(idrac_ip)
     else:
         logging.error("\n- FAIL, invalid argument values or not all required parameters passed in. See help text or argument --script-examples for more details.")
         sys.exit(0)
@@ -489,17 +568,17 @@ if __name__ == "__main__":
     elif args["get_registry"]:
         bios_registry() 
     elif args["attribute_names"] and args["attribute_values"]:
-        create_bios_attribute_dict()
+        create_bios_attribute_dict(idrac_ip)
         if args["maintenance_reboot"] and args["start_time"] and args["duration_time"]:
-            create_schedule_config_job()
+            create_schedule_config_job(idrac_ip)
         elif args["reboot"]:
-            create_next_boot_config_job()
-            get_job_status_scheduled()
-            reboot_server()
-            loop_job_status_final()
+            create_next_boot_config_job(idrac_ip)
+            get_job_status_scheduled(idrac_ip)
+            reboot_server(idrac_ip)
+            loop_job_status_final(idrac_ip)
         else:
-            create_next_boot_config_job()
-            get_job_status_scheduled()
+            create_next_boot_config_job(idrac_ip)
+            get_job_status_scheduled(idrac_ip)
             logging.info("- INFO, argument --reboot not detected, server will not auto reboot. Config job is still scheduled and will execute on next server manual reboot.")
     else:
         logging.error("\n- FAIL, invalid argument values or not all required parameters passed in. See help text or argument --script-examples for more details.")
