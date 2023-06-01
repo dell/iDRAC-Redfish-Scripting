@@ -1,7 +1,7 @@
 #!/usr/bin/python3
 #
 # _author_ = Texas Roemer <administrator@Dell.com>
-# _version_ = 4.0
+# _version_ = 5.0
 #
 # Copyright (c) 2023, Dell, Inc.
 #
@@ -28,6 +28,7 @@ import time
 import warnings
 
 from datetime import datetime
+from pathlib import Path
 from pprint import pprint
 
 warnings.filterwarnings("ignore")
@@ -49,7 +50,7 @@ def script_examples():
     sys.exit(0)
 
 # Example of local directory contents containing Dell DUPs:
-#>>> glob.glob("C://Users//administrator//Downloads//R740xd_repo/*")
+#
 #['C://Users//administrator//Downloads//R740xd_repo\\BIOS_W77H1_WN64_2.16.1.EXE',
 #'C://Users//administrator//Downloads//R740xd_repo\\Diagnostics_Application_R30YT_WN64_4301A73_4301.74_01.EXE',
 #'C://Users//administrator//Downloads//R740xd_repo\\Firmware_60K1J_WN32_2.52_A00.EXE',
@@ -195,18 +196,18 @@ def check_job_status(download_job_id):
                 logging.info("- PASS, %s job %s successfully marked completed" % (data["Oem"]["Dell"]["Name"].replace(":",""), download_job_id))
             except:
                 logging.info("- PASS, %s job %s successfully marked completed" % (data["Name"].replace(":",""), download_job_id))
-            time.sleep(60)
+            time.sleep(30)
             break
         elif str(current_time)[0:7] >= "0:50:00":
             logging.error("\n- FAIL: Timeout of 50 minutes has been hit, update job should of already been marked completed. Check the iDRAC job queue and LC logs to debug the issue\n")
             return
         elif "schedule" in data['Oem']['Dell']['Message'].lower():
-            print("- PASS, job ID %s successfully marked as scheduled, server reboot needed to apply the update" % data["Id"])
+            print("- PASS, %s successfully marked as scheduled, server reboot needed to apply the update" % data["Id"])
             update_jobs_need_server_reboot.append(download_job_id)
             time.sleep(30)
             break
         else:
-            logging.info("- INFO: %s job status: %s" % (download_job_id, message_string[0]["Message"].rstrip(".")))
+            logging.info("- INFO, %s job status: %s" % (download_job_id, message_string[0]["Message"].rstrip(".")))
             time.sleep(2)
             continue
 
@@ -245,7 +246,7 @@ def loop_check_final_job_status(reboot_update_job_id):
                 logging.info("- PASS, %s job %s successfully marked completed" % (data["Oem"]["Dell"]["Name"].replace(":",""), reboot_update_job_id))
             except:
                 logging.info("- PASS, %s job %s successfully marked completed" % (data["Name"].replace(":",""), reboot_update_job_id))
-            time.sleep(60)
+            time.sleep(30)
             break
         else:
             logging.info("- INFO, %s job status not completed, current status: \"%s\"" % (reboot_update_job_id, data['Message'].rstrip(".")))
@@ -416,10 +417,15 @@ if __name__ == "__main__":
     if args["get"]:
         get_FW_inventory()
     elif args["location"]:
+        if not os.path.isdir(args["location"]):
+            logging.error("\n- WARNING, value detected for argument --location is not a directory")
+            sys,exit(0)
         idrac_update_flag = False
         cpld_update_flag = False
         update_jobs_need_server_reboot = []
-        directory_dups = (glob.glob("%s\*" % args["location"]))
+        from pathlib import Path
+        directory_path = Path(args["location"]).resolve()
+        directory_dups = os.listdir(args["location"])
         for i in directory_dups:
             if not i.lower().endswith("exe"):
                 directory_dups.remove(i)
@@ -427,6 +433,11 @@ if __name__ == "__main__":
             logging.error("\n- WARNING, either directory path is empty or directory contains no valid Windows Dell Update Packages.")
             sys.exit(0)
         for i in directory_dups:
+            if not i.endswith("/") or not i.endswith("\\"):
+                if platform.system().lower() == "linux":
+                    i = str(directory_path) + "/" + i
+                if platform.system().lower() == "windows":
+                    i = str(directory_path) + "\\" + i
             download_image_create_update_job(i)
             if job_id_created == "no":
                 continue
