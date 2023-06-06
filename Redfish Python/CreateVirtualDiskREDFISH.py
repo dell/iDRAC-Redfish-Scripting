@@ -154,7 +154,8 @@ def get_pdisk_details():
         else:
             response = requests.get('https://%s/redfish/v1/Systems/System.Embedded.1/Storage/Drives/%s' % (idrac_ip, i), verify=verify_cert,auth=(idrac_username, idrac_password))
         data = response.json()
-        pprint(data), print("\n")
+        pprint(data)
+        print("\n")
 
 def get_virtual_disks():
     test_valid_controller_FQDD_string(args["get_virtualdisks"])
