@@ -3,7 +3,7 @@
 # InsertEjectVirtualMediaREDFISH. Python script using Redfish API DMTF to either get virtual media information, insert or eject virtual media
 #
 # _author_ = Texas Roemer <Texas_Roemer@Dell.com>
-# _version_ = 5.0
+# _version_ = 6.0
 #
 # Copyright (c) 2019, Dell, Inc.
 #
@@ -44,6 +44,7 @@ parser.add_argument('--index', help='Pass in remote device index. Pass in 1 for 
 parser.add_argument('--uripath', help='Insert (attach) virtual media , pass in the HTTP or HTTPS URI path of the remote image. If using CIFS or NFS, pass in the remote image share path for mount. Note: If attaching removable disk, only supported file type is .img', required=False)
 parser.add_argument('--username', help='Pass in the share username if using CIFS or secured HTTPS', required=False)
 parser.add_argument('--password', help='Pass in the share username password if using CIFS or secured HTTPS', required=False)
+parser.add_argument('--write-protected', help='Write protect attached virtual media image, supported values: true and false. Pass in true to make attached virtual media read only or false to make attached virtual media read write. Note: If you do not pass in this argument, default value for write protected with be true.', dest="write_protected", required=False)
 args = vars(parser.parse_args())
 logging.basicConfig(format='%(message)s', stream=sys.stdout, level=logging.INFO)
 
@@ -55,7 +56,7 @@ def script_examples():
     \n- InsertEjectVirtualMediaREDFISH.py -ip 192.168.0.120 -u root -p calvin --action insert --uripath //192.168.0.130/cifs/idsdm.img --username administrator --password P@ssword- --device removabledisk, this example shows attaching IMG image (this example is only valid for iDRAC 5.10 or older).
     \n- InsertEjectVirtualMediaREDFISH.py -ip 192.168.0.120 -u root -p calvin --action eject --index 1, this example shows ejecting virtual media device index 1 (this example is only valid for iDRAC 6.00 or newer). 
     \n- InsertEjectVirtualMediaREDFISH.py -ip 192.168.0.120 -u root -p calvin --action eject --device cd, this example shows ejecting virtual media CD ISO image (this example is only valid for iDRAC 5.10 or older). 
-    """)
+    \n- InsertEjectVirtualMediaREDFISH.py -ip 192.168.0.120 -u root -p calvin --action insert --index 1 --uripath http://192.168.0.130:8080/http_share/RHEL-9.1.x86_64-dvd1.iso --write-protected false, this example shows mounting HTTP share ISO as read write (this example is only valid for iDRAC 6.00 or newer).""")
     sys.exit(0)
 
 def get_iDRAC_version():
@@ -120,7 +121,14 @@ def insert_virtual_media():
     else:
         logging.error("- FAIL, invalid value passed in for action argument or missing index argument")
         sys.exit(0)
-    payload = {'Image': args["uripath"], 'Inserted':True,'WriteProtected':True}
+    if args["write_protected"]:
+        if args["write_protected"].lower() == "true":
+            write_protected_value = True
+        elif args["write_protected"].lower() == "false":
+            write_protected_value = False
+    else:
+        write_protected_value = True
+    payload = {'Image': args["uripath"], 'Inserted':True,'WriteProtected':write_protected_value}
     if args["username"]:
         payload["UserName"] = args["username"]
     if args["password"]:
