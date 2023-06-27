@@ -3,7 +3,7 @@
 # ImportSystemConfigurationNetworkShareREDFISH. Python script using Redfish API to import server configuration profile from a network share. 
 #
 # _author_ = Texas Roemer <Texas_Roemer@Dell.com>
-# _version_ = 22.0
+# _version_ = 23.0
 #
 # Copyright (c) 2017, Dell, Inc.
 #
@@ -43,6 +43,7 @@ parser.add_argument('--new-password', help='Pass in new iDRAC user password that
 parser.add_argument('--shareip', help='Pass in the IP address of the network share', required=False)
 parser.add_argument('--sharetype', help='Pass in the share type of the network share. If needed, use argument -st to get supported values for your iDRAC firmware version', required=False)
 parser.add_argument('--sharename', help='Pass in the network share share name', required=False)
+parser.add_argument('--shareport', help='Pass in custom port configured for HTTP/HTTPS share. Example: Apache webserver is configured to use port 8080. Note: If your HTTP/HTTPS is using default port, this argument is not required. Note: You must have iDRAC9 7.00.00 installed to use this argument.', required=False)
 parser.add_argument('--username', help='Pass in the CIFS username', required=False)
 parser.add_argument('--password', help='Pass in the CIFS username pasword', required=False)
 parser.add_argument('--workgroup', help='Pass in the workgroup of your CIFS network share. This argument is optional', required=False)
@@ -57,7 +58,8 @@ logging.basicConfig(format='%(message)s', stream=sys.stdout, level=logging.INFO)
 
 def script_examples():
     print("""\n- ImportSystemConfigurationNetworkShareREDFISH.py -ip 192.168.0.120 -u root -p calvin --target ALL --shareip 192.168.0.130 --sharetype NFS --sharename /nfs --filename SCP_export_R740, this example is going to import SCP file from NFS share and apply all attribute changes for all components.
-    \n- ImportSystemConfigurationNetworkShareREDFISH.py -ip 192.168.0.120 -u root -p calvin --target BIOS --shareip 192.168.0.140 --sharetype CIFS --sharename cifs_share_vm --filename R740_scp_file --shutdowwn-type Forced --username administrator --password password, this example is going to only apply BIOS changes from the SCP file on the CIFS share along with forcing a server power reboot.""")
+    \n- ImportSystemConfigurationNetworkShareREDFISH.py -ip 192.168.0.120 -u root -p calvin --target BIOS --shareip 192.168.0.140 --sharetype CIFS --sharename cifs_share_vm --filename R740_scp_file --shutdowwn-type Forced --username administrator --password password, this example is going to only apply BIOS changes from the SCP file on the CIFS share along with forcing a server power reboot.
+    \n- ImportSystemConfigurationNetworkShareREDFISH.py -ip 192.168.0.120 -u root -p calvin --sharetype HTTP --sharename http_share --shareip 192.168.0.150 --filename R640_scp.xml --target BIOS --shareport 8080, this example shows importing only BIOS attributes to HTTP share using non share port number.""")
     sys.exit(0)
 
 def check_supported_idrac_version():
@@ -96,6 +98,8 @@ def import_server_configuration_profile():
         payload["ShareParameters"]["Password"] = args["password"]
     if args["workgroup"]:
         payload["ShareParameters"]["Workgroup"] = args["workgroup"]
+    if args["shareport"]:
+        payload["ShareParameters"]["PortNumber"] = args["shareport"]
     if args["ignorecertwarning"]:
         payload["ShareParameters"]["IgnoreCertificateWarning"] = args["ignorecertwarning"]
     if args["x"]:

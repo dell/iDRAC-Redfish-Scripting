@@ -3,7 +3,7 @@
 # ExportServerConfigurationNetworkShareREDFISH. Python script using Redfish API to export server configuration profile to a supported network share.
 #
 # _author_ = Texas Roemer <Texas_Roemer@Dell.com>
-# _version_ = 13.0
+# _version_ = 14.0
 #
 # Copyright (c) 2017, Dell, Inc.
 #
@@ -42,6 +42,7 @@ parser.add_argument('--target', help='Pass in Target value to get component attr
 parser.add_argument('--shareip', help='Pass in the IP address of the network share', required=False)
 parser.add_argument('--sharetype', help='Pass in the share type of the network share. Supported values: NFS, CIFS, HTTP and HTTPS.', required=False)
 parser.add_argument('--sharename', help='Pass in the network share name', required=False)
+parser.add_argument('--shareport', help='Pass in custom port configured for HTTP/HTTPS share. Example: Apache webserver is configured to use port 8080. Note: If your HTTP/HTTPS is using default port, this argument is not required. Note: You must have iDRAC9 7.00.00 installed to use this argument.', required=False)
 parser.add_argument('--username', help='Pass in the network share username if your share is setup for auth.', required=False)
 parser.add_argument('--password', help='Pass in the network share username password if your share is setup for auth', required=False)
 parser.add_argument('--workgroup', help='Pass in the workgroup of your CIFS network share. This argument is optional', required=False)
@@ -50,14 +51,14 @@ parser.add_argument('--include', help='Pass in IncludeInExport value. Supported 
 parser.add_argument('--filename', help='Pass in unique filename for the SCP file which will get created on the network share', required=False)
 parser.add_argument('--format-type', help='Pass in the format type for SCP file generated. Supported values are XML and JSON', dest="format_type", required=False)
 parser.add_argument('--ignorecertwarning', help='Supported values are Enabled and Disabled. This argument is only required if using HTTPS for share type', required=False)
-
 args = vars(parser.parse_args())
 logging.basicConfig(format='%(message)s', stream=sys.stdout, level=logging.INFO)
 
 def script_examples():
     print("""\n- ExportSystemConfigurationNetworkShareREDFISH.py -ip 192.168.0.120 -u root -p calvin --target ALL --format-type XML --shareip 192.168.0.130 --sharetype NFS --sharename /nfs --filename SCP_export_R740, this example is going to export attributes for all devices in a default XML SCP file to a NFS share.
     \n- ExportSystemConfigurationNetworkShareREDFISH.py -ip 192.168.0.120 -u root -p calvin --get-target-values, this example will return supported values to pass in for --target argument.
-    \n- ExportSystemConfigurationNetworkShareREDFISH.py -ip 192.168.0.120 -u root -p calvin --target BIOS --format-type JSON --shareip 192.168.0.140 --sharetype CIFS --sharename cifs_share_vm --filename R740_scp_file --export-use Clone --username administrator --password password, this example is going to export only BIOS attributes in a clone JSON SCP file to a CIFS share.""")
+    \n- ExportSystemConfigurationNetworkShareREDFISH.py -ip 192.168.0.120 -u root -p calvin --target BIOS --format-type JSON --shareip 192.168.0.140 --sharetype CIFS --sharename cifs_share_vm --filename R740_scp_file --export-use Clone --username administrator --password password, this example is going to export only BIOS attributes in a clone JSON SCP file to a CIFS share.
+    \n- ExportSystemConfigurationNetworkShareREDFISH.py -ip 192.168.0.120 -u root -p calvin --sharetype HTTP --sharename http_share --shareip 192.168.0.150 --filename R750_SCP.xml --target BIOS --format-type XML --shareport 8080, this example shows exporting only BIOS attributes to HTTP share using non share port number.""")
     sys.exit(0)
 
 def check_supported_idrac_version():
@@ -119,6 +120,9 @@ def export_server_configuration_profile():
         payload["ShareParameters"]["Workgroup"] = args["workgroup"]
     if args["ignorecertwarning"]:
         payload["ShareParameters"]["IgnoreCertificateWarning"] = args["ignorecertwarning"]
+    if args["shareport"]:
+        payload["ShareParameters"]["PortNumber"] = args["shareport"]
+    print(payload)
     if args["x"]:
         headers = {'content-type': 'application/json', 'X-Auth-Token': args["x"]}
         response = requests.post(url, data=json.dumps(payload), headers=headers, verify=verify_cert)
@@ -135,6 +139,7 @@ def export_server_configuration_profile():
         logging.error("- FAIL, unable to find job ID in headers POST response, headers output is:\n%s" % response.headers)
         sys.exit(0)
     logging.info("\n- Job ID \"%s\" successfully created for ExportSystemConfiguration method\n" % job_id)
+    time.sleep(5)
 
 def loop_job_status():
     start_time = datetime.now()
@@ -146,14 +151,14 @@ def loop_job_status():
         current_time = (datetime.now()-start_time)
         if response.status_code != 200:
             logging.error("\n- FAIL, Command failed to check job status, return code is %s" % response.status_code)
-            logging.error("Extended Info Message: {0}".format(req.json()))
+            logging.error("Extended Info Message: {0}".format(response.json()))
             sys.exit(0)
         data = response.json()
         if str(current_time)[0:7] >= "0:05:00":
             logging.error("\n- FAIL: Timeout of 5 minutes has been hit, script stopped\n")
             sys.exit(0)
         elif "fail" in data['Message'].lower() or "unable" in data['Message'].lower() or "not" in data['Message'].lower():
-            logging.error("- FAIL: job ID %s failed, failed message is: %s" % (job_id, data['Message']))
+            logging.error("- FAIL: job ID %s failed, failed message: %s" % (job_id, data['Message']))
             sys.exit(0)
         elif data['JobState'] == "Completed":
             if data['Message'] == "Successfully exported Server Configuration Profile":

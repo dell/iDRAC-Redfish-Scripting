@@ -5,7 +5,7 @@
 #
 # _author_ = Texas Roemer <Texas_Roemer@Dell.com>
 # _author_ = Grant Curell <grant_curell@dell.com>
-# _version_ = 14.0
+# _version_ = 15.0
 #
 # Copyright (c) 2022, Dell, Inc.
 #
@@ -45,7 +45,8 @@ parser.add_argument('--sharetype', help='Pass in the share type of the network s
 parser.add_argument('--sharename', help='Pass in the network share name', required=False)
 parser.add_argument('--username', help='Pass in the network share username if your share is setup for auth.', required=False)
 parser.add_argument('--password', help='Pass in the network share username password if your share is setup for auth.', required=False)
-parser.add_argument('--workgroup', help='Pass in the workgroup of your CIFS network share. This argument is optional.', required=False)
+parser.add_argument('--workgroup', help='Pass in the workgroup of your CIFS network share.', required=False)
+parser.add_argument('--shareport', help='Pass in custom port configured for HTTP/HTTPS share. Example: Apache webserver is configured to use port 8080. Note: If your HTTP/HTTPS is using default port, this argument is not required. Note: You must have iDRAC9 7.00.00 installed to use this argument.', required=False)
 parser.add_argument('--filename', help='Pass in unique filename for export hardware inventory file, file extension must be .xml. This argument is required for export to network share but optional for local export. Default filename for local export is hwinv.xml if argument is not passed.', required=False, default='hwinv.xml')
 parser.add_argument('--ignorecertwarning', help='Supported values are Enabled and Disabled. This argument is only required if using HTTPS for share type.', required=False)
 
@@ -55,7 +56,8 @@ logging.basicConfig(format='%(message)s', stream=sys.stdout, level=logging.INFO)
 def script_examples():
     print("""\n- ExportHWInventoryREDFISH.py -ip 192.168.0.120 -u root -p calvin --shareip 192.168.0.130 --sharetype CIFS --sharename cifs_share_vm --username administrator --password pass --filename R650_export_hw_inv.xml, this example will export the server hardware inventory to CIFS share.
     \n- ExportHWInventoryREDFISH.py -ip 192.168.0.120 -u root -p calvin --sharetype local, this example will export the HW configuration locally using default filename hwinv.xml.
-    \n- ExportHWInventoryREDFISH.py -ip 192.168.0.120 -x 442b945cf658fbcebb6ba1ffdcf6c6f8 --sharetype NFS --shareip 192.168.0.180 --sharename /nfs --filename R650_hw.xml, this example using X-auth token session will export server hardware inventory to NFS share.""")
+    \n- ExportHWInventoryREDFISH.py -ip 192.168.0.120 -x 442b945cf658fbcebb6ba1ffdcf6c6f8 --sharetype NFS --shareip 192.168.0.180 --sharename /nfs --filename R650_hw.xml, this example using X-auth token session will export server hardware inventory to NFS share.
+    \n- ExportHWInventoryREDFISH.py -ip 192.168.0.120 -u root -p calvin --sharetype HTTP --sharename http_share --shareip 192.168.0.130 --shareport 8081, this example will export HW inventory to HTTP share which is using a custom port.""")
     sys.exit(0)
 
 def check_supported_idrac_version():
@@ -99,6 +101,8 @@ def export_hw_inventory():
         payload["Workgroup"] = args["workgroup"]
     if args["ignorecertwarning"]:
         payload["IgnoreCertWarning"] = args["ignorecertwarning"]
+    if args["shareport"]:
+        payload["PortNumber"] = args["shareport"]
     if args["x"]:
         headers = {'content-type': 'application/json', 'X-Auth-Token': args["x"]}
         response = requests.post(url, data=json.dumps(payload), headers=headers, verify=verify_cert)

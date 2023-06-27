@@ -1,7 +1,7 @@
 #!/usr/bin/python3
 #
 # _author_ = Texas Roemer <Texas_Roemer@Dell.com>
-# _version_ = 9.0
+# _version_ = 10.0
 #
 # Copyright (c) 2019, Dell, Inc.
 #
@@ -41,18 +41,19 @@ parser.add_argument('--script-examples', action="store_true", help='Prints scrip
 parser.add_argument('--shareip', help='Pass in the IP address of the network share.', required=False)
 parser.add_argument('--sharetype', help='Pass in the share type of the network share. Supported values: Local, NFS, CIFS, HTTP and HTTPS.', required=False)
 parser.add_argument('--sharename', help='Pass in the network share name', required=False)
+parser.add_argument('--shareport', help='Pass in custom port configured for HTTP/HTTPS share. Example: Apache webserver is configured to use port 8080. Note: If your HTTP/HTTPS is using default port, this argument is not required. Note: You must have iDRAC9 7.00.00 installed to use this argument.', required=False)
 parser.add_argument('--username', help='Pass in the network share username if your share is setup for auth.', required=False)
 parser.add_argument('--password', help='Pass in the network share username password if your share is setup for auth.', required=False)
-parser.add_argument('--workgroup', help='Pass in the workgroup of your CIFS network share. This argument is optional.', required=False)
+parser.add_argument('--workgroup', help='Pass in the workgroup of your CIFS network share.', required=False)
 parser.add_argument('--filename', help='Pass in unique filename for export LC log file, file extension must be .xml. This argument is required for export to network share but optional for local export. Default filename for local export is lclog.xml if argument is not passed.', required=False, default='lclog.xml')
 parser.add_argument('--ignorecertwarning', help='Supported values are Enabled and Disabled. This argument is only required if using HTTPS for share type.', required=False)
-
 args = vars(parser.parse_args())
 logging.basicConfig(format='%(message)s', stream=sys.stdout, level=logging.INFO)
 
 def script_examples():
     print("""\n- ExportLCLogREDFISH.py -ip 192.168.0.120 -u root -p calvin --shareip 192.168.0.130 --sharetype CIFS --sharename cifs_share_vm --username administrator --password pass --filename idrac_lc_logs.xml, this example will export iDRAC LC logs to a CIFS share.
-    \n- ExportLCLogREDFISH.py -ip 192.168.0.120 -u root -p calvin --sharetype local, this example will export the iDRAC Lifecycle Logs locally using default filename lclog.xml.""")
+    \n- ExportLCLogREDFISH.py -ip 192.168.0.120 -u root -p calvin --sharetype local, this example will export the iDRAC Lifecycle Logs locally using default filename lclog.xml.
+    \n- ExportLCLogREDFISH.py -ip 192.168.0.120 -u root -p calvin --sharetype HTTP --sharename http_share --shareip 192.168.0.130 --shareport 8081, this example will export LC logs to HTTP share which is using a custom port.""")
     sys.exit(0)
 
 def check_supported_idrac_version():
@@ -91,6 +92,8 @@ def export_lc_logs():
         payload["Password"] = args["password"]
     if args["workgroup"]:
         payload["Workgroup"] = args["workgroup"]
+    if args["shareport"]:
+        payload["PortNumber"] = args["shareport"]
     if args["ignorecertwarning"]:
         payload["IgnoreCertWarning"] = args["ignorecertwarning"]
     if args["x"]:
