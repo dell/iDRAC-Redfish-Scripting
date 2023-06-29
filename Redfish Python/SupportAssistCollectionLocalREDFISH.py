@@ -40,7 +40,7 @@ parser.add_argument('--script-examples', help='Get executing script examples', a
 parser.add_argument('--export', help='Export support assist collection locally. You must also use agrument --data for export SA collection.', action="store_true", required=False)
 parser.add_argument('--accept', help='Accept support assist end user license agreement (EULA)', action="store_true", required=False)
 parser.add_argument('--get', help='Get support assist end user license agreement (EULA)', action="store_true", required=False)
-parser.add_argument('--register', help='Register SupportAssist for iDRAC. NOTE: You must also pass in city, company name, country, email, first name, last name, phone number, street, state and zip arguments to register. NOTE: ISM must be installed and running on the operating system before you register SA.', action="store_true", required=False)
+parser.add_argument('--register', help='Register SupportAssist for iDRAC. NOTE: You must also pass in city, company name, country, email, first name, last name, phone number, street, state and zip arguments to register. NOTE: ISM must be installed and running on the operating system before you register SA. NOTE: Starting in iDRAC 7.00.00 registry support has been removed.', action="store_true", required=False)
 parser.add_argument('--city', help='Pass in city name to register Support Assist', required=False)
 parser.add_argument('--companyname', help='Pass in company name to register Support Assist', required=False)
 parser.add_argument('--country', help='Pass in country to register Support Assist', required=False)
@@ -251,13 +251,13 @@ def loop_job_status():
             logging.info("- INFO, retry count for GET request has been elapsed, script will exit. Manually check the job queue for final job status results")
             sys.exit(0)
         if args["x"]:
-            response = requests.get('https://%s/redfish/v1/Managers/iDRAC.Embedded.1/Oem/Dell/Jobs/%s' % (idrac_ip, job_id), verify=verify_cert, headers={'X-Auth-Token': args["x"]})
+            response = requests.get('https://%s/redfish/v1/Managers/iDRAC.Embedded.1/Jobs/%s' % (idrac_ip, job_id), verify=verify_cert, headers={'X-Auth-Token': args["x"]})
         else:
-             response = requests.get('https://%s/redfish/v1/Managers/iDRAC.Embedded.1/Oem/Dell/Jobs/%s' % (idrac_ip, job_id), verify=verify_cert,auth=(idrac_username, idrac_password))
+             response = requests.get('https://%s/redfish/v1/Managers/iDRAC.Embedded.1/Jobs/%s' % (idrac_ip, job_id), verify=verify_cert,auth=(idrac_username, idrac_password))
         current_time = (datetime.now()-start_time)
         data = response.json()
         if response.status_code != 200:
-            logging.error("- FAIL, status code %s returned, GET command will retry" % statusCode)
+            logging.error("- FAIL, status code %s returned, GET command will retry" % response.status_code)
             time.sleep(10)
             loop_count += 1
             continue
