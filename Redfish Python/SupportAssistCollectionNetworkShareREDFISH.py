@@ -39,7 +39,7 @@ parser.add_argument('--ssl', help='SSL cert verification for all Redfish calls, 
 parser.add_argument('--script-examples', help='Get executing script examples', action="store_true", dest="script_examples", required=False)
 parser.add_argument('--accept', help='Accept support assist end user license agreement (EULA)', action="store_true", required=False)
 parser.add_argument('--get', help='Get support assist end user license agreement (EULA)', action="store_true", required=False)
-parser.add_argument('--register', help='Register Support Assist for iDRAC. NOTE: You must also pass in city, company name, country, first name, first email, last name, phone number, street, state and zip arguments to register. NOTE: ISM must be installed and running on the operating system before you register SA.', action="store_true", required=False)
+parser.add_argument('--register', help='Register Support Assist for iDRAC. NOTE: You must also pass in city, company name, country, first name, first email, last name, phone number, street, state and zip arguments to register. NOTE: ISM must be installed and running on the operating system before you register SA. NOTE: Starting in iDRAC 7.00.00 registry support has been removed.', action="store_true", required=False)
 parser.add_argument('--export-network', help='Export Support Assist collection to network share. NOTE: Make sure you also use arguments ipaddress, sharetype, sharename and dataselectorarrayin for export to network share. If using CIFS, you need to also use username and password arguments.', dest="export_network", action="store_true", required=False)
 parser.add_argument('--export-last', help='Export Support Assist last collection stored on iDRAC to network share. NOTE: Make sure you also use arguments --shareip, --sharetype and --sharename.', dest="export_last", action="store_true", required=False)
 parser.add_argument('--city', help='Pass in city name to register Support Assist', required=False)
@@ -263,9 +263,9 @@ def loop_job_status():
     count_number = 0
     while True:
         if args["x"]:
-            response = requests.get('https://%s/redfish/v1/Managers/iDRAC.Embedded.1/Oem/Dell/Jobs/%s' % (idrac_ip, job_id), verify=verify_cert, headers={'X-Auth-Token': args["x"]})
+            response = requests.get('https://%s/redfish/v1/Managers/iDRAC.Embedded.1/Jobs/%s' % (idrac_ip, job_id), verify=verify_cert, headers={'X-Auth-Token': args["x"]})
         else:
-            response = requests.get('https://%s/redfish/v1/Managers/iDRAC.Embedded.1/Oem/Dell/Jobs/%s' % (idrac_ip, job_id), verify=verify_cert,auth=(idrac_username, idrac_password))
+            response = requests.get('https://%s/redfish/v1/Managers/iDRAC.Embedded.1/Jobs/%s' % (idrac_ip, job_id), verify=verify_cert,auth=(idrac_username, idrac_password))
         current_time = (datetime.now()-start_time)
         if response.status_code != 200:
             logging.error("\n- FAIL, Command failed to check job status, return code %s" % response.status_code)
