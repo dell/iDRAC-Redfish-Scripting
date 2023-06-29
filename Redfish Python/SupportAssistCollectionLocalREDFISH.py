@@ -337,7 +337,7 @@ if __name__ == "__main__":
             logging.info("\n- WARNING, SupportAssist EULA has already been accepted")
         if not args["export"]:
             sys.exit(0)
-    if args["export"] and args["data"]:
+    if args["export"]:
         support_assist_collection()
         loop_job_status()
         sys.exit(0)
