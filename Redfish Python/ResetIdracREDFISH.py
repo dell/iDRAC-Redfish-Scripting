@@ -5,7 +5,7 @@
 # NOTE: Once the script is complete, iDRAC will reset to complete the process and you will lose network connection. iDRAC should be back up within a few minutes.
 # 
 # _author_ = Texas Roemer <Texas_Roemer@Dell.com>
-# _version_ = 4.0
+# _version_ = 5.0
 #
 # Copyright (c) 2017, Dell, Inc.
 #
@@ -21,8 +21,10 @@ import argparse
 import getpass
 import json
 import logging
+import platform
 import re
 import requests
+import subprocess
 import sys
 import time
 import warnings
@@ -35,7 +37,8 @@ parser.add_argument('-u', help='iDRAC username', required=False)
 parser.add_argument('-p', help='iDRAC password. If you do not pass in argument -p, script will prompt to enter user password which will not be echoed to the screen.', required=False)
 parser.add_argument('-x', help='Pass in X-Auth session token for executing Redfish calls. All Redfish calls will use X-Auth token instead of username/password', required=False)
 parser.add_argument('--ssl', help='SSL cert verification for all Redfish calls, pass in value \"true\" or \"false\". By default, this argument is not required and script ignores validating SSL cert for all Redfish calls.', required=False)
-parser.add_argument('--script-examples', help='Get executing script examples', action="store_true", dest="script_examples", required=False) 
+parser.add_argument('--script-examples', help='Get executing script examples', action="store_true", dest="script_examples", required=False)
+parser.add_argument('--check', help='Pass in this argument to check iDRAC is fully back up after iDRAC reset. Script will loop until success ping request is returned, then check API status to confirm iDRAC is ready', action="store_true", required=False) 
 args = vars(parser.parse_args())
 logging.basicConfig(format='%(message)s', stream=sys.stdout, level=logging.INFO)
 
@@ -71,8 +74,52 @@ def reset_idrac():
         data = response.json()
         logging.error("\n- FAIL, status code %s returned, detailed error results \n%s" % (response.status_code, data))
         sys.exit(0)
-    time.sleep(15)
     logging.info("- INFO, iDRAC will now reset and be back online within a few minutes.")
+
+def check_idrac_connection():
+    logging.info("- INFO, argument --check detected, script will start ping requests in 1 minute")
+    time.sleep(60)
+    if platform.system().lower() == "windows":
+        ping_command = "ping -n 3 %s" % idrac_ip
+    elif platform.system().lower() == "linux":
+        ping_command = "ping -c 3 %s" % idrac_ip
+    else:
+        logging.error("- FAIL, unable to determine OS type, check iDRAC connection function will not execute")
+        sys.exit(0)
+    while True:
+        execute_command = subprocess.call(ping_command, stdout=subprocess.PIPE, shell=True)
+        if execute_command != 0:
+            logging.info("- INFO, unable to ping iDRAC IP, script will wait 30 seconds and try again")
+            time.sleep(30)
+            continue
+        else:
+            logging.info("- PASS, ping command successful to iDRAC IP, script will now check to validate iDRAC is fully up and ready")
+            time.sleep(15)
+            url = 'https://%s/redfish/v1/Dell/Managers/iDRAC.Embedded.1/DellLCService/Actions/DellLCService.GetRemoteServicesAPIStatus' % (idrac_ip)
+            method = "GetRemoteServicesAPIStatus"
+            payload = {}
+            if args["x"]:
+                headers = {'content-type': 'application/json', 'X-Auth-Token': args["x"]}
+                response = requests.post(url, data=json.dumps(payload), headers=headers, verify=verify_cert)
+            else:
+                headers = {'content-type': 'application/json'}
+                response = requests.post(url, data=json.dumps(payload), headers=headers, verify=verify_cert,auth=(idrac_username,idrac_password))
+            data=response.json()
+            if response.status_code == 200:
+                logging.debug("\n- PASS: POST command passed for %s method, status code 200 returned\n" % method)
+            else:
+                logging.error("\n- FAIL, POST command failed for %s method, status code %s returned" % (method, response.status_code))
+                data = response.json()
+                logging.error("\n- POST command failure results:\n %s" % data)
+                sys.exit(0)
+            if data["Status"] == "Ready":
+                logging.info("- PASS, iDRAC is fully up and in ready state")
+                return
+            else:
+                logging.info("- INFO, iDRAC not fully up and ready, script will wait 30 seconds and try again")
+                time.sleep(30)
+
+           
     
 if __name__ == "__main__":
     if args["script_examples"]:
@@ -98,3 +145,6 @@ if __name__ == "__main__":
         logging.error("\n- FAIL, invalid argument values or not all required parameters passed in. See help text or argument --script-examples for more details.")
         sys.exit(0)
     reset_idrac()
+    if args["check"]:
+        check_idrac_connection()
+        
