@@ -34,7 +34,7 @@ from pprint import pprint
 
 warnings.filterwarnings("ignore")
 
-parser = argparse.ArgumentParser(description="Python script using Redfish API to set either iDRAC, lifecycle controller or system attributes")
+parser = argparse.ArgumentParser(description="Python script using Redfish API to set either iDRAC, lifecycle controller or system attributes. NOTE: This script is only supported on iDRAC9 or newer. If using iDRAC8 you will need to leverage Server Configuration Profile (SCP) feature to set these attributes.")
 parser.add_argument('-ip',help='iDRAC IP address', required=False)
 parser.add_argument('-u', help='iDRAC username', required=False)
 parser.add_argument('-p', help='iDRAC password. If you do not pass in argument -p, script will prompt to enter user password which will not be echoed to the screen.', required=False)
