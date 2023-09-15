@@ -67,8 +67,8 @@ def get_iDRAC_version():
         response = requests.get('https://%s/redfish/v1/Managers/iDRAC.Embedded.1?$select=FirmwareVersion' % idrac_ip, verify=False,auth=(idrac_username,idrac_password))
     data = response.json()
     if response.status_code == 401:
-        logging.error("- ERROR, status code 401 detected, check to make sure your iDRAC script session has correct username/password credentials or if using X-auth token, confirm the session is still active.")
-        return
+        logging.error("\n- ERROR, status code 401 detected, check to make sure your iDRAC script session has correct username/password credentials or if using X-auth token, confirm the session is still active.")
+        sys.exit(0)
     elif response.status_code != 200:
         logging.warning("\n- WARNING, unable to get current iDRAC version installed")
         sys.exit(0)
