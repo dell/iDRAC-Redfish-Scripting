@@ -3,7 +3,7 @@
 # DeviceFirmwareSimpleUpdateTransferProtocolREDFISH. Python script using Redfish API to update a device firmware with DMTF standard SimpleUpdate with TransferProtocol. Only supported file image type is Windows Dell Update Packages(DUPs).
 #
 # _author_ = Texas Roemer <Texas_Roemer@Dell.com>
-# _version_ = 12.0
+# _version_ = 13.0
 #
 # Copyright (c) 2019, Dell, Inc.
 #
@@ -145,6 +145,7 @@ def install_image_payload():
 
 def check_job_status():
     retry_count = 1
+    schedule_job_status_count = 1
     while True:
         check_idrac_connection()
         if retry_count == 20:
@@ -174,6 +175,15 @@ def check_job_status():
                 pprint(i)
             logging.info("\n- JOB ID %s completed in %s" % (job_id, current_time))
             sys.exit(0)
+        if data["TaskState"] == "UserIntervention" and data["PercentComplete"] == 100:
+            logging.info("\n- JOB ID %s completed in %s but user intervention is needed, final job message: %s" % (job_id, current_time, message_string[0]["Message"].rstrip(".")))
+            if args["reboot"]:
+                if "reboot" in message_string[0]["Message"].lower():
+                    logging.info("- INFO, rebooting server for the new firmware installed to become effective")
+                    reboot_server()
+                if "virtual" in message_string[0]["Message"].lower():
+                    logging.info("- INFO, server virtual a/c cycle is needed for the new firmware installed to become effective")
+            sys.exit(0)
         if data["TaskState"] == "Completed":
             logging.info("\n- PASS, job ID successfuly marked completed, detailed final job status results\n")
             for i in data['Oem']['Dell'].items():
@@ -187,12 +197,17 @@ def check_job_status():
             logging.error("- FAIL: Job failed, current message: %s" % data["Messages"])
             sys.exit(0)
         elif "scheduled" in data['Oem']['Dell']['Message']:
-            print("- PASS, job ID %s successfully marked as scheduled" % data["Id"])
-            if not args["reboot"]:
-                logging.warning("- WARNING, missing argument --reboot for rebooting the server. Job is still scheduled and will be applied on next manual server reboot")
-                sys.exit(0)
+            if schedule_job_status_count == 1:
+                time.sleep(15)
+                schedule_job_status_count += 1
+                continue
             else:
-                break
+                print("- PASS, job ID %s successfully marked as scheduled" % data["Id"])
+                if not args["reboot"]:
+                    logging.warning("- WARNING, missing argument --reboot for rebooting the server. Job is still scheduled and will be applied on next manual server reboot")
+                    sys.exit(0)
+                else:
+                    break
         elif "completed successfully" in data['Oem']['Dell']['Message']:
             logging.info("\n- PASS, job ID %s successfully marked completed, detailed final job status results\n")
             for i in data['Oem']['Dell'].items():
@@ -250,7 +265,7 @@ def reboot_server():
     else:
         response = requests.get('https://%s/redfish/v1/Systems/System.Embedded.1' % idrac_ip, verify=verify_cert,auth=(idrac_username, idrac_password))
     data = response.json()
-    logging.info("\n- INFO, Current server power state is: %s" % data['PowerState'])
+    logging.info("- INFO, Current server power state is: %s" % data['PowerState'])
     if data['PowerState'] == "On":
         url = 'https://%s/redfish/v1/Systems/System.Embedded.1/Actions/ComputerSystem.Reset' % idrac_ip
         payload = {'ResetType': 'GracefulShutdown'}
