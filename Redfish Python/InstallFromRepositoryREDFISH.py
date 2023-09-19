@@ -309,7 +309,7 @@ def loop_job_status(x):
         if str(current_time)[0:7] >= "2:00:00":
             logging.error("\n- FAIL: Timeout of 2 hours has been reached, script stopped\n")
             sys.exit(0)
-        elif "completed successfully" in data['Message']:
+        elif "completed successfully" in data['Message'].lower() or "pending" in data['Message'].lower():
             logging.info("\n- INFO, job ID %s successfully marked completed" % x)
             logging.info("\n- Final detailed job results -\n")
             for i in data.items():
