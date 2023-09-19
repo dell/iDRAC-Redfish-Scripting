@@ -162,13 +162,13 @@ def get_network_device_properties():
         sys.exit(0)
     for i in data.items():
         if i[0] == 'iSCSIBoot':
-            if i[1] != None:
+            if i[1] != {}:
                 logging.info("\n - iSCSIBoot Attributes -\n")
                 for i in data['iSCSIBoot'].items():
                     print("%s: %s" % (i[0],i[1]))
     for i in data.items():
         if i[0] == 'FibreChannel':
-            if i[1] != None:
+            if i[1] != {}:
                 logging.info("\n - FibreChannel Attributes -\n")
                 for i in data['FibreChannel'].items():
                     print("%s: %s" % (i[0],i[1]))
