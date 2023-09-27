@@ -1,7 +1,7 @@
 #!/usr/bin/python3
 #
 # _author_ = Texas Roemer <Texas_Roemer@Dell.com>
-# _version_ = 5.0
+# _version_ = 6.0
 #
 # Copyright (c) 2021, Dell, Inc.
 #
@@ -44,13 +44,15 @@ parser.add_argument('--country', help='Generate iDRAC CSR, pass in common name s
 parser.add_argument('--email', help='Generate iDRAC CSR, pass in email string value. Note: This argument is optional for generate CSR.', required=False)
 parser.add_argument('--org', help='Generate iDRAC CSR, pass in organization string value', required=False)
 parser.add_argument('--orgunit', help='Generate iDRAC CSR, pass in organization unit string value', required=False)
+parser.add_argument('--sub-alt-name', help='Generate iDRAC CSR, pass in subject alternative name string value. Note: If passing in multiple values for subject alt name use a comma separator.', dest="sub_alt_name", required=False)
 
 args=vars(parser.parse_args())
 logging.basicConfig(format='%(message)s', stream=sys.stdout, level=logging.INFO)
 
 def script_examples():
     print("""\n- GenerateCsrREDFISH.py -ip 192.168.0.120 -u root -p calvin --get, this example will get current iDRAC cert(s).
-    \n- GenerateCsrREDFISH.py -ip 192.168.0.120 -u root -p calvin --generate --city Austin --commonname idrac_tester --country US --email tester@dell.com --org test --orgunit "test group" --state Texas, this example will generate CSR for iDRAC.""")
+    \n- GenerateCsrREDFISH.py -ip 192.168.0.120 -u root -p calvin --generate --city Austin --commonname idrac_tester --country US --email tester@dell.com --org test --orgunit "test group" --state Texas, this example shows generating CSR.
+    \n- GenerateCsrREDFISH.py -ip 192.168.0.120 -u root -p calvin --generate --city 'Palm Springs' --state 'California' --country US --common 'Dell Inc' --org 'product test' --orgunit test --sub-alt-name 'altnametest.example.com,altname2test.good.com' --email 'tester@dell.com', this example shows generating CSR with multiple subject alt names.""")
     sys.exit(0)
 
 def check_supported_idrac_version():
@@ -96,6 +98,8 @@ def generate_CSR():
         payload = {"CertificateCollection":"/redfish/v1/Managers/iDRAC.Embedded.1/NetworkProtocol/HTTPS/Certificates","City":args["city"],"CommonName":args["commonname"],"Country":args["country"],"Organization":args["org"],"OrganizationalUnit":args["orgunit"],"State":args["state"]}   
     if args["email"]:
         payload["Email"] = args["email"]
+    if args["sub_alt_name"]:
+        payload["AlternativeNames"] = [args["sub_alt_name"]]
     if args["x"]:
         headers = {'content-type': 'application/json', 'X-Auth-Token': args["x"]}
         response = requests.post(url, data=json.dumps(payload), headers=headers, verify=verify_cert)
