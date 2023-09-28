@@ -3,10 +3,10 @@
 # GetIdracLcLogsREDFISH. Python script using Redfish API to get iDRAC LC logs.
 #
 # _author_ = Texas Roemer <Texas_Roemer@Dell.com>
-# _version_ = 9.0
+# _version_ = 10.0
 #
 # Copyright (c) 2017, Dell, Inc.
-#
+#	
 # This software is licensed to you under the GNU General Public License,
 # version 2 (GPLv2). There is NO WARRANTY for this software, express or
 # implied, including the implied warranties of MERCHANTABILITY or FITNESS
@@ -180,22 +180,55 @@ def get_date_range():
     else:
         response = requests.get('https://%s/%s' % (idrac_ip, date_range_uri), verify=verify_cert, auth=(idrac_username, idrac_password))
     data = response.json()
+    lc_logs_list = []
     if response.status_code == 401:
         logging.warning("\n- WARNING, status code %s returned. Incorrect iDRAC username/password or invalid privilege detected." % response.status_code)
         sys.exit(0)
     elif response.status_code != 200:
         logging.warning("\n- WARNING, iDRAC version installed does not support this feature using Redfish API")
         sys.exit(0)
-    if data["Members"] == []:
+    elif data["Members"] == []:
         logging.info("\n- WARNING, no iDRAC LC logs detected within the date range specified")
     else:
-        pprint(data)
+        lc_logs_list.append(data)
+        if args["dump_to_json_file"]:
+            filename = directory_name + "/lclog_entries_1.json"
+            open_file = open(filename,"w")
+            json.dump(data, open_file)
+            open_file.close()
+            file_count = 2
+    if "Members@odata.nextLink" in data.keys():
+        skip_uri = data["Members@odata.nextLink"]
+        number_list = [i for i in range (1,100001) if i % 50 == 0]
+        for seq in number_list:
+            skip_uri = re.sub("skip=.*","skip=%s" % seq, skip_uri)
+            if args["x"]:
+                response = requests.get('https://%s%s' % (idrac_ip, skip_uri), verify=verify_cert, headers={'X-Auth-Token': args["x"]})
+            else:
+                response = requests.get('https://%s%s' % (idrac_ip, skip_uri), verify=verify_cert, auth=(idrac_username, idrac_password))
+            data = response.json()
+            get_real_json_format = json.dumps(response.json())
+            if response.status_code == 500:
+                break
+            elif response.status_code != 200:
+                if "query parameter $skip is out of range" in data["error"]["@Message.ExtendedInfo"][0]["Message"]:
+                    break
+                else:
+                    logging.error("\n- FAIL, GET request failed using skip query parameter, status code %s returned. Detailed error results: \n%s" % (response.status_code,data))    
+                    sys.exit(0)
+            elif data["Members"] == []:
+                break
+            lc_logs_list.append(data)
+            if args["dump_to_json_file"]:
+                filename = directory_name + "/lclog_entries_%s.json" % file_count
+                open_file = open(filename, "w")
+                json.dump(data, open_file)
+                open_file.close()
+                file_count += 1
+    pprint(lc_logs_list)
     if args["dump_to_json_file"]:
-        filename = directory_name + "/lclog_entries_1.json"
-        open_file = open(filename,"w")
-        json.dump(data, open_file)
-        open_file.close()
         logging.info("\n- INFO, JSON dump log files copied to directory %s" % directory_name)
+
         
 def get_LC_logs():
     if args["dump_to_json_file"]:
