@@ -3,7 +3,7 @@
 # GetIdracLcLogsREDFISH. Python script using Redfish API to get iDRAC LC logs.
 #
 # _author_ = Texas Roemer <Texas_Roemer@Dell.com>
-# _version_ = 10.0
+# _version_ = 11.0
 #
 # Copyright (c) 2017, Dell, Inc.
 #	
@@ -122,8 +122,11 @@ def get_specific_severity_logs():
     elif response.status_code != 200:
         logging.warning("\n- WARNING, iDRAC version installed does not support this feature using Redfish API")
         sys.exit(0)
+    elif "Members" not in data.keys():
+        logging.warning("-WARNING, 'Members' key not detected in JSON response, script will exit")
+        sys.exit(0)
     elif data["Members"] == []:
-        logging.info("\n- WARNING, no \"%s\" severity detected in iDRAC LC logs" % args["get_severity"])
+        logging.info("\n- WARNING, no \"%s\" severity entries detected in iDRAC LC logs" % args["get_severity"])
         sys.exit(0)
     else:
         lc_logs_list.append(data)
@@ -143,7 +146,9 @@ def get_specific_severity_logs():
             else:
                 response = requests.get('https://%s%s' % (idrac_ip, skip_uri), verify=verify_cert, auth=(idrac_username, idrac_password))
             data = response.json()
-            get_real_json_format = json.dumps(response.json())
+            if "Members" not in data.keys():
+                logging.warning("-WARNING, 'Members' key not detected in JSON response, script will exit")
+                break
             if response.status_code == 500:
                 break
             elif response.status_code != 200:
@@ -152,8 +157,9 @@ def get_specific_severity_logs():
                 else:
                     logging.error("\n- FAIL, GET request failed using skip query parameter, status code %s returned. Detailed error results: \n%s" % (response.status_code,data))    
                     sys.exit(0)
-            elif data["Members"] == []:
-                break
+            elif "Members" in data.keys():
+                if data["Members"] == []:
+                    break
             lc_logs_list.append(data)
             if args["dump_to_json_file"]:
                 filename = directory_name + "/lclog_entries_%s.json" % file_count
@@ -187,8 +193,12 @@ def get_date_range():
     elif response.status_code != 200:
         logging.warning("\n- WARNING, iDRAC version installed does not support this feature using Redfish API")
         sys.exit(0)
+    elif "Members" not in data.keys():
+        logging.warning("-WARNING, 'Members' key not detected in JSON response, script will exit")
+        sys.exit(0)
     elif data["Members"] == []:
-        logging.info("\n- WARNING, no iDRAC LC logs detected within the date range specified")
+        logging.info("- WARNING, no iDRAC LC logs detected within the date range specified")
+        sys.exit(0)
     else:
         lc_logs_list.append(data)
         if args["dump_to_json_file"]:
@@ -207,8 +217,10 @@ def get_date_range():
             else:
                 response = requests.get('https://%s%s' % (idrac_ip, skip_uri), verify=verify_cert, auth=(idrac_username, idrac_password))
             data = response.json()
-            get_real_json_format = json.dumps(response.json())
-            if response.status_code == 500:
+            if "Members" not in data.keys():
+                logging.warning("-WARNING, 'Members' key not detected in JSON response, script will exit")
+                break
+            elif response.status_code == 500:
                 break
             elif response.status_code != 200:
                 if "query parameter $skip is out of range" in data["error"]["@Message.ExtendedInfo"][0]["Message"]:
@@ -216,8 +228,9 @@ def get_date_range():
                 else:
                     logging.error("\n- FAIL, GET request failed using skip query parameter, status code %s returned. Detailed error results: \n%s" % (response.status_code,data))    
                     sys.exit(0)
-            elif data["Members"] == []:
-                break
+            elif "Members" in data.keys():
+                if data["Members"] == []:
+                    break
             lc_logs_list.append(data)
             if args["dump_to_json_file"]:
                 filename = directory_name + "/lclog_entries_%s.json" % file_count
@@ -246,14 +259,18 @@ def get_LC_logs():
         response = requests.get('https://%s/%s' % (idrac_ip, uri), verify=verify_cert, auth=(idrac_username, idrac_password))
     lc_logs_list = []
     data = response.json()
-    if response.status_code == 401:
+    if "Members" not in data.keys():
+        logging.warning("-WARNING, 'Members' key not detected in JSON response, script will exit")
+        sys.exit(0)
+    elif response.status_code == 401:
         logging.warning("\n- WARNING, status code %s returned. Incorrect iDRAC username/password or invalid privilege detected." % response.status_code)
         sys.exit(0)
     elif response.status_code != 200:
         logging.warning("\n- WARNING, iDRAC version installed does not support this feature using Redfish API")
         sys.exit(0)
-    if data["Members"] == []:
-        logging.info("\n- WARNING, no \"%s\" severity detected in iDRAC LC logs" % args["get_severity"])
+    elif data["Members"] == []:
+        logging.info("\n- WARNING, 'Members' collection is empty, no LC logs detected, script will exit")
+        sys.exit(0)
     else:
         lc_logs_list.append(data)
         if args["dump_to_json_file"]:
@@ -272,7 +289,10 @@ def get_LC_logs():
             else:
                 response = requests.get('https://%s%s' % (idrac_ip, skip_uri), verify=verify_cert, auth=(idrac_username, idrac_password))
             data = response.json()
-            if response.status_code == 500:
+            if "Members" not in data.keys():
+                logging.warning("-WARNING, 'Members' key not detected in JSON response, script will exit")
+                break
+            elif response.status_code == 500:
                 break
             elif response.status_code != 200:
                 if "query parameter $skip is out of range" in data["error"]["@Message.ExtendedInfo"][0]["Message"]:
@@ -280,8 +300,9 @@ def get_LC_logs():
                 else:
                     logging.error("\n- FAIL, GET request failed using skip query parameter, status code %s returned. Detailed error results: \n%s" % (response.status_code,data))    
                     sys.exit(0)
-            elif data["Members"] == []:
-                break
+            elif "Members" in data.keys():
+                if data["Members"] == []:
+                    break
             lc_logs_list.append(data)
             if args["dump_to_json_file"]:
                 filename = directory_name + "/lclog_entries_%s.json" % file_count
@@ -309,6 +330,9 @@ def get_LC_log_failures():
         response = requests.get('https://%s/%s' % (idrac_ip, uri), verify=verify_cert, auth=(idrac_username, idrac_password))
     data = response.json()
     lc_logs_list = []
+    if "Members" not in data.keys():
+        logging.warning("-WARNING, 'Members' key not detected in JSON response, script will exit")
+        sys.exit(0)
     for i in data['Members']:
         if "unable" in i["Message"].lower() or "fail" in i["Message"].lower() or "error" in i["Message"].lower() or "fault" in i["Message"].lower():
             lc_logs_list.append(i)
@@ -322,7 +346,10 @@ def get_LC_log_failures():
             else:
                 response = requests.get('https://%s%s' % (idrac_ip, skip_uri), verify=verify_cert, auth=(idrac_username, idrac_password))
             data = response.json()
-            if response.status_code == 500:
+            if "Members" not in data.keys():
+                logging.warning("-WARNING, 'Members' key not detected in JSON response, script will exit")
+                sys.exit(0)
+            elif response.status_code == 500:
                 break
             elif response.status_code != 200:
                 if "query parameter $skip is out of range" in data["error"]["@Message.ExtendedInfo"][0]["Message"]:
@@ -330,8 +357,9 @@ def get_LC_log_failures():
                 else:
                     logging.error("\n- FAIL, GET request failed using skip query parameter, status code %s returned. Detailed error results: \n%s" % (response.status_code,data))    
                     sys.exit(0)
-            elif data["Members"] == []:
-                break
+            elif "Members" in data.keys():
+                if data["Members"] == []:
+                    break
             for i in data['Members']:
                 if "unable" in i["Message"].lower() or "fail" in i["Message"].lower() or "fail" in i["Message"].lower() or "error" in i["Message"].lower():
                     lc_logs_list.append(i)
@@ -362,14 +390,18 @@ def get_message_id():
         response = requests.get('https://%s/%s' % (idrac_ip, uri), verify=verify_cert, auth=(idrac_username, idrac_password))
     data = response.json()
     lc_logs_list = []
-    if response.status_code == 401:
+    if "Members" not in data.keys():
+        logging.warning("-WARNING, 'Members' key not detected in JSON response, script will exit")
+        sys.exit(0)
+    elif response.status_code == 401:
         logging.warning("\n- WARNING, status code %s returned. Incorrect iDRAC username/password or invalid privilege detected." % response.status_code)
         sys.exit(0)
     elif response.status_code != 200:
         logging.warning("\n- WARNING, iDRAC version installed does not support this feature using Redfish API")
         sys.exit(0)
-    if data["Members"] == []:
-        logging.info("\n- WARNING, no iDRAC LC logs detected with message ID %s" % args["get_message_id"])
+    elif data["Members"] == []:
+        logging.info("- WARNING, no iDRAC LC logs detected with message ID %s" % args["get_message_id"])
+        sys.exit(0)
     else:
         lc_logs_list.append(data)
         if args["dump_to_json_file"]:
@@ -388,8 +420,10 @@ def get_message_id():
             else:
                 response = requests.get('https://%s%s' % (idrac_ip, skip_uri), verify=verify_cert, auth=(idrac_username, idrac_password))
             data = response.json()
-            get_real_json_format = json.dumps(response.json())
-            if response.status_code == 500:
+            if "Members" not in data.keys():
+                logging.warning("-WARNING, 'Members' key not detected in JSON response, script will exit")
+                break
+            elif response.status_code == 500:
                 break
             elif response.status_code != 200:
                 if "query parameter $skip is out of range" in data["error"]["@Message.ExtendedInfo"][0]["Message"]:
@@ -397,8 +431,9 @@ def get_message_id():
                 else:
                     logging.error("\n- FAIL, GET request failed using skip query parameter, status code %s returned. Detailed error results: \n%s" % (response.status_code,data))    
                     sys.exit(0)
-            elif data["Members"] == []:
-                break
+            elif "Members" in data.keys():
+                if data["Members"] == []:
+                    break
             lc_logs_list.append(data)
             if args["dump_to_json_file"]:
                 filename = directory_name + "/lclog_entries_%s.json" % file_count
@@ -429,6 +464,9 @@ def get_category_entries():
         response = requests.get('https://%s/%s' % (idrac_ip, uri), verify=verify_cert, auth=(idrac_username, idrac_password))
     data = response.json()
     lc_logs_list = []
+    if "Members" not in data.keys():
+        logging.warning("-WARNING, 'Members' key not detected in JSON response, script will exit")
+        sys.exit(0)
     for i in data['Members']:
         if i["Oem"]["Dell"]["Category"].lower() == args["get_category"].lower():
             lc_logs_list.append(i)
@@ -442,7 +480,10 @@ def get_category_entries():
             else:
                 response = requests.get('https://%s%s' % (idrac_ip, skip_uri), verify=verify_cert, auth=(idrac_username, idrac_password))
             data = response.json()
-            if response.status_code == 500:
+            if "Members" not in data.keys():
+                logging.warning("-WARNING, 'Members' key not detected in JSON response, script will exit")
+                break
+            elif response.status_code == 500:
                 break
             elif response.status_code != 200:
                 if "query parameter $skip is out of range" in data["error"]["@Message.ExtendedInfo"][0]["Message"]:
@@ -450,8 +491,9 @@ def get_category_entries():
                 else:
                     logging.error("\n- FAIL, GET request failed using skip query parameter, status code %s returned. Detailed error results: \n%s" % (response.status_code,data))    
                     sys.exit(0)
-            elif data["Members"] == []:
-                break
+            elif "Members" in data.keys():
+                if data["Members"] == []:
+                    break
             for i in data['Members']:
                 if i["Oem"]["Dell"]["Category"].lower() == args["get_category"].lower():
                     lc_logs_list.append(i)
