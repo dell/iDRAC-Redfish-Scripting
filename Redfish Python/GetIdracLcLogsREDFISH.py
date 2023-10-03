@@ -3,7 +3,7 @@
 # GetIdracLcLogsREDFISH. Python script using Redfish API to get iDRAC LC logs.
 #
 # _author_ = Texas Roemer <Texas_Roemer@Dell.com>
-# _version_ = 11.0
+# _version_ = 12.0
 #
 # Copyright (c) 2017, Dell, Inc.
 #	
@@ -123,7 +123,7 @@ def get_specific_severity_logs():
         logging.warning("\n- WARNING, iDRAC version installed does not support this feature using Redfish API")
         sys.exit(0)
     elif "Members" not in data.keys():
-        logging.warning("-WARNING, 'Members' key not detected in JSON response, script will exit")
+        logging.warning("- WARNING, 'Members' key not detected in JSON response, unable to get LC logs. Manually check iDRAC interfaces to confirm you can view LC logs")
         sys.exit(0)
     elif data["Members"] == []:
         logging.info("\n- WARNING, no \"%s\" severity entries detected in iDRAC LC logs" % args["get_severity"])
@@ -147,7 +147,7 @@ def get_specific_severity_logs():
                 response = requests.get('https://%s%s' % (idrac_ip, skip_uri), verify=verify_cert, auth=(idrac_username, idrac_password))
             data = response.json()
             if "Members" not in data.keys():
-                logging.warning("-WARNING, 'Members' key not detected in JSON response, script will exit")
+                logging.debug("-WARNING, 'Members' key not detected in JSON response, script will exit loop for skip query")
                 break
             if response.status_code == 500:
                 break
@@ -194,7 +194,7 @@ def get_date_range():
         logging.warning("\n- WARNING, iDRAC version installed does not support this feature using Redfish API")
         sys.exit(0)
     elif "Members" not in data.keys():
-        logging.warning("-WARNING, 'Members' key not detected in JSON response, script will exit")
+        logging.warning("- WARNING, 'Members' key not detected in JSON response, unable to get LC logs. Manually check iDRAC interfaces to confirm you can view LC logs")
         sys.exit(0)
     elif data["Members"] == []:
         logging.info("- WARNING, no iDRAC LC logs detected within the date range specified")
@@ -218,7 +218,7 @@ def get_date_range():
                 response = requests.get('https://%s%s' % (idrac_ip, skip_uri), verify=verify_cert, auth=(idrac_username, idrac_password))
             data = response.json()
             if "Members" not in data.keys():
-                logging.warning("-WARNING, 'Members' key not detected in JSON response, script will exit")
+                logging.debug("- WARNING, 'Members' key not detected in JSON response, script will exit skip query loop.")
                 break
             elif response.status_code == 500:
                 break
@@ -260,7 +260,7 @@ def get_LC_logs():
     lc_logs_list = []
     data = response.json()
     if "Members" not in data.keys():
-        logging.warning("-WARNING, 'Members' key not detected in JSON response, script will exit")
+        logging.warning("- WARNING, 'Members' key not detected in JSON response, unable to get LC logs. Manually check iDRAC interfaces to confirm you can view LC logs")
         sys.exit(0)
     elif response.status_code == 401:
         logging.warning("\n- WARNING, status code %s returned. Incorrect iDRAC username/password or invalid privilege detected." % response.status_code)
@@ -290,7 +290,7 @@ def get_LC_logs():
                 response = requests.get('https://%s%s' % (idrac_ip, skip_uri), verify=verify_cert, auth=(idrac_username, idrac_password))
             data = response.json()
             if "Members" not in data.keys():
-                logging.warning("-WARNING, 'Members' key not detected in JSON response, script will exit")
+                logging.debug("- WARNING, 'Members' key not detected in JSON response, script will exit looping skip query")
                 break
             elif response.status_code == 500:
                 break
@@ -331,7 +331,7 @@ def get_LC_log_failures():
     data = response.json()
     lc_logs_list = []
     if "Members" not in data.keys():
-        logging.warning("-WARNING, 'Members' key not detected in JSON response, script will exit")
+        logging.warning("- WARNING, 'Members' key not detected in JSON response, unable to get LC logs. Manually check iDRAC interfaces to confirm you can view LC logs")
         sys.exit(0)
     for i in data['Members']:
         if "unable" in i["Message"].lower() or "fail" in i["Message"].lower() or "error" in i["Message"].lower() or "fault" in i["Message"].lower():
@@ -347,7 +347,7 @@ def get_LC_log_failures():
                 response = requests.get('https://%s%s' % (idrac_ip, skip_uri), verify=verify_cert, auth=(idrac_username, idrac_password))
             data = response.json()
             if "Members" not in data.keys():
-                logging.warning("-WARNING, 'Members' key not detected in JSON response, script will exit")
+                logging.debug("- WARNING, 'Members' key not detected in JSON response, script will exit loop skip query")
                 sys.exit(0)
             elif response.status_code == 500:
                 break
@@ -391,7 +391,7 @@ def get_message_id():
     data = response.json()
     lc_logs_list = []
     if "Members" not in data.keys():
-        logging.warning("-WARNING, 'Members' key not detected in JSON response, script will exit")
+        logging.warning("- WARNING, 'Members' key not detected in JSON response, unable to get LC logs. Manually check iDRAC interfaces to confirm you can view LC logs")
         sys.exit(0)
     elif response.status_code == 401:
         logging.warning("\n- WARNING, status code %s returned. Incorrect iDRAC username/password or invalid privilege detected." % response.status_code)
@@ -421,7 +421,7 @@ def get_message_id():
                 response = requests.get('https://%s%s' % (idrac_ip, skip_uri), verify=verify_cert, auth=(idrac_username, idrac_password))
             data = response.json()
             if "Members" not in data.keys():
-                logging.warning("-WARNING, 'Members' key not detected in JSON response, script will exit")
+                logging.debug("- WARNING, 'Members' key not detected in JSON response, script will exit loop skip query")
                 break
             elif response.status_code == 500:
                 break
@@ -465,7 +465,7 @@ def get_category_entries():
     data = response.json()
     lc_logs_list = []
     if "Members" not in data.keys():
-        logging.warning("-WARNING, 'Members' key not detected in JSON response, script will exit")
+        logging.warning("- WARNING, 'Members' key not detected in JSON response, unable to get LC logs. Manually check iDRAC interfaces to confirm you can view LC logs")
         sys.exit(0)
     for i in data['Members']:
         if i["Oem"]["Dell"]["Category"].lower() == args["get_category"].lower():
@@ -481,7 +481,7 @@ def get_category_entries():
                 response = requests.get('https://%s%s' % (idrac_ip, skip_uri), verify=verify_cert, auth=(idrac_username, idrac_password))
             data = response.json()
             if "Members" not in data.keys():
-                logging.warning("-WARNING, 'Members' key not detected in JSON response, script will exit")
+                logging.warning("- WARNING, 'Members' key not detected in JSON response, script will exit loop skip query")
                 break
             elif response.status_code == 500:
                 break
