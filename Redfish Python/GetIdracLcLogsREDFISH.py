@@ -41,8 +41,8 @@ parser.add_argument('--ssl', help='SSL cert verification for all Redfish calls, 
 parser.add_argument('--script-examples', help='Get executing script examples', action="store_true", dest="script_examples", required=False)
 parser.add_argument('--get-all', help='Get all iDRAC LC logs', action="store_true", dest="get_all", required=False)
 parser.add_argument('--get-severity', help='Get only specific severity entries from LC logs. Supported values: informational, warning or critical', dest="get_severity", required=False)
-parser.add_argument('--get-category', help='Get only specific category entries from LC logs. Supported values: audit, configuration, updates, systemhealth or storage', dest="get_category", required=False)
-parser.add_argument('--get-date-range', help='Get only specific entries within a given date range from LC logs. You must also use arguments --start-date and --end-date to create the filter date range', dest="get_date_range", action="store_true", required=False)
+parser.add_argument('--get-category', help='Get only specific category entries from LC logs. Supported values: audit, configuration, updates, systemhealth or storage. NOTE: This argument only supported on iDRAC9 or newer', dest="get_category", required=False)
+parser.add_argument('--get-date-range', help='Get only specific entries within a given date range from LC logs. You must also use arguments --start-date and --end-date to create the filter date range. NOTE: This argument only supported on iDRAC9 or newer', dest="get_date_range", action="store_true", required=False)
 parser.add_argument('--start-date', help='Pass in the start date for the date range of LC log entries. Value must be in this format: YYYY-MM-DDTHH:MM:SS-offset (example: 2023-03-14T10:10:10-05:00). Note: If needed run --get-all argument to dump all LC logs, look at Created property to get your date time format.', dest="start_date", required=False)
 parser.add_argument('--end-date', help='Pass in the end date for the date range of LC log entries. Value must be in this format: YYYY-MM-DDTHH:MM:SS-offset (example: 2023-03-15T14:55:10-05:00)', dest="end_date", required=False)
 parser.add_argument('--get-fail', help='Get only failed entries from LC logs (searches for keywords unable, error, fault or fail',  action="store_true", dest="get_fail", required=False)
@@ -177,6 +177,9 @@ def get_specific_severity_logs():
         logging.info("\n- INFO, JSON dump log files copied to directory %s" % directory_name)
 
 def get_date_range():
+    if iDRAC_version == "old":
+        logging.info("\n- WARNING, iDRAC 7/8 version does not support this argument")
+        sys.exit(0)
     if args["dump_to_json_file"]:
         try:
             shutil.rmtree("%s_LC_log_JSON_files" % idrac_ip)
