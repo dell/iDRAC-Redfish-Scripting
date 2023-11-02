@@ -465,6 +465,9 @@ def get_message_id():
         logging.info("\n- INFO, JSON dump log files copied to directory %s" % directory_name)    
 
 def get_category_entries():
+    if iDRAC_version == "old":
+        logging.info("\n- WARNING, iDRAC 7/8 version does not support this argument")
+        sys.exit(0)
     if args["get_category"].lower() not in ["audit", "configuration", "updates", "systemhealth", "storage"]:
         logging.info("\n- WARNING, invalid value entered for argument --get-category, see help text for supported values")
         sys.exit(0)
