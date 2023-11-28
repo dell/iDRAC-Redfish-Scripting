@@ -3,7 +3,7 @@
 # ExportImportSSLCertificateREDFISH.py   Python script using Redfish API with OEM extension to either export or import SSL certificate.
 #
 # _author_ = Texas Roemer <Texas_Roemer@Dell.com>
-# _version_ = 11.0
+# _version_ = 12.0
 #
 # Copyright (c) 2019, Dell, Inc.
 #
@@ -47,6 +47,7 @@ parser.add_argument('--filename', help='Pass in the file name which contains the
 parser.add_argument('--passphrase', help='Pass in passphrase string if the cert you are importing is passpharse protected.', required=False)
 parser.add_argument('--reboot-idrac', help='Pass in this argument to reboot the iDRAC now to apply the new cert imported. Note: Starting in iDRAC 6.00.02 version, iDRAC reboot is no longer required after the new cert is imported.', dest="reboot_idrac", action="store_true", required=False)
 parser.add_argument('--csv-file', help='Pass in name of CSV file to configure multiple iDRACs instead of using argument -ip for one iDRAC. For the CSV file creation column A header will be "iDRAC IP" and column B header will be "Cert Name" for the cert you want to import for that iDRAC. If only exporting you only need to fill in column A for iDRAC IPs. Note: arguments -u and -p are still required for iDRAC username and password which this user must be the same on all iDRACs.', required=False)
+parser.add_argument('--upload', help='Upload SSL key, --filename is also required to pass in the key file name', action="store_true", required=False)
 
 args = vars(parser.parse_args())
 logging.basicConfig(format='%(message)s', stream=sys.stdout, level=logging.INFO)
@@ -68,8 +69,9 @@ def script_examples():
     \n- ExportImportSSLCertificateREDFISH.py -ip 192.168.0.120 -u root -p calvin --import --cert-type CustomCertificate --filename signed_cert_R740.pem --passphrase Test1234#, this example using iDRAC 6.00.02 will import custom signed p12 cert with a passphrase.
     \n- ExportImportSSLCertificateREDFISH.py -ip 192.168.0.120 -u root -p calvin --import --cert-type CSC --filename signed_cert_R740.pem --reboot-idrac, this example using iDRAC 5.10 will import signed p12 file and reboot the iDRAC.
     \n- ExportImportSSLCertificateREDFISH.py -ip 192.168.0.120 --export --cert-type Server -ssl true -x 52396c8ac35e15f7b2de4b18673b111f, this example shows validating ssl cert for all Redfish calls to export server cert using X-auth token session.
-    \n- ExportImportSSLCertificateREDFISH.py -u root -p calvin --export --cert-type Server --csv-file iDRAC_ips.csv, this example will export current Server certificate for multiple iDRAC IPs using csv file.
-    \n- ExportImportSSLCertificateREDFISH.py -u root -p calvin --import --cert-type CustomCertificate --csv-file iDRAC_IPs.csv, this example will import custom certificates for multiple iDRAC IPs using csv file.""")
+    \n- ExportImportSSLCertificateREDFISH.py -ip 192.168.0.120 -u root -p calvin --export --cert-type Server --csv-file iDRAC_ips.csv, this example will export current Server certificate for multiple iDRAC IPs using csv file.
+    \n- ExportImportSSLCertificateREDFISH.py -ip 192.168.0.120 -u root -p calvin --import --cert-type CustomCertificate --csv-file iDRAC_IPs.csv, this example will import custom certificates for multiple iDRAC IPs using csv file.
+    \n- ExportImportSSLCertificateREDFISH.py -ip 192.168.0.120 -u root -p calvin --upload --filename key.pem, this example shows uploading SSL key file""")
     sys.exit(0)
 
 def check_supported_idrac_version():
@@ -165,6 +167,31 @@ def export_SSL_cert():
     with open("%s_ssl_certificate.txt" % idrac_ip,"w") as x:
         x.writelines(data['CertificateFile'])
     logging.info("\n- SSL certificate information also copied to \"%s\%s_ssl_certificate.txt\" file" % (os.getcwd(), idrac_ip))
+
+def upload_SSL_key():
+    url = 'https://%s/redfish/v1/Managers/iDRAC.Embedded.1/Oem/Dell/DelliDRACCardService/Actions/DelliDRACCardService.UploadSSLKey' % (idrac_ip)
+    method = "UploadSSLKey"
+    if "p12" in args["filename"]:
+        with open(args["filename"], 'rb') as cert:
+            cert_content = cert.read()
+            read_file = base64.encodebytes(cert_content).decode('ascii')
+    else:
+        with open(args["filename"],"r") as x:
+            read_file = x.read()
+    payload = {"SSLKeyString":read_file}
+    if args["x"]:
+        headers = {'content-type': 'application/json', 'X-Auth-Token': args["x"]}
+        response = requests.post(url, data=json.dumps(payload), headers=headers, verify=verify_cert)
+    else:
+        headers = {'content-type': 'application/json'}
+        response = requests.post(url, data=json.dumps(payload), headers=headers, verify=verify_cert, auth=(idrac_username, idrac_password))
+    data = response.json()
+    if response.status_code == 200:
+        logging.info("\n- PASS: POST command passed for %s method, status code 200 returned" % method)
+    else:
+        logging.error("\n- FAIL, POST command failed to upload SSL key, status code %s returned\n" % response.status_code)
+        print(data)
+        sys.exit(0)
     
 def import_SSL_cert():
     url = 'https://%s/redfish/v1/Dell/Managers/iDRAC.Embedded.1/DelliDRACCardService/Actions/DelliDRACCardService.ImportSSLCertificate' % (idrac_ip)
@@ -291,5 +318,7 @@ if __name__ == "__main__":
             export_SSL_cert()
         elif args["import"] and args["cert_type"] and args["filename"]:
             import_SSL_cert()
+        elif args["upload"] and args["filename"]:
+            upload_SSL_key()
         else:
             logging.error("\n- FAIL, invalid argument values or not all required parameters passed in. See help text or argument --script-examples for more details.")
