@@ -166,7 +166,7 @@ def network_registry():
     except:
         logging.info("- INFO, unable to locate file %s, skipping step to delete file" % "nic_attribute_registry.txt")
     open_file = open("nic_attribute_registry.txt","w")
-    if idrac_fw_version >= "6000000":
+    if idrac_fw_version >= "5100000":
         if args["x"]:
             response = requests.get('https://%s/redfish/v1/Registries' % idrac_ip, verify=verify_cert, headers={'X-Auth-Token': args["x"]})   
         else:
