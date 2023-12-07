@@ -103,10 +103,10 @@ def replace_CSR():
         headers = {'content-type': 'application/json'}
         response = requests.post(url, data=json.dumps(payload), headers=headers, verify=verify_cert,auth=(idrac_username,idrac_password))
     data = response.json()
-    if response.status_code == 202:
-        logging.info("\n- PASS, replace CSR cert passed. iDRAC reset is needed for new cert to be applied")
+    if response.status_code == 200 or response.status_code == 202:
+        logging.info("\n- PASS, replace certificate passed, reboot iDRAC needed if version older than 5.10.")
     else:
-        logging.error("- FAIL, replace CSR failed, status code %s returned, detailed error results: \n%s" % (response.status_code, data))
+        logging.error("- FAIL, replace certificate failed, status code %s returned, detailed error results: \n%s" % (response.status_code, data))
         sys.exit(0)
 
 def reset_idrac():
