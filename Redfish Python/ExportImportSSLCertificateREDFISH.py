@@ -3,7 +3,7 @@
 # ExportImportSSLCertificateREDFISH.py   Python script using Redfish API with OEM extension to either export or import SSL certificate.
 #
 # _author_ = Texas Roemer <Texas_Roemer@Dell.com>
-# _version_ = 12.0
+# _version_ = 13.0
 #
 # Copyright (c) 2019, Dell, Inc.
 #
@@ -48,6 +48,8 @@ parser.add_argument('--passphrase', help='Pass in passphrase string if the cert 
 parser.add_argument('--reboot-idrac', help='Pass in this argument to reboot the iDRAC now to apply the new cert imported. Note: Starting in iDRAC 6.00.02 version, iDRAC reboot is no longer required after the new cert is imported.', dest="reboot_idrac", action="store_true", required=False)
 parser.add_argument('--csv-file', help='Pass in name of CSV file to configure multiple iDRACs instead of using argument -ip for one iDRAC. For the CSV file creation column A header will be "iDRAC IP" and column B header will be "Cert Name" for the cert you want to import for that iDRAC. If only exporting you only need to fill in column A for iDRAC IPs. Note: arguments -u and -p are still required for iDRAC username and password which this user must be the same on all iDRACs.', required=False)
 parser.add_argument('--upload', help='Upload SSL key, --filename is also required to pass in the key file name', action="store_true", required=False)
+parser.add_argument('--delete', help='Delete SSL cert pass in value CustomCertificate, CSC or ClientTrustCertificate. iDRAC does not support delete server or CA certs', required=False)
+parser.add_argument('--restore-factory-defaults', help='Restore the webserver certificate to factory defaults', action="store_true", dest="restore_factory_defaults", required=False)
 
 args = vars(parser.parse_args())
 logging.basicConfig(format='%(message)s', stream=sys.stdout, level=logging.INFO)
@@ -71,7 +73,9 @@ def script_examples():
     \n- ExportImportSSLCertificateREDFISH.py -ip 192.168.0.120 --export --cert-type Server -ssl true -x 52396c8ac35e15f7b2de4b18673b111f, this example shows validating ssl cert for all Redfish calls to export server cert using X-auth token session.
     \n- ExportImportSSLCertificateREDFISH.py -ip 192.168.0.120 -u root -p calvin --export --cert-type Server --csv-file iDRAC_ips.csv, this example will export current Server certificate for multiple iDRAC IPs using csv file.
     \n- ExportImportSSLCertificateREDFISH.py -ip 192.168.0.120 -u root -p calvin --import --cert-type CustomCertificate --csv-file iDRAC_IPs.csv, this example will import custom certificates for multiple iDRAC IPs using csv file.
-    \n- ExportImportSSLCertificateREDFISH.py -ip 192.168.0.120 -u root -p calvin --upload --filename key.pem, this example shows uploading SSL key file""")
+    \n- ExportImportSSLCertificateREDFISH.py -ip 192.168.0.120 -u root -p calvin --upload --filename key.pem, this example shows uploading SSL key file
+    \n- ExportImportSSLCertificateREDFISH.py -ip 192.168.0.120 -u root -p calvin --delete CustomCertificate, this example shows deleting custom SSL cert
+    \n- ExportImportSSLCertificateREDFISH.py -ip 192.168.0.120 -u root -p calvin --upload --restore-factory-defaults, this example shows restore webserver cert to factory default""")
     sys.exit(0)
 
 def check_supported_idrac_version():
@@ -167,6 +171,44 @@ def export_SSL_cert():
     with open("%s_ssl_certificate.txt" % idrac_ip,"w") as x:
         x.writelines(data['CertificateFile'])
     logging.info("\n- SSL certificate information also copied to \"%s\%s_ssl_certificate.txt\" file" % (os.getcwd(), idrac_ip))
+
+def delete_SSL_cert():
+    url = 'https://%s/redfish/v1/Managers/iDRAC.Embedded.1/Oem/Dell/DelliDRACCardService/Actions/DelliDRACCardService.DeleteSSLCertificate' % (idrac_ip)
+    method = "DeleteSSLCertificate"
+    payload={"CertificateType":args["delete"]}
+    if args["x"]:
+        headers = {'content-type': 'application/json', 'X-Auth-Token': args["x"]}
+        response = requests.post(url, data=json.dumps(payload), headers=headers, verify=verify_cert)
+    else:
+        headers = {'content-type': 'application/json'}
+        response = requests.post(url, data=json.dumps(payload), headers=headers, verify=verify_cert, auth=(idrac_username, idrac_password))
+    data = response.json()
+    if response.status_code == 200:
+        logging.info("\n- PASS: POST command passed for %s method, status code 202 returned\n" % method)
+    else:
+        logging.error("\n- FAIL, POST command failed for %s method, status code %s returned" % (method, response.status_code))
+        data = response.json()
+        logging.error("\n- POST command failure results:\n %s" % data)
+        sys.exit(0)
+
+def restore_factory_defaults():
+    url = 'https://%s/redfish/v1/Managers/iDRAC.Embedded.1/Oem/Dell/DelliDRACCardService/Actions/DelliDRACCardService.SSLResetCfg' % (idrac_ip)
+    method = "SSLResetCfg"
+    payload={}
+    if args["x"]:
+        headers = {'content-type': 'application/json', 'X-Auth-Token': args["x"]}
+        response = requests.post(url, data=json.dumps(payload), headers=headers, verify=verify_cert)
+    else:
+        headers = {'content-type': 'application/json'}
+        response = requests.post(url, data=json.dumps(payload), headers=headers, verify=verify_cert, auth=(idrac_username, idrac_password))
+    data = response.json()
+    if response.status_code == 200:
+        logging.info("\n- PASS: POST command passed for %s method, status code 202 returned\n" % method)
+    else:
+        logging.error("\n- FAIL, POST command failed for %s method, status code %s returned" % (method, response.status_code))
+        data = response.json()
+        logging.error("\n- POST command failure results:\n %s" % data)
+        sys.exit(0)
 
 def upload_SSL_key():
     url = 'https://%s/redfish/v1/Managers/iDRAC.Embedded.1/Oem/Dell/DelliDRACCardService/Actions/DelliDRACCardService.UploadSSLKey' % (idrac_ip)
@@ -320,5 +362,9 @@ if __name__ == "__main__":
             import_SSL_cert()
         elif args["upload"] and args["filename"]:
             upload_SSL_key()
+        elif args["delete"]:
+            delete_SSL_cert()
+        elif args["restore_factory_defaults"]:
+            restore_factory_defaults()
         else:
             logging.error("\n- FAIL, invalid argument values or not all required parameters passed in. See help text or argument --script-examples for more details.")
