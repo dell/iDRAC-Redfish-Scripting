@@ -1,6 +1,6 @@
 <#
 _author_ = Texas Roemer <Texas_Roemer@Dell.com>
-_version_ = 5.0
+_version_ = 6.0
 
 Copyright (c) 2021, Dell, Inc.
 
@@ -26,24 +26,33 @@ http://www.gnu.org/licenses/old-licenses/gpl-2.0.txt
    - x_auth_token: Pass in iDRAC X-Auth token session to execute cmdlet instead of username / password (recommended)
    - export_ssl_cert: Export SSL, pass in the type of cert you want to export. To get supported values, execute argument -get_supported_ssl_cert_types. NOTE: This value is case sensitive, make sure to pass in exact string syntax. 
    - import_ssl_cert: Import SSL, pass in the type of cert you want to import. To get supported values, execute argument -get_supported_ssl_cert_types. NOTE: This value is case sensitive, make sure to pass in exact string syntax. NOTE: If using iDRAC 6.00.00 or newer, once you import the cert, you're no longer required to reboot the iDRAC to apply it. 
-   - get_supported_ssl_cert_types: Pass in "y" to get supported ssl cert types which will be used for either export or import operations. 
+   - get_supported_ssl_cert_types: Get supported ssl cert types which will be used for either export or import operations. 
    - cert_filename: Pass in SSL cert filename. For export, you'll be passing in an unique filename which the SSL cert contents will get copied to. For import, passed in the signed SSL cert filename. 
+   - passphrase: Pass in passphrase string if the cert you are importing is passpharse protected.
+   - delete_ssl_cert: Delete SSL cert pass in value CustomCertificate, CSC or ClientTrustCertificate. iDRAC does not support delete server or CA certs. 
+   - restore_factory_defaults: Restore the webserver certificate to factory defaults
 
 .EXAMPLE
-   Invoke-ExportImportSslCertificateREDFISH -idrac_ip 192.168.0.120 -idrac_username root -idrac_password calvin -get_supported_ssl_cert_types y
+   Invoke-ExportImportSslCertificateREDFISH -idrac_ip 192.168.0.120 -idrac_username root -idrac_password calvin -get_supported_ssl_cert_types 
    This example will get supported SSL certs for export or import operations. 
 .EXAMPLE
-   Invoke-ExportImportSslCertificateREDFISH -idrac_ip 192.168.0.120 -get_supported_ssl_cert_types y
+   Invoke-ExportImportSslCertificateREDFISH -idrac_ip 192.168.0.120 -get_supported_ssl_cert_types 
    # This example will first prompt for iDRAC username/password using Get-Credential, then get supported SSL certs for export or import operations. 
 .EXAMPLE
-   Invoke-ExportImportSslCertificateREDFISH -idrac_ip 192.168.0.120 -get_supported_ssl_cert_types y -x_auth_token 7bd9bb9a8727ec366a9cef5bc83b2708
+   Invoke-ExportImportSslCertificateREDFISH -idrac_ip 192.168.0.120 -get_supported_ssl_cert_types  -x_auth_token 7bd9bb9a8727ec366a9cef5bc83b2708
    # This example will get supported SSL certs for export or import operations using iDRAC X-auth token session. 
 .EXAMPLE
    Invoke-SupportAssistCollectionLocalREDFISH>Invoke-ExportImportSslCertificateREDFISH -idrac_ip 192.168.0.120 -idrac_username root -idrac_password calvin -export_ssl_cert Server -cert_filename C:\Python39\R640_server_cert.ca
    This example will export iDRAC web server certificate and copy contents to the filename you specified. 
 .EXAMPLE
-   Invoke-SupportAssistCollectionLocalREDFISH>Invoke-ExportImportSslCertificateREDFISH -idrac_ip 192.168.0.120 -idrac_username root -idrac_password calvin -import_ssl_cert Server -cert_filename C:\Python39\R640_server_cert.ca
-   This example will import signed iDRAC web server certificate.
+   Invoke-SupportAssistCollectionLocalREDFISH>Invoke-ExportImportSslCertificateREDFISH -idrac_ip 192.168.0.120 -idrac_username root -idrac_password calvin -import_ssl_cert CustomCertificate -cert_filename C:\Python39\R640_server_cert.pem -passphrase Test1234#
+   This example will import custom certificate with passphrase.
+.EXAMPLE
+   Invoke-SupportAssistCollectionLocalREDFISH>Invoke-ExportImportSslCertificateREDFISH -idrac_ip 192.168.0.120 -idrac_username root -idrac_password calvin -delete_ssl_cert CSC
+   This example will delete CSC cert.
+.EXAMPLE
+   Invoke-SupportAssistCollectionLocalREDFISH>Invoke-ExportImportSslCertificateREDFISH -idrac_ip 192.168.0.120 -idrac_username root -idrac_password calvin -restore_factory_defaults
+   This example will restore webserver certs to factory defaults. 
 #>
 
 function Invoke-ExportImportSslCertificateREDFISH {
@@ -64,9 +73,16 @@ param(
     [Parameter(Mandatory=$False)]
     [string]$import_ssl_cert,
     [Parameter(Mandatory=$False)]
-    [string]$get_supported_ssl_cert_types,
+    [switch]$get_supported_ssl_cert_types,
     [Parameter(Mandatory=$False)]
-    [string]$cert_filename
+    [string]$cert_filename,
+    [Parameter(Mandatory=$False)]
+    [string]$passphrase,
+    [ValidateSet("CustomCertificate", "CSC", "ClientTrustCertificate")]
+    [Parameter(Mandatory=$False)]
+    [string]$delete_ssl_cert,
+    [Parameter(Mandatory=$False)]
+    [switch]$restore_factory_defaults
     )
 
 
@@ -148,6 +164,16 @@ $action_name = "Export"
 if ($import_ssl_cert)
 {
 $uri = "https://$idrac_ip/redfish/v1/Dell/Managers/iDRAC.Embedded.1/DelliDRACCardService/Actions/DelliDRACCardService.ImportSSLCertificate"
+
+$file_extension = $cert_filename.Split(".")[-1]
+if ($file_extension.Contains("12"))
+{
+& certutil.exe -encode .\$cert_filename dummy_file.p12 | Out-Null
+$get_file_content = Get-Content dummy_file.p12 -ErrorAction Stop | Out-String
+Remove-Item dummy_file.p12
+}
+else 
+{
 try
 {
 $get_file_content = Get-Content $cert_filename -ErrorAction Stop | Out-String
@@ -157,7 +183,14 @@ catch
 Write-Host "`n- FAIL, unable to locate cert filename '$cert_filename' for import operation"
 return
 }
-$JsonBody = @{"CertificateType"= $import_ssl_cert; "SSLCertificateFile" = $get_file_content} | ConvertTo-Json -Compress
+}
+
+$JsonBody = @{"CertificateType"= $import_ssl_cert; "SSLCertificateFile" = $get_file_content}
+if ($passphrase)
+{
+$JsonBody["Passphrase"] = $passphrase
+}
+$JsonBody = $JsonBody | ConvertTo-Json -Compress
 $action_name = "Import"
 [string]::Format("`n- INFO, performing {0} SSL cert operation for SSL cert type {1}", $action_name, $import_ssl_cert)
 }
@@ -241,6 +274,142 @@ Write-Host "`n- INFO, SSL cert contents copied to ""$cert_filename"""
 Write-Host
 }
 
+
+}
+
+# Function to delete SSL cert
+
+function delete_ssl_cert
+{
+$uri = "https://$idrac_ip/redfish/v1/Managers/iDRAC.Embedded.1/Oem/Dell/DelliDRACCardService/Actions/DelliDRACCardService.DeleteSSLCertificate"
+$JsonBody = @{"CertificateType"= $delete_ssl_cert} | ConvertTo-Json -Compress
+$action_name = "Delete"
+[string]::Format("`n- INFO, performing {0} SSL cert operation for SSL cert type {1}", $action_name, $delete_ssl_cert)
+
+
+if ($x_auth_token)
+{
+try
+    {
+    if ($global:get_powershell_version -gt 5)
+    {
+    
+    $post_result = Invoke-WebRequest -UseBasicParsing -SkipHeaderValidation -SkipCertificateCheck -Uri $uri -Method Post -Body $JsonBody -ContentType 'application/json' -Headers @{"Accept" = "application/json"; "X-Auth-Token" = $x_auth_token} -ErrorVariable RespErr
+    }
+    else
+    {
+    Ignore-SSLCertificates
+    $post_result = Invoke-WebRequest -UseBasicParsing -Uri $uri -Method Post -Body $JsonBody -ContentType 'application/json' -Headers @{"Accept" = "application/json"; "X-Auth-Token" = $x_auth_token} -ErrorVariable RespErr
+    }
+    }
+    catch
+    {
+    Write-Host
+    $RespErr
+    return
+    } 
+}
+
+
+else
+{
+try
+    {
+    if ($global:get_powershell_version -gt 5)
+    {
+    
+    $post_result = Invoke-WebRequest -UseBasicParsing -SkipHeaderValidation -SkipCertificateCheck -Uri $uri -Credential $credential -Method Post -Body $JsonBody -ContentType 'application/json' -Headers @{"Accept"="application/json"} -ErrorVariable RespErr
+    }
+    else
+    {
+    Ignore-SSLCertificates
+    $post_result = Invoke-WebRequest -UseBasicParsing -Uri $uri -Credential $credential -Method Post -Body $JsonBody -ContentType 'application/json' -Headers @{"Accept"="application/json"} -ErrorVariable RespErr
+    }
+    }
+    catch
+    {
+    Write-Host
+    $RespErr
+    return
+    } 
+}
+
+if ($post_result.StatusCode -eq 200 -or $post_result.StatusCode -eq 202)
+{
+[String]::Format("- PASS, {0} SSL cert operation passed", $action_name)
+}
+else
+{
+[String]::Format("- FAIL, POST command failed for {2} SSL cert, statuscode {0} returned. Detail error message: {1}",$post_result.StatusCode, $post_result, $action_name)
+break
+}
+
+}
+
+function restore_factory_defaults
+{
+$uri = "https://$idrac_ip/redfish/v1/Managers/iDRAC.Embedded.1/Oem/Dell/DelliDRACCardService/Actions/DelliDRACCardService.SSLResetCfg"
+$JsonBody = @{} | ConvertTo-Json -Compress
+Write-Host "`n- INFO, restoring webserver certificate to factory defaults"
+$action_name = "SSLResetCfg"
+
+
+if ($x_auth_token)
+{
+try
+    {
+    if ($global:get_powershell_version -gt 5)
+    {
+    
+    $post_result = Invoke-WebRequest -UseBasicParsing -SkipHeaderValidation -SkipCertificateCheck -Uri $uri -Method Post -Body $JsonBody -ContentType 'application/json' -Headers @{"Accept" = "application/json"; "X-Auth-Token" = $x_auth_token} -ErrorVariable RespErr
+    }
+    else
+    {
+    Ignore-SSLCertificates
+    $post_result = Invoke-WebRequest -UseBasicParsing -Uri $uri -Method Post -Body $JsonBody -ContentType 'application/json' -Headers @{"Accept" = "application/json"; "X-Auth-Token" = $x_auth_token} -ErrorVariable RespErr
+    }
+    }
+    catch
+    {
+    Write-Host
+    $RespErr
+    return
+    } 
+}
+
+
+else
+{
+try
+    {
+    if ($global:get_powershell_version -gt 5)
+    {
+    
+    $post_result = Invoke-WebRequest -UseBasicParsing -SkipHeaderValidation -SkipCertificateCheck -Uri $uri -Credential $credential -Method Post -Body $JsonBody -ContentType 'application/json' -Headers @{"Accept"="application/json"} -ErrorVariable RespErr
+    }
+    else
+    {
+    Ignore-SSLCertificates
+    $post_result = Invoke-WebRequest -UseBasicParsing -Uri $uri -Credential $credential -Method Post -Body $JsonBody -ContentType 'application/json' -Headers @{"Accept"="application/json"} -ErrorVariable RespErr
+    }
+    }
+    catch
+    {
+    Write-Host
+    $RespErr
+    return
+    } 
+}
+
+if ($post_result.StatusCode -eq 200 -or $post_result.StatusCode -eq 202)
+{
+[String]::Format("- PASS, {0} operation passed, webservices are restarting which may end the current web session(s)", $action_name)
+}
+else
+{
+[String]::Format("- FAIL, POST command failed for {2} action, statuscode {0} returned. Detail error message: {1}",$post_result.StatusCode, $post_result, $action_name)
+break
+}
 
 }
 
@@ -385,6 +554,16 @@ get_supported_ssl_cert_types
 elseif ($export_ssl_cert -or $import_ssl_cert -and $cert_filename)
 {
 export_import_ssl_cert
+}
+
+elseif ($delete_ssl_cert)
+{
+delete_ssl_cert
+}
+
+elseif ($restore_factory_defaults)
+{
+restore_factory_defaults
 }
 
 else
