@@ -53,7 +53,7 @@ def script_examples():
     \n- CreateDeleteIdracUsersREDFISH.py -ip 192.168.0.120 -u root --user-id 3 --new-user tester --privilege-role 1 --enable y, this example will first prompt to enter password for user root. Then prompt to enter new password for user ID 3 and create this user.
     \n- CreateDeleteIdracUsersREDFISH.py -ip 192.168.0.120 -u root -p calvin --user-id 3 --new-user user3 --new-pwd test123 --privilege-role 2 --enable y, this example will create iDRAC user for id 3, enable and set privileges to operator.
     \n- CreateDeleteIdracUsersREDFISH.py -ip 192.168.0.120 -u root -p calvin --delete 3, this example will delete iDRAC user id 3.
-    \n- CreateDeleteIdracUsersREDFISH.py -ip 100.65.84.70 -x c09c44e17e09372536428a6369bfa1b2 --delete 7, this example shows deleting user id 7 account using X-auth token session.""")
+    \n- CreateDeleteIdracUsersREDFISH.py -ip 192.168.0.120 -x c09c44e17e09372536428a6369bfa1b2 --delete 7, this example shows deleting user id 7 account using X-auth token session.""")
     sys.exit(0)
 
 def check_supported_idrac_version():
