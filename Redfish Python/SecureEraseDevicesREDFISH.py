@@ -3,7 +3,7 @@
 # SecureEraseDevicesREDFISH. Python script using Redfish API to either get storage controllers/supported secure erase devices and erase supported devices.
 #
 # _author_ = Texas Roemer <Texas_Roemer@Dell.com>
-# _version_ = 14.0
+# _version_ = 15.0
 #
 # Copyright (c) 2024, Dell, Inc.
 #
@@ -38,8 +38,8 @@ parser.add_argument('-x', help='Pass in X-Auth session token for executing Redfi
 parser.add_argument('--ssl', help='SSL cert verification for all Redfish calls, pass in value \"true\" or \"false\". By default, this argument is not required and script ignores validating SSL cert for all Redfish calls.', required=False)
 parser.add_argument('--script-examples', help='Get executing script examples', action="store_true", dest="script_examples", required=False) 
 parser.add_argument('--get-controllers', help='Get server storage controllers.', action="store_true", dest="get_controllers", required=False)
-parser.add_argument('--get-disks', help='Get controller SED/ISE drives or PCIe SSD devices only, pass in controller FQDD, Examples: "\RAID.Integrated.1-1\", \"PCIeExtender.Slot.7\"', dest="get_disks", required=False)
-parser.add_argument('--check-disk', help='Check if a device supports secure erase on iDRAC 9 (ie. it is a SED or ISE drive). Pass in device FQDD. This flag is only supported for iDRAC 9.  On iDRAC 7/8, only PCIeSSD devices are supported for SecureErase. Examples: "Disk.Bay.1:Enclosure.Internal.0-1:RAID.Integrated.1-1".', dest="check_disk", required=False)
+parser.add_argument('--get-disks', help='Get supported drives behind storage controller which are instant scramble erase(ISE) capable, pass in controller FQDD, Examples: "\RAID.Integrated.1-1\", \"PCIeExtender.Slot.7\"', dest="get_disks", required=False)
+parser.add_argument('--check-disk', help='Check if SAS/SATA/NVMe drive supports secure erase pass in drive FQDD. This flag is only supported for iDRAC 9. Example: "Disk.Bay.1:Enclosure.Internal.0-1:RAID.Integrated.1-1".', dest="check_disk", required=False)
 parser.add_argument('--secure-erase', help='Pass in device FQDD for secure erase operation. Supported devices are ISE, SED drives or PCIe SSD devices(drives and cards). NOTE: If using iDRAC 7/8, only PCIeSSD devices are supported for SecureErase', dest="secure_erase", required=False)
 args = vars(parser.parse_args())
 logging.basicConfig(format='%(message)s', stream=sys.stdout, level=logging.INFO)
@@ -82,7 +82,6 @@ def get_storage_controllers():
         print(i['@odata.id'].split("/")[-1])
         
 def check_secure_erase_device_iDRAC9(device):
-    response = requests.get('https://%s/redfish/v1/Systems/System.Embedded.1/Storage/Drives/%s' % (idrac_ip, device),verify=False,auth=(idrac_username, idrac_password))
     if args["x"]:
         response = requests.get('https://%s/redfish/v1/Systems/System.Embedded.1/Storage/Drives/%s' % (idrac_ip, device),verify=verify_cert, headers={'X-Auth-Token': args["x"]})   
     else:
@@ -96,18 +95,16 @@ def check_secure_erase_device_iDRAC9(device):
         logging.error("\n- ERROR, Could not fetch OEM data for device %s" % device)
         logging.error("Received device object: {0}".format(data))
         sys.exit(1)
-    data = data["Oem"]["Dell"]
-    if "DellPhysicalDisk" in data:
-        data = data["DellPhysicalDisk"]
-    elif "DellPCIeSSD" in data:
-        data = data["DellPCIeSSD"]
+    if "pcie" in data["Name"].lower():
+        if data["Oem"]["Dell"]["DellPCIeSSD"]["CryptographicEraseCapable"].lower() == "capable":
+            logging.info("\n- INFO, \"%s\" supports instant scramble erase" % device)
     else:
-        return False
-
-    if "SystemEraseCapability" in data and data["SystemEraseCapability"] == "CryptographicErasePD":
-        return True
-    return False
-
+        if data["Oem"]["Dell"]["DellPhysicalDisk"]["CryptographicEraseCapable"].lower() == "capable" and data["Oem"]["Dell"]["DellPhysicalDisk"]["RaidStatus"].lower() == "ready":
+            logging.info("\n- INFO, \"%s\" supports instant scramble erase(ISE) and is in ready state" % device)
+        elif data["Oem"]["Dell"]["DellPhysicalDisk"]["CryptographicEraseCapable"].lower() == "capable" and data["Oem"]["Dell"]["DellPhysicalDisk"]["RaidStatus"].lower() == "online":
+            logging.info("\n- INFO, \"%s\" supports instant scramble erase(ISE) but is part of a RAID volume, delete the RAID volume first then rerun SecureErase operation" % device)
+        elif data["Oem"]["Dell"]["DellPhysicalDisk"]["CryptographicEraseCapable"].lower() == "incapable" or data["Oem"]["Dell"]["DellPhysicalDisk"]["CryptographicEraseCapable"].lower() != "capable":
+            logging.error("\n- WARNING, \"%s\" does not support instant scramble erase(ISE)" % device)
 
 def get_secure_erase_devices_iDRAC9():
     if args["x"]:
@@ -119,23 +116,32 @@ def get_secure_erase_devices_iDRAC9():
     if response.status_code != 200:
         logging.error("\n- FAIL, either controller not found on server or typo in controller FQDD name")
         sys.exit(1)
-    if data['Drives'] == []:
+    if data["Drives"] == []:
         logging.warning("\n- WARNING, no drives detected for controller %s" % args["get_disks"])
         sys.exit(0)
     else:
         for i in data['Drives']:
-            drive_list.append(i['@odata.id'].split("/")[-1])
+            drive_list.append(i["@odata.id"])
         secure_erase_devices = []
         for i in drive_list:
-            if check_secure_erase_device_iDRAC9(i):
-                secure_erase_devices.append(i)
+            if args["x"]:
+                response = requests.get('https://%s%s' % (idrac_ip, i),verify=verify_cert, headers={'X-Auth-Token': args["x"]})   
+            else:
+                response = requests.get('https://%s%s' % (idrac_ip, i),verify=verify_cert,auth=(idrac_username, idrac_password))
+            data = response.json()
+            if "pcie" in data["Name"].lower():
+                if data["Oem"]["Dell"]["DellPCIeSSD"]["CryptographicEraseCapable"].lower() == "capable":
+                    secure_erase_devices.append(i)
+            else:
+                if data["Oem"]["Dell"]["DellPhysicalDisk"]["CryptographicEraseCapable"].lower() == "capable":   
+                    secure_erase_devices.append(i)
         if secure_erase_devices == []:
             logging.warning("\n- WARNING, no secure erase supported devices detected for controller %s" % args["get_disks"])
             sys.exit(0)
         else:
-            logging.info("\n- Supported Secure Erase devices detected for controller %s -\n" % args["get_disks"])
+            logging.info("\n- Supported instant scramble erase(ISE) devices detected for controller %s -\n" % args["get_disks"])
             for i in secure_erase_devices:
-                print(i)
+                print(i.split("/")[-1])
 
 def get_secure_erase_devices_iDRAC8():
     if "PCI" in args["get_disks"]:
@@ -402,12 +408,7 @@ if __name__ == "__main__":
         if server_model_number < 14:
             logging.error("\n- FAIL, --check-disk flag is only supported on iDRAC 9 (server model >= 14), current server model is %d" % server_model)
             sys.exit(1)
-        disk_fqdd = args["check_disk"]
-        if not check_secure_erase_device_iDRAC9(disk_fqdd):
-            logging.error("\n- ERROR, device %s does not support secure erase" % disk_fqdd)
-            sys.exit(1)
-        logging.info("- PASS, device %s supports secure erase" % disk_fqdd)
-            
+        check_secure_erase_device_iDRAC9(args["check_disk"])
     elif args["get_disks"]:
         if server_model_number >= 14:
             get_secure_erase_devices_iDRAC9()
