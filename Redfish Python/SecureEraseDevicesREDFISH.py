@@ -5,7 +5,7 @@
 # _author_ = Texas Roemer <Texas_Roemer@Dell.com>
 # _version_ = 14.0
 #
-# Copyright (c) 2018, Dell, Inc.
+# Copyright (c) 2024, Dell, Inc.
 #
 # This software is licensed to you under the GNU General Public License,
 # version 2 (GPLv2). There is NO WARRANTY for this software, express or
@@ -39,6 +39,7 @@ parser.add_argument('--ssl', help='SSL cert verification for all Redfish calls, 
 parser.add_argument('--script-examples', help='Get executing script examples', action="store_true", dest="script_examples", required=False) 
 parser.add_argument('--get-controllers', help='Get server storage controllers.', action="store_true", dest="get_controllers", required=False)
 parser.add_argument('--get-disks', help='Get controller SED/ISE drives or PCIe SSD devices only, pass in controller FQDD, Examples: "\RAID.Integrated.1-1\", \"PCIeExtender.Slot.7\"', dest="get_disks", required=False)
+parser.add_argument('--check-disk', help='Check if a device supports secure erase on iDRAC 9 (ie. it is a SED or ISE drive). Pass in device FQDD. This flag is only supported for iDRAC 9.  On iDRAC 7/8, only PCIeSSD devices are supported for SecureErase. Examples: "Disk.Bay.1:Enclosure.Internal.0-1:RAID.Integrated.1-1".', dest="check_disk", required=False)
 parser.add_argument('--secure-erase', help='Pass in device FQDD for secure erase operation. Supported devices are ISE, SED drives or PCIe SSD devices(drives and cards). NOTE: If using iDRAC 7/8, only PCIeSSD devices are supported for SecureErase', dest="secure_erase", required=False)
 args = vars(parser.parse_args())
 logging.basicConfig(format='%(message)s', stream=sys.stdout, level=logging.INFO)
@@ -57,11 +58,11 @@ def check_supported_idrac_version():
         response = requests.get('https://%s/redfish/v1/Managers/iDRAC.Embedded.1' % idrac_ip, verify=verify_cert, auth=(idrac_username, idrac_password))
     data = response.json()
     if response.status_code == 401:
-        logging.error("\n- WARNING, status code %s returned. Incorrect iDRAC username/password or invalid privilege detected." % response.status_code)
-        sys.exit(0)
+        logging.error("\n- ERROR, status code %s returned. Incorrect iDRAC username/password or invalid privilege detected." % response.status_code)
+        sys.exit(1)
     if response.status_code != 200:
-        logging.error("\n- WARNING, iDRAC version installed does not support this feature using Redfish API")
-        sys.exit(0)
+        logging.error("\n- ERROR, iDRAC version installed does not support this feature using Redfish API")
+        sys.exit(1)
     server_model_number = int(data["Model"].split(" ")[0].strip("G"))
 
 def get_storage_controllers():
@@ -73,13 +74,41 @@ def get_storage_controllers():
     if response.status_code != 200:
         logging.error("\n- FAIL, GET command failed, status code %s returned" % response.status_code)
         logging.error(data)
-        sys.exit(0)
+        sys.exit(1)
     logging.info("\n- Server controller(s) detected -\n")
     controller_list = []
     for i in data['Members']:
         controller_list.append(i['@odata.id'].split("/")[-1])
         print(i['@odata.id'].split("/")[-1])
         
+def check_secure_erase_device_iDRAC9(device):
+    response = requests.get('https://%s/redfish/v1/Systems/System.Embedded.1/Storage/Drives/%s' % (idrac_ip, device),verify=False,auth=(idrac_username, idrac_password))
+    if args["x"]:
+        response = requests.get('https://%s/redfish/v1/Systems/System.Embedded.1/Storage/Drives/%s' % (idrac_ip, device),verify=verify_cert, headers={'X-Auth-Token': args["x"]})   
+    else:
+        response = requests.get('https://%s/redfish/v1/Systems/System.Embedded.1/Storage/Drives/%s' % (idrac_ip, device),verify=verify_cert,auth=(idrac_username, idrac_password))
+    if response.status_code != 200:
+        logging.error("\n- FAIL, could not fetch device info for device %s" % device)
+        logging.error("Extended Error Message: {0}".format(response.json()))
+        sys.exit(1)
+    data = response.json()
+    if "Oem" not in data or "Dell" not in data["Oem"]:
+        logging.error("\n- ERROR, Could not fetch OEM data for device %s" % device)
+        logging.error("Received device object: {0}".format(data))
+        sys.exit(1)
+    data = data["Oem"]["Dell"]
+    if "DellPhysicalDisk" in data:
+        data = data["DellPhysicalDisk"]
+    elif "DellPCIeSSD" in data:
+        data = data["DellPCIeSSD"]
+    else:
+        return False
+
+    if "SystemEraseCapability" in data and data["SystemEraseCapability"] == "CryptographicErasePD":
+        return True
+    return False
+
+
 def get_secure_erase_devices_iDRAC9():
     if args["x"]:
         response = requests.get('https://%s/redfish/v1/Systems/System.Embedded.1/Storage/%s' % (idrac_ip, args["get_disks"]),verify=verify_cert, headers={'X-Auth-Token': args["x"]})   
@@ -89,7 +118,7 @@ def get_secure_erase_devices_iDRAC9():
     drive_list = []
     if response.status_code != 200:
         logging.error("\n- FAIL, either controller not found on server or typo in controller FQDD name")
-        sys.exit(0)
+        sys.exit(1)
     if data['Drives'] == []:
         logging.warning("\n- WARNING, no drives detected for controller %s" % args["get_disks"])
         sys.exit(0)
@@ -98,24 +127,8 @@ def get_secure_erase_devices_iDRAC9():
             drive_list.append(i['@odata.id'].split("/")[-1])
         secure_erase_devices = []
         for i in drive_list:
-            response = requests.get('https://%s/redfish/v1/Systems/System.Embedded.1/Storage/Drives/%s' % (idrac_ip, i),verify=False,auth=(idrac_username, idrac_password))
-            if args["x"]:
-                response = requests.get('https://%s/redfish/v1/Systems/System.Embedded.1/Storage/Drives/%s' % (idrac_ip, i),verify=verify_cert, headers={'X-Auth-Token': args["x"]})   
-            else:
-                response = requests.get('https://%s/redfish/v1/Systems/System.Embedded.1/Storage/Drives/%s' % (idrac_ip, i),verify=verify_cert,auth=(idrac_username, idrac_password))
-            data = response.json()
-            for ii in data.items():
-                if ii[0] == "Oem":
-                    try:
-                        for iii in ii[1]["Dell"]["DellPhysicalDisk"].items():
-                            if iii[0] == "SystemEraseCapability":
-                                if iii[1] == "CryptographicErasePD":
-                                    secure_erase_devices.append(i)
-                    except:
-                        for iii in ii[1]["Dell"]["DellPCIeSSD"].items():
-                            if iii[0] == "SystemEraseCapability":
-                                if iii[1] == "CryptographicErasePD":
-                                    secure_erase_devices.append(i)
+            if check_secure_erase_device_iDRAC9(i):
+                secure_erase_devices.append(i)
         if secure_erase_devices == []:
             logging.warning("\n- WARNING, no secure erase supported devices detected for controller %s" % args["get_disks"])
             sys.exit(0)
@@ -129,7 +142,7 @@ def get_secure_erase_devices_iDRAC8():
         logging.debug("- PASS, PCI string not valid for iDRAC8")
     else:
         logging.error("\n- FAIL, iDRAC 7/8 only supports secure erase operation for PCIeSSD devices")
-        sys.exit(0)
+        sys.exit(1)
     if args["x"]:
         response = requests.get('https://%s/redfish/v1/Systems/System.Embedded.1/Storage/%s' % (idrac_ip, args["get_disks"]),verify=verify_cert, headers={'X-Auth-Token': args["x"]})   
     else:
@@ -138,7 +151,7 @@ def get_secure_erase_devices_iDRAC8():
     drive_list = []
     if response.status_code != 200:
         logging.error("\n- FAIL, either controller not found on server or typo in controller FQDD name")
-        sys.exit(0)
+        sys.exit(1)
     if data['Drives'] == []:
         logging.warning("\n- WARNING, no drives detected for controller %s" % args["get_disks"])
         sys.exit(0)
@@ -184,13 +197,13 @@ def secure_erase():
         logging.error("\n- FAIL, POST command failed for secure erase, status code is %s" % response.status_code)
         data = response.json()
         logging.error("\n- POST command failure is:\n %s" % data)
-        sys.exit(0)
+        sys.exit(1)
     location_search = response.headers["Location"]
     try:
         job_id = response.headers['Location'].split("/")[-1]
     except:
         logging.error("- FAIL, unable to locate job ID in JSON headers output")
-        sys.exit(0)
+        sys.exit(1)
     if args["x"]:
         response = requests.get('https://%s/redfish/v1/Managers/iDRAC.Embedded.1/Jobs/%s' % (idrac_ip, job_id), verify=verify_cert, headers={'X-Auth-Token': args["x"]})
     else:
@@ -206,7 +219,7 @@ def get_job_status_scheduled():
     while True:
         if count == 5:
             logging.error("- FAIL, GET job status retry count of 5 has been reached, script will exit")
-            sys.exit(0)
+            sys.exit(1)
         try:
             if args["x"]:
                 response = requests.get('https://%s/redfish/v1/Managers/iDRAC.Embedded.1/Jobs/%s' % (idrac_ip, job_id), verify=verify_cert, headers={'X-Auth-Token': args["x"]})
@@ -223,7 +236,7 @@ def get_job_status_scheduled():
         else:
             logging.error("\n- FAIL, Command failed to check job status, return code is %s" % response.status_code)
             logging.error("Extended Info Message: {0}".format(response.json()))
-            sys.exit(0)
+            sys.exit(1)
         data = response.json()
         if data['Message'] == "Task successfully scheduled.":
             logging.info("- INFO, staged config job marked as scheduled, rebooting the system")
@@ -251,14 +264,14 @@ def loop_job_status_final():
         if response.status_code != 200:
             logging.error("\n- FAIL, GET command failed to check job status, return code is %s" % statusCode)
             logging.error("Extended Info Message: {0}".format(req.json()))
-            sys.exit(0)
+            sys.exit(1)
         data = response.json()
         if str(current_time)[0:7] >= "2:00:00":
             logging.error("\n- FAIL: Timeout of 2 hours has been hit, script stopped\n")
-            sys.exit(0)
+            sys.exit(1)
         elif "Fail" in data['Message'] or "fail" in data['Message'] or data['JobState'] == "Failed":
             logging.error("- FAIL: job ID %s failed, failed message is: %s" % (job_id, data['Message']))
-            sys.exit(0)
+            sys.exit(1)
         elif data['JobState'] == "Completed":
             logging.info("\n--- PASS, Final Detailed Job Status Results ---\n")
             for i in data.items():
@@ -292,7 +305,7 @@ def reboot_server():
         else:
             logging.error("\n- FAIL, Command failed to gracefully power OFF server, status code is: %s\n" % response.status_code)
             logging.error("Extended Info Message: {0}".format(response.json()))
-            sys.exit(0)
+            sys.exit(1)
         while True:
             if args["x"]:
                 response = requests.get('https://%s/redfish/v1/Systems/System.Embedded.1' % idrac_ip, verify=verify_cert, headers={'X-Auth-Token': args["x"]})   
@@ -325,7 +338,7 @@ def reboot_server():
                         break
                     else:
                         logging.error("- FAIL, server not in OFF state, current power status is %s" % data['PowerState'])
-                        sys.exit(0)    
+                        sys.exit(1)    
             else:
                 continue 
         payload = {'ResetType': 'On'}
@@ -340,7 +353,7 @@ def reboot_server():
         else:
             logging.error("\n- FAIL, Command failed to power ON server, status code is: %s\n" % response.status_code)
             logging.error("Extended Info Message: {0}".format(response.json()))
-            sys.exit(0)
+            sys.exit(1)
     elif data['PowerState'] == "Off":
         url = 'https://%s/redfish/v1/Systems/System.Embedded.1/Actions/ComputerSystem.Reset' % idrac_ip
         payload = {'ResetType': 'On'}
@@ -355,10 +368,10 @@ def reboot_server():
         else:
             logging.error("\n- FAIL, Command failed to power ON server, status code is: %s\n" % response.status_code)
             logging.error("Extended Info Message: {0}".format(response.json()))
-            sys.exit(0)
+            sys.exit(1)
     else:
         logging.error("- FAIL, unable to get current server power state to perform either reboot or power on")
-        sys.exit(0)
+        sys.exit(1)
     
 if __name__ == "__main__":
     if args["script_examples"]:
@@ -382,9 +395,19 @@ if __name__ == "__main__":
         check_supported_idrac_version()
     else:
         logging.error("\n- FAIL, invalid argument values or not all required parameters passed in. See help text or argument --script-examples for more details.")
-        sys.exit(0)
+        sys.exit(1)
     if args["get_controllers"]:
         get_storage_controllers()
+    elif args["check_disk"]:
+        if server_model_number < 14:
+            logging.error("\n- FAIL, --check-disk flag is only supported on iDRAC 9 (server model >= 14), current server model is %d" % server_model)
+            sys.exit(1)
+        disk_fqdd = args["check_disk"]
+        if not check_secure_erase_device_iDRAC9(disk_fqdd):
+            logging.error("\n- ERROR, device %s does not support secure erase" % disk_fqdd)
+            sys.exit(1)
+        logging.info("- PASS, device %s supports secure erase" % disk_fqdd)
+            
     elif args["get_disks"]:
         if server_model_number >= 14:
             get_secure_erase_devices_iDRAC9()
