@@ -102,9 +102,10 @@ def check_secure_erase_device_iDRAC9(device):
         if data["Oem"]["Dell"]["DellPhysicalDisk"]["CryptographicEraseCapable"].lower() == "capable" and data["Oem"]["Dell"]["DellPhysicalDisk"]["RaidStatus"].lower() == "ready":
             logging.info("\n- INFO, \"%s\" supports instant scramble erase(ISE) and is in ready state" % device)
         elif data["Oem"]["Dell"]["DellPhysicalDisk"]["CryptographicEraseCapable"].lower() == "capable" and data["Oem"]["Dell"]["DellPhysicalDisk"]["RaidStatus"].lower() == "online":
-            logging.info("\n- INFO, \"%s\" supports instant scramble erase(ISE) but is part of a RAID volume, delete the RAID volume first then rerun SecureErase operation" % device)
+            logging.info("\n- INFO, \"%s\" supports instant scramble erase(ISE) but is part of a RAID volume, delete the RAID volume before running SecureErase operation" % device)
         elif data["Oem"]["Dell"]["DellPhysicalDisk"]["CryptographicEraseCapable"].lower() == "incapable" or data["Oem"]["Dell"]["DellPhysicalDisk"]["CryptographicEraseCapable"].lower() != "capable":
-            logging.error("\n- WARNING, \"%s\" does not support instant scramble erase(ISE)" % device)
+            logging.error("\n- ERROR, \"%s\" does not support instant scramble erase(ISE)" % device)
+            sys.exit(1)
 
 def get_secure_erase_devices_iDRAC9():
     if args["x"]:
