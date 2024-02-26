@@ -41,6 +41,7 @@ parser.add_argument('--script-examples', help='Get executing script examples', a
 parser.add_argument('--config-ini-file-examples', help='Get config ini file examples', action="store_true", dest="config_ini_file_examples", required=False)
 parser.add_argument('--get', help='Get all BIOS attributes', action="store_true", required=False)
 parser.add_argument('--get-attribute', help='If you want to get only a specific BIOS attribute, pass in the attribute name you want to get the current value, Note: make sure to type the attribute name exactly due to case senstive. Example: MemTest will work but memtest will fail', dest="get_attribute", required=False)
+parser.add_argument('--get-attributes', help='Get multiple BIOS attribute values. Pass in attribute names seperated by commas. Note: Type the attribute names exactly due to case sensitive.', dest='get_attributes', required=False)
 parser.add_argument('--get-registry', help='Get complete BIOS attribute registry', dest="get_registry", action="store_true", required=False)
 parser.add_argument('--get-registry-dependency', help='Get complete BIOS attribute registry dependency details for each attribute which supports a dependency.', dest="get_registry_dependency", action="store_true", required=False)
 parser.add_argument('--get-registry-attribute', help='Get registry information for a specific attribute, pass in the attribute name', dest="get_registry_attribute", required=False)
@@ -57,6 +58,7 @@ logging.basicConfig(format='%(message)s', stream=sys.stdout, level=logging.INFO)
 
 def script_examples():
     print("""\n- GetSetBiosAttributesREDFISH.py -ip 192.168.0.120 -u root -p calvin --get, this example will get all BIOS attributes.
+    \n- GetSetBiosAttributesREDFISH.py -ip 192.168.0.120 -u root -p calvin --get-attributes BiosMode,SysProfile this example will return multiple BIOS attributes.
     \n- GetSetBiosAttributesREDFISH.py -ip 192.168.0.120 -u root --get-attribute SetBootOrderEn, this example will first prompt to enter iDRAC user password, then return details for this specific attribute.
     \n- GetSetBiosAttributesREDFISH.py -ip 192.168.0.120 -x 3fe2401de68b718b5ce2761cb0651aac --get-registry, this example using iDRAC X-auth token session will return attribute registry details. 
     \n- GetSetBiosAttributesREDFISH.py -ip 192.168.0.120 -u root -p calvin --attribute-names MemTest --attribute-values Disabled --maintenance-reboot autoreboot --start-time "2018-10-30T20:10:10-05:00" --duration-time 600, this example shows setting BIOS attribute using scheduled start time with maintenance window. Once the scheduled time has elapsed, server will auto reboot to execute config job.
@@ -145,6 +147,32 @@ def get_specific_bios_attribute():
             logging.info("\n- Current value for attribute \"%s\": \"%s\"\n" % (args["get_attribute"], i[1]))
             return
     logging.error("\n- ERROR, unable to get attribute current value. Either attribute doesn't exist for this BIOS version, typo in attribute name or case incorrect")
+    sys.exit(0)
+
+def get_multiple_bios_attributes():
+    if args["x"]:
+        response = response = requests.get('https://%s/redfish/v1/Systems/System.Embedded.1/Bios' % idrac_ip, verify=verify_cert, headers={'X-Auth-Token': args["x"]})
+    else:
+        response = requests.get('https://%s/redfish/v1/Systems/System.Embedded.1/Bios' % idrac_ip, verify=verify_cert,auth=(idrac_username, idrac_password))
+    data = response.json()
+    if response.status_code != 200:
+        logging.error('\n- FAIL, GET command failed to get BIOS attributes, status code %s returned' % response.status_code)
+        logging.error(data)
+        sys.exit(0)
+    attributes = args["get_attributes"].split(",")
+    output = "\n"
+    Found = False
+    for i in data['Attributes'].items():
+        if i[0] in attributes:
+            output = output + "Current value for attribute \"%s\": \"%s\"\n" % (i[0], i[1])
+            attributes.remove(i[0])
+            Found = True
+    if not Found:
+        logging.error("\n- ERROR, unable to get attribute values. Either attributes don't exist for this BIOS version, typo in attribute names or case incorrect")
+        sys.exit(0)
+    if len(attributes) > 0:
+        logging.error(f"\n ERROR, unable to get attribute value(s) for the following attribute(s):\n{attributes}\n Either attribute doesn't exist for this BIOS version, typo in attribute name or case incorrect")
+    logging.info(output)
     sys.exit(0)
 
 def bios_registry():
@@ -561,6 +589,8 @@ if __name__ == "__main__":
         get_bios_attributes()
     elif args["get_attribute"]:
         get_specific_bios_attribute()
+    elif args["get_attributes"]:
+        get_multiple_bios_attributes()
     elif args["get_registry_dependency"]:
         bios_registry_dependencies()
     elif args["get_registry_attribute"]:
