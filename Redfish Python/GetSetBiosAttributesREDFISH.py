@@ -41,7 +41,7 @@ parser.add_argument('--script-examples', help='Get executing script examples', a
 parser.add_argument('--config-ini-file-examples', help='Get config ini file examples', action="store_true", dest="config_ini_file_examples", required=False)
 parser.add_argument('--get', help='Get all BIOS attributes', action="store_true", required=False)
 parser.add_argument('--get-attribute', help='If you want to get only a specific BIOS attribute, pass in the attribute name you want to get the current value, Note: make sure to type the attribute name exactly due to case senstive. Example: MemTest will work but memtest will fail', dest="get_attribute", required=False)
-parser.add_argument('--get-attributes', help="Get multiple attribute names. Note: make sure to type the attribute names exactly due to case sensitive. Separate by commas.", dest="get_attributes", required=False)
+parser.add_argument('--get-attributes', help='Get multiple BIOS attribute values. Pass in attribute names seperated by commas. Note: Type the attribute names exactly due to case sensitive.', dest='get_attributes', required=False)
 parser.add_argument('--get-registry', help='Get complete BIOS attribute registry', dest="get_registry", action="store_true", required=False)
 parser.add_argument('--get-registry-dependency', help='Get complete BIOS attribute registry dependency details for each attribute which supports a dependency.', dest="get_registry_dependency", action="store_true", required=False)
 parser.add_argument('--get-registry-attribute', help='Get registry information for a specific attribute, pass in the attribute name', dest="get_registry_attribute", required=False)
@@ -156,7 +156,7 @@ def get_multiple_bios_attributes():
         response = requests.get('https://%s/redfish/v1/Systems/System.Embedded.1/Bios' % idrac_ip, verify=verify_cert,auth=(idrac_username, idrac_password))
     data = response.json()
     if response.status_code != 200:
-        logging.error("\n- FAIL, GET command failed to get BIOS attributes, status code %s returned" % response.status_code)
+        logging.error('\n- FAIL, GET command failed to get BIOS attributes, status code %s returned' % response.status_code)
         logging.error(data)
         sys.exit(0)
     attributes = args["get_attributes"].split(",")
