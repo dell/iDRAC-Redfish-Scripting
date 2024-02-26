@@ -58,7 +58,7 @@ logging.basicConfig(format='%(message)s', stream=sys.stdout, level=logging.INFO)
 
 def script_examples():
     print("""\n- GetSetBiosAttributesREDFISH.py -ip 192.168.0.120 -u root -p calvin --get, this example will get all BIOS attributes.
-    \n- GetSetBiosAttributesREDFISH.py -ip 192.168.0.120 -u root -p calvin --get-attributes BiosMode,SysProfile, this example will return multiple BIOS attributes.
+    \n- GetSetBiosAttributesREDFISH.py -ip 192.168.0.120 -u root -p calvin --get-attributes BiosMode,SysProfile this example will return multiple BIOS attributes.
     \n- GetSetBiosAttributesREDFISH.py -ip 192.168.0.120 -u root --get-attribute SetBootOrderEn, this example will first prompt to enter iDRAC user password, then return details for this specific attribute.
     \n- GetSetBiosAttributesREDFISH.py -ip 192.168.0.120 -x 3fe2401de68b718b5ce2761cb0651aac --get-registry, this example using iDRAC X-auth token session will return attribute registry details. 
     \n- GetSetBiosAttributesREDFISH.py -ip 192.168.0.120 -u root -p calvin --attribute-names MemTest --attribute-values Disabled --maintenance-reboot autoreboot --start-time "2018-10-30T20:10:10-05:00" --duration-time 600, this example shows setting BIOS attribute using scheduled start time with maintenance window. Once the scheduled time has elapsed, server will auto reboot to execute config job.
