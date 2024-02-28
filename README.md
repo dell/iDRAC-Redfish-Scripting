@@ -61,6 +61,18 @@ See iDRAC whitepapers below for more information about overview of Redfish suppo
 
 For details on the DMTF Redfish standard, visit https://www.dmtf.org/standards/redfish 
 
+## Simulating iDRAC Redfish Environment Using Redfish Mockup Server
+
+Redfish mockup server is an effective method to simulate Redfish iDRAC environment without using a physical server or iDRAC. Leveraging Redfish mockup server can solve the following issues:
+• Do not have access to a physical server or iDRAC.
+• Do have access to a server and you must test Redfish PATCH or POST calls without being destructive.
+• Train many team members on Redfish without the necessity of physical servers or iDRAC.
+• Do not have iDRAC user privileges to make Redfish calls.
+
+See whitepaper below for more details about how to use this simulation:
+
+- [Simulate an iDRAC Redfish Environment Using Redfish Mockup Server](https://dl.dell.com/content/manual7490099-simulate-an-idrac-redfish-environment-using-redfish-mockup-server.pdf?language=en-us)
+
 
 ## iDRAC REST API with Redfish Scripting Library
 
