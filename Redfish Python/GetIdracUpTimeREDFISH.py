@@ -74,7 +74,6 @@ def get_iDRAC_uptime():
     hours = iDRAC_uptime.seconds // 3600
     minutes = (iDRAC_uptime.seconds % 3600) // 60
     seconds = iDRAC_uptime.seconds % 60
-    #print(f"Current iDRAC uptime: {days} days, {hours} hours, {minutes} minutes, {seconds} seconds")
     logging.info("\n- INFO, current iDRAC uptime: %s days, %s hours, %s minutes, %s seconds" % (days, hours, minutes, seconds))
     
         
