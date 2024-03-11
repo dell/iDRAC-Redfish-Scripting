@@ -85,8 +85,12 @@ def get_target_values():
         print(data)
         sys.exit(0)
     logging.info("\n- INFO, supported values for --target argument\n")
-    for i in data["Actions"]["Oem"]["#OemManager.v1_4_0.OemManager#OemManager.ExportSystemConfiguration"]["ShareParameters"]["Target@Redfish.AllowableValues"]:
-        print(i)
+    try:
+        for i in data["Actions"]["Oem"]["#OemManager.v1_4_0.OemManager#OemManager.ExportSystemConfiguration"]["ShareParameters"]["Target@Redfish.AllowableValues"]:
+            print(i)
+    except:
+        for i in data["Actions"]["Oem"]["#OemManager.ExportSystemConfiguration"]["ShareParameters"]["Target@Redfish.AllowableValues"]:
+            print(i)
 
 def export_server_configuration_profile():
     global job_id
