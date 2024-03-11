@@ -3,7 +3,7 @@
 # IdracLicenseManagementREDFISH. Python script using DMTF Redfish API to manage iDRAC licenses.
 #
 # _author_ = Texas Roemer <Texas_Roemer@Dell.com>
-# _version_ = 1.0
+# _version_ = 2.0
 #
 # Copyright (c) 2022, Dell, Inc.
 #
@@ -17,6 +17,7 @@
 
 import argparse
 import base64
+import csv
 import getpass
 import json
 import logging
@@ -49,6 +50,7 @@ parser.add_argument('--sharetype', help='Pass in the share type of the network s
 parser.add_argument('--get-share-types', help='Get supported network share type values for your iDRAC firmware version', action="store_true", dest="get_share_types", required=False)
 parser.add_argument('--username', help='Pass in the network share username if auth is configured (required if using CIFS share, optional for HTTP or HTTPS if auth enabled)', required=False)
 parser.add_argument('--password', help='Pass in the network share username password if auth is configured (required if using CIFS share, optional for HTTP or HTTPS if auth enabled)', required=False)
+parser.add_argument('--csv-file', help='Pass in name of CSV file to import local license for multiple iDRACs instead of using argument -ip for one iDRAC. For the CSV file creation column A header will be "iDRAC IP" and column B header will be "License Name" for the cert you want to import for that iDRAC. If only exporting you only need to fill in column A for iDRAC IPs. Note: arguments -u and -p are still required for iDRAC username and password which this user and user password must be the same on all iDRACs. Note: using CSV file is only supported for importing license operation', required=False)
 args = vars(parser.parse_args())
 logging.basicConfig(format='%(message)s', stream=sys.stdout, level=logging.INFO)
 
@@ -56,11 +58,12 @@ def script_examples():
     print("""\n- IdracLicenseManagementDmtfREDFISH.py -ip 192.168.0.120 -u root -p calvin --get, this example will return iDRAC licenses detected.
     \n- IdracLicenseManagementDmtfREDFISH.py -ip 192.168.0.120 -u root -p calvin --delete /redfish/v1/LicenseService/Licenses/23623PA_Enterprise, this example will delete iDRAC license.
     \n- IdracLicenseManagementDmtfREDFISH.py -ip 192.168.0.120 -u root -p calvin --import-networkshare --sharetype NFS --uripath //192.168.0.130/nfs/ABC4FF3_15g-omeadvplus-evaluation.xml, this example shows importing iDRAC license from NFS share.
-    \n- IdracLicenseManagementREDFISH.py -ip 192.168.0.120 -u root -p calvin --import-local ABC4ZZ3_15g-omeadvplus-evaluation.xml, this example shows importing a iDRAC license stored locally.
+    \n- IdracLicenseManagementDmtfREDFISH.py -ip 192.168.0.120 -u root -p calvin --import-local ABC4ZZ3_15g-omeadvplus-evaluation.xml, this example shows importing a iDRAC license stored locally.
     \n- IdracLicenseManagementDmtfREDFISH.py -ip 192.168.0.120 -u root -p calvin --export-local 23623PA_Enterprise, this example will export the license locally.
     \n- IdracLicenseManagementDmtfREDFISH.py -ip 192.168.0.120 -u root -p calvin --import-networkshare --sharetype CIFS --uripath //192.168.0.150/cifs_share/ABC4FF3_15g-omeadvplus-evaluation.xml --username root --password test123, this example shows importing license from CIFS share.
     \n- IdracLicenseManagementDmtfREDFISH.py -ip 192.168.0.120 -u root -p calvin --import-networkshare --sharetype HTTP --uripath //192.168.0.170/http_share/ABC4FF3_15g-omeadvplus-evaluation.xml, this example shows importing from HTTP share.
-    \n- IdracLicenseManagementDmtfREDFISH.py -ip 192.168.0.120 -u root -p calvin --import-networkshare --sharetype HTTPS --uripath //192.168.0.100/https_share/ABC4FF3_15g-omeadvplus-evaluation.xml --username apache_user --password pass123, this example shows importing license from HTTPS share which uses auth.""")
+    \n- IdracLicenseManagementDmtfREDFISH.py -ip 192.168.0.120 -u root -p calvin --import-networkshare --sharetype HTTPS --uripath //192.168.0.100/https_share/ABC4FF3_15g-omeadvplus-evaluation.xml --username apache_user --password pass123, this example shows importing license from HTTPS share which uses auth.
+    \n- IdracLicenseManagementDmtfREDFISH.py -u root -p calvin --csv-file iDRAC_ips.csv, this example shows importing licenses for multiple iDRACs using CSV file.""")
     sys.exit(0)
 
 def check_supported_idrac_version():
@@ -83,7 +86,7 @@ def get_idrac_license_info():
         response = requests.get('https://%s/redfish/v1/LicenseService/Licenses?$expand=*($levels=1)' % idrac_ip, verify=verify_cert,auth=(idrac_username, idrac_password))
     if response.status_code != 200:
         logging.error("\n- FAIL, GET command failed to find iDRAC license data, error: %s" % response)
-        sys.exit(0)
+        sys.exit(1)
     data = response.json()
     if data['Members'] == []:
         logging.warning("\n- WARNING, no licenses detected for iDRAC %s" % idrac_ip)
@@ -128,7 +131,7 @@ def delete_idrac_license():
     else:
         logging.error("\n- FAIL, DELETE command failed to remove iDRAC license, status code %s returned" % response.status_code)
         logging.error("\n- DELETE command failure results:\n %s" % response.json())
-        sys.exit(0)    
+        sys.exit(1)    
     
 def import_idrac_license_networkshare():
     global job_id
@@ -150,7 +153,7 @@ def import_idrac_license_networkshare():
     else:
         logging.error("\n- FAIL, POST command failed to import license, status code %s returned" % response.status_code)
         logging.error("\n- POST command failure results:\n %s" % data)
-        sys.exit(0)
+        sys.exit(1)
     try:
         job_id = response.headers['Location']
     except:
@@ -185,7 +188,35 @@ def import_idrac_license_local():
     else:
         data = response.json()
         logging.error("\n- FAIL, unable to import license filename \"%s\", status code %s, error results: \n%s" % (args["import_local"], response.status_code, data))
-        sys.exit(0)   
+        sys.exit(1)
+
+def import_idrac_license_local_csv_file():
+    try:
+        filename_open = open(args["filename"], "r")
+    except:
+        print("\n- FAIL, unable to locate filename \"%s\"" % args["filename"])
+        sys.exit(0)
+    name, extension = os.path.splitext(args["filename"])
+    if extension.lower() == ".xml":
+        with open(args["filename"], 'rb') as cert:
+            cert_content = cert.read()
+            read_file = base64.encodebytes(cert_content).decode('ascii')
+    else:
+        read_file = filename_open.read()
+    filename_open.close()
+    url = 'https://%s/redfish/v1/LicenseService/Licenses' % (idrac_ip)
+    payload = {"LicenseString":read_file}
+    if args["x"]:
+        headers = {'content-type': 'application/json', 'X-Auth-Token': args["x"]}
+        response = requests.post(url, data=json.dumps(payload), headers=headers, verify=verify_cert)
+    else:
+        headers = {'content-type': 'application/json'}
+        response = requests.post(url, data=json.dumps(payload), headers=headers, verify=verify_cert,auth=(idrac_username,idrac_password))
+    if response.status_code == 201:
+        logging.info("\n- PASS, license filename \"%s\" successfully imported for iDRAC %s" % (args["filename"], idrac_ip))
+    else:
+        data = response.json()
+        logging.error("\n- FAIL, unable to import license filename %s for iDRAC %s, status code %s, error results: \n%s" % (args["filename"], idrac_ip, response.status_code, data))   
 
 def loop_job_status():
     start_time = datetime.now()
@@ -199,15 +230,15 @@ def loop_job_status():
         if response.status_code != 200:
             logging.error("\n- FAIL, Command failed to check job status, return code %s" % response.status_code)
             logging.error("Extended Info Message: {0}".format(req.json()))
-            sys.exit(0)
+            sys.exit(1)
         time.sleep(3)
         data = response.json()
         if str(current_time)[0:7] >= "0:05:00":
             logging.error("\n- FAIL: Timeout of 5 minutes has been hit, script stopped\n")
-            sys.exit(0)
+            sys.exit(1)
         elif data["Oem"]["Dell"]["JobState"] == "Failed":
             logging.error("- FAIL: job ID %s failed, detailed error results: \n%s" % (job_id.split("/")[-1], data))
-            sys.exit(0)
+            sys.exit(1)
         elif data["Oem"]["Dell"]["JobState"] == "Completed":
             logging.info("\n- PASS, iDRAC license successfully imported from network share")
             break
@@ -215,40 +246,71 @@ def loop_job_status():
             logging.info("- INFO, job status not completed, execution time: \"%s\"" % (str(current_time)[0:7]))
 
 if __name__ == "__main__":
-    if args["script_examples"]:
-        script_examples()
-    if args["ip"] or args["ssl"] or args["u"] or args["p"] or args["x"]:
-        idrac_ip = args["ip"]
-        idrac_username = args["u"]
-        if args["p"]:
-            idrac_password = args["p"]
-        if not args["p"] and not args["x"] and args["u"]:
-            idrac_password = getpass.getpass("\n- Argument -p not detected, pass in iDRAC user %s password: " % args["u"])
-        if args["ssl"]:
-            if args["ssl"].lower() == "true":
-                verify_cert = True
-            elif args["ssl"].lower() == "false":
-                verify_cert = False
+    if args["csv_file"]:
+        csv_file_path = args["csv_file"]
+        with open(csv_file_path, 'r') as csv_file:
+            csv_contents = csv.DictReader(csv_file)
+            for i in csv_contents:
+                idrac_ip = i["iDRAC IP"]
+                if i["License Name"] != "":
+                    args["filename"] = i["License Name"]
+                if args["script_examples"]:
+                    script_examples()
+                if args["ssl"] or args["u"] or args["p"] or args["x"]:
+                    idrac_username = args["u"]
+                    if args["p"]:
+                        idrac_password = args["p"]
+                    if not args["p"] and not args["x"] and args["u"]:
+                        idrac_password = getpass.getpass("\n- Argument -p not detected, pass in iDRAC user %s password: " % args["u"])
+                    if args["ssl"]:
+                        if args["ssl"].lower() == "true":
+                            verify_cert = True
+                        elif args["ssl"].lower() == "false":
+                            verify_cert = False
+                        else:
+                            verify_cert = False
+                    else:
+                            verify_cert = False
+                    check_supported_idrac_version()
+                else:
+                    logging.error("\n- FAIL, invalid argument values or not all required parameters passed in. See help text or argument --script-examples for more details.")
+                    sys.exit(0)
+                import_idrac_license_local_csv_file()
+    else:
+        if args["script_examples"]:
+            script_examples()
+        if args["ip"] or args["ssl"] or args["u"] or args["p"] or args["x"]:
+            idrac_ip = args["ip"]
+            idrac_username = args["u"]
+            if args["p"]:
+                idrac_password = args["p"]
+            if not args["p"] and not args["x"] and args["u"]:
+                idrac_password = getpass.getpass("\n- Argument -p not detected, pass in iDRAC user %s password: " % args["u"])
+            if args["ssl"]:
+                if args["ssl"].lower() == "true":
+                    verify_cert = True
+                elif args["ssl"].lower() == "false":
+                    verify_cert = False
+                else:
+                    verify_cert = False
             else:
                 verify_cert = False
+            check_supported_idrac_version()
         else:
-            verify_cert = False
-        check_supported_idrac_version()
-    else:
-        logging.error("\n- FAIL, invalid argument values or not all required parameters passed in. See help text or argument --script-examples for more details.")
-        sys.exit(0)
-    if args["get"]:
-        get_idrac_license_info()
-    elif args["get_share_types"]:
-        get_network_share_types()
-    elif args["export_local"]:
-        export_idrac_license_locally()
-    elif args["import_networkshare"] and args["uripath"] and args["sharetype"]:
-        import_idrac_license_networkshare()
-        loop_job_status()
-    elif args["import_local"]:
-        import_idrac_license_local()
-    elif args["delete"]:
-        delete_idrac_license()
-    else:
-        logging.error("\n- FAIL, invalid argument values or not all required parameters passed in. See help text or argument --script-examples for more details.")
+            logging.error("\n- FAIL, invalid argument values or not all required parameters passed in. See help text or argument --script-examples for more details.")
+            sys.exit(0)
+        if args["get"]:
+            get_idrac_license_info()
+        elif args["get_share_types"]:
+            get_network_share_types()
+        elif args["export_local"]:
+            export_idrac_license_locally()
+        elif args["import_networkshare"] and args["uripath"] and args["sharetype"]:
+            import_idrac_license_networkshare()
+            loop_job_status()
+        elif args["import_local"]:
+            import_idrac_license_local()
+        elif args["delete"]:
+            delete_idrac_license()
+        else:
+            logging.error("\n- FAIL, invalid argument values or not all required parameters passed in. See help text or argument --script-examples for more details.")
