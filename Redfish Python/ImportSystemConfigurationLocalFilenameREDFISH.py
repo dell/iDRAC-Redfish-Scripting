@@ -38,7 +38,8 @@ parser.add_argument('-x', help='Pass in X-Auth session token for executing Redfi
 parser.add_argument('--ssl', help='SSL cert verification for all Redfish calls, pass in value \"true\" or \"false\". By default, this argument is not required and script ignores validating SSL cert for all Redfish calls.', required=False)
 parser.add_argument('--script-examples', action="store_true", help='Prints script examples')
 parser.add_argument('--new-password', help='Pass in new iDRAC user password that gets set during SCP import. This will be required to continue to query the job status. NOTE: If you pass in "" for value, script will prompt you to enter the password which is not echoed to the screen.', dest="new_password", required=False)
-parser.add_argument('--target', help='Pass in Target value to set component attributes. You can pass in \"ALL" to set all component attributes or pass in a specific component to set only those attributes. Supported values are: ALL, System, BIOS, IDRAC, NIC, FC, LifecycleController, RAID.', required=False)
+parser.add_argument('--get-target-values', help='Get supported values for --target argument', action="store_true", dest="get_target_values", required=False)
+parser.add_argument('--target', help='Pass in Target value to get component attributes. You can pass in \"ALL" to get all component attributes or pass in specific component(s) to get only those attributes. If you pass in multiple values use a comma separator. To get all supported values, use argument --get-target-values', required=False)
 parser.add_argument('--shutdown-type', help='Pass in ShutdownType value. Supported values are Graceful, Forced and NoReboot. If you don\'t use this optional parameter, default value is Graceful. NOTE: If you pass in NoReboot value, configuration changes will not be applied until the next server manual reboot.', dest="shutdown_type", required=False)
 parser.add_argument('--filename', help='Pass in Server Configuration Profile filename', required=False)
 parser.add_argument('--end-powerstate', help='Pass in end HostPowerState value. Supported values are On and Off. If you don\'t use this optional parameter, default value is On', dest="end_powerstate", required=False)
@@ -65,6 +66,24 @@ def check_supported_idrac_version():
     if response.status_code != 200:
         logging.warning("\n- WARNING, GET command failed to check supported iDRAC version, status code %s returned" % response.status_code)
         sys.exit(0)
+
+def get_target_values():
+    if args["x"]:
+        response = requests.get('https://%s/redfish/v1/Managers/iDRAC.Embedded.1' % idrac_ip, verify=verify_cert, headers={'X-Auth-Token': args["x"]})
+    else:
+        response = requests.get('https://%s/redfish/v1/Managers/iDRAC.Embedded.1' % idrac_ip, verify=verify_cert, auth=(idrac_username, idrac_password))
+    data = response.json()
+    if response.status_code != 200:
+        logging.warning("\n- WARNING, GET command failed to get supported target values, status code %s returned" % response.status_code)
+        print(data)
+        sys.exit(0)
+    logging.info("\n- INFO, supported values for --target argument\n")
+    try:
+        for i in data["Actions"]["Oem"]["#OemManager.v1_4_0.OemManager#OemManager.ImportSystemConfiguration"]["ShareParameters"]["Target@Redfish.AllowableValues"]:
+            print(i)
+    except:
+        for i in data["Actions"]["Oem"]["#OemManager.ImportSystemConfiguration"]["ShareParameters"]["Target@Redfish.AllowableValues"]:
+            print(i)
 
 def import_SCP_local_filename():
     global job_id
@@ -238,5 +257,7 @@ if __name__ == "__main__":
         sys.exit(0)
     if args["target"]:
         import_SCP_local_filename()
+    elif args["get_target_values"]:
+        get_target_values()
     else:
         logging.error("\n- FAIL, invalid argument values or not all required parameters passed in. See help text or argument --script-examples for more details.")
