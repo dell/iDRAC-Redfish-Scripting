@@ -47,7 +47,8 @@ parser.add_argument('--shareport', help='Pass in custom port configured for HTTP
 parser.add_argument('--username', help='Pass in the CIFS username', required=False)
 parser.add_argument('--password', help='Pass in the CIFS username pasword', required=False)
 parser.add_argument('--workgroup', help='Pass in the workgroup of your CIFS network share. This argument is optional', required=False)
-parser.add_argument('--target', help='Pass in Target value to import component attributes. You can pass in \"ALL" to import all component attributes or pass in a specific component to import only those attributes. Supported values are: ALL, System, BIOS, IDRAC, NIC, FC, LifecycleController, RAID.', required=False)
+parser.add_argument('--get-target-values', help='Get supported values for --target argument', action="store_true", dest="get_target_values", required=False)
+parser.add_argument('--target', help='Pass in Target value to get component attributes. You can pass in \"ALL" to get all component attributes or pass in specific component(s) to get only those attributes. If you pass in multiple values use a comma separator. To get all supported values, use argument --get-target-values', required=False)
 parser.add_argument('--filename', help='Pass in the filename of the SCP file which is on the network share you are using', required=False)
 parser.add_argument('--ignorecertwarning', help='Supported values are Disabled and Enabled. This argument is only required if using HTTPS for share type. If you don\'t pass in this argument when using HTTPS, default iDRAC setting is Enabled', required=False)
 parser.add_argument('--shutdown-type', help='Pass in ShutdownType value. Supported values are Graceful, Forced and NoReboot. If you don\'t use this optional parameter, default value is Graceful. NOTE: If you pass in NoReboot value, configuration changes will not be applied until the next server manual reboot.', dest="shutdown_type", required=False)
@@ -74,6 +75,24 @@ def check_supported_idrac_version():
     if response.status_code != 200:
         logging.warning("\n- WARNING, GET command failed to check supported iDRAC version, status code %s returned" % response.status_code)
         sys.exit(0)
+
+def get_target_values():
+    if args["x"]:
+        response = requests.get('https://%s/redfish/v1/Managers/iDRAC.Embedded.1' % idrac_ip, verify=verify_cert, headers={'X-Auth-Token': args["x"]})
+    else:
+        response = requests.get('https://%s/redfish/v1/Managers/iDRAC.Embedded.1' % idrac_ip, verify=verify_cert, auth=(idrac_username, idrac_password))
+    data = response.json()
+    if response.status_code != 200:
+        logging.warning("\n- WARNING, GET command failed to get supported target values, status code %s returned" % response.status_code)
+        print(data)
+        sys.exit(0)
+    logging.info("\n- INFO, supported values for --target argument\n")
+    try:
+        for i in data["Actions"]["Oem"]["#OemManager.v1_4_0.OemManager#OemManager.ImportSystemConfiguration"]["ShareParameters"]["Target@Redfish.AllowableValues"]:
+            print(i)
+    except:
+        for i in data["Actions"]["Oem"]["#OemManager.ImportSystemConfiguration"]["ShareParameters"]["Target@Redfish.AllowableValues"]:
+            print(i)
     
 def import_server_configuration_profile():
     global job_id
@@ -256,5 +275,7 @@ if __name__ == "__main__":
     if args["target"] and args["filename"] and args["shareip"] and args["sharetype"]:
         import_server_configuration_profile()
         check_job_status()
+    elif args["get_target_values"]:
+        get_target_values()
     else:
         logging.warning("\n- WARNING, arguments --target, --filename, --sharename, --sharetype and --shareip are required for import. See help text or argument --script-examples for more details.")
