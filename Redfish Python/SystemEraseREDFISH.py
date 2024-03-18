@@ -37,7 +37,7 @@ parser.add_argument('-u', help='iDRAC username', required=False)
 parser.add_argument('-p', help='iDRAC password. If you do not pass in argument -p, script will prompt to enter user password which will not be echoed to the screen.', required=False)
 parser.add_argument('-x', help='Pass in X-Auth session token for executing Redfish calls. All Redfish calls will use X-Auth token instead of username/password', required=False)
 parser.add_argument('--ssl', help='SSL cert verification for all Redfish calls, pass in value \"true\" or \"false\". By default, this argument is not required and script ignores validating SSL cert for all Redfish calls.', required=False)
-parser.add_argument('--script-examples', help='Get executing script examples', action="store_true", dest="script_examples", required=False) 
+parser.add_argument('--script-examples', help='Get executing script examples', action="store_true", dest="script_examples", required=False)
 parser.add_argument('--get', help='Get supported System Erase components to pass in for --erase argument', action="store_true", required=False)
 parser.add_argument('--erase', help='Pass in the system erase component(s) you want to erase. If passing in multiple components, make sure to use comma separator. Example: BIOS,IDRAC,DIAG. NOTE: These values are case sensitive, make sure to pass in exact string values you get from -g argument.', required=False)
 parser.add_argument('--poweron', help='Pass in this argument if you want the server to automatically power ON after system erase process is complete/iDRAC reboot. By default, once the system erase process is complete, server will be in OFF state, reboot the iDRAC and stay in OFF state.', action="store_true", required=False)
@@ -103,7 +103,7 @@ def system_erase():
     global job_id
     global method
     method = "SystemErase"
-    url = 'https://%s/redfish/v1/Dell/Managers/iDRAC.Embedded.1/DellLCService/Actions/DellLCService.SystemErase' % (idrac_ip)    
+    url = 'https://%s/redfish/v1/Dell/Managers/iDRAC.Embedded.1/DellLCService/Actions/DellLCService.SystemErase' % (idrac_ip)
     if "," in args["erase"]:
         component_list =args["erase"].split(",")
         payload={"Component":component_list}
@@ -131,7 +131,7 @@ def system_erase():
     except:
         logging.error("- FAIL, unable to find job ID in headers POST response, headers output is:\n%s" % response.headers)
         sys.exit(0)
-    logging.info("- PASS, job ID %s successfully created for %s method. Script will now loop polling job status until marked completed\n", job_id, method)    
+    logging.info("- PASS, job ID %s successfully created for %s method. Script will now loop polling job status until marked completed\n", job_id, method)
 
 def loop_job_status():
     start_time = datetime.now()
@@ -196,7 +196,7 @@ def loop_job_status():
                         logging.info("- INFO, iDRAC component selected. Default iDRAC username/password will be used to attempt power on server")
                         response = requests.post(url, data=json.dumps(payload), headers=headers, verify=False, auth=("root", "calvin"))
                     else:
-                        response = requests.post(url, data=json.dumps(payload), headers=headers, verify=False, auth=(idrac_username, idrac_password))   
+                        response = requests.post(url, data=json.dumps(payload), headers=headers, verify=False, auth=(idrac_username, idrac_password))
                     if count == 5:
                         logging.error("- FAIL, 5 attempts at powering ON the server has failed, script will exit")
                         sys.exit(0)
@@ -216,7 +216,7 @@ def loop_job_status():
                                 if "IDRAC" in args["erase"]:
                                     response = requests.post(url, data=json.dumps(payload), headers=headers, verify=False, auth=("root","calvin"))
                                 else:
-                                    response = requests.post(url, data=json.dumps(payload), headers=headers, verify=False, auth=(idrac_username, idrac_password))    
+                                    response = requests.post(url, data=json.dumps(payload), headers=headers, verify=False, auth=(idrac_username, idrac_password))
                                 statusCode = response.status_code
                                 data = response.json()
                                 if response.status_code == 204 or response.status_code == 202 or response.status_code == 200:
@@ -233,7 +233,7 @@ def loop_job_status():
                                     if "IDRAC" in args["erase"]:
                                         response = requests.post(url, data=json.dumps(payload), headers=headers, verify=False, auth=("root","calvin"))
                                     else:
-                                        response = requests.post(url, data=json.dumps(payload), headers=headers, verify=False, auth=(idrac_username, idrac_password))    
+                                        response = requests.post(url, data=json.dumps(payload), headers=headers, verify=False, auth=(idrac_username, idrac_password))
                                     statusCode = response.status_code
                                     if statusCode == 204 or statusCode == 202 or statusCode == 200:
                                         logging.info("- PASS, POST command passed to power ON server")
@@ -248,7 +248,7 @@ def loop_job_status():
                                 else:
                                     logging.info("- INFO, server still in POST/ON state, waiting for server to power down before executing power ON operation")
                                     time.sleep(60)
-                                    count += 1   
+                                    count += 1
                         else:
                             return
                     else:

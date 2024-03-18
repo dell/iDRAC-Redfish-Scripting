@@ -66,7 +66,7 @@ def check_supported_idrac_version():
         sys.exit(0)
     if response.status_code != 200:
         logging.warning("\n- WARNING, GET command failed to check supported iDRAC version, status code %s returned" % response.status_code)
-        sys.exit(0) 
+        sys.exit(0)
 
 def export_factory_configuration():
     global job_id
@@ -139,7 +139,7 @@ def loop_job_status():
             logging.info("- INFO, GET request failed due to connection error, retry")
             time.sleep(10)
             retry_count += 1
-            continue 
+            continue
         current_time = (datetime.now()-start_time)
         if response.status_code != 200:
             logging.error("\n- FAIL, Command failed to check job status, return code is %s" % response.status_code)

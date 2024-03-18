@@ -68,7 +68,7 @@ def script_examples():
 
 def check_supported_idrac_version():
     if args["x"]:
-        response = requests.get('https://%s/redfish/v1/Dell/Managers/iDRAC.Embedded.1/DellLicenseCollection' % idrac_ip, verify=verify_cert, headers={'X-Auth-Token': args["x"]})   
+        response = requests.get('https://%s/redfish/v1/Dell/Managers/iDRAC.Embedded.1/DellLicenseCollection' % idrac_ip, verify=verify_cert, headers={'X-Auth-Token': args["x"]})
     else:
         response = requests.get('https://%s/redfish/v1/Dell/Managers/iDRAC.Embedded.1/DellLicenseCollection' % idrac_ip, verify=verify_cert,auth=(idrac_username, idrac_password))
     data = response.json()
@@ -81,7 +81,7 @@ def check_supported_idrac_version():
 
 def get_idrac_license_info():
     if args["x"]:
-        response = requests.get('https://%s/redfish/v1/Dell/Managers/iDRAC.Embedded.1/DellLicenseCollection' % idrac_ip, verify=verify_cert, headers={'X-Auth-Token': args["x"]})   
+        response = requests.get('https://%s/redfish/v1/Dell/Managers/iDRAC.Embedded.1/DellLicenseCollection' % idrac_ip, verify=verify_cert, headers={'X-Auth-Token': args["x"]})
     else:
         response = requests.get('https://%s/redfish/v1/Dell/Managers/iDRAC.Embedded.1/DellLicenseCollection' % idrac_ip, verify=verify_cert,auth=(idrac_username, idrac_password))
     if response.status_code != 200:
@@ -97,7 +97,7 @@ def get_idrac_license_info():
    
 def get_network_share_types():
     if args["x"]:
-        response = requests.get('https://%s/redfish/v1/Dell/Managers/iDRAC.Embedded.1/DellLicenseManagementService' % idrac_ip, verify=verify_cert, headers={'X-Auth-Token': args["x"]})   
+        response = requests.get('https://%s/redfish/v1/Dell/Managers/iDRAC.Embedded.1/DellLicenseManagementService' % idrac_ip, verify=verify_cert, headers={'X-Auth-Token': args["x"]})
     else:
         response = requests.get('https://%s/redfish/v1/Dell/Managers/iDRAC.Embedded.1/DellLicenseManagementService' % idrac_ip, verify=verify_cert,auth=(idrac_username, idrac_password))
     if response.status_code != 200:
@@ -223,7 +223,7 @@ def import_idrac_license_local():
     else:
         data = response.json()
         logging.error("\n- FAIL, unable to import license filename \"%s\", status code %s, error results: \n%s" % (args["import_local"], response.status_code, data))
-        sys.exit(0)   
+        sys.exit(0)
 
 def loop_job_status():
     start_time = datetime.now()

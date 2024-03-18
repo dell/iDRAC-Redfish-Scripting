@@ -57,7 +57,7 @@ def script_examples():
 
 def check_supported_idrac_version():
     if args["x"]:
-        response = requests.get('https://%s/redfish/v1/Systems/System.Embedded.1/Bios' % idrac_ip, verify=verify_cert, headers={'X-Auth-Token': args["x"]})   
+        response = requests.get('https://%s/redfish/v1/Systems/System.Embedded.1/Bios' % idrac_ip, verify=verify_cert, headers={'X-Auth-Token': args["x"]})
     else:
         response = requests.get('https://%s/redfish/v1/Systems/System.Embedded.1/Bios' % idrac_ip, verify=verify_cert,auth=(idrac_username, idrac_password))
     data = response.json()
@@ -144,7 +144,7 @@ def create_bios_config_job():
 def check_schedule_job_status():
     while True:
         if args["x"]:
-            response = requests.get('https://%s/redfish/v1/Managers/iDRAC.Embedded.1/Jobs/%s' % (idrac_ip, job_id), verify=verify_cert, headers={'X-Auth-Token': args["x"]})   
+            response = requests.get('https://%s/redfish/v1/Managers/iDRAC.Embedded.1/Jobs/%s' % (idrac_ip, job_id), verify=verify_cert, headers={'X-Auth-Token': args["x"]})
         else:
             response = requests.get('https://%s/redfish/v1/Managers/iDRAC.Embedded.1/Jobs/%s' % (idrac_ip, job_id), verify=verify_cert,auth=(idrac_username, idrac_password))
         if response.status_code != 200:
@@ -162,7 +162,7 @@ def check_schedule_job_status():
                                                                           
 def reboot_server():
     if args["x"]:
-        response = requests.get('https://%s/redfish/v1/Systems/System.Embedded.1' % idrac_ip, verify=verify_cert, headers={'X-Auth-Token': args["x"]})   
+        response = requests.get('https://%s/redfish/v1/Systems/System.Embedded.1' % idrac_ip, verify=verify_cert, headers={'X-Auth-Token': args["x"]})
     else:
         response = requests.get('https://%s/redfish/v1/Systems/System.Embedded.1' % idrac_ip, verify=verify_cert,auth=(idrac_username, idrac_password))
     data = response.json()
@@ -187,7 +187,7 @@ def reboot_server():
             sys.exit(0)
         while True:
             if args["x"]:
-                response = requests.get('https://%s/redfish/v1/Systems/System.Embedded.1' % idrac_ip, verify=verify_cert, headers={'X-Auth-Token': args["x"]})   
+                response = requests.get('https://%s/redfish/v1/Systems/System.Embedded.1' % idrac_ip, verify=verify_cert, headers={'X-Auth-Token': args["x"]})
             else:
                 response = requests.get('https://%s/redfish/v1/Systems/System.Embedded.1' % idrac_ip, verify=verify_cert,auth=(idrac_username, idrac_password))
             data = response.json()
@@ -208,7 +208,7 @@ def reboot_server():
                     logging.info("- PASS, POST command passed to perform forced shutdown, status code return is %s" % response.status_code)
                     time.sleep(15)
                     if args["x"]:
-                        response = requests.get('https://%s/redfish/v1/Systems/System.Embedded.1' % idrac_ip, verify=verify_cert, headers={'X-Auth-Token': args["x"]})   
+                        response = requests.get('https://%s/redfish/v1/Systems/System.Embedded.1' % idrac_ip, verify=verify_cert, headers={'X-Auth-Token': args["x"]})
                     else:
                         response = requests.get('https://%s/redfish/v1/Systems/System.Embedded.1' % idrac_ip, verify=verify_cert,auth=(idrac_username, idrac_password))
                     data = response.json()
@@ -217,9 +217,9 @@ def reboot_server():
                         break
                     else:
                         logging.error("- FAIL, server not in OFF state, current power status is %s" % data['PowerState'])
-                        sys.exit(0)    
+                        sys.exit(0)
             else:
-                continue 
+                continue
         payload = {'ResetType': 'On'}
         if args["x"]:
             headers = {'content-type': 'application/json', 'X-Auth-Token': args["x"]}
@@ -254,10 +254,10 @@ def reboot_server():
 
 def check_job_status_final():
     if args["type"] == "1":
-        logging.info("\n- INFO, BIOS system password config job detected. If setting new or changing BIOS system password, server will halt during POST prompting to enter password. System password must be entered for POST to complete, mark the job completed\n") 
+        logging.info("\n- INFO, BIOS system password config job detected. If setting new or changing BIOS system password, server will halt during POST prompting to enter password. System password must be entered for POST to complete, mark the job completed\n")
     while True:
         if args["x"]:
-            response = requests.get('https://%s/redfish/v1/Managers/iDRAC.Embedded.1/Jobs/%s' % (idrac_ip, job_id), verify=verify_cert, headers={'X-Auth-Token': args["x"]})   
+            response = requests.get('https://%s/redfish/v1/Managers/iDRAC.Embedded.1/Jobs/%s' % (idrac_ip, job_id), verify=verify_cert, headers={'X-Auth-Token': args["x"]})
         else:
             response = requests.get('https://%s/redfish/v1/Managers/iDRAC.Embedded.1/Jobs/%s' % (idrac_ip, job_id), verify=verify_cert,auth=(idrac_username, idrac_password))
         current_time = (datetime.now()-start_time)

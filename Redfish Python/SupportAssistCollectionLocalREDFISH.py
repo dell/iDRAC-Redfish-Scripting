@@ -74,7 +74,7 @@ def script_examples():
 def check_supported_idrac_version():
     supported = ""
     if args["x"]:
-        response = requests.get('https://%s/redfish/v1/Dell/Managers/iDRAC.Embedded.1/DellLCService' % idrac_ip, verify=verify_cert, headers={'X-Auth-Token': args["x"]})   
+        response = requests.get('https://%s/redfish/v1/Dell/Managers/iDRAC.Embedded.1/DellLCService' % idrac_ip, verify=verify_cert, headers={'X-Auth-Token': args["x"]})
     else:
         response = requests.get('https://%s/redfish/v1/Dell/Managers/iDRAC.Embedded.1/DellLCService' % idrac_ip, verify=verify_cert,auth=(idrac_username, idrac_password))
     if response.__dict__['reason'] == "Unauthorized":
@@ -265,13 +265,13 @@ def loop_job_status():
             if response.headers['Location'] == "/redfish/v1/Dell/sacollect.zip" or response.headers['Location'] == "/redfish/v1/Oem/Dell/sacollect.zip":
                 logging.info("- PASS, job ID %s successfully marked completed" % job_id)
                 if args["x"]:
-                    response = requests.get('https://%s%s' % (idrac_ip, response.headers['Location']), verify=verify_cert, headers={'X-Auth-Token': args["x"]})   
+                    response = requests.get('https://%s%s' % (idrac_ip, response.headers['Location']), verify=verify_cert, headers={'X-Auth-Token': args["x"]})
                 else:
                     response = requests.get('https://%s%s' % (idrac_ip, response.headers['Location']), verify=verify_cert,auth=(idrac_username, idrac_password))
                 if args["filename"]:
                     SA_export_filename = args["filename"]
                 else:
-                    SA_export_filename = "sacollect.zip"    
+                    SA_export_filename = "sacollect.zip"
                 with open(SA_export_filename, "wb") as output:
                     output.write(response.content)
                 logging.info("\n- INFO, check your local directory for SupportAssist collection zip file \"%s\"" % SA_export_filename)

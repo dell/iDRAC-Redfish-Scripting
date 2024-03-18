@@ -91,7 +91,7 @@ def config_ini_file_examples():
 
 def check_supported_idrac_version(idrac_ip=""):
     if args["x"]:
-        response = requests.get('https://%s/redfish/v1/Systems/System.Embedded.1/Bios' % idrac_ip, verify=verify_cert, headers={'X-Auth-Token': args["x"]})   
+        response = requests.get('https://%s/redfish/v1/Systems/System.Embedded.1/Bios' % idrac_ip, verify=verify_cert, headers={'X-Auth-Token': args["x"]})
     else:
         response = requests.get('https://%s/redfish/v1/Systems/System.Embedded.1/Bios' % idrac_ip, verify=verify_cert,auth=(idrac_username, idrac_password))
     data = response.json()
@@ -109,7 +109,7 @@ def get_bios_attributes():
         pass
     open_file = open("bios_attributes.txt","w")
     if args["x"]:
-        response = requests.get('https://%s/redfish/v1/Systems/System.Embedded.1/Bios' % idrac_ip, verify=verify_cert, headers={'X-Auth-Token': args["x"]})   
+        response = requests.get('https://%s/redfish/v1/Systems/System.Embedded.1/Bios' % idrac_ip, verify=verify_cert, headers={'X-Auth-Token': args["x"]})
     else:
         response = requests.get('https://%s/redfish/v1/Systems/System.Embedded.1/Bios' % idrac_ip, verify=verify_cert,auth=(idrac_username, idrac_password))
     data = response.json()
@@ -134,7 +134,7 @@ def get_bios_attributes():
 
 def get_specific_bios_attribute():
     if args["x"]:
-        response = requests.get('https://%s/redfish/v1/Systems/System.Embedded.1/Bios' % idrac_ip, verify=verify_cert, headers={'X-Auth-Token': args["x"]})   
+        response = requests.get('https://%s/redfish/v1/Systems/System.Embedded.1/Bios' % idrac_ip, verify=verify_cert, headers={'X-Auth-Token': args["x"]})
     else:
         response = requests.get('https://%s/redfish/v1/Systems/System.Embedded.1/Bios' % idrac_ip, verify=verify_cert,auth=(idrac_username, idrac_password))
     data = response.json()
@@ -182,7 +182,7 @@ def bios_registry():
         pass
     open_file = open("bios_attribute_registry.txt","a")
     if args["x"]:
-        response = requests.get('https://%s/redfish/v1/Systems/System.Embedded.1/Bios/BiosRegistry' % idrac_ip, verify=verify_cert, headers={'X-Auth-Token': args["x"]})   
+        response = requests.get('https://%s/redfish/v1/Systems/System.Embedded.1/Bios/BiosRegistry' % idrac_ip, verify=verify_cert, headers={'X-Auth-Token': args["x"]})
     else:
         response = requests.get('https://%s/redfish/v1/Systems/System.Embedded.1/Bios/BiosRegistry' % idrac_ip, verify=verify_cert,auth=(idrac_username, idrac_password))
     data = response.json()
@@ -210,7 +210,7 @@ def bios_registry_dependencies():
         pass
     open_file = open("bios_attribute_dependencies.txt","a")
     if args["x"]:
-        response = requests.get('https://%s/redfish/v1/Systems/System.Embedded.1/Bios/BiosRegistry' % idrac_ip, verify=verify_cert, headers={'X-Auth-Token': args["x"]})   
+        response = requests.get('https://%s/redfish/v1/Systems/System.Embedded.1/Bios/BiosRegistry' % idrac_ip, verify=verify_cert, headers={'X-Auth-Token': args["x"]})
     else:
         response = requests.get('https://%s/redfish/v1/Systems/System.Embedded.1/Bios/BiosRegistry' % idrac_ip, verify=verify_cert,auth=(idrac_username, idrac_password))
     data = response.json()
@@ -234,7 +234,7 @@ def bios_registry_dependencies():
 def bios_registry_get_specific_attribute():
     logging.info("\n- INFO, searching BIOS registry for attribute \"%s\"" % args["get_registry_attribute"])
     if args["x"]:
-        response = requests.get('https://%s/redfish/v1/Systems/System.Embedded.1/Bios/BiosRegistry' % idrac_ip, verify=verify_cert, headers={'X-Auth-Token': args["x"]})   
+        response = requests.get('https://%s/redfish/v1/Systems/System.Embedded.1/Bios/BiosRegistry' % idrac_ip, verify=verify_cert, headers={'X-Auth-Token': args["x"]})
     else:
         response = requests.get('https://%s/redfish/v1/Systems/System.Embedded.1/Bios/BiosRegistry' % idrac_ip, verify=verify_cert,auth=(idrac_username, idrac_password))
     data = response.json()
@@ -264,7 +264,7 @@ def create_bios_attribute_dict(idrac_ip="",attribute_names="", attribute_values=
     for i,ii in zip(attribute_names, attribute_values):
         bios_attribute_payload["Attributes"][i] = ii
     if args["x"]:
-        response = requests.get('https://%s/redfish/v1/Systems/System.Embedded.1/Bios/BiosRegistry' % idrac_ip, verify=verify_cert, headers={'X-Auth-Token': args["x"]})   
+        response = requests.get('https://%s/redfish/v1/Systems/System.Embedded.1/Bios/BiosRegistry' % idrac_ip, verify=verify_cert, headers={'X-Auth-Token': args["x"]})
     else:
         response = requests.get('https://%s/redfish/v1/Systems/System.Embedded.1/Bios/BiosRegistry' % idrac_ip, verify=verify_cert,auth=(idrac_username, idrac_password))
     data = response.json()
@@ -312,7 +312,7 @@ def create_schedule_config_job(idrac_ip=""):
     if args["maintenance_reboot"] == "noreboot":
         payload = {"@Redfish.SettingsApplyTime":{"ApplyTime": "InMaintenanceWindowOnReset","MaintenanceWindowStartTime":str(args["start_time"]),"MaintenanceWindowDurationInSeconds": int(args["duration_time"])}}
     elif args["maintenance_reboot"] == "autoreboot":
-        payload = {"@Redfish.SettingsApplyTime":{"ApplyTime": "AtMaintenanceWindowStart","MaintenanceWindowStartTime":str(args["start_time"]),"MaintenanceWindowDurationInSeconds": int(args["duration_time"])}}        
+        payload = {"@Redfish.SettingsApplyTime":{"ApplyTime": "AtMaintenanceWindowStart","MaintenanceWindowStartTime":str(args["start_time"]),"MaintenanceWindowDurationInSeconds": int(args["duration_time"])}}
     else:
         logging.error("- FAIL, invalid value passed in for maintenance window job type")
         sys.exit(0)
@@ -337,7 +337,7 @@ def create_schedule_config_job(idrac_ip=""):
         sys.exit(0)
     logging.info("- PASS, BIOS config job ID %s successfully created" % job_id)
     if args["x"]:
-        response = requests.get('https://%s/redfish/v1/Managers/iDRAC.Embedded.1/Jobs/%s' % (idrac_ip, job_id), verify=verify_cert, headers={'X-Auth-Token': args["x"]})   
+        response = requests.get('https://%s/redfish/v1/Managers/iDRAC.Embedded.1/Jobs/%s' % (idrac_ip, job_id), verify=verify_cert, headers={'X-Auth-Token': args["x"]})
     else:
         response = requests.get('https://%s/redfish/v1/Managers/iDRAC.Embedded.1/Jobs/%s' % (idrac_ip, job_id), verify=verify_cert,auth=(idrac_username, idrac_password))
     data = response.json()
@@ -345,10 +345,10 @@ def create_schedule_config_job(idrac_ip=""):
     logging.info("\n--- PASS, Detailed Job Status Results ---\n")
     for i in data.items():
         pprint(i)
-    if args["maintenance_reboot"] == "noreboot":                
+    if args["maintenance_reboot"] == "noreboot":
         logging.info("\n- PASS, %s maintenance window config jid successfully created.\n\n- INFO, noreboot value detected, config job will go to scheduled state once start time has elapsed. You will need to either manually reboot the server or schedule a separate server reboot during the maintenance window for the config job to execute.\n", job_id)
     elif args["maintenance_reboot"] == "autoreboot":
-        logging.info("\n- PASS %s maintenance window config jid successfully created.\n\n- INFO, autoreboot value detected, config job will go to scheduled state once start time has elapsed and automatically reboot the server to apply the configuration job", job_id) 
+        logging.info("\n- PASS %s maintenance window config jid successfully created.\n\n- INFO, autoreboot value detected, config job will go to scheduled state once start time has elapsed and automatically reboot the server to apply the configuration job", job_id)
 
 def get_job_status_scheduled(idrac_ip=""):
     count = 0
@@ -424,7 +424,7 @@ def loop_job_status_final(idrac_ip=""):
 
 def reboot_server(idrac_ip=""):
     if args["x"]:
-        response = requests.get('https://%s/redfish/v1/Systems/System.Embedded.1' % idrac_ip, verify=verify_cert, headers={'X-Auth-Token': args["x"]})   
+        response = requests.get('https://%s/redfish/v1/Systems/System.Embedded.1' % idrac_ip, verify=verify_cert, headers={'X-Auth-Token': args["x"]})
     else:
         response = requests.get('https://%s/redfish/v1/Systems/System.Embedded.1' % idrac_ip, verify=verify_cert,auth=(idrac_username, idrac_password))
     data = response.json()
@@ -449,7 +449,7 @@ def reboot_server(idrac_ip=""):
             sys.exit(0)
         while True:
             if args["x"]:
-                response = requests.get('https://%s/redfish/v1/Systems/System.Embedded.1' % idrac_ip, verify=verify_cert, headers={'X-Auth-Token': args["x"]})   
+                response = requests.get('https://%s/redfish/v1/Systems/System.Embedded.1' % idrac_ip, verify=verify_cert, headers={'X-Auth-Token': args["x"]})
             else:
                 response = requests.get('https://%s/redfish/v1/Systems/System.Embedded.1' % idrac_ip, verify=verify_cert,auth=(idrac_username, idrac_password))
             data = response.json()
@@ -470,7 +470,7 @@ def reboot_server(idrac_ip=""):
                     logging.info("- PASS, POST command passed to perform forced shutdown")
                     time.sleep(60)
                     if args["x"]:
-                        response = requests.get('https://%s/redfish/v1/Systems/System.Embedded.1' % idrac_ip, verify=verify_cert, headers={'X-Auth-Token': args["x"]})   
+                        response = requests.get('https://%s/redfish/v1/Systems/System.Embedded.1' % idrac_ip, verify=verify_cert, headers={'X-Auth-Token': args["x"]})
                     else:
                         response = requests.get('https://%s/redfish/v1/Systems/System.Embedded.1' % idrac_ip, verify=verify_cert,auth=(idrac_username, idrac_password))
                     data = response.json()
@@ -479,9 +479,9 @@ def reboot_server(idrac_ip=""):
                         break
                     else:
                         logging.error("- FAIL, server not in OFF state, current power status is %s" % data['PowerState'])
-                        sys.exit(0)    
+                        sys.exit(0)
             else:
-                continue 
+                continue
         payload = {'ResetType': 'On'}
         if args["x"]:
             headers = {'content-type': 'application/json', 'X-Auth-Token': args["x"]}
@@ -596,7 +596,7 @@ if __name__ == "__main__":
     elif args["get_registry_attribute"]:
         bios_registry_get_specific_attribute()
     elif args["get_registry"]:
-        bios_registry() 
+        bios_registry()
     elif args["attribute_names"] and args["attribute_values"]:
         create_bios_attribute_dict(idrac_ip)
         if args["maintenance_reboot"] and args["start_time"] and args["duration_time"]:

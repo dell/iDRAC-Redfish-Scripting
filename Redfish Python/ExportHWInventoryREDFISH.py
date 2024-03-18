@@ -120,13 +120,13 @@ def export_hw_inventory():
     if args["sharetype"].lower() == "local":
         if response.headers['Location'] == "/redfish/v1/Dell/hwinv.xml":
             if args["x"]:
-                response = requests.get('https://%s%s' % (idrac_ip, response.headers['Location']), verify=verify_cert, headers={'X-Auth-Token': args["x"]})   
+                response = requests.get('https://%s%s' % (idrac_ip, response.headers['Location']), verify=verify_cert, headers={'X-Auth-Token': args["x"]})
             else:
                 response = requests.get('https://%s%s' % (idrac_ip, response.headers['Location']), verify=verify_cert,auth=(idrac_username, idrac_password))
             if args["filename"]:
                 export_filename = args["filename"]
             else:
-                export_filename = "hwinv.xml"    
+                export_filename = "hwinv.xml"
             with open(export_filename, "wb") as output:
                 output.write(response.content)
             logging.info("\n- INFO, check your local directory for hardware inventory XML file \"%s\"" % export_filename)

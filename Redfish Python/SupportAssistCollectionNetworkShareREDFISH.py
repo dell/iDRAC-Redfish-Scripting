@@ -79,7 +79,7 @@ def script_examples():
 def check_supported_idrac_version():
     supported = ""
     if args["x"]:
-        response = requests.get('https://%s/redfish/v1/Dell/Managers/iDRAC.Embedded.1/DellLCService' % idrac_ip, verify=verify_cert, headers={'X-Auth-Token': args["x"]})   
+        response = requests.get('https://%s/redfish/v1/Dell/Managers/iDRAC.Embedded.1/DellLCService' % idrac_ip, verify=verify_cert, headers={'X-Auth-Token': args["x"]})
     else:
         response = requests.get('https://%s/redfish/v1/Dell/Managers/iDRAC.Embedded.1/DellLCService' % idrac_ip, verify=verify_cert,auth=(idrac_username, idrac_password))
     if response.__dict__['reason'] == "Unauthorized":
@@ -194,7 +194,7 @@ def export_support_assist_colection_network_share():
         method = "SupportAssistCollection"
     elif args["export_last"]:
         url = 'https://%s/redfish/v1/Dell/Managers/iDRAC.Embedded.1/DellLCService/Actions/DellLCService.SupportAssistExportLastCollection' % (idrac_ip)
-        method = "SupportAssistExportLastCollection"  
+        method = "SupportAssistExportLastCollection"
     payload = {}
     if args["filter"]:
         if args["filter"] == "0":

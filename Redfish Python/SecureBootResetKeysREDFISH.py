@@ -35,7 +35,7 @@ parser.add_argument('-u', help='iDRAC username', required=False)
 parser.add_argument('-p', help='iDRAC password. If you do not pass in argument -p, script will prompt to enter user password which will not be echoed to the screen.', required=False)
 parser.add_argument('-x', help='Pass in X-Auth session token for executing Redfish calls. All Redfish calls will use X-Auth token instead of username/password', required=False)
 parser.add_argument('--ssl', help='SSL cert verification for all Redfish calls, pass in value \"true\" or \"false\". By default, this argument is not required and script ignores validating SSL cert for all Redfish calls.', required=False)
-parser.add_argument('--script-examples', help='Get executing script examples', action="store_true", dest="script_examples", required=False) 
+parser.add_argument('--script-examples', help='Get executing script examples', action="store_true", dest="script_examples", required=False)
 parser.add_argument('--get-keytypes', help='Get supported reset key types', dest="get_keytypes", action="store_true", required=False)
 parser.add_argument('--get-secureboot', help='Get BIOS secure boot policy setting', dest="get_secureboot", action="store_true", required=False)
 parser.add_argument('--set', help='Set BIOS attribute Secure Boot Policy to Custom for reset secure boot keys action to execute. NOTE: This will create a BIOS config job, reboot the server to apply attribute change.', action="store_true", required=False)
@@ -109,7 +109,7 @@ def reset_keys():
     else:
         data = response.json()
         logging.error("\n- FAIL, action ResetKeys failed to delete all keys, status code %s returned, detailed error results:\n %s" % (response.status_code, data))
-        sys.exit(0)  
+        sys.exit(0)
 
 def set_bios_attribute():
     global payload
@@ -237,7 +237,7 @@ def loop_job_status_final():
 
 def reboot_server():
     if args["x"]:
-        response = requests.get('https://%s/redfish/v1/Systems/System.Embedded.1' % idrac_ip, verify=verify_cert, headers={'X-Auth-Token': args["x"]})   
+        response = requests.get('https://%s/redfish/v1/Systems/System.Embedded.1' % idrac_ip, verify=verify_cert, headers={'X-Auth-Token': args["x"]})
     else:
         response = requests.get('https://%s/redfish/v1/Systems/System.Embedded.1' % idrac_ip, verify=verify_cert,auth=(idrac_username, idrac_password))
     data = response.json()
@@ -262,7 +262,7 @@ def reboot_server():
             sys.exit(0)
         while True:
             if args["x"]:
-                response = requests.get('https://%s/redfish/v1/Systems/System.Embedded.1' % idrac_ip, verify=verify_cert, headers={'X-Auth-Token': args["x"]})   
+                response = requests.get('https://%s/redfish/v1/Systems/System.Embedded.1' % idrac_ip, verify=verify_cert, headers={'X-Auth-Token': args["x"]})
             else:
                 response = requests.get('https://%s/redfish/v1/Systems/System.Embedded.1' % idrac_ip, verify=verify_cert,auth=(idrac_username, idrac_password))
             data = response.json()
@@ -283,7 +283,7 @@ def reboot_server():
                     logging.info("- PASS, POST command passed to perform forced shutdown")
                     time.sleep(15)
                     if args["x"]:
-                        response = requests.get('https://%s/redfish/v1/Systems/System.Embedded.1' % idrac_ip, verify=verify_cert, headers={'X-Auth-Token': args["x"]})   
+                        response = requests.get('https://%s/redfish/v1/Systems/System.Embedded.1' % idrac_ip, verify=verify_cert, headers={'X-Auth-Token': args["x"]})
                     else:
                         response = requests.get('https://%s/redfish/v1/Systems/System.Embedded.1' % idrac_ip, verify=verify_cert,auth=(idrac_username, idrac_password))
                     data = response.json()
@@ -292,9 +292,9 @@ def reboot_server():
                         break
                     else:
                         logging.error("- FAIL, server not in OFF state, current power status is %s" % data['PowerState'])
-                        sys.exit(0)    
+                        sys.exit(0)
             else:
-                continue 
+                continue
         payload = {'ResetType': 'On'}
         if args["x"]:
             headers = {'content-type': 'application/json', 'X-Auth-Token': args["x"]}
