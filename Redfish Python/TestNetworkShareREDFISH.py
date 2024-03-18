@@ -41,7 +41,7 @@ parser.add_argument('--shareip', help='Pass in the IP address of the network sha
 parser.add_argument('--sharetype', help='Pass in the share type of the network share. Supported values are NFS, CIFS, HTTP, HTTPS.', required=False)
 parser.add_argument('--sharename', help='Pass in the network share share name', required=False)
 parser.add_argument('--username', help='Pass in the CIFS username. This is only required if using CIFS share', required=False)
-parser.add_argument('--password', help='Pass in the CIFS username pasword. This is only required if using CIFS share', required=False)
+parser.add_argument('--password', help='Pass in the CIFS username password. This is only required if using CIFS share', required=False)
 parser.add_argument('--ignorecertwarning', help='Supported values are Off and On. This argument is only required if using HTTPS for share type', required=False)
 args = vars(parser.parse_args())
 logging.basicConfig(format='%(message)s', stream=sys.stdout, level=logging.INFO)

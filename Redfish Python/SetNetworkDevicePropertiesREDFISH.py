@@ -295,7 +295,7 @@ def create_schedule_config_job():
     for i in data.items():
         if "odata" not in i[0] or "MessageArgs" not in i[0] or "TargetSettingsURI" not in i[0]:
             print("%s: %s" % (i[0],i[1]))                  
-    logging.info("\n- PASS, %s maintenance window config jid successfully created.\n\nJob will go to scheduled state once job start time has elapsed. You will need to schedule a seperate server reboot during the maintenance windows for the config job to execute. NOTE: If using iDRAC version 4.20 or newer, a reboot job will now get created and scheduled at the same time of the configuration job. Server will automatically reboot once scheduled time has been hit.\n" % (job_id))
+    logging.info("\n- PASS, %s maintenance window config jid successfully created.\n\nJob will go to scheduled state once job start time has elapsed. You will need to schedule a separate server reboot during the maintenance windows for the config job to execute. NOTE: If using iDRAC version 4.20 or newer, a reboot job will now get created and scheduled at the same time of the configuration job. Server will automatically reboot once scheduled time has been hit.\n" % (job_id))
     
 def loop_job_status():
     start_time = datetime.now()

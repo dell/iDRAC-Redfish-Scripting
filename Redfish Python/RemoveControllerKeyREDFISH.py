@@ -30,7 +30,7 @@ from pprint import pprint
 
 warnings.filterwarnings("ignore")
 
-parser=argparse.ArgumentParser(description="Python script using Redfish API with OEM extenstion to remove the storage controller key (remove encryption)")
+parser=argparse.ArgumentParser(description="Python script using Redfish API with OEM extension to remove the storage controller key (remove encryption)")
 parser.add_argument('-ip',help='iDRAC IP address', required=False)
 parser.add_argument('-u', help='iDRAC username', required=False)
 parser.add_argument('-p', help='iDRAC password', required=False)

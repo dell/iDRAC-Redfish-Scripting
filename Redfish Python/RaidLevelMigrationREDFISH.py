@@ -27,7 +27,7 @@ from pprint import pprint
 
 warnings.filterwarnings("ignore")
 
-parser=argparse.ArgumentParser(description="Python script using Redfish API with OEM extension to add additional hard drives to the existing RAID Level to migrate to a new RAID level. Note: Once you migrate to a new RAID level, this process may take awhile to complete depending on disk size. Check virtual disk details and look for Operations property, it should show reconstruction status and percent complete progess.")
+parser=argparse.ArgumentParser(description="Python script using Redfish API with OEM extension to add additional hard drives to the existing RAID Level to migrate to a new RAID level. Note: Once you migrate to a new RAID level, this process may take awhile to complete depending on disk size. Check virtual disk details and look for Operations property, it should show reconstruction status and percent complete progress.")
 parser.add_argument('-ip',help='iDRAC IP address', required=False)
 parser.add_argument('-u', help='iDRAC username', required=False)
 parser.add_argument('-p', help='iDRAC password. If you do not pass in argument -p, script will prompt to enter user password which will not be echoed to the screen.', required=False)

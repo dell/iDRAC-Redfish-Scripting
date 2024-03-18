@@ -116,7 +116,7 @@ def get_cert_types():
         response = requests.get('https://%s/redfish/v1/Dell/Managers/iDRAC.Embedded.1/DelliDRACCardService' % idrac_ip, verify=verify_cert, auth=(idrac_username, idrac_password))
     data = response.json()
     if response.status_code != 200:
-        logging.error("\n- ERROR, GET commmand failed to get cert types supported for export/import cert operations, status code %s returned" % response.status_code)
+        logging.error("\n- ERROR, GET command failed to get cert types supported for export/import cert operations, status code %s returned" % response.status_code)
         logging.error("- Detailed error results: %s" % data)
         sys.exit(0)
     for i in data["Actions"].items():
@@ -138,7 +138,7 @@ def get_current_certs():
         response = requests.get('https://%s/redfish/v1/CertificateService/CertificateLocations?$expand=*($levels=1)' % idrac_ip, verify=verify_cert, auth=(idrac_username, idrac_password))
     data = response.json()
     if response.status_code != 200:
-        logging.error("\n- ERROR, GET commmand failed to get current cert details, status code %s returned" % response.status_code)
+        logging.error("\n- ERROR, GET command failed to get current cert details, status code %s returned" % response.status_code)
         logging.error("- Detailed error results: %s" % data)
         sys.exit(0)
     for i in data.items():

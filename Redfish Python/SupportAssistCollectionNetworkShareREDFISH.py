@@ -256,7 +256,7 @@ def export_support_assist_colection_network_share():
     except:
         logging.error("- FAIL, unable to find job ID in headers POST response, headers output is:\n%s" % response.headers)
         sys.exit(0)
-    logging.info("- PASS, job ID %s successfuly created for %s method\n" % (job_id, method))
+    logging.info("- PASS, job ID %s successfully created for %s method\n" % (job_id, method))
 
 def loop_job_status():
     start_time = datetime.now()
