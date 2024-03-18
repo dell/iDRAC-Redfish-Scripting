@@ -143,7 +143,7 @@ def support_assist_collection():
     except:
         logging.error("- FAIL, unable to find job ID in headers POST response, headers output is:\n%s" % response.headers)
         sys.exit(0)
-    logging.info("\n- PASS, job ID %s successfully created for %s method\n" % (job_id, method))
+    logging.info("\n- PASS, job ID %s successfully created for %s method\n", job_id, method)
 
 def support_assist_accept_EULA():
     url = 'https://%s/redfish/v1/Dell/Managers/iDRAC.Embedded.1/DellLCService/Actions/DellLCService.SupportAssistAcceptEULA' % (idrac_ip)

@@ -176,7 +176,7 @@ def export_import_idrac_license_network_share():
     except:
         logging.error("- FAIL, unable to find job ID in headers POST response, headers output is:\n%s" % response.headers)
         sys.exit(0)
-    logging.info("- PASS, job ID %s successfully created for %s method\n" % (job_id, method))
+    logging.info("- PASS, job ID %s successfully created for %s method\n", job_id, method)
 
 def delete_idrac_license():
     url = 'https://%s/redfish/v1/Dell/Managers/iDRAC.Embedded.1/DellLicenseManagementService/Actions/DellLicenseManagementService.DeleteLicense' % (idrac_ip)

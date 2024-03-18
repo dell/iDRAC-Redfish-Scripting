@@ -155,7 +155,7 @@ def create_bios_config_job():
     except:
         logging.error("- FAIL, unable to find job ID in headers POST response, headers output is:\n%s" % response.headers)
         sys.exit(0)
-    logging.info("- PASS, job ID %s successfully created for %s method\n" % job_id)
+    logging.info("- PASS, job ID %s successfully created for %s method\n", job_id)
     start_time = datetime.now()
         
 def get_job_status_scheduled():

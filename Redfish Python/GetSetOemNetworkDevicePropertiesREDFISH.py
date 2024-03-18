@@ -315,7 +315,7 @@ def create_schedule_config_job():
     for i in data.items():
         pprint(i)
     if args["maintenance_reboot"] == "noreboot":                
-        logging.info("\n- PASS, %s maintenance window config jid successfully created.\n\n- INFO, noreboot value detected, config job will go to scheduled state once start time has elapsed. You will need to either manually reboot the server or schedule a separate server reboot during the maintenance window for the config job to execute.\n" % (job_id))
+        logging.info("\n- PASS, %s maintenance window config jid successfully created.\n\n- INFO, noreboot value detected, config job will go to scheduled state once start time has elapsed. You will need to either manually reboot the server or schedule a separate server reboot during the maintenance window for the config job to execute.\n", job_id)
     elif args["maintenance_reboot"] == "autoreboot":
         logging.info("\n- PASS %s maintenance window config jid successfully created.\n\n- INFO, autoreboot value detected, config job will go to scheduled state once start time has elapsed and automatically reboot the server to apply the configuration job" % job_id)
 

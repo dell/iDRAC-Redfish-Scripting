@@ -112,7 +112,7 @@ def change_bios_password():
     if response.status_code == 200:
         logging.info("\n- PASS: status code %s returned for POST action Bios.ChangePassword" % response.status_code)
     else:
-        logging.error("\n- FAIL, Command failed, error code is %s" % response.status_code)
+        logging.error("\n- FAIL, Command failed, error code is %s", response.status_code)
         detail_message = str(response.__dict__)
         logging.info(detail_message)
         sys.exit(0)

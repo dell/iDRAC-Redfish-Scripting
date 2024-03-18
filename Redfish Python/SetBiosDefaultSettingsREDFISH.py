@@ -71,7 +71,7 @@ def set_bios_reset_to_default():
     if response.status_code == 200:
         logging.info("\n- PASS: status code %s returned, flag set to reset BIOS to default settings" % response.status_code)
     else:
-        logging.error("\n- FAIL, Command failed, error code is %s" % response.status_code)
+        logging.error("\n- FAIL, Command failed, error code is %s", response.status_code)
         detail_message = str(response.__dict__)
         logging.error(detail_message)
         sys.exit(0)

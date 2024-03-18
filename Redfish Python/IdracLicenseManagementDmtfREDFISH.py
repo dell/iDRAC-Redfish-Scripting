@@ -159,7 +159,7 @@ def import_idrac_license_networkshare():
     except:
         logging.error("- FAIL, unable to find job ID in headers POST response, headers output is:\n%s" % response.headers)
         sys.exit(0)
-    logging.info("- PASS, job ID %s successfully created to import iDRAC license" % job_id.split("/")[-1])
+    logging.info("- PASS, job ID %s successfully created to import iDRAC license", job_id.split("/")[-1])
 
 def import_idrac_license_local():
     try:
