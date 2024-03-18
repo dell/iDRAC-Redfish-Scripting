@@ -31,7 +31,7 @@ from pprint import pprint
 
 warnings.filterwarnings("ignore")
 
-parser = argparse.ArgumentParser(description="Python script using Redfish API to first check current firmware version for a device, then only apply the new firwmare package if version difference is detected. NOTE: There is a --force argument to apply the firmware even if same version is detected.")
+parser = argparse.ArgumentParser(description="Python script using Redfish API to first check current firmware version for a device, then only apply the new firmware package if version difference is detected. NOTE: There is a --force argument to apply the firmware even if same version is detected.")
 parser.add_argument('-ip',help='iDRAC IP address', required=False)
 parser.add_argument('-u', help='iDRAC username', required=False)
 parser.add_argument('-p', help='iDRAC password. If you do not pass in argument -p, script will prompt to enter user password which will not be echoed to the screen.', required=False)
@@ -235,7 +235,7 @@ def check_job_status():
             logging.info("\n- JOB ID %s completed in %s" % (job_id, current_time))
             sys.exit(0)
         if data["TaskState"] == "Completed":
-            logging.info("\n- PASS, job ID successfuly marked completed, detailed final job status results\n")
+            logging.info("\n- PASS, job ID successfully marked completed, detailed final job status results\n")
             for i in data['Oem']['Dell'].items():
                 pprint(i)
             logging.info("\n- JOB ID %s completed in %s" % (job_id, current_time))

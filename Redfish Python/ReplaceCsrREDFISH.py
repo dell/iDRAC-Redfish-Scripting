@@ -155,7 +155,7 @@ if __name__ == "__main__":
         if args["reset"]:
             reset_idrac()
         else:
-            logging.warning("- WARNING, argument --reset not detected. If using iDRAC version older than 5.10.10, iDRAC reset is needed to apply newly uploaded cert. Rerun script again passing in only --reset agrument to reset iDRAC")
+            logging.warning("- WARNING, argument --reset not detected. If using iDRAC version older than 5.10.10, iDRAC reset is needed to apply newly uploaded cert. Rerun script again passing in only --reset argument to reset iDRAC")
     elif args["get"]:
         get_current_iDRAC_certs()
     elif args["reset"]:

@@ -111,7 +111,7 @@ def get_network_devices():
             for ii in i.items():
                 print(ii[1].split("/")[-1])
 
-def get_detail_network_device_info():   
+def get_detail_network_device_info():
     logging.info("\n - Detailed network device information for %s -\n" % args["get_device_details"])
     if args["x"]:
         response = requests.get('https://%s/redfish/v1/Systems/System.Embedded.1/NetworkAdapters/%s' % (idrac_ip, args["get_device_details"]), verify=verify_cert, headers={'X-Auth-Token': args["x"]})
@@ -294,8 +294,8 @@ def create_schedule_config_job():
     logging.info("\n--- PASS, Detailed Job Status Results ---\n")
     for i in data.items():
         if "odata" not in i[0] or "MessageArgs" not in i[0] or "TargetSettingsURI" not in i[0]:
-            print("%s: %s" % (i[0],i[1]))                  
-    logging.info("\n- PASS, %s maintenance window config jid successfully created.\n\nJob will go to scheduled state once job start time has elapsed. You will need to schedule a seperate server reboot during the maintenance windows for the config job to execute. NOTE: If using iDRAC version 4.20 or newer, a reboot job will now get created and scheduled at the same time of the configuration job. Server will automatically reboot once scheduled time has been hit.\n" % (job_id))
+            print("%s: %s" % (i[0],i[1]))
+    logging.info("\n- PASS, %s maintenance window config jid successfully created.\n\nJob will go to scheduled state once job start time has elapsed. You will need to schedule a separate server reboot during the maintenance windows for the config job to execute. NOTE: If using iDRAC version 4.20 or newer, a reboot job will now get created and scheduled at the same time of the configuration job. Server will automatically reboot once scheduled time has been hit.\n", job_id)
     
 def loop_job_status():
     start_time = datetime.now()
@@ -351,7 +351,7 @@ def get_job_status():
 
 def reboot_server():
     if args["x"]:
-        response = requests.get('https://%s/redfish/v1/Systems/System.Embedded.1' % idrac_ip, verify=verify_cert, headers={'X-Auth-Token': args["x"]})   
+        response = requests.get('https://%s/redfish/v1/Systems/System.Embedded.1' % idrac_ip, verify=verify_cert, headers={'X-Auth-Token': args["x"]})
     else:
         response = requests.get('https://%s/redfish/v1/Systems/System.Embedded.1' % idrac_ip, verify=verify_cert,auth=(idrac_username, idrac_password))
     data = response.json()
@@ -376,7 +376,7 @@ def reboot_server():
             sys.exit(0)
         while True:
             if args["x"]:
-                response = requests.get('https://%s/redfish/v1/Systems/System.Embedded.1' % idrac_ip, verify=verify_cert, headers={'X-Auth-Token': args["x"]})   
+                response = requests.get('https://%s/redfish/v1/Systems/System.Embedded.1' % idrac_ip, verify=verify_cert, headers={'X-Auth-Token': args["x"]})
             else:
                 response = requests.get('https://%s/redfish/v1/Systems/System.Embedded.1' % idrac_ip, verify=verify_cert,auth=(idrac_username, idrac_password))
             data = response.json()
@@ -397,7 +397,7 @@ def reboot_server():
                     logging.info("- PASS, POST command passed to perform forced shutdown, status code return is %s" % response.status_code)
                     time.sleep(15)
                     if args["x"]:
-                        response = requests.get('https://%s/redfish/v1/Systems/System.Embedded.1' % idrac_ip, verify=verify_cert, headers={'X-Auth-Token': args["x"]})   
+                        response = requests.get('https://%s/redfish/v1/Systems/System.Embedded.1' % idrac_ip, verify=verify_cert, headers={'X-Auth-Token': args["x"]})
                     else:
                         response = requests.get('https://%s/redfish/v1/Systems/System.Embedded.1' % idrac_ip, verify=verify_cert,auth=(idrac_username, idrac_password))
                     data = response.json()
@@ -406,9 +406,9 @@ def reboot_server():
                         break
                     else:
                         logging.error("- FAIL, server not in OFF state, current power status is %s" % data['PowerState'])
-                        sys.exit(0)    
+                        sys.exit(0)
             else:
-                continue 
+                continue
         payload = {'ResetType': 'On'}
         if args["x"]:
             headers = {'content-type': 'application/json', 'X-Auth-Token': args["x"]}

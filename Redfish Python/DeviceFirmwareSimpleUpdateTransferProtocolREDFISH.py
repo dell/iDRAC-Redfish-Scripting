@@ -185,7 +185,7 @@ def check_job_status():
                     logging.info("- INFO, server virtual a/c cycle is needed for the new firmware installed to become effective")
             sys.exit(0)
         if data["TaskState"] == "Completed":
-            logging.info("\n- PASS, job ID successfuly marked completed, detailed final job status results\n")
+            logging.info("\n- PASS, job ID successfully marked completed, detailed final job status results\n")
             for i in data['Oem']['Dell'].items():
                 pprint(i)
             logging.info("\n- JOB ID %s completed in %s" % (job_id, current_time))

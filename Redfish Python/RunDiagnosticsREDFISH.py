@@ -37,7 +37,7 @@ parser.add_argument('-u', help='iDRAC username', required=False)
 parser.add_argument('-p', help='iDRAC password. If you do not pass in argument -p, script will prompt to enter user password which will not be echoed to the screen.', required=False)
 parser.add_argument('-x', help='Pass in X-Auth session token for executing Redfish calls. All Redfish calls will use X-Auth token instead of username/password', required=False)
 parser.add_argument('--ssl', help='SSL cert verification for all Redfish calls, pass in value \"true\" or \"false\". By default, this argument is not required and script ignores validating SSL cert for all Redfish calls.', required=False)
-parser.add_argument('--script-examples', help='Get executing script examples', action="store_true", dest="script_examples", required=False) 
+parser.add_argument('--script-examples', help='Get executing script examples', action="store_true", dest="script_examples", required=False)
 parser.add_argument('--reboot-type', help='Pass in the reboot job type. Pass in \"0\" for GracefulRebootWithForcedShutdown, \"1\" for GracefulRebootWithoutForcedShutdown or \"2\" for Powercycle (forced)', dest="reboot_type", required=False)
 parser.add_argument('--runmode', help='Pass in the run mode type you want to execute for diags. Pass in \"0\" for Express only, \"1\" for Express and Extended or \"2\" for Extended only. Note: Run express diags, average completion time: 15-30 minutes. Run extended diags, average completion time: 3-5 hours but timings will vary based on your server configuration.', required=False)
 parser.add_argument('--export', help='Export diags results, pass in 1 for local, 2 for NFS, 3 for CIFS, 4 for HTTP or 5 for HTTPS. If using network share, you will need to also use IP address, sharename, sharetype, username, password arguments.', required=False)
@@ -96,7 +96,7 @@ def export_diags():
     if args["filename"]:
             payload["FileName"] = args["filename"]
     if args["ignorecertwarning"]:
-        payload["IgnoreCertificateWarning"] = args["ignorecertwarning"]   
+        payload["IgnoreCertificateWarning"] = args["ignorecertwarning"]
     if args["x"]:
         headers = {'content-type': 'application/json', 'X-Auth-Token': args["x"]}
         response = requests.post(url, data=json.dumps(payload), headers=headers, verify=verify_cert)
@@ -138,7 +138,7 @@ def export_diags():
         except:
             logging.error("- FAIL, unable to find job ID in headers POST response, headers output is:\n%s" % response.headers)
             sys.exit(0)
-        logging.info("- PASS, job ID %s successfuly created for %s method\n" % (job_id, method))
+        logging.info("- PASS, job ID %s successfully created for %s method\n", job_id, method)
         loop_job_status()
 
 def run_remote_diags():
@@ -185,7 +185,7 @@ def run_remote_diags():
     except:
         logging.error("- FAIL, unable to find job ID in headers POST response, headers output is:\n%s" % response.headers)
         sys.exit(0)
-    logging.info("- PASS, job ID %s successfuly created for %s method\n" % (job_id, method))
+    logging.info("- PASS, job ID %s successfully created for %s method\n", job_id, method)
     
 def loop_job_status():
     start_time = datetime.now()
@@ -207,7 +207,7 @@ def loop_job_status():
                 continue
             else:
                 logging.warning("- WARNING, GET command failed to get job status, script will exit")
-                sys.exit(0)   
+                sys.exit(0)
         current_time = (datetime.now()-start_time)
         if response.status_code != 200:
             logging.error("\n- FAIL, GET command failed to check job status, return code %s" % response.status_code)

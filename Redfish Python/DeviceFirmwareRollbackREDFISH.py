@@ -43,7 +43,7 @@ parser.add_argument('--script-examples', action="store_true", help='Prints scrip
 parser.add_argument('--get-firmware', help='Get current supported devices for firmware updates and their current firmware versions', action="store_true", dest="get_firmware", required=False)
 parser.add_argument('--get-rollback', help='Get current PREVIOUS URI entries for rollback support', action="store_true", dest="get_rollback", required=False)
 parser.add_argument('--rollback', help='Pass in the PREVIOUS URI entry you want to rollback the firmware', required=False)
-parser.add_argument('--reboot', help='Pass in this argument to reboot the server now to perform the update. If you do not pass in this argument, update job is still scheduled and will get applied on next server manual reboot. Note: For devices that do not need a reboot to apply the firmware update (Examples: iDRAC, DIAGS, Driver Pack), you don\'t need to pass in this agrument(update will happen immediately). See Lifecycle Controller User Guide firmware update section for more details on which devices get applied immediately or need a reboot to get updated', action="store_true", required=False)
+parser.add_argument('--reboot', help='Pass in this argument to reboot the server now to perform the update. If you do not pass in this argument, update job is still scheduled and will get applied on next server manual reboot. Note: For devices that do not need a reboot to apply the firmware update (Examples: iDRAC, DIAGS, Driver Pack), you don\'t need to pass in this argument(update will happen immediately). See Lifecycle Controller User Guide firmware update section for more details on which devices get applied immediately or need a reboot to get updated', action="store_true", required=False)
 
 args=vars(parser.parse_args())
 logging.basicConfig(format='%(message)s', stream=sys.stdout, level=logging.INFO)
@@ -167,7 +167,7 @@ def check_job_status():
             logging.info("\n- JOB ID %s completed in %s" % (job_id, current_time))
             sys.exit(0)
         if data["TaskState"] == "Completed":
-            logging.info("\n- PASS, job ID successfuly marked completed, detailed final job status results\n")
+            logging.info("\n- PASS, job ID successfully marked completed, detailed final job status results\n")
             for i in data['Oem']['Dell'].items():
                 pprint(i)
             logging.info("\n- JOB ID %s completed in %s" % (job_id, current_time))

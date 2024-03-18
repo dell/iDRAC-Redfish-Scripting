@@ -37,7 +37,7 @@ parser.add_argument('-p', help='iDRAC password. If you do not pass in argument -
 parser.add_argument('-x', help='Pass in X-Auth session token for executing Redfish calls. All Redfish calls will use X-Auth token instead of username/password', required=False)
 parser.add_argument('--ssl', help='SSL cert verification for all Redfish calls, pass in value \"true\" or \"false\". By default, this argument is not required and script ignores validating SSL cert for all Redfish calls.', required=False)
 parser.add_argument('--script-examples', help='Get executing script examples', action="store_true", dest="script_examples", required=False)
-parser.add_argument('--export', help='Export support assist collection locally. You must also use agrument --data for export SA collection.', action="store_true", required=False)
+parser.add_argument('--export', help='Export support assist collection locally. You must also use argument --data for export SA collection.', action="store_true", required=False)
 parser.add_argument('--accept', help='Accept support assist end user license agreement (EULA)', action="store_true", required=False)
 parser.add_argument('--get', help='Get support assist end user license agreement (EULA)', action="store_true", required=False)
 parser.add_argument('--register', help='Register SupportAssist for iDRAC. NOTE: You must also pass in city, company name, country, email, first name, last name, phone number, street, state and zip arguments to register. NOTE: ISM must be installed and running on the operating system before you register SA. NOTE: Starting in iDRAC 7.00.00 registry support has been removed.', action="store_true", required=False)
@@ -74,7 +74,7 @@ def script_examples():
 def check_supported_idrac_version():
     supported = ""
     if args["x"]:
-        response = requests.get('https://%s/redfish/v1/Dell/Managers/iDRAC.Embedded.1/DellLCService' % idrac_ip, verify=verify_cert, headers={'X-Auth-Token': args["x"]})   
+        response = requests.get('https://%s/redfish/v1/Dell/Managers/iDRAC.Embedded.1/DellLCService' % idrac_ip, verify=verify_cert, headers={'X-Auth-Token': args["x"]})
     else:
         response = requests.get('https://%s/redfish/v1/Dell/Managers/iDRAC.Embedded.1/DellLCService' % idrac_ip, verify=verify_cert,auth=(idrac_username, idrac_password))
     if response.__dict__['reason'] == "Unauthorized":
@@ -143,7 +143,7 @@ def support_assist_collection():
     except:
         logging.error("- FAIL, unable to find job ID in headers POST response, headers output is:\n%s" % response.headers)
         sys.exit(0)
-    logging.info("\n- PASS, job ID %s successfuly created for %s method\n" % (job_id, method))
+    logging.info("\n- PASS, job ID %s successfully created for %s method\n", job_id, method)
 
 def support_assist_accept_EULA():
     url = 'https://%s/redfish/v1/Dell/Managers/iDRAC.Embedded.1/DellLCService/Actions/DellLCService.SupportAssistAcceptEULA' % (idrac_ip)
@@ -265,13 +265,13 @@ def loop_job_status():
             if response.headers['Location'] == "/redfish/v1/Dell/sacollect.zip" or response.headers['Location'] == "/redfish/v1/Oem/Dell/sacollect.zip":
                 logging.info("- PASS, job ID %s successfully marked completed" % job_id)
                 if args["x"]:
-                    response = requests.get('https://%s%s' % (idrac_ip, response.headers['Location']), verify=verify_cert, headers={'X-Auth-Token': args["x"]})   
+                    response = requests.get('https://%s%s' % (idrac_ip, response.headers['Location']), verify=verify_cert, headers={'X-Auth-Token': args["x"]})
                 else:
                     response = requests.get('https://%s%s' % (idrac_ip, response.headers['Location']), verify=verify_cert,auth=(idrac_username, idrac_password))
                 if args["filename"]:
                     SA_export_filename = args["filename"]
                 else:
-                    SA_export_filename = "sacollect.zip"    
+                    SA_export_filename = "sacollect.zip"
                 with open(SA_export_filename, "wb") as output:
                     output.write(response.content)
                 logging.info("\n- INFO, check your local directory for SupportAssist collection zip file \"%s\"" % SA_export_filename)

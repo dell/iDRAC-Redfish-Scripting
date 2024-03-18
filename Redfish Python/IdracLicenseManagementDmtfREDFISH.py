@@ -33,7 +33,7 @@ from pprint import pprint
 
 warnings.filterwarnings("ignore")
 
-parser = argparse.ArgumentParser(description="Python script using DMTF Redfish API to manage iDRAC licenses (LicenseService). Note: You must have iDRAC9 version 6.10.00 or newer to use the script.") 
+parser = argparse.ArgumentParser(description="Python script using DMTF Redfish API to manage iDRAC licenses (LicenseService). Note: You must have iDRAC9 version 6.10.00 or newer to use the script.")
 parser.add_argument('-ip',help='iDRAC IP address', required=False)
 parser.add_argument('-u', help='iDRAC username', required=False)
 parser.add_argument('-p', help='iDRAC password. If you do not pass in argument -p, script will prompt to enter user password which will not be echoed to the screen.', required=False)
@@ -68,7 +68,7 @@ def script_examples():
 
 def check_supported_idrac_version():
     if args["x"]:
-        response = requests.get('https://%s/redfish/v1/LicenseService/Licenses' % idrac_ip, verify=verify_cert, headers={'X-Auth-Token': args["x"]})   
+        response = requests.get('https://%s/redfish/v1/LicenseService/Licenses' % idrac_ip, verify=verify_cert, headers={'X-Auth-Token': args["x"]})
     else:
         response = requests.get('https://%s/redfish/v1/LicenseService/Licenses' % idrac_ip, verify=verify_cert,auth=(idrac_username, idrac_password))
     data = response.json()
@@ -81,7 +81,7 @@ def check_supported_idrac_version():
 
 def get_idrac_license_info():
     if args["x"]:
-        response = requests.get('https://%s/redfish/v1/LicenseService/Licenses?$expand=*($levels=1)' % idrac_ip, verify=verify_cert, headers={'X-Auth-Token': args["x"]})   
+        response = requests.get('https://%s/redfish/v1/LicenseService/Licenses?$expand=*($levels=1)' % idrac_ip, verify=verify_cert, headers={'X-Auth-Token': args["x"]})
     else:
         response = requests.get('https://%s/redfish/v1/LicenseService/Licenses?$expand=*($levels=1)' % idrac_ip, verify=verify_cert,auth=(idrac_username, idrac_password))
     if response.status_code != 200:
@@ -96,7 +96,7 @@ def get_idrac_license_info():
 
 def export_idrac_license_locally():
     if args["x"]:
-        response = requests.get('https://%s/redfish/v1/LicenseService/Licenses/%s/DownloadURI' % (idrac_ip, args["export_local"]), verify=verify_cert, headers={'X-Auth-Token': args["x"]})   
+        response = requests.get('https://%s/redfish/v1/LicenseService/Licenses/%s/DownloadURI' % (idrac_ip, args["export_local"]), verify=verify_cert, headers={'X-Auth-Token': args["x"]})
     else:
         response = requests.get('https://%s/redfish/v1/LicenseService/Licenses/%s/DownloadURI' % (idrac_ip, args["export_local"]), verify=verify_cert,auth=(idrac_username, idrac_password))
     if response.status_code != 200:
@@ -108,7 +108,7 @@ def export_idrac_license_locally():
    
 def get_network_share_types():
     if args["x"]:
-        response = requests.get('https://%s/redfish/v1/LicenseService?$select=Actions' % idrac_ip, verify=verify_cert, headers={'X-Auth-Token': args["x"]})   
+        response = requests.get('https://%s/redfish/v1/LicenseService?$select=Actions' % idrac_ip, verify=verify_cert, headers={'X-Auth-Token': args["x"]})
     else:
         response = requests.get('https://%s/redfish/v1/LicenseService?$select=Actions' % idrac_ip, verify=verify_cert,auth=(idrac_username, idrac_password))
     if response.status_code != 200:
@@ -131,7 +131,7 @@ def delete_idrac_license():
     else:
         logging.error("\n- FAIL, DELETE command failed to remove iDRAC license, status code %s returned" % response.status_code)
         logging.error("\n- DELETE command failure results:\n %s" % response.json())
-        sys.exit(1)    
+        sys.exit(1)
     
 def import_idrac_license_networkshare():
     global job_id
@@ -159,7 +159,7 @@ def import_idrac_license_networkshare():
     except:
         logging.error("- FAIL, unable to find job ID in headers POST response, headers output is:\n%s" % response.headers)
         sys.exit(0)
-    logging.info("- PASS, job ID %s successfuly created to import iDRAC license" % job_id.split("/")[-1])
+    logging.info("- PASS, job ID %s successfully created to import iDRAC license", job_id.split("/")[-1])
 
 def import_idrac_license_local():
     try:
@@ -216,7 +216,7 @@ def import_idrac_license_local_csv_file():
         logging.info("\n- PASS, license filename \"%s\" successfully imported for iDRAC %s" % (args["filename"], idrac_ip))
     else:
         data = response.json()
-        logging.error("\n- FAIL, unable to import license filename %s for iDRAC %s, status code %s, error results: \n%s" % (args["filename"], idrac_ip, response.status_code, data))   
+        logging.error("\n- FAIL, unable to import license filename %s for iDRAC %s, status code %s, error results: \n%s" % (args["filename"], idrac_ip, response.status_code, data))
 
 def loop_job_status():
     start_time = datetime.now()

@@ -113,13 +113,13 @@ def export_lc_logs():
     if args["sharetype"].lower() == "local":
         if response.headers['Location'] == "/redfish/v1/Dell/lclog.xml":
             if args["x"]:
-                response = requests.get('https://%s%s' % (idrac_ip, response.headers['Location']), verify=verify_cert, headers={'X-Auth-Token': args["x"]})   
+                response = requests.get('https://%s%s' % (idrac_ip, response.headers['Location']), verify=verify_cert, headers={'X-Auth-Token': args["x"]})
             else:
                 response = requests.get('https://%s%s' % (idrac_ip, response.headers['Location']), verify=verify_cert,auth=(idrac_username, idrac_password))
             if args["filename"]:
                 export_filename = args["filename"]
             else:
-                export_filename = "lclog.xml"    
+                export_filename = "lclog.xml"
             with open(export_filename, "wb") as output:
                 output.write(response.content)
             logging.info("\n- INFO, check your local directory for LC log XML file \"%s\"" % export_filename)
@@ -133,7 +133,7 @@ def export_lc_logs():
         except:
             logging.error("- FAIL, unable to find job ID in headers POST response, headers output is:\n%s" % response.headers)
             sys.exit(0)
-        logging.info("- PASS, job ID %s successfuly created for %s method\n" % (job_id, method))
+        logging.info("- PASS, job ID %s successfully created for %s method\n", job_id, method)
 
 def loop_job_status():
     start_time = datetime.now()
