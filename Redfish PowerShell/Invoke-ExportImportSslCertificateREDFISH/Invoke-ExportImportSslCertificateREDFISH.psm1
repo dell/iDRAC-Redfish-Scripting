@@ -57,8 +57,6 @@ http://www.gnu.org/licenses/old-licenses/gpl-2.0.txt
 
 function Invoke-ExportImportSslCertificateREDFISH {
 
-# Required, optional parameters needed to be passed in when cmdlet is executed
-
 param(
     [Parameter(Mandatory=$True)]
     [string]$idrac_ip,
@@ -149,6 +147,23 @@ $major_number = $get_host_info.Version.Major
 $global:get_powershell_version = $major_number
 }
 
+# Function to convert P12 cert to encoded base64 string
+
+Function ConvertTo-PaddedBase64 {
+    Param(
+        [Parameter(Mandatory)]
+        [ValidateNotNullOrEmpty()]
+        [ValidateScript({Test-Path $_})]
+        $File
+    )
+    $base64Str = [Convert]::ToBase64String([IO.File]::ReadAllBytes($File))
+    $paddedStr = do {
+        $base64Str[0..63] -join ''
+        $base64Str = $base64Str[64..$($base64Str.length)]
+    } until ($base64Str.Length -eq 0)
+    $paddedStr | Out-String
+}
+
 
 # Function to export or import SSL cert
 
@@ -164,32 +179,30 @@ $action_name = "Export"
 if ($import_ssl_cert)
 {
 $uri = "https://$idrac_ip/redfish/v1/Dell/Managers/iDRAC.Embedded.1/DelliDRACCardService/Actions/DelliDRACCardService.ImportSSLCertificate"
-
-$file_extension = $cert_filename.Split(".")[-1]
-if ($file_extension.Contains("12"))
-{
-& certutil.exe -encode .\$cert_filename dummy_file.p12 | Out-Null
-$get_file_content = Get-Content dummy_file.p12 -ErrorAction Stop | Out-String
-Remove-Item dummy_file.p12
-}
-else 
-{
-try
-{
-$get_file_content = Get-Content $cert_filename -ErrorAction Stop | Out-String
-}
-catch
-{
-Write-Host "`n- FAIL, unable to locate cert filename '$cert_filename' for import operation"
-return
-}
-}
+$fileExtension = [System.IO.Path]::GetExtension($cert_filename)
+    if ($fileExtension -eq ".p12")
+    {
+    $CertFile = Get-Item $cert_filename
+    [string]$get_file_content = ConvertTo-PaddedBase64 $CertFile.FullName
+    }
+    else 
+    {
+        try
+        {
+        $get_file_content = Get-Content $cert_filename -ErrorAction Stop | Out-String
+        }
+        catch
+        {
+        Write-Host "`n- FAIL, unable to locate cert filename '$cert_filename' for import operation"
+        return
+        }
+    }
 
 $JsonBody = @{"CertificateType"= $import_ssl_cert; "SSLCertificateFile" = $get_file_content}
-if ($passphrase)
-{
-$JsonBody["Passphrase"] = $passphrase
-}
+    if ($passphrase)
+    {
+    $JsonBody["Passphrase"] = $passphrase
+    }
 $JsonBody = $JsonBody | ConvertTo-Json -Compress
 $action_name = "Import"
 [string]::Format("`n- INFO, performing {0} SSL cert operation for SSL cert type {1}", $action_name, $import_ssl_cert)
