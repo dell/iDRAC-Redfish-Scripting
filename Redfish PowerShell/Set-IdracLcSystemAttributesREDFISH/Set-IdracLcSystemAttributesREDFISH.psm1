@@ -23,7 +23,7 @@ http://www.gnu.org/licenses/old-licenses/gpl-2.0.txt
    - idrac_password: Pass in idrac username password
    - x_auth_token: Pass in iDRAC X-Auth token session to execute cmdlet instead of username / password (recommended)
    - attribute_group: Supported values: lc, idrac  or system. Pass in "lc" to get Lifecycle controller attributes.
-   - attribute_names: Pass in attribute name(s) you want to set. Make sure to type the attribute name exactly due to case senstive. Example: VNCServer.1.Enable will work but vncserver.1.enable will fail. When configuring multiple attributes, make sure to use a comma separator between each attribute name and surround the complete value with double quotes. 
+   - attribute_names: Pass in attribute name(s) you want to set. Make sure to type the attribute name exactly due to case senstive. Example: VNCServer.1.Enable will work but vncserver.1.enable will fail. When configuring multiple attributes, make sure to use a pipe (|) separator between each attribute name and surround the complete value with double quotes. 
    - attribute_values: Pass in attribute value(s) for the attribute(s) you want to set. Make sure the values align with the attribute names. See examples for more details. 
    - view_attribute_list_only: Get attributes and current values. You must also pass in attribute_group argument for the group type of attributes.  
    - get_specific_attribute: Pass in attribute name to only return details about this attribute. You must also pass in attribute_group argument. 
