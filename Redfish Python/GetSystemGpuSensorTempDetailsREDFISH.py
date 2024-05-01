@@ -42,8 +42,8 @@ logging.basicConfig(format='%(message)s', stream=sys.stdout, level=logging.INFO)
 
 def script_examples():
     print("""\n- GetSystemGpuSensorTempDetailsREDFISH.py -ip 192.168.0.120 -u root -p calvin --get-system-inlet-temp, this example will return only system inlet temp information.
-    \n- GetSystemGpuSensorTempDetailsREDFISH.py -ip 100.82.167.168 -u root -p calvin --get-system-inlet-temp --get-system-exhaust-temp, this example will return both system inlet and exhaust tempt information.
-    \n- GetSystemGpuSensorTempDetailsREDFISH.py -ip 100.82.167.168 -u root -p calvin --all, this example will return system inlet and exhaust temp, system power consumption, gpu temps and gpu fan speed/pwm.""")
+    \n- GetSystemGpuSensorTempDetailsREDFISH.py -ip 192.168.0.120 -u root -p calvin --get-system-inlet-temp --get-system-exhaust-temp, this example will return both system inlet and exhaust tempt information.
+    \n- GetSystemGpuSensorTempDetailsREDFISH.py -ip 192.168.0.120 -u root -p calvin --all, this example will return system inlet and exhaust temp, system power consumption, gpu temps and gpu fan speed/pwm.""")
     sys.exit(0)
 
 def check_supported_idrac_version():
