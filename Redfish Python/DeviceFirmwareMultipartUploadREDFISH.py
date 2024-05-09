@@ -122,6 +122,19 @@ def download_image_create_update_job():
         logging.error("- FAIL, unable to locate job ID in header")
         sys.exit(0)
     logging.info("- PASS, update job ID %s successfully created, script will now loop polling the job status\n" % job_id)
+    if args["x"]:
+        response = requests.get('https://%s/redfish/v1/TaskService/Tasks/%s' % (idrac_ip, job_id), verify=verify_cert, headers={'X-Auth-Token': args["x"]})
+    else:
+        response = requests.get('https://%s/redfish/v1/TaskService/Tasks/%s' % (idrac_ip, job_id), verify=verify_cert, auth=(idrac_username, idrac_password))
+    if response.status_code == 200 or response.status_code == 202:
+        time.sleep(1)
+    else:
+        logging.error("\n- ERROR, GET request failed to get job ID details, status code %s returned, error: \n%s" % (response.status_code, data))
+        sys.exit(0)
+    data = response.json()
+    if "cpld" in data["Name"].lower():
+        logging.info("- INFO, CPLD update detected, once the update is complete virtual a/c cycle will be performed. GET request to poll the job status will start failing which is expected")
+    
 
 def check_job_status():
     retry_count = 1
@@ -136,9 +149,24 @@ def check_job_status():
                 response = requests.get('https://%s/redfish/v1/TaskService/Tasks/%s' % (idrac_ip, job_id), verify=verify_cert, headers={'X-Auth-Token': args["x"]})
             else:
                 response = requests.get('https://%s/redfish/v1/TaskService/Tasks/%s' % (idrac_ip, job_id), verify=verify_cert, auth=(idrac_username, idrac_password))
+            if response.status_code == 500:
+                logging.info("- WARNING, iDRAC connection lost, script will sleep 3 minutes and then retry GET request")
+                time.sleep(180)
+                check_idrac_connection()
+                continue
+        except JSONDecodeError as json_error:
+            print("JSONDecodeError:", json_error)
+            time.sleep(180)
+            retry_count += 1
+            continue
         except requests.ConnectionError as error_message:
             logging.info("- INFO, GET request failed due to connection error, retry")
             time.sleep(10)
+            retry_count += 1
+            continue
+        except requests.exceptions.RequestException as req_error:
+            print("RequestException:", req_error)
+            time.sleep(180)
             retry_count += 1
             continue
         data = response.json()
@@ -211,18 +239,28 @@ def loop_check_final_job_status():
                 response = requests.get('https://%s/redfish/v1/Managers/iDRAC.Embedded.1/Jobs/%s' % (idrac_ip, job_id), verify=verify_cert, headers={'X-Auth-Token': args["x"]})
             else:
                 response = requests.get('https://%s/redfish/v1/Managers/iDRAC.Embedded.1/Jobs/%s' % (idrac_ip, job_id), verify=verify_cert,auth=(idrac_username, idrac_password))
+            if response.status_code == 500:
+                logging.info("- WARNING, iDRAC connection lost, script will sleep 3 minutes and then retry GET request")
+                time.sleep(180)
+                check_idrac_connection()
+                continue
+        except JSONDecodeError as json_error:
+            print("JSONDecodeError:", json_error)
+            time.sleep(180)
+            retry_count += 1
+            continue
         except requests.ConnectionError as error_message:
             logging.info("- INFO, GET request failed due to connection error, retry")
             time.sleep(10)
             retry_count += 1
-            continue 
+            continue
+        except requests.exceptions.RequestException as req_error:
+            print("RequestException:", req_error)
+            time.sleep(180)
+            retry_count += 1
+            continue
         current_time = str((datetime.now()-start_time))[0:7]
         data = response.json()
-        if response.status_code == 500 and "cpld" in data["Name"].lower():
-            logging.info("- WARNING, connection lost due to CPLD update requires iDRAC reboot, script will sleep 3 minutes and then retry GET request")
-            time.sleep(180)
-            check_idrac_connection()
-            continue
         if response.status_code != 200:
             logging.error("\n- FAIL, GET command failed to check job status, return code %s" % response.status_code)
             logging.error("Extended Info Message: {0}".format(response.json()))
