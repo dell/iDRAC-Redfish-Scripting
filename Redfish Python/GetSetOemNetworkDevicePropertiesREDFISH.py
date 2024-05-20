@@ -442,7 +442,7 @@ def reboot_server():
                     response = requests.post(url, data=json.dumps(payload), headers=headers, verify=verify_cert,auth=(idrac_username,idrac_password))
                 if response.status_code == 204:
                     logging.info("- PASS, POST command passed to perform forced shutdown")
-                    time.sleep(15)
+                    time.sleep(30)
                     if args["x"]:
                         response = requests.get('https://%s/redfish/v1/Systems/System.Embedded.1' % idrac_ip, verify=verify_cert, headers={'X-Auth-Token': args["x"]})
                     else:
