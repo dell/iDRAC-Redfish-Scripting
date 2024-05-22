@@ -3,7 +3,7 @@
 # DeviceFirmwareMultipartUploadREDFISH.py. Python script using Redfish API to update a device firmware with DMTF MultipartUpload. Supported file image types are Windows DUPs, d7/d9 image or pm files.
 #
 # _author_ = Texas Roemer <Texas_Roemer@Dell.com>
-# _version_ = 5.0
+# _version_ = 6.0
 #
 # Copyright (c) 2020, Dell, Inc.
 #
@@ -154,12 +154,17 @@ def check_job_status():
                 time.sleep(180)
                 check_idrac_connection()
                 continue
-        except JSONDecodeError as json_error:
+        except requests.exceptions.ConnectTimeout as json_error:
+            print("ConnectTimeout:", json_error)
+            time.sleep(180)
+            retry_count += 1
+            continue
+        except json.decoder.JSONDecodeError as json_error:
             print("JSONDecodeError:", json_error)
             time.sleep(180)
             retry_count += 1
             continue
-        except requests.ConnectionError as error_message:
+        except requests.exceptions.ConnectionError as error_message:
             logging.info("- INFO, GET request failed due to connection error, retry")
             time.sleep(10)
             retry_count += 1
@@ -244,12 +249,17 @@ def loop_check_final_job_status():
                 time.sleep(180)
                 check_idrac_connection()
                 continue
-        except JSONDecodeError as json_error:
+        except requests.exceptions.ConnectTimeout as json_error:
+            print("ConnectTimeout:", json_error)
+            time.sleep(180)
+            retry_count += 1
+            continue
+        except json.decoder.JSONDecodeError as json_error:
             print("JSONDecodeError:", json_error)
             time.sleep(180)
             retry_count += 1
             continue
-        except requests.ConnectionError as error_message:
+        except requests.exceptions.ConnectionError as error_message:
             logging.info("- INFO, GET request failed due to connection error, retry")
             time.sleep(10)
             retry_count += 1
@@ -390,7 +400,7 @@ def check_idrac_connection():
         ping_status = "good"
         pass
     if ping_status == "lost":
-            logging.info("- INFO, iDRAC network connection lost due to slow network response, waiting 30 seconds to access iDRAC again")
+            logging.info("- INFO, iDRAC network connection lost due to slow ping network response, waiting 30 seconds to access iDRAC again")
             time.sleep(30)
             while True:
                 if run_network_connection_function == "fail":
