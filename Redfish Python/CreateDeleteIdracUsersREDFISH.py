@@ -3,7 +3,7 @@
 # CreateDeleteIdracUsersREDFISH.py Python script using Redfish API to either create or delete iDRAC user account.
 #
 # _author_ = Texas Roemer <Texas_Roemer@Dell.com>
-# _version_ = 5.0
+# _version_ = 6.0
 #
 # Copyright (c) 2018, Dell, Inc.
 #
@@ -69,6 +69,24 @@ def check_supported_idrac_version():
         logging.warning("\n- WARNING, iDRAC version installed does not support this feature using Redfish API")
         sys.exit(0)
 
+def get_server_generation():
+    global idrac_version
+    if args["x"]:
+        response = requests.get('https://%s/redfish/v1/Managers/iDRAC.Embedded.1?$select=Model' % idrac_ip, verify=verify_cert, headers={'X-Auth-Token': args["x"]})
+    else:
+        response = requests.get('https://%s/redfish/v1/Managers/iDRAC.Embedded.1?$select=Model' % idrac_ip, verify=False,auth=(idrac_username,idrac_password))
+    data = response.json()
+    if response.status_code == 401:
+        logging.error("\n- ERROR, status code 401 detected, check to make sure your iDRAC script session has correct username/password credentials or if using X-auth token, confirm the session is still active.")
+        sys.exit(0)
+    elif response.status_code != 200:
+        logging.warning("\n- WARNING, unable to get current iDRAC version installed")
+        sys.exit(0)
+    if "12" in data["Model"] or "13" in data["Model"]:
+        idrac_version = "8"
+    else:
+        idrac_version = "9"
+
 def create_idrac_user_password():    
     url = 'https://%s/redfish/v1/Managers/iDRAC.Embedded.1/Accounts/%s' % (idrac_ip, args["user_id"])
     if not args["new_pwd"]:
@@ -108,6 +126,19 @@ def create_idrac_user_password():
         sys.exit(0)
 
 def delete_idrac_user():
+    url = 'https://%s/redfish/v1/Managers/iDRAC.Embedded.1/Oem/Dell/DellAttributes/iDRAC.Embedded.1' % (idrac_ip)
+    if idrac_version == "9":
+        payload = {"Attributes":{"Users.%s.SHA256Password" % args["delete"]:"","Users.%s.IPMIKey" % args["delete"]:"","Users.%s.MD5v3Key" % args["delete"]:"","Users.%s.SHA1v3Key" % args["delete"]:"","Users.%s.SHA256PasswordSalt" % args["delete"]:""}}
+        if args["x"]:
+            headers = {'content-type': 'application/json', 'X-Auth-Token': args["x"]}
+            response = requests.patch(url, data=json.dumps(payload), headers=headers, verify=verify_cert)
+        else:
+            headers = {'content-type': 'application/json'}
+            response = requests.patch(url, data=json.dumps(payload), headers=headers, verify=verify_cert,auth=(idrac_username,idrac_password))
+        data = response.json()
+        if response.status_code != 200:
+            logging.info("\n- FAIL, PATCH command failed to clear IPMI/SHA keys/passwords, status code %s returned. Detailed error results %s" % (response.status_code, data))
+            sys.exit(0)
     url = 'https://%s/redfish/v1/Managers/iDRAC.Embedded.1/Accounts/%s' % (idrac_ip, args["delete"])
     payload = {"Enabled":False,"RoleId":"None"}
     if args["x"]:
@@ -129,7 +160,7 @@ def delete_idrac_user():
         response = requests.patch(url, data=json.dumps(payload), headers=headers, verify=verify_cert,auth=(idrac_username,idrac_password))
     data = response.json()
     if response.status_code == 200:
-        logging.info("\n- PASS, status code %s returned for PATCH command to delete iDRAC user id %s" % (response.status_code, args["delete"]))
+        logging.info("\n- PASS, iDRAC user id %s successfully deleted" % args["delete"])
     else:
         logging.error("\n- FAIL, status code %s returned, iDRAC user not deleted. Detailed error results %s" % (response.status_code, data))
         sys.exit(0)
@@ -168,6 +199,7 @@ if __name__ == "__main__":
         else:
             verify_cert = False
         check_supported_idrac_version()
+        get_server_generation()
     else:
         logging.error("\n- FAIL, invalid argument values or not all required parameters passed in. See help text or argument --script-examples for more details.")
         sys.exit(0)
