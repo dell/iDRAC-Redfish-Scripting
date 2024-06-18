@@ -83,9 +83,9 @@ def get_server_generation():
         logging.warning("\n- WARNING, unable to get current iDRAC version installed")
         sys.exit(0)
     if "12" in data["Model"] or "13" in data["Model"]:
-        idrac_version = "8"
+        idrac_version = 8
     else:
-        idrac_version = "9"
+        idrac_version = 9
 
 def create_idrac_user_password():    
     url = 'https://%s/redfish/v1/Managers/iDRAC.Embedded.1/Accounts/%s' % (idrac_ip, args["user_id"])
@@ -126,7 +126,7 @@ def create_idrac_user_password():
         sys.exit(0)
 
 def delete_idrac_user():
-    if idrac_version == "9":
+    if idrac_version >= 9:
         url = 'https://%s/redfish/v1/Managers/iDRAC.Embedded.1/Oem/Dell/DellAttributes/iDRAC.Embedded.1' % (idrac_ip)
         payload = {"Attributes":{"Users.%s.UserName" % args["delete"]:"","Users.%s.Privilege" % args["delete"]:0,"Users.%s.Enable" % args["delete"]:"Disabled","Users.%s.IPMIKey" % args["delete"]:"","Users.%s.MD5v3Key" % args["delete"]:"","Users.%s.SHA1v3Key" % args["delete"]:"","Users.%s.SHA256PasswordSalt" % args["delete"]:""}}
         if args["x"]:
