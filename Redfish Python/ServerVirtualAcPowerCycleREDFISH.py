@@ -4,7 +4,7 @@
 #
 #
 # _author_ = Texas Roemer <Texas_Roemer@Dell.com>
-# _version_ = 2.0
+# _version_ = 3.0
 #
 # Copyright (c) 2022, Dell, Inc.
 #
@@ -36,7 +36,7 @@ parser.add_argument('-x', help='Pass in iDRAC X-auth token session ID to execute
 parser.add_argument('--script-examples', help='Get executing script examples', action="store_true", dest="script_examples", required=False)
 parser.add_argument('--ac-cycle', help='Virtual a/c power cycle the server using DMTF method. Note: This method will not completely drain flea power', action="store_true", dest="ac_cycle", required=False)
 parser.add_argument('--oem-ac-cycle', help='Virtual a/c cycle the server using OEM method. Note: This method will completely drain flee power which is equivalent to the action of disconnecting power cables. Note: Server must be powered off first before running this OEM action.', action="store_true", dest="oem_ac_cycle", required=False)
-parser.add_argument('--final-power-state', help='Final server power state after performing virtual OEM AC cycle. Supported values: On and Off', dest="final_power_state", required=False)
+parser.add_argument('--final-power-state', help='Final server power state after performing virtual OEM AC cycle. Supported values: On and Off. Note this argument is not supported for DMTF method.', dest="final_power_state", required=False)
 parser.add_argument('--power-off', help='Power off server first before running virtual AC cycle. Server in OFF state first is required if running OEM virtual AC cycle.', action="store_true", dest="power_off", required=False)
 
 args = vars(parser.parse_args())
@@ -124,10 +124,13 @@ def oem_ac_power_cycle():
         response = requests.post(url, data=json.dumps(payload), headers=headers, verify=verify_cert, auth=(idrac_username, idrac_password))
     if response.status_code == 204:
         logging.info("\n- PASS, POST command passed to perform full virtual server a/c power cycle, status code %s returned" % response.status_code)
-        if args["final_power_state"].lower() == "on":
-            logging.info("\n- INFO, wait a few minutes for the process to complete, server will automatically power on")
+        if args["final_power_state"]:
+            if args["final_power_state"].lower() == "on":
+                logging.info("\n- INFO, wait a few minutes for the process to complete, server will automatically power on")
+            elif args["final_power_state"].lower() == "off":
+                logging.info("\n- INFO, wait a few minutes for the process to complete, server will stay in power off state")
     else:
-        logging.error("\n- FAIL, Command failed, status code %s returned\n" % response.status_code)
+        logging.error("\n- FAIL, POST command failed, status code %s returned\n" % response.status_code)
         logging.error(response.json())
         sys.exit(1)
         
