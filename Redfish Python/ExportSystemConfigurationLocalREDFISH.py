@@ -159,7 +159,7 @@ def export_scp_file_locally():
                 export_xml[-1] = "</SystemConfiguration>"
                 get_date_info = datetime.now()
                 if args["directory_path"]:
-                    filename = "%s\%s-%s-%s_%s%s%s_export.xml"% (args["directory_path"],get_date_info.year,get_date_info.month,get_date_info.day,get_date_info.hour,get_date_info.minute,get_date_info.second)
+                    filename = "%s\\%s-%s-%s_%s%s%s_export.xml"% (args["directory_path"],get_date_info.year,get_date_info.month,get_date_info.day,get_date_info.hour,get_date_info.minute,get_date_info.second)
                 else:
                     filename = "%s-%s-%s_%s%s%s_export.xml"% (get_date_info.year,get_date_info.month,get_date_info.day,get_date_info.hour,get_date_info.minute,get_date_info.second)
                 open_file = open(filename,"w")
@@ -185,7 +185,7 @@ def export_scp_file_locally():
                 json_format = json.dumps(data)
                 get_date_info = datetime.now()
                 if args["directory_path"]:
-                    filename = "%s\%s-%s-%s_%s%s%s_export.json"% (args["directory_path"],get_date_info.year,get_date_info.month,get_date_info.day,get_date_info.hour,get_date_info.minute,get_date_info.second)
+                    filename = "%s\\%s-%s-%s_%s%s%s_export.json"% (args["directory_path"],get_date_info.year,get_date_info.month,get_date_info.day,get_date_info.hour,get_date_info.minute,get_date_info.second)
                 else:
                     filename = "%s-%s-%s_%s%s%s_export.json"% (get_date_info.year,get_date_info.month,get_date_info.day,get_date_info.hour,get_date_info.minute,get_date_info.second)
                 open_file = open(filename,"w")
