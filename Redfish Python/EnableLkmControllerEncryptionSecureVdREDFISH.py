@@ -1,5 +1,5 @@
 # _author_ = Texas Roemer <Texas_Roemer@Dell.com>
-# _version_ = 2.0
+# _version_ = 3.0
 #
 # Copyright (c) 2023, Dell, Inc.
 #
@@ -152,7 +152,7 @@ def get_supported_controllers(idrac_ip):
                 return
             data = response.json()
             try:
-                if "localkey" in data["Oem"]["Dell"]["DellController"]["EncryptionCapability"].lower() and "H7" in data["Name"]:
+                if "localkey" in data["Oem"]["Dell"]["DellController"]["EncryptionCapability"].lower():
                     logger.info("LKM supported controller detected: %s" % i)
                     if "localkey" in data["Oem"]["Dell"]["DellController"]["EncryptionMode"].lower():
                         logger.info("LKM already enabled for controller %s" % i)
