@@ -35,7 +35,7 @@ from pprint import pprint
 
 warnings.filterwarnings("ignore")
 
-parser = argparse.ArgumentParser(description='Python script using Redfish API to either get user account details, create or delete iDRAC user account.')
+parser = argparse.ArgumentParser(description='Python script using Redfish API to create a new iDRAC user for multiple iDRACs leveraging a CSV file.')
 parser.add_argument('-ip',help='iDRAC IP address', required=False)
 parser.add_argument('-u', help='iDRAC username', required=False)
 parser.add_argument('-p', help='iDRAC password. If you do not pass in argument -p, script will prompt to enter user password which will not be echoed to the screen.', required=False)
