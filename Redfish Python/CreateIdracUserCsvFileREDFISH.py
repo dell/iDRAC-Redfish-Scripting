@@ -36,11 +36,6 @@ from pprint import pprint
 warnings.filterwarnings("ignore")
 
 parser = argparse.ArgumentParser(description='Python script using Redfish API to create a new iDRAC user for multiple iDRACs leveraging a CSV file.')
-parser.add_argument('-ip',help='iDRAC IP address', required=False)
-parser.add_argument('-u', help='iDRAC username', required=False)
-parser.add_argument('-p', help='iDRAC password. If you do not pass in argument -p, script will prompt to enter user password which will not be echoed to the screen.', required=False)
-parser.add_argument('-x', help='Pass in X-Auth session token for executing Redfish calls. All Redfish calls will use X-Auth token instead of username/password', required=False)
-parser.add_argument('--ssl', help='SSL cert verification for all Redfish calls, pass in value \"true\" or \"false\". By default, this argument is not required and script ignores validating SSL cert for all Redfish calls.', required=False)
 parser.add_argument('--script-examples', help='Get executing script examples', action="store_true", dest="script_examples", required=False)
 parser.add_argument('--csv-filename', help='Pass in name of csv file which contains all details for creating new iDRAC user, see script comments for CSV content example. For Privilege Level supported values are Administrator, Operator, ReadOnly or None', dest="csv_filename", required=False)
 
