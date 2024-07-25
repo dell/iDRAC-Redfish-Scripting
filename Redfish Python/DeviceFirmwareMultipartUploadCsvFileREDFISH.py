@@ -41,13 +41,13 @@ parser = argparse.ArgumentParser(description="Python script using Redfish API to
 parser.add_argument('--script-examples', action="store_true", help='Prints script examples')
 parser.add_argument('--get', help='Get current supported devices for firmware updates and their current firmware versions', action="store_true", required=False)
 parser.add_argument('--location', help='Pass in the full directory path location of the firmware image. Make sure to also pass in the name of the Dell Update package (DUP) executable, example: C:\\Users\\admin\\Downloads\\Diagnostics_Application_CH7FG_WN64_4301A42_4301.43.EXE', required=False)
-parser.add_argument('--csv-filename', help='Pass in name of csv file which contains details for all iDRACs, see script comments for CSV content example', dest="csv_filename", required=False)
+parser.add_argument('--csv-filename', help='Pass in directory path and name of csv file which contains details for all iDRACs, see script comments for CSV content example', dest="csv_filename", required=False)
 
 args = vars(parser.parse_args())
 logging.basicConfig(format='%(message)s', stream=sys.stdout, level=logging.INFO)
 
 def script_examples():
-    print("""\n- DeviceFirmwareMultipartUploadCsvFileREDFISH.py -ip 192.168.0.120 -u root --location C:\\Users\\administrator\\Downloads\\BIOS_8MRPC_C6420_WN64_2.11.2.EXE --csv-filename idrac_details.csv, this example will update BIOS firmware for all iDRACs listed in the CSV file.""")
+    print("""\n- DeviceFirmwareMultipartUploadCsvFileREDFISH.py -ip 192.168.0.120 -u root --location C:\\Users\\administrator\\Downloads\\BIOS_8MRPC_C6420_WN64_2.11.2.EXE --csv-filename C:\\Users\\administrator\\Downloads\\idrac_details.csv, this example will update BIOS firmware for all iDRACs listed in the CSV file.""")
     sys.exit(0)
     
 def download_image_create_update_job(idrac_ip, idrac_username, idrac_password, idrac_count):
