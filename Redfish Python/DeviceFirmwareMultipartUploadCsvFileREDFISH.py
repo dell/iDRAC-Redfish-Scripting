@@ -17,6 +17,12 @@
 # iDRAC IP	        iDRAC Username	iDRAC Password  
 # 192.168.0.120	        root            calvin		
 # 192.168.0.130	        root            calvin  
+#
+# Script workflow pseudo code
+# 1. Generate update job for each iDRAC from the CSV file
+# 2. Once all update jobs are created for each iDRAC, all jobs will now run in parallel to apply the update to each iDRAC.
+# 3. Script will loop one job ID at the time even though all updates are running in parallel. 
+# 4. Once one job ID is marked completed the next job ID will get checked which should show a completed status within 1 or 2 minutes. 
 
 import argparse
 import csv
