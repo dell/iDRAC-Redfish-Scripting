@@ -54,10 +54,13 @@ For complete information concerning iDRAC with Lifecycle Controller, see the doc
 See iDRAC whitepapers below for more information about overview of Redfish support, detailed workflow examples or commonly asked questions:
 
 - [Implementation of the DMTF Redfish API on Dell PowerEdge Servers](http://en.community.dell.com/techcenter/extras/m/white_papers/20442330)
-- [RESTful Server Configuration with iDRAC REST API](http://en.community.dell.com/techcenter/extras/m/white_papers/20443207)
+- [iDRAC Server Configuration Profile Reference Guide](https://infohub.delltechnologies.com/en-us/t/server-configuration-profiles-reference-guide/)
 - [iDRAC RACADM to Redfish Mapping](https://dl.dell.com/content/manual9969682-idrac9-racadm-to-redfish-mapping.pdf?language=en-us)
-- [iDRAC User Interface to Redfish Mapping](https://dl.dell.com/content/manual24821844-idrac9-user-interface-to-redfish-mapping.pdf?language=en-us)
+- [iDRAC User Interface to Redfish Mapping](https://dl.dell.com/content/manual25212104-idrac9-user-interface-to-redfish-mapping.pdf?language=en-us)
 - [iDRAC Redfish FAQ](https://dl.dell.com/content/manual16004247-idrac-redfish-faq.pdf?language=en-us)
+- [iDRAC Redfish API Guide](https://developer.dell.com/apis/2978/versions/7.xx/docs/0WhatsNew.md)
+- [Manage iDRAC Virtual Media Using Redfish](https://dl.dell.com/content/manual18261993-manage-idrac-virtual-media-using-redfish.pdf?language=en-us)
+- [Remotely Update Firmware Using Redfish](https://dl.dell.com/content/manual26835562-remotely-update-firmware-on-poweredge-servers-using-redfish-apis.pdf?language=en-us)
 
 For details on the DMTF Redfish standard, visit https://www.dmtf.org/standards/redfish 
 
