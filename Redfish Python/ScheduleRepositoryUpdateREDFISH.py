@@ -40,7 +40,7 @@ parser.add_argument('--clear', help='Clear repository update schedule.',action="
 parser.add_argument('--set', help='Set auto SupportAssist collection schedule.',action="store_true", required=False)
 parser.add_argument('--shareip', help='Pass in the IP address of the network share', required=False)
 parser.add_argument('--sharetype', help='Pass in the share type of the network share. Supported values are NFS, CIFS, HTTP, HTTPS. NOTE: For HTTP/HTTPS, recommended to use either IIS or Apache.', required=False)
-parser.add_argument('--sharename', help='Pass in the network share share name', required=False)
+parser.add_argument('--sharename', help='Pass in the network share name', required=False)
 parser.add_argument('--username', help='Pass in the auth username for network share. Required for CIFS and optional for HTTP/HTTPS if auth is enabled', required=False)
 parser.add_argument('--password', help='Pass in the auth username password for network share. Required for CIFS and optional for HTTP/HTTPS if auth is enabled', required=False)
 parser.add_argument('--workgroup', help='Pass in the workgroup of your CIFS network share. This argument is optional', required=False)
