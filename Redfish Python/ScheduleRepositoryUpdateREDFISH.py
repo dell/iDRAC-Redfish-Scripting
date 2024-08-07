@@ -191,9 +191,9 @@ def set_repository_update_schedule():
     if args["dayofweek"]:
         payload["DayofWeek"] = args["dayofweek"]
     if args["dayofmonth"]:
-        payload["DayofMonth"] = args["dayofmonth"]
+        payload["DayofMonth"] = int(args["dayofmonth"])
     if args["weekofmonth"]:
-        payload["WeekofMonth"] = args["weekofmonth"]
+        payload["WeekofMonth"] = int(args["weekofmonth"])
     if args["apply_reboot"]:
         payload["ApplyReboot"] = args["apply_reboot"] 
     if args["x"]:
