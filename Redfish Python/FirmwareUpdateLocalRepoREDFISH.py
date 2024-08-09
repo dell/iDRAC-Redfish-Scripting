@@ -1,7 +1,7 @@
 #!/usr/bin/python3
 #
 # _author_ = Texas Roemer <administrator@Dell.com>
-# _version_ = 5.0
+# _version_ = 6.0
 #
 # Copyright (c) 2023, Dell, Inc.
 #
@@ -136,8 +136,11 @@ def download_image_create_update_job(firmware_image_device):
             
 def idrac_cpld_update(firmware_image_device):
     global update_job_id
+    global cpld_run
+    cpld_run = False
     logging.info("- INFO, downloading update package \"%s\" to create update job, this may take a few minutes depending on firmware image size" % firmware_image_device.split("\\")[-1])
-                                                                                                                                                                              
+    if "cpld" in firmware_image_device.lower():
+        cpld_run == True    
     url = "https://%s/redfish/v1/UpdateService/MultipartUpload" % idrac_ip
     payload = {"Targets": [], "@Redfish.OperationApplyTime": "OnReset", "Oem": {}}
     files = {
@@ -149,10 +152,14 @@ def idrac_cpld_update(firmware_image_device):
         response = requests.post(url, files=files, headers=headers, verify=verify_cert)
     else:
         response = requests.post(url, files=files, verify=verify_cert,auth=(idrac_username,idrac_password))
-    
     if response.status_code != 202:
-        data = response.json()
-        logging.error("- FAIL, status code %s returned, detailed error: %s" % (response.status_code,data))
+        logging.error("- FAIL, POST command failed status code %s returned" % response.status_code)
+        try:
+            data = response.json()
+        except:
+            logging.error("- WARNING, unable to get json response from POST call, manually check job queue to see if job ID was created")
+            sys.exit(0)
+        print(data)
         sys.exit(0)
     try:
         update_job_id = response.headers['Location'].split("/")[-1]
@@ -164,6 +171,7 @@ def idrac_cpld_update(firmware_image_device):
 def check_job_status(download_job_id):
     retry_count = 1
     start_time = datetime.now()
+    schedule_job_status_count = 1
     while True:
         check_idrac_connection()
         if retry_count == 10:
@@ -188,9 +196,17 @@ def check_job_status(download_job_id):
             logging.error("\n- ERROR, GET request failed to get job ID details, status code %s returned, error: \n%s" % (response.status_code, data))
             sys.exit(0)
         if "fail" in data['Oem']['Dell']['Message'].lower() or "error" in data['Oem']['Dell']['Message'].lower() or "fail" in data['Oem']['Dell']['JobState'].lower():
-            logging.error("- FAIL: Job ID %s failed, current message: %s" % (download_job_id, data['Oem']['Dell']['Message']))
-            time.sleep(30)
-            return
+            logging.error("- FAIL: Job ID %s failed, message: %s" % (download_job_id, data['Oem']['Dell']['Message']))
+            sys.exit(0)
+        elif data["TaskState"] == "UserIntervention" and data["PercentComplete"] == 100:
+            logging.info("\n- JOB ID %s completed in %s but user intervention is needed, final job message: %s" % (download_job_id, current_time, message_string[0]["Message"].rstrip(".")))
+            if args["reboot"]:
+                if "reboot" in message_string[0]["Message"].lower():
+                    logging.info("- INFO, rebooting server for the new firmware installed to become effective")
+                    reboot_server()
+                if "virtual" in message_string[0]["Message"].lower():
+                    logging.info("- INFO, server virtual a/c cycle is needed for the new firmware installed to become effective")
+                    return
         elif data["TaskState"] == "Completed" and data["Oem"]["Dell"]["JobState"] or data["TaskState"] == "Completed" or "completed successfully" in data['Oem']['Dell']['Message'].lower():
             try:
                 logging.info("- PASS, %s job %s successfully marked completed" % (data["Oem"]["Dell"]["Name"].replace(":",""), download_job_id))
@@ -202,15 +218,85 @@ def check_job_status(download_job_id):
             logging.error("\n- FAIL: Timeout of 50 minutes has been hit, update job should of already been marked completed. Check the iDRAC job queue and LC logs to debug the issue\n")
             return
         elif "schedule" in data['Oem']['Dell']['Message'].lower():
-            print("- PASS, %s successfully marked as scheduled, server reboot needed to apply the update" % data["Id"])
-            update_jobs_need_server_reboot.append(download_job_id)
-            time.sleep(30)
-            break
+            if schedule_job_status_count == 1:
+                logging.info("- INFO, job status detected as scheduled, script will sleep 1 minute then check if job status has moved to running state")
+                time.sleep(60)
+                schedule_job_status_count += 1
+                continue
+            else:
+                logging.info("- PASS, %s still in scheduled state, server reboot needed to apply the update" % data["Id"])
+                update_jobs_need_server_reboot.append(download_job_id)
+                time.sleep(30)
+                break
         else:
-            logging.info("- INFO, %s job status: %s" % (download_job_id, message_string[0]["Message"].rstrip(".")))
+            logging.info("- INFO, %s status: %s" % (download_job_id, message_string[0]["Message"].rstrip(".")))
             time.sleep(2)
             continue
 
+def chassis_update(firmware_image_device, dup_name):
+    global update_job_id
+    logging.info("- INFO, downloading update package \"%s\" to create update job, this may take a few minutes depending on firmware image size" % dup_name)                                                                                                                                                                        
+    url = "https://%s/redfish/v1/UpdateService/MultipartUpload" % idrac_ip
+    payload = {"Targets": [], "@Redfish.OperationApplyTime": "OnReset", "Oem": {}}
+    files = {
+         'UpdateParameters': (None, json.dumps(payload), 'application/json'),
+         'UpdateFile': (os.path.basename(firmware_image_device), open(firmware_image_device, 'rb'), 'application/octet-stream')
+    }
+    if args["x"]:
+        headers = {'X-Auth-Token': args["x"]}
+        response = requests.post(url, files=files, headers=headers, verify=verify_cert)
+    else:
+        response = requests.post(url, files=files, verify=verify_cert,auth=(idrac_username,idrac_password))
+    if response.status_code != 202:
+        data = response.json()
+        logging.error("- FAIL, status code %s returned, detailed error: %s" % (response.status_code,data))
+        sys.exit(0)
+    try:
+        update_job_id = response.headers['Location'].split("/")[-1]
+    except:
+        logging.error("- FAIL, unable to locate job ID in header")
+        sys.exit(0)
+    logging.info("- PASS, update job ID %s successfully created" % update_job_id)
+    start_time = datetime.now()
+    retry_count = 1
+    while True:
+        if retry_count == 20:
+            logging.warning("- WARNING, GET command retry count of 20 has been reached, script will exit")
+            sys.exit(0)
+        check_idrac_connection()
+        try:
+            if args["x"]:
+                response = requests.get('https://%s/redfish/v1/Managers/iDRAC.Embedded.1/Jobs/%s' % (idrac_ip, update_job_id), verify=verify_cert, headers={'X-Auth-Token': args["x"]})
+            else:
+                response = requests.get('https://%s/redfish/v1/Managers/iDRAC.Embedded.1/Jobs/%s' % (idrac_ip, update_job_id), verify=verify_cert,auth=(idrac_username, idrac_password))
+        except requests.ConnectionError as error_message:
+            logging.info("- INFO, GET request failed due to connection error, retry")
+            time.sleep(30)
+            retry_count += 1
+            continue 
+        current_time = str((datetime.now()-start_time))[0:7]
+        if response.status_code != 200:
+            logging.error("\n- FAIL, GET command failed to check job status, return code %s" % response.status_code)
+            logging.error("Extended Info Message: {0}".format(response.json()))
+            sys.exit(0)
+        data = response.json()
+        if str(current_time)[0:7] >= "0:50:00":
+            logging.error("\n- FAIL: Timeout of 50 minutes has been hit before marking the job as completed, manually check server state and iDRAC job queue\n")
+            return
+        elif "fail" in data['Message'].lower() or "fail" in data['JobState'].lower():
+            logging.error("- FAIL: job ID %s failed, error results: \n%s" % (update_job_id, data['Message']))
+            return
+        elif "completed successfully" in data['Message']:
+            try:
+                logging.info("- PASS, %s job %s successfully marked completed" % (data["Oem"]["Dell"]["Name"].replace(":",""), update_job_id))
+            except:
+                logging.info("- PASS, %s job %s successfully marked completed" % (data["Name"].replace(":",""), update_job_id))
+            time.sleep(30)
+            break
+        else:
+            logging.info("- INFO, %s job status not completed, current status: \"%s\"" % (update_job_id, data['Message'].rstrip(".")))
+            time.sleep(60)
+            
 def loop_check_final_job_status(reboot_update_job_id):
     start_time = datetime.now()
     retry_count = 1
@@ -230,17 +316,23 @@ def loop_check_final_job_status(reboot_update_job_id):
             retry_count += 1
             continue 
         current_time = str((datetime.now()-start_time))[0:7]
+        if response.status_code == 500:
+            logging.error("- FAIL, status code 500 detected due to internal server error, script will sleep 3 minutes and retry get request")
+            time.sleep(180)
+            retry_count += 1
+            continue
         if response.status_code != 200:
-            logging.error("\n- FAIL, GET command failed to check job status, return code %s" % response.status_code)
-            logging.error("Extended Info Message: {0}".format(response.json()))
-            sys.exit(0)
+            logging.error("\n- FAIL, GET command failed to check job status, return code %s, script will sleep 15 seconds and retry get request" % response.status_code)
+            time.sleep(15)
+            retry_count += 1
+            continue
         data = response.json()
         if str(current_time)[0:7] >= "0:50:00":
             logging.error("\n- FAIL: Timeout of 50 minutes has been hit, script stopped\n")
             return
         elif "fail" in data['Message'].lower() or "fail" in data['JobState'].lower():
-            logging.error("- FAIL: job ID %s failed, error results: \n%s" % (job_id, data['Message']))
-            return
+            logging.error("- FAIL: job ID %s failed, error results: \n%s" % (reboot_update_job_id, data['Message']))
+            sys.exit(0)
         elif "completed successfully" in data['Message']:
             try:
                 logging.info("- PASS, %s job %s successfully marked completed" % (data["Oem"]["Dell"]["Name"].replace(":",""), reboot_update_job_id))
@@ -249,11 +341,11 @@ def loop_check_final_job_status(reboot_update_job_id):
             time.sleep(30)
             break
         else:
-            logging.info("- INFO, %s job status not completed, current status: \"%s\"" % (reboot_update_job_id, data['Message'].rstrip(".")))
-            time.sleep(60)
+            logging.info("- INFO, %s not completed, current status: \"%s\"" % (reboot_update_job_id, data['Message'].rstrip(".")))
+            time.sleep(3)
 
 def reboot_server():
-    logging.info("- INFO, rebooting the server now to apply firmware update(s)")
+    logging.info("- INFO, rebooting server to apply firmware update(s) which require a reboot")
     if args["x"]:
         response = requests.get('https://%s/redfish/v1/Systems/System.Embedded.1' % idrac_ip, verify=verify_cert, headers={'X-Auth-Token': args["x"]})   
     else:
@@ -271,24 +363,34 @@ def reboot_server():
             response = requests.post(url, data=json.dumps(payload), headers=headers, verify=verify_cert,auth=(idrac_username,idrac_password))
         if response.status_code == 204:
             logging.info("- PASS, POST command passed to gracefully power OFF server")
-            logging.info("- INFO, script will now verify the server was able to perform a graceful shutdown. If the server was unable to perform a graceful shutdown, forced shutdown will be invoked in 5 minutes")
+            logging.info("- INFO, script will now verify the server was able to perform a graceful shutdown. If the server was unable to perform a graceful shutdown, forced shutdown will be invoked in 2 minutes")
             time.sleep(60)
             start_time = datetime.now()
         else:
             logging.error("\n- FAIL, Command failed to gracefully power OFF server, status code is: %s\n" % response.status_code)
             logging.error("Extended Info Message: {0}".format(response.json()))
             sys.exit(0)
+        retry_count = 1
         while True:
-            if args["x"]:
-                response = requests.get('https://%s/redfish/v1/Systems/System.Embedded.1' % idrac_ip, verify=verify_cert, headers={'X-Auth-Token': args["x"]})   
-            else:
-                response = requests.get('https://%s/redfish/v1/Systems/System.Embedded.1' % idrac_ip, verify=verify_cert,auth=(idrac_username, idrac_password))
+            if retry_count == 20:
+                logging.warning("- WARNING, GET command retry count of 20 has been reached, script will exit")
+                sys.exit(0)
+            try:
+                if args["x"]:
+                    response = requests.get('https://%s/redfish/v1/Systems/System.Embedded.1' % idrac_ip, verify=verify_cert, headers={'X-Auth-Token': args["x"]})   
+                else:
+                    response = requests.get('https://%s/redfish/v1/Systems/System.Embedded.1' % idrac_ip, verify=verify_cert,auth=(idrac_username, idrac_password))
+            except requests.ConnectionError as error_message:
+                logging.info("- INFO, GET request failed due to connection error, script will sleep 15 seconds and retry")
+                time.sleep(15)
+                retry_count += 1
+                continue 
             data = response.json()
             current_time = str(datetime.now() - start_time)[0:7]
             if data['PowerState'] == "Off":
                 logging.info("- PASS, GET command passed to verify graceful shutdown was successful and server is in OFF state")
                 break
-            elif current_time >= "0:05:00":
+            elif current_time >= "0:02:00":
                 logging.info("- INFO, unable to perform graceful shutdown, server will now perform forced shutdown")
                 payload = {'ResetType': 'ForceOff'}
                 time.sleep(60)
@@ -417,11 +519,13 @@ if __name__ == "__main__":
     if args["get"]:
         get_FW_inventory()
     elif args["location"]:
+        print("\n")
         if not os.path.isdir(args["location"]):
             logging.error("\n- WARNING, value detected for argument --location is not a directory")
             sys,exit(0)
         idrac_update_flag = False
         cpld_update_flag = False
+        cpld_run = False
         update_jobs_need_server_reboot = []
         from pathlib import Path
         directory_path = Path(args["location"]).resolve()
@@ -432,6 +536,15 @@ if __name__ == "__main__":
         if directory_dups == []:
             logging.error("\n- WARNING, either directory path is empty or directory contains no valid Windows Dell Update Packages.")
             sys.exit(0)
+        for i in directory_dups:
+            if "chassis" in i.lower():
+                logging.info("- INFO, chassis system management DUP detected, update will get applied first")
+                if platform.system().lower() == "linux":
+                    chassis_directory_dup_path = args["location"] + "/" + i
+                if platform.system().lower() == "windows":
+                    chassis_directory_dup_path = args["location"] + "\\" + i
+                chassis_update(chassis_directory_dup_path, i)
+                directory_dups.remove(i)
         for i in directory_dups:
             if not i.endswith("/") or not i.endswith("\\"):
                 if platform.system().lower() == "linux":
@@ -445,11 +558,22 @@ if __name__ == "__main__":
                 check_job_status(job_id)
         if update_jobs_need_server_reboot == [] and cpld_update_flag == False:
             logging.info("\n- INFO, no scheduled update jobs detected, server will not reboot")
+        elif update_jobs_need_server_reboot == [] and cpld_update_flag == True:
+            logging.info("- INFO, CPLD update detected, update will now get applied and once completed iDRAC will reboot")
+            idrac_cpld_update(cpld_dup_package)
+            check_job_status(update_job_id)
+            reboot_server()
+            cpld_update_flag = False
+            loop_check_final_job_status(update_job_id)
+        elif update_jobs_need_server_reboot == [] and idrac_update_flag == True:
+            logging.info("- INFO, iDRAC update detected, update will now get applied and once completed iDRAC will reboot")
+            idrac_cpld_update(idrac_dup_package)
+            check_job_status(update_job_id)
         else:
             reboot_server()
             for i in update_jobs_need_server_reboot:
                 loop_check_final_job_status(i)
-        if cpld_update_flag == True:
+        if cpld_update_flag == True and cpld_run == False:
             logging.info("- INFO, CPLD update detected, update will now get applied and once completed iDRAC will reboot")
             idrac_cpld_update(cpld_dup_package)
             check_job_status(update_job_id)
