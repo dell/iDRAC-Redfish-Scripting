@@ -217,6 +217,9 @@ def export_scp_file_locally():
         if str(current_time)[0:7] >= "0:10:00":
             logging.error("\n- FAIL, Timeout of 10 minutes has been reached before marking the job completed.")
             sys.exit(0)
+        elif "unable" in data['Oem']['Dell']['Message'].lower():
+            logging.error("- FAIL, job completed but issue detected: error: %s" % data['Oem']['Dell']['Message'])
+            sys.exit(0)
         else:
             try:
                 logging.info("- INFO, \"%s\", percent complete: %s" % (data['Oem']['Dell']['Message'],data['Oem']['Dell']['PercentComplete']))
