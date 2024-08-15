@@ -52,8 +52,8 @@ logging.basicConfig(format='%(message)s', stream=sys.stdout, level=logging.INFO)
 
 def script_examples():
     print("""\n- DeviceFirmwareSimpleUpdateREDFISH.py -ip 192.168.0.120 -u root -p calvin --get, this example will return current firmware versions for all devices supported for updates.
-    \n- DeviceFirmwareSimpleUpdateREDFISH.py -ip 192.168.0.120 -u root -p calvin --location C:\Python39 --image BIOS_422T0_WN64_1.4.9.EXE --reboot, this example will update BIOS firmware which BIOS DUP is located in C:\Python27 directory
-    \n- DeviceFirmwareSimpleUpdateREDFISH.py -ip 192.168.0.120 -u root -p calvin --location C:\Python39 --image iDRAC-with-Lifecycle-Controller_Firmware_FPTF1_WN64_5.10.10.00_A00.EXE, this example will update iDRAC firmware immediately, no reboot needed since iDRAC is direct update.""")
+    \n- DeviceFirmwareSimpleUpdateREDFISH.py -ip 192.168.0.120 -u root -p calvin --location C:\\Python39 --image BIOS_422T0_WN64_1.4.9.EXE --reboot, this example will update BIOS firmware which BIOS DUP is located in C:\Python27 directory
+    \n- DeviceFirmwareSimpleUpdateREDFISH.py -ip 192.168.0.120 -u root -p calvin --location C:\\Python39 --image iDRAC-with-Lifecycle-Controller_Firmware_FPTF1_WN64_5.10.10.00_A00.EXE, this example will update iDRAC firmware immediately, no reboot needed since iDRAC is direct update.""")
     sys.exit(0)
 
 def check_supported_idrac_version():
