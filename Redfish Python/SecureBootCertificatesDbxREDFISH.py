@@ -35,7 +35,7 @@ parser.add_argument('-ip',help='iDRAC IP address', required=False)
 parser.add_argument('-u', help='iDRAC username', required=False)
 parser.add_argument('-p', help='iDRAC password. If you do not pass in argument -p, script will prompt to enter user password which will not be echoed to the screen.', required=False)
 parser.add_argument('-x', help='Pass in X-Auth session token for executing Redfish calls. All Redfish calls will use X-Auth token instead of username/password', required=False)
-parser.add_argument('--ssl', help='SSL cert verification for all Redfish calls, pass in value \"true\" or \"false\". By default, this argument is not required and script ignores validating SSL cert for all Redfish calls.', required=False)
+parser.add_argument('--ssl', help='SSL cert verification for all Redfish calls, pass in value true or false. By default, this argument is not required and script ignores validating SSL cert for all Redfish calls.', required=False)
 parser.add_argument('--script-examples', help='Get executing script examples', action="store_true", dest="script_examples", required=False) 
 parser.add_argument('--get', help='Get all DBX cert URIs detected', action="store_true", required=False)
 parser.add_argument('--get-specific', help='Get specific DBX cert only, pass in URI', dest="get_specific", required=False)
@@ -55,7 +55,7 @@ def script_examples():
     \n- SecureBootCertificatesDbxREDFISH.py -ip 192.168.0.120 -u root -p calvin --export-uri /redfish/v1/Systems/System.Embedded.1/SecureBoot/Certificates/DBX/CustSecbootpolicy.84 --export-filename dbx_84_cert.hsh, this example will export DBX cert 84.
     \n- SecureBootCertificatesDbxREDFISH.py -ip 192.168.0.120 -u root -p calvin --delete /redfish/v1/Systems/System.Embedded.1/SecureBoot/Certificates/DBX/CustSecbootpolicy.84, this example deletes DBX cert 84.
     \n- SecureBootCertificatesDbxREDFISH.py -ip 192.168.0.120 -u root -p calvin --reboot, this example reboots the server. Reboot the server is required after delete or import DBX cert for the changes to be applied.
-    \n- SecureBootCertificatesDbxREDFISH.py -ip 192.168.0.120 -u root -p calvin --import-filename dbx_84_cert.hsh --dir-location C:\Python38-32 --hashtype SHA256, this example will import DBX cert.""")
+    \n- SecureBootCertificatesDbxREDFISH.py -ip 192.168.0.120 -u root -p calvin --import-filename dbx_84_cert.hsh --dir-location C:\\Python38-32 --hashtype SHA256, this example will import DBX cert.""")
     sys.exit(0)
 
 def check_supported_idrac_version():
