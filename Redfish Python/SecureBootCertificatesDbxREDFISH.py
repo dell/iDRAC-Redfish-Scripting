@@ -1,7 +1,7 @@
 #!/usr/bin/python3
 #
 # _author_ = Texas Roemer <Texas_Roemer@Dell.com>
-# _version_ = 2.0
+# _version_ = 3.0
 #
 # Copyright (c) 2020, Dell, Inc.
 #
@@ -30,7 +30,7 @@ from pprint import pprint
 
 warnings.filterwarnings("ignore")
 
-parser=argparse.ArgumentParser(description="Python script using Redfish API with OEM extension to manage BIOS DBX certificates.")
+parser=argparse.ArgumentParser(description="Python script using Redfish API to manage BIOS DBX certificates.")
 parser.add_argument('-ip',help='iDRAC IP address', required=False)
 parser.add_argument('-u', help='iDRAC username', required=False)
 parser.add_argument('-p', help='iDRAC password. If you do not pass in argument -p, script will prompt to enter user password which will not be echoed to the screen.', required=False)
@@ -183,7 +183,7 @@ def import_DBX():
     filename = args["import_filename"]
     ImageLocation = args["dir_location"]
     ImagePath = os.path.join(ImageLocation, filename)
-    url = 'https://%s/redfish/v1/Systems/System.Embedded.1/SecureBoot/Certificates/DBX/' % (idrac_ip)
+    url = 'https://%s/redfish/v1/Systems/System.Embedded.1/SecureBoot/Oem/Dell/Certificates/DBX/' % (idrac_ip)
     payload = {"CryptographicHash": args["hashtype"]}
     files = {'text':(None, json.dumps(payload), 'application/json'),'file': (filename, open(ImagePath, 'rb'), 'multipart/form-data')}
     if args["x"]:
@@ -192,7 +192,7 @@ def import_DBX():
     else:
         response = requests.post(url, files=files, data=payload, verify=verify_cert, auth=(idrac_username,idrac_password))
     if response.status_code == 200 or response.status_code == 202:
-        logging.info("\n- PASS, import DBX cert passed. Server reboot is required to apply the changes.")
+        logging.info("\n- PASS, import DBX cert passed")
     else:
         data = response.json()
         logging.error("- FAIL, POST command failed to import DBX cert, status code %s returned. Error results: \n%s" % (response.status_code, data))
@@ -200,19 +200,23 @@ def import_DBX():
         
 def get_all_DBX_URIs():
     if args["x"]:
-        response = requests.get('https://%s/redfish/v1/Systems/System.Embedded.1/SecureBoot/Certificates/%s' % (idrac_ip, "DBX"), verify=verify_cert, headers={'X-Auth-Token': args["x"]})   
+        response = requests.get('https://%s/redfish/v1/Systems/System.Embedded.1/SecureBoot/Oem/Dell/Certificates/%s' % (idrac_ip, "DBX"), verify=verify_cert, headers={'X-Auth-Token': args["x"]})   
     else:
-        response = requests.get('https://%s/redfish/v1/Systems/System.Embedded.1/SecureBoot/Certificates/%s' % (idrac_ip, "DBX"), verify=verify_cert,auth=(idrac_username, idrac_password))
+        response = requests.get('https://%s/redfish/v1/Systems/System.Embedded.1/SecureBoot/Oem/Dell/Certificates/%s' % (idrac_ip, "DBX"), verify=verify_cert,auth=(idrac_username, idrac_password))
     data = response.json()
+    try:
+        if data["Hash"] == []:
+            key = "Certificates"
+        elif data["Certificates"] == []:
+            key = "Hash"
+        else:
+            logging.warning("\n- WARNING, no certificate entries detected")
+            sys.exit(0)
+    except:
+        logging.warning("\n- WARNING, DRX resource URI not found")
+        sys.exit(0)
     logging.info("\n- Ceritificate \"%s\" Key Type Entries For iDRAC %s -\n" % ("DBX", idrac_ip))
     time.sleep(3)
-    if data["Hash"] == []:
-        key = "Certificates"
-    elif data["Certificates"] == []:
-        key = "Hash"
-    else:
-        logging.warning("\n- WARNING, no certificate entries detected")
-        sys.exit(0)
     for i in data[key]:
         for ii in i.items():
             print("%s: %s" % (ii[0], ii[1]))
@@ -244,7 +248,7 @@ def delete_hash():
         logging.error("- FAIL, unable to delete certificate hash, status code is %s, detailed error results: \n%s" % (response.status_code, data))
         sys.exit(0)
     else:
-        logging.info("\n- PASS, DELETE command passed to delete certificate hash. Server reboot is required to apply the changes.")
+        logging.info("\n- PASS, DELETE command passed to delete certificate hash")
 
 if __name__ == "__main__":
     if args["script_examples"]:
@@ -275,10 +279,18 @@ if __name__ == "__main__":
         get_all_DBX_URIs()
     elif args["import_filename"] and args["dir_location"] and args["hashtype"]:
         import_DBX()
+        if args["reboot"]:
+            reboot_server()
+        else:
+            logging.info("- INFO, server reboot is required to apply the changes")
     elif args["get_specific"]:
         get_DBX_uri()
     elif args["delete"]:
         delete_hash()
+        if args["reboot"]:
+            reboot_server()
+        else:
+            logging.info("- INFO, server reboot is required to apply the changes")
     elif args["reboot"]:
         reboot_server()
     else:
