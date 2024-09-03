@@ -80,9 +80,9 @@ def script_examples():
 
 def check_supported_idrac_version():
     if args["x"]:
-         response = requests.get('https://%s/redfish/v1/Dell/Managers/iDRAC.Embedded.1/DelliDRACCardService' % idrac_ip, verify=verify_cert, headers={'X-Auth-Token': args["x"]})
+         response = requests.get('https://%s/redfish/v1/Managers/iDRAC.Embedded.1/Oem/Dell/DelliDRACCardService' % idrac_ip, verify=verify_cert, headers={'X-Auth-Token': args["x"]})
     else:
-        response = requests.get('https://%s/redfish/v1/Dell/Managers/iDRAC.Embedded.1/DelliDRACCardService' % idrac_ip, verify=verify_cert, auth=(idrac_username, idrac_password))
+        response = requests.get('https://%s/redfish/v1/Managers/iDRAC.Embedded.1/Oem/Dell/DelliDRACCardService' % idrac_ip, verify=verify_cert, auth=(idrac_username, idrac_password))
     data = response.json()
     if response.status_code == 401:
         logging.warning("\n- WARNING, unable to access iDRAC, check to make sure you are passing in valid iDRAC credentials")
@@ -111,9 +111,9 @@ def get_iDRAC_version():
 
 def get_cert_types():
     if args["x"]:
-         response = requests.get('https://%s/redfish/v1/Dell/Managers/iDRAC.Embedded.1/DelliDRACCardService' % idrac_ip, verify=verify_cert, headers={'X-Auth-Token': args["x"]})
+         response = requests.get('https://%s/redfish/v1/Managers/iDRAC.Embedded.1/Oem/Dell/DelliDRACCardService' % idrac_ip, verify=verify_cert, headers={'X-Auth-Token': args["x"]})
     else:
-        response = requests.get('https://%s/redfish/v1/Dell/Managers/iDRAC.Embedded.1/DelliDRACCardService' % idrac_ip, verify=verify_cert, auth=(idrac_username, idrac_password))
+        response = requests.get('https://%s/redfish/v1/Managers/iDRAC.Embedded.1/Oem/Dell/DelliDRACCardService' % idrac_ip, verify=verify_cert, auth=(idrac_username, idrac_password))
     data = response.json()
     if response.status_code != 200:
         logging.error("\n- ERROR, GET command failed to get cert types supported for export/import cert operations, status code %s returned", response.status_code)
@@ -145,7 +145,7 @@ def get_current_certs():
         pprint(i)
 
 def export_SSL_cert():
-    url = 'https://%s/redfish/v1/Dell/Managers/iDRAC.Embedded.1/DelliDRACCardService/Actions/DelliDRACCardService.ExportSSLCertificate' % (idrac_ip)
+    url = 'https://%s/redfish/v1/Managers/iDRAC.Embedded.1/Oem/Dell/DelliDRACCardService/Actions/DelliDRACCardService.ExportSSLCertificate' % (idrac_ip)
     method = "ExportSSLCertificate"
     payload={"SSLCertType":args["cert_type"]}
     if args["x"]:
@@ -236,7 +236,7 @@ def upload_SSL_key():
         sys.exit(0)
     
 def import_SSL_cert():
-    url = 'https://%s/redfish/v1/Dell/Managers/iDRAC.Embedded.1/DelliDRACCardService/Actions/DelliDRACCardService.ImportSSLCertificate' % (idrac_ip)
+    url = 'https://%s/redfish/v1/Managers/iDRAC.Embedded.1/Oem/Dell/DelliDRACCardService/Actions/DelliDRACCardService.ImportSSLCertificate' % (idrac_ip)
     method = "ImportSSLCertificate"
     if "p12" in args["filename"]:
         with open(args["filename"], 'rb') as cert:
