@@ -1,10 +1,7 @@
 #!/usr/bin/python3
 #
-# ChangeBiosBootOrderREDFISH. Python script using Redfish API DMTF standard to change the BIOS boot order
-#
-#
 # _author_ = Texas Roemer <Texas_Roemer@Dell.com>
-# _version_ = 11.0
+# _version_ = 12.0
 #
 # Copyright (c) 2019, Dell, Inc.
 #
@@ -36,7 +33,7 @@ parser.add_argument('-ip',help='iDRAC IP address', required=False)
 parser.add_argument('-u', help='iDRAC username', required=False)
 parser.add_argument('-p', help='iDRAC password. If you do not pass in argument -p, script will prompt to enter user password which will not be echoed to the screen.', required=False)
 parser.add_argument('-x', help='Pass in X-Auth session token for executing Redfish calls. All Redfish calls will use X-Auth token instead of username/password', required=False)
-parser.add_argument('--ssl', help='SSL cert verification for all Redfish calls, pass in value \"true\" or \"false\". By default, this argument is not required and script ignores validating SSL cert for all Redfish calls.', required=False)
+parser.add_argument('--ssl', help='SSL cert verification for all Redfish calls, pass in value true or false. By default, this argument is not required and script ignores validating SSL cert for all Redfish calls.', required=False)
 parser.add_argument('--script-examples', help='Get executing script examples', action="store_true", dest="script_examples", required=False)
 parser.add_argument('--get', help='Get current boot order', action="store_true", required=False)
 parser.add_argument('--change', help='Change boot order, pass in the ID of the boot device(s). You can pass in one, multiple or all devices. If you only pass in one device Id, the rest of the boot order will get moved down. Note: If you pass in multiple, use a comma separator. Example: Boot0004,Boot0005,Boot0006', required=False)

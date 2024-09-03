@@ -5,7 +5,7 @@
 # to delete the downloaded payload.
 #
 # _author_ = Texas Roemer <Texas_Roemer@Dell.com>
-# _version_ = 4.0
+# _version_ = 5.0
 #
 # Copyright (c) 2017, Dell, Inc.
 #
@@ -29,7 +29,7 @@ import warnings
 
 warnings.filterwarnings("ignore")
 
-parser = argparse.ArgumentParser(description='Python script using Redfish API to either get AVAILABLE entries for delete, get ETag for the AVAILABLE entry or DELETE the AVAILABLE downloaded package')
+parser = argparse.ArgumentParser(description='Python script using Redfish API to either get AVAILABLE entries for delete, get ETag for the AVAILABLE entry or DELETE the AVAILABLE downloaded package. Note this script is only supported on iDRAC9.')
 parser.add_argument('-ip',help='iDRAC IP address', required=False)
 parser.add_argument('-u', help='iDRAC username', required=False)
 parser.add_argument('-p', help='iDRAC password. If you do not pass in argument -p, script will prompt to enter user password which will not be echoed to the screen.', required=False)

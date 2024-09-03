@@ -1,9 +1,7 @@
 #!/usr/bin/python3
 #
-# ChangeVirtualDiskAttributesREDFISH. Python script using Redfish API to either get controllers, get virtual disks or change virtual disk read, write or disk cache policy settings.
-#
 # _author_ = Texas Roemer <Texas_Roemer@Dell.com>
-# _version_ = 1.0
+# _version_ = 2.0
 #
 # Copyright (c) 2022, Dell, Inc.
 #
@@ -30,16 +28,16 @@ from pprint import pprint
 
 warnings.filterwarnings("ignore")
 
-parser=argparse.ArgumentParser(description="Python script using Redfish API to either get controllers, get virtual disks or change virtual disk read, write or disk cache policy settings")
+parser = argparse.ArgumentParser(description="Python script using Redfish API to either get controllers, get virtual disks or change virtual disk read, write or disk cache policy settings")
 parser.add_argument('-ip',help='iDRAC IP address', required=False)
 parser.add_argument('-u', help='iDRAC username', required=False)
 parser.add_argument('-p', help='iDRAC password. If you do not pass in argument -p, script will prompt to enter user password which will not be echoed to the screen.', required=False)
 parser.add_argument('-x', help='Pass in X-Auth session token for executing Redfish calls. All Redfish calls will use X-Auth token instead of username/password', required=False)
-parser.add_argument('--ssl', help='SSL cert verification for all Redfish calls, pass in value \"true\" or \"false\". By default, this argument is not required and script ignores validating SSL cert for all Redfish calls.', required=False)
+parser.add_argument('--ssl', help='SSL cert verification for all Redfish calls, pass in value true or false. By default, this argument is not required and script ignores validating SSL cert for all Redfish calls.', required=False)
 parser.add_argument('--script-examples', help='Get executing script examples', action="store_true", dest="script_examples", required=False) 
 parser.add_argument('--get-controllers', help='Get server storage controller FQDDs', action="store_true", dest="get_controllers", required=False)
-parser.add_argument('--get-virtualdisks', help='Get current server storage controller virtual disk(s) and virtual disk type, pass in storage controller FQDD, Example "\RAID.Integrated.1-1\"', dest="get_virtualdisks", required=False)
-parser.add_argument('--get-virtualdisk-details', help='Get complete details for all virtual disks behind storage controller, pass in storage controller FQDD, Example "\RAID.Integrated.1-1\"', dest="get_virtualdisk_details", required=False)
+parser.add_argument('--get-virtualdisks', help='Get current server storage controller virtual disk(s) and virtual disk type, pass in storage controller FQDD, Example RAID.Integrated.1-1', dest="get_virtualdisks", required=False)
+parser.add_argument('--get-virtualdisk-details', help='Get complete details for all virtual disks behind storage controller, pass in storage controller FQDD, Example RAID.Integrated.1-1', dest="get_virtualdisk_details", required=False)
 parser.add_argument('--change', help='Pass in virtual disk FQDD to change cache policy settings.', required=False)
 parser.add_argument('--diskcachepolicy', help='Pass in disk cache policy setting for VD creation, supported values: Enabled and Disabled. This is OPTIONAL, if you don\'t pass in this argument for VD creation, controller will use the default value', required=False)
 parser.add_argument('--readcachepolicy', help='Pass in read cache policy setting for VD creation, supported values: Off, ReadAhead and AdaptiveReadAhead. This is OPTIONAL, if you don\'t pass in this argument for VD creation, controller will use the default value', required=False)

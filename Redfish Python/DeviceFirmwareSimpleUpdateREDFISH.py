@@ -3,7 +3,7 @@
 # DeviceFirmwareSimpleUpdateREDFISH. Python script using Redfish API to update a device firmware with DMTF action SimpleUpdate. Supported file image types are Windows DUPs, d7/d9 image or pm files.
 #
 # _author_ = Texas Roemer <Texas_Roemer@Dell.com>
-# _version_ = 19.0
+# _version_ = 20.0
 #
 # Copyright (c) 2018, Dell, Inc.
 #
@@ -34,7 +34,7 @@ from pprint import pprint
 warnings.filterwarnings("ignore")
 
 
-parser=argparse.ArgumentParser(description="Python script using Redfish API to update device firmware using DMTF standard action SimpleUpdate from a local directory")
+parser=argparse.ArgumentParser(description="Python script using Redfish API to update device firmware using DMTF standard action SimpleUpdate from a local directory. Note this script is only supported on iDRAC9 or older versions.")
 parser.add_argument('-ip',help='iDRAC IP address', required=False)
 parser.add_argument('-u', help='iDRAC username', required=False)
 parser.add_argument('-p', help='iDRAC password. If you do not pass in argument -p, script will prompt to enter user password which will not be echoed to the screen.', required=False)
@@ -107,7 +107,10 @@ def download_image_payload():
     else:
         response = requests.get('https://%s/redfish/v1/UpdateService' % idrac_ip, verify=verify_cert, auth=(idrac_username, idrac_password))
     data = response.json()
-    http_push_uri = data['HttpPushUri']
+    try:
+        http_push_uri = data['HttpPushUri']
+    except:
+        http_push_uri = "/redfish/v1/UpdateService/FirmwareInventory"
     if args["x"]:
         response = requests.get('https://%s%s' % (idrac_ip, http_push_uri), verify=verify_cert, headers={'X-Auth-Token': args["x"]})
     else:
@@ -125,7 +128,11 @@ def download_image_payload():
     else:
         headers = {"if-match": ETag}
         response = requests.post(url, files=files, verify=verify_cert,auth=(idrac_username,idrac_password), headers=headers)
-    post_command_response_output = response.json()
+    try:
+        post_command_response_output = response.json()
+    except:
+        logging.error("- FAIL, SimpleUpdate using HttpPushUri is not supported on this iDRAC release")
+        sys.exit(0)
     if response.status_code == 201:
         logging.info("\n- PASS: POST command passed successfully to download image")
     else:
@@ -203,7 +210,7 @@ def check_job_status():
                     logging.info("- INFO, server virtual a/c cycle is needed for the new firmware installed to become effective")
             sys.exit(0)
         if data["TaskState"] == "Completed":
-            logging.info("\n- PASS, job ID successfully marked completed, detailed final job status results\n")
+            logging.info("\n- PASS, job ID successfuly marked completed, detailed final job status results\n")
             for i in data['Oem']['Dell'].items():
                 pprint(i)
             logging.info("\n- JOB ID %s completed in %s" % (job_id, current_time))

@@ -1,6 +1,7 @@
 #!/usr/bin/python3
+#
 # _author_ = Texas Roemer <Texas_Roemer@Dell.com>
-# _version_ = 1.0
+# _version_ = 2.0
 #
 # Copyright (c) 2024, Dell, Inc.
 #
@@ -46,11 +47,11 @@ parser.add_argument('-ip',help='iDRAC IP address', required=False)
 parser.add_argument('-u', help='iDRAC username', required=False)
 parser.add_argument('-p', help='iDRAC password. If you do not pass in argument -p, script will prompt to enter user password which will not be echoed to the screen.', required=False)
 parser.add_argument('-x', help='Pass in X-Auth session token for executing Redfish calls. All Redfish calls will use X-Auth token instead of username/password', required=False)
-parser.add_argument('--ssl', help='SSL cert verification for all Redfish calls, pass in value \"true\" or \"false\". By default, this argument is not required and script ignores validating SSL cert for all Redfish calls.', required=False)
+parser.add_argument('--ssl', help='SSL cert verification for all Redfish calls, pass in value true or false. By default, this argument is not required and script ignores validating SSL cert for all Redfish calls.', required=False)
 parser.add_argument('--script-examples', help='Get executing script examples', action="store_true", dest="script_examples", required=False)
 parser.add_argument('--get', help='Get current boot order', action="store_true", required=False)
 parser.add_argument('--create', help='Create config file that will be used to make BIOS boot order changes. See script comments for file example contents along with information about how to edit the file correctly', action="store_true", required=False)
-parser.add_argument('--change', help='Change boot order or boot order device state, pass in filename value \"change_boot_order.txt". If file is in another directory pass in the directory path also.', required=False)
+parser.add_argument('--change', help='Change boot order or boot order device state, pass in filename value "change_boot_order.txt". If file is in another directory pass in the directory path also.', required=False)
 parser.add_argument('--reboot', help='Pass in this argument to reboot the server now to change BIOS boot order. If argument is not passed in BIOS config job will still get scheduled and run on next server reboot.', action="store_true", required=False)
 
 args=vars(parser.parse_args())

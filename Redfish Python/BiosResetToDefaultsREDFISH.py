@@ -3,7 +3,7 @@
 # BiosResetToDefaultsREDFISH. Python script using Redfish API DMTF action to reset BIOS to default settings
 #
 # _author_ = Texas Roemer <Texas_Roemer@Dell.com>
-# _version_ = 4.0
+# _version_ = 5.0
 #
 # Copyright (c) 2019, Dell, Inc.
 #
@@ -35,7 +35,7 @@ parser.add_argument('-ip',help='iDRAC IP address', required=False)
 parser.add_argument('-u', help='iDRAC username', required=False)
 parser.add_argument('-p', help='iDRAC password. If you do not pass in argument -p, script will prompt to enter user password which will not be echoed to the screen.', required=False)
 parser.add_argument('-x', help='Pass in X-Auth session token for executing Redfish calls. All Redfish calls will use X-Auth token instead of username/password', required=False)
-parser.add_argument('--ssl', help='SSL cert verification for all Redfish calls, pass in value \"true\" or \"false\". By default, this argument is not required and script ignores validating SSL cert for all Redfish calls.', required=False)
+parser.add_argument('--ssl', help='SSL cert verification for all Redfish calls, pass in value true or false. By default, this argument is not required and script ignores validating SSL cert for all Redfish calls.', required=False)
 parser.add_argument('--script-examples', help='Get executing script examples', action="store_true", dest="script_examples", required=False)
 parser.add_argument('--get', help='Get current flag setting for BIOS reset to defaults.', action="store_true", required=False)
 parser.add_argument('--noreboot', help='Pass in this argument to not reboot the server now to reset BIOS to default settings. Flag will still be set and reset to defaults will happen on next server reboot.', action="store_true", required=False)
@@ -64,14 +64,14 @@ def check_supported_idrac_version():
 
 def check_bios_rtd_flag():
     if args["x"]:
-        response = requests.get('https://%s/redfish/v1/Managers/LifecycleController.Embedded.1/Attributes?$select=Attributes/LCAttributes.1.BIOSRTDRequested' % idrac_ip, verify=verify_cert, headers={'X-Auth-Token': args["x"]})   
+        response = requests.get('https://%s/redfish/v1/Managers/iDRAC.Embedded.1/Oem/Dell/DellAttributes/LifecycleController.Embedded.1?$select=Attributes/LCAttributes.1.BIOSRTDRequested' % idrac_ip, verify=verify_cert, headers={'X-Auth-Token': args["x"]})   
     else:
-        response = requests.get('https://%s/redfish/v1/Managers/LifecycleController.Embedded.1/Attributes?$select=Attributes/LCAttributes.1.BIOSRTDRequested' % idrac_ip, verify=verify_cert,auth=(idrac_username, idrac_password))
+        response = requests.get('https://%s/redfish/v1/Managers/iDRAC.Embedded.1/Oem/Dell/DellAttributes/LifecycleController.Embedded.1?$select=Attributes/LCAttributes.1.BIOSRTDRequested' % idrac_ip, verify=verify_cert,auth=(idrac_username, idrac_password))
     data = response.json()
     if response.status_code != 200:
         logging.error("\n- FAIL, GET command failed to check BIOS reset to default flag, status code %s returned" % response.status_code)
         sys.exit(0)
-    logging.info("\n- BIOS reset to default flag set: %s" % data["Attributes"]["LCAttributes.1.BIOSRTDRequested"])
+    logging.info("\n- BIOS reset to default flag current setting: %s" % data["Attributes"]["LCAttributes.1.BIOSRTDRequested"])
 
 def reset_bios():
     url = "https://%s/redfish/v1/Systems/System.Embedded.1/Bios/Actions/Bios.ResetBios" % idrac_ip

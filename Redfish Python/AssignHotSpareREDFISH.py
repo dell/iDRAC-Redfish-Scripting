@@ -3,7 +3,7 @@
 # AssignHotSpareREDFISH. Python script using Redfish API to either assign dedicated or global hot spare
 #
 # _author_ = Texas Roemer <Texas_Roemer@Dell.com>
-# _version_ = 6.0
+# _version_ = 7.0
 #
 # Copyright (c) 2018, Dell, Inc.
 #
@@ -35,15 +35,15 @@ parser.add_argument('-ip',help='iDRAC IP address', required=False)
 parser.add_argument('-u', help='iDRAC username', required=False)
 parser.add_argument('-p', help='iDRAC password', required=False)
 parser.add_argument('-x', help='Pass in X-Auth session token for executing Redfish calls. All Redfish calls will use X-Auth token instead of username/password', required=False)
-parser.add_argument('--ssl', help='SSL cert verification for all Redfish calls, pass in value \"true\" or \"false\". By default, this argument is not required and script ignores validating SSL cert for all Redfish calls.', required=False)
+parser.add_argument('--ssl', help='SSL cert verification for all Redfish calls, pass in value true or false. By default, this argument is not required and script ignores validating SSL cert for all Redfish calls.', required=False)
 parser.add_argument('--script-examples', help='Get executing script examples', action="store_true", dest="script_examples", required=False)
 parser.add_argument('--get-controllers', help='Get server storage controller FQDDs', action="store_true", dest="get_controllers", required=False)
-parser.add_argument('--get-disks', help='Get server storage controller disk FQDDs only, pass in storage controller FQDD, Example "\RAID.Integrated.1-1\"', dest="get_disks", required=False)
-parser.add_argument('--get-hotspare-drive', help='Get current hot spare type for each drive, pass in storage controller FQDD, Example "\RAID.Integrated.1-1\"', dest="get_hotspare_drive", required=False)
-parser.add_argument('--get-virtualdisks', help='Get current server storage controller virtual disk(s) and virtual disk type, pass in storage controller FQDD, Example "\RAID.Integrated.1-1\"', dest="get_virtualdisks", required=False)
-parser.add_argument('--get-virtualdisk-details', help='Get complete details for all virtual disks behind storage controller, pass in storage controller FQDD, Example "\RAID.Integrated.1-1\"', dest="get_virtualdisk_details", required=False)
-parser.add_argument('--hotspare-type', help='Pass in the type of hot spare you want to assign. Supported values are \"dedicated\" and \"global\"', dest="hotspare_type", required=False)
-parser.add_argument('--assign-disk', help='Assign global or dedicated hot spare, pass in disk FQDD, Example \"Disk.Bay.0:Enclosure.Internal.0-1:RAID.Slot.6-1\"', dest="assign_disk", required=False)
+parser.add_argument('--get-disks', help='Get server storage controller disk FQDDs only, pass in storage controller FQDD, Example RAID.Integrated.1-1', dest="get_disks", required=False)
+parser.add_argument('--get-hotspare-drive', help='Get current hot spare type for each drive, pass in storage controller FQDD, Example RAID.Integrated.1-1', dest="get_hotspare_drive", required=False)
+parser.add_argument('--get-virtualdisks', help='Get current server storage controller virtual disk(s) and virtual disk type, pass in storage controller FQDD, Example RAID.Integrated.1-1', dest="get_virtualdisks", required=False)
+parser.add_argument('--get-virtualdisk-details', help='Get complete details for all virtual disks behind storage controller, pass in storage controller FQDD, Example RAID.Integrated.1-1', dest="get_virtualdisk_details", required=False)
+parser.add_argument('--hotspare-type', help='Pass in the type of hot spare you want to assign. Supported values are dedicated and global', dest="hotspare_type", required=False)
+parser.add_argument('--assign-disk', help='Assign global or dedicated hot spare, pass in disk FQDD, Example Disk.Bay.0:Enclosure.Internal.0-1:RAID.Slot.6-1', dest="assign_disk", required=False)
 parser.add_argument('--assign-virtualdisk', help='Pass in virtual disk FQDD you want to assign the dedicated hot spare disk', dest="assign_virtualdisk", required=False)
 args = vars(parser.parse_args())
 logging.basicConfig(format='%(message)s', stream=sys.stdout, level=logging.INFO) 
@@ -54,14 +54,14 @@ def script_examples():
     \n- AssignHotSpareREDFISH.py -ip 192.168.0.120 -x 72f5baabc31b3c72f88aef64dec2450c --get-virtualdisks RAID.Integrated.1-1, this example will use X-auth token session to get current virtual disks for storage controller RAID.Integrated.1-1.
     \n- AssignHotSpareREDFISH.py -ip 192.168.0.120 -x 78f5baabc31b3c72f88aef64dec2450c --assign-disk Disk.Bay.3:Enclosure.Internal.0-1:RAID.Integrated.1-1 --hotspare-type dedicated --assign-virtualdisk Disk.Virtual.0:RAID.Integrated.1-1 --ssl y, this example using X-auth token session and validating SSL cert will assign disk 3 as dedicated hotspare to VD 0.
     \n- AssignHotSpareREDFISH.py -ip 192.168.0.120 -u root -p calvin --get-hotspare-drive RAID.Mezzanine.1-1, this example will return hotspare status for each drive.
-    \n- AssignHotSpareREDFISH.py -ip 192.168.0.120 -u root -p calvin --assign-disk Disk.Bay.4:Enclosure.Internal.0-1:RAID.Integrated.1-1 --hotspare-type global, this example will assign disk 4 as global hotspare.""")
+    \n- AssignHotSpareREDFISH.py -ip 192.168.0.120 -u root -p calvin --assign Disk.Bay.4:Enclosure.Internal.0-1:RAID.Integrated.1-1 --hotspare-type global, this example will assign disk 4 as global hotspare.""")
     sys.exit(0)
     
 def check_supported_idrac_version():
     if args["x"]:
-        response = requests.get('https://%s/redfish/v1/Dell/Systems/System.Embedded.1/DellRaidService' % idrac_ip,verify=verify_cert, headers={'X-Auth-Token': args["x"]})
+        response = requests.get('https://%s/redfish/v1/Systems/System.Embedded.1/Oem/Dell/DellRaidService' % idrac_ip,verify=verify_cert, headers={'X-Auth-Token': args["x"]})
     else:
-        response = requests.get('https://%s/redfish/v1/Dell/Systems/System.Embedded.1/DellRaidService' % idrac_ip,verify=verify_cert,auth=(idrac_username, idrac_password))
+        response = requests.get('https://%s/redfish/v1/Systems/System.Embedded.1/Oem/Dell/DellRaidService' % idrac_ip,verify=verify_cert,auth=(idrac_username, idrac_password))
     data = response.json()
     if response.status_code == 401:
         logging.warning("\n- WARNING, status code %s returned. Incorrect iDRAC username/password or invalid privilege detected." % response.status_code)
@@ -110,24 +110,21 @@ def get_pdisks_hot_spare_type():
     else:
         response = requests.get('https://%s/redfish/v1/Systems/System.Embedded.1/Storage/%s' % (idrac_ip, args["get_hotspare_drive"]),verify=verify_cert,auth=(idrac_username, idrac_password))
     data = response.json()
-    drive_list=[]
-    if data['Drives'] == []:
+    drive_list_uris = []
+    if data["Drives"] == []:
         logging.warning("\n- WARNING, no drives detected for %s" % args["get_hotspare_drive"])
         sys.exit(0)
-    else:
-        for i in data['Drives']:
-            drive_list.append(i['@odata.id'].split("/")[-1])
+    for i in data["Drives"]:
+        for ii in i.items():
+            drive_list_uris.append(ii[1])
     logging.info("\n- Drive FQDDs/Hot Spare Type for Controller %s -\n" % args["get_hotspare_drive"])
-    if args["get_hotspare_drive"]:
-        for i in drive_list:
-            if args["x"]:
-                response = requests.get('https://%s/redfish/v1/Systems/System.Embedded.1/Storage/Drives/%s' % (idrac_ip, i),verify=verify_cert, headers={'X-Auth-Token': args["x"]})
-            else:
-                response = requests.get('https://%s/redfish/v1/Systems/System.Embedded.1/Storage/Drives/%s' % (idrac_ip, i),verify=verify_cert,auth=(idrac_username, idrac_password))
-            data = response.json()
-            for ii in data.items():
-                if ii[0] == "HotspareType":
-                    print("%s: Hot Spare Type: %s" % (i,ii[1]))
+    for i in drive_list_uris:
+        if args["x"]:
+            response = requests.get('https://%s%s?$select=HotspareType' % (idrac_ip, i),verify=verify_cert, headers={'X-Auth-Token': args["x"]})
+        else:
+            response = requests.get('https://%s%s?$select=HotspareType' % (idrac_ip, i),verify=verify_cert,auth=(idrac_username, idrac_password))
+        data = response.json()
+        print("%s: HotspareType: %s" % (i.split("/")[-1], data["HotspareType"]))
 
 def get_virtual_disks():
     test_valid_controller_FQDD_string(args["get_virtualdisks"])
@@ -136,55 +133,52 @@ def get_virtual_disks():
     else:
         response = requests.get('https://%s/redfish/v1/Systems/System.Embedded.1/Storage/%s/Volumes' % (idrac_ip, args["get_virtualdisks"]),verify=verify_cert,auth=(idrac_username, idrac_password))
     data = response.json()
-    vd_list=[]
+    vd_list_uris = []
     if data['Members'] == []:
         logging.warning("\n- WARNING, no volume(s) detected for %s" % args["get_virtualdisks"])
         sys.exit(0)
-    else:
-        for i in data['Members']:
-            vd_list.append(i['@odata.id'].split("/")[-1])
     logging.info("\n- Volume(s) detected for %s controller -\n" % args["get_virtualdisks"])
-    for ii in vd_list:
+    for i in data["Members"]:
+        for ii in i.items():
+            vd_list_uris.append(ii[1])
+    for i in vd_list_uris:
         if args["x"]:
-            response = requests.get('https://%s/redfish/v1/Systems/System.Embedded.1/Storage/Volumes/%s' % (idrac_ip, ii),verify=verify_cert, headers={'X-Auth-Token': args["x"]})
+            response = requests.get('https://%s%s' % (idrac_ip, i),verify=verify_cert, headers={'X-Auth-Token': args["x"]})
         else:
-            response = requests.get('https://%s/redfish/v1/Systems/System.Embedded.1/Storage/Volumes/%s' % (idrac_ip, ii),verify=verify_cert, auth=(idrac_username, idrac_password))
+            response = requests.get('https://%s%s' % (idrac_ip, i),verify=verify_cert, auth=(idrac_username, idrac_password))
         data = response.json()
-        for i in data.items():
-            if i[0] == "VolumeType":
-                print("%s, Volume type: %s" % (ii, i[1]))
+        for ii in data.items():
+            if ii[0] == "VolumeType":
+                print("%s, Volume type: %s" % (i.split("/")[-1], ii[1]))
 
 def get_virtual_disks_details():
     test_valid_controller_FQDD_string(args["get_virtualdisk_details"])
     if args["x"]:
         response = requests.get('https://%s/redfish/v1/Systems/System.Embedded.1/Storage/%s/Volumes' % (idrac_ip, args["get_virtualdisk_details"]),verify=verify_cert, headers={'X-Auth-Token': args["x"]})
     else:
-        response = requests.get('https://%s/redfish/v1/Systems/System.Embedded.1/Storage/%s/Volumes' % (idrac_ip, args["get_virtualdisk_details"]),verify=verify_cert, auth=(idrac_username, idrac_password))
+        response = requests.get('https://%s/redfish/v1/Systems/System.Embedded.1/Storage/%s/Volumes' % (idrac_ip, args["get_virtualdisk_details"]),verify=verify_cert,auth=(idrac_username, idrac_password))
     data = response.json()
-    vd_list = []
+    vd_list_uris = []
     if data['Members'] == []:
-        logging.error("\n- WARNING, no volume(s) detected for %s" % args["get_virtualdisk_details"])
+        logging.warning("\n- WARNING, no volume(s) detected for %s" % args["get_virtualdisk_details"])
         sys.exit(0)
-    else:
-        logging.info("\n- Volume(s) detected for %s controller -\n" % args["get_virtualdisk_details"])
-        for i in data['Members']:
-            vd_list.append(i['@odata.id'].split("/")[-1])
-            print(i['@odata.id'].split("/")[-1])
-    for ii in vd_list:
+    for i in data["Members"]:
+        for ii in i.items():
+            vd_list_uris.append(ii[1])
+    for i in vd_list_uris:
         if args["x"]:
-            response = requests.get('https://%s/redfish/v1/Systems/System.Embedded.1/Storage/Volumes/%s' % (idrac_ip, ii),verify=verify_cert, headers={'X-Auth-Token': args["x"]})
+            response = requests.get('https://%s%s' % (idrac_ip, i),verify=verify_cert, headers={'X-Auth-Token': args["x"]})
         else:
-            response = requests.get('https://%s/redfish/v1/Systems/System.Embedded.1/Storage/Volumes/%s' % (idrac_ip, ii),verify=verify_cert, auth=(idrac_username, idrac_password))
+            response = requests.get('https://%s%s' % (idrac_ip, i),verify=verify_cert, auth=(idrac_username, idrac_password))
         data = response.json()
-        logging.info("\n----- Detailed Volume information for %s -----\n" % ii)
-        for i in data.items():
-            pprint(i)
-        print("\n")
+        logging.info("\n- Detailed information for volume %s -\n" % i.split("/")[-1])
+        for ii in data.items():
+            pprint(ii)
 
 def assign_spare():
     global job_id
     method = "AssignSpare"
-    url = 'https://%s/redfish/v1/Dell/Systems/System.Embedded.1/DellRaidService/Actions/DellRaidService.AssignSpare' % (idrac_ip)
+    url = 'https://%s/redfish/v1/Systems/System.Embedded.1/Oem/Dell/DellRaidService/Actions/DellRaidService.AssignSpare' % (idrac_ip)
     if args["hotspare_type"].lower() == "global":
         payload = {"TargetFQDD":args["assign_disk"]}
     elif args["hotspare_type"].lower() == "dedicated":

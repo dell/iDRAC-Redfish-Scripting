@@ -1,9 +1,7 @@
 #!/usr/bin/python3
 #
-# ClearForeignConfigREDFISH. Python script using Redfish API with OEM extension to clear a storage controller foreign configuration
-#
 # _author_ = Texas Roemer <Texas_Roemer@Dell.com>
-# _version_ = 9.0
+# _version_ = 10.0
 #
 # Copyright (c) 2019, Dell, Inc.
 #
@@ -38,8 +36,8 @@ parser.add_argument('--ssl', help='Verify SSL certificate for all Redfish calls,
 parser.add_argument('-x', help='Pass in iDRAC X-auth token session ID to execute all Redfish calls instead of passing in username/password', required=False)
 parser.add_argument('--script-examples', help='Get executing script examples', action="store_true", dest="script_examples", required=False)
 parser.add_argument('--get-controllers', help='Get server storage controller FQDDs', dest="get_controllers", action="store_true", required=False)
-parser.add_argument('--get-disks', help='Get server storage controller disk FQDDs and their raid status only (check for foreign disks), pass in storage controller FQDD, Example "\RAID.Integrated.1-1\"', dest="get_disks", required=False)
-parser.add_argument('--clear', help='Clear foreign configuration for storage controller, pass in the controller FQDD, Example \"RAID.Slot.6-1\"', required=False)
+parser.add_argument('--get-disks', help='Get server storage controller disk FQDDs and their raid status only (check for foreign disks), pass in storage controller FQDD, Example RAID.Integrated.1-1', dest="get_disks", required=False)
+parser.add_argument('--clear', help='Clear foreign configuration for storage controller, pass in the controller FQDD, Example RAID.Slot.6-1', required=False)
 
 args=vars(parser.parse_args())
 logging.basicConfig(format='%(message)s', stream=sys.stdout, level=logging.INFO)
@@ -52,9 +50,9 @@ def script_examples():
 
 def check_supported_idrac_version():
     if args["x"]:
-        response = requests.get('https://%s/redfish/v1/Dell/Systems/System.Embedded.1/DellRaidService' % idrac_ip,verify=verify_cert, headers={'X-Auth-Token': args["x"]})
+        response = requests.get('https://%s/redfish/v1/Systems/System.Embedded.1/Oem/Dell/DellRaidService' % idrac_ip,verify=verify_cert, headers={'X-Auth-Token': args["x"]})
     else:
-        response = requests.get('https://%s/redfish/v1/Dell/Systems/System.Embedded.1/DellRaidService' % idrac_ip,verify=verify_cert,auth=(idrac_username, idrac_password))
+        response = requests.get('https://%s/redfish/v1/Systems/System.Embedded.1/Oem/Dell/DellRaidService' % idrac_ip,verify=verify_cert,auth=(idrac_username, idrac_password))
     data = response.json()
     if response.status_code == 401:
         logging.warning("\n- WARNING, status code %s returned. Incorrect iDRAC username/password or invalid privilege detected." % response.status_code)
@@ -119,7 +117,7 @@ def clear_foreign_config():
     global job_id
     method = "ClearForeignConfig"
     test_valid_controller_FQDD_string(args["clear"])
-    url = 'https://%s/redfish/v1/Dell/Systems/System.Embedded.1/DellRaidService/Actions/DellRaidService.ClearForeignConfig' % (idrac_ip)
+    url = 'https://%s/redfish/v1/Systems/System.Embedded.1/Oem/Dell/DellRaidService/Actions/DellRaidService.ClearForeignConfig' % (idrac_ip)
     payload={"TargetFQDD": args["clear"]}
     if args["x"]:
         headers = {'content-type': 'application/json', 'X-Auth-Token': args["x"]}

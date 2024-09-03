@@ -3,7 +3,7 @@
 # DeleteJobQueueREDFISH.py  Python script using Redfish API with OEM extension to get either delete single job ID, delete complete job queue or delete job queue and restart Lifecycle Controller services.
 #
 # _author_ = Texas Roemer <Texas_Roemer@Dell.com>
-# _version_ = 7.0
+# _version_ = 8.0
 #
 # Copyright (c) 2020, Dell, Inc.
 #
@@ -53,9 +53,9 @@ def script_examples():
 
 def check_supported_idrac_version():
     if args["x"]:
-        response = requests.get('https://%s/redfish/v1/Managers/iDRAC.Embedded.1/Jobs' % idrac_ip, verify=verify_cert, headers={'X-Auth-Token': args["x"]})   
+        response = requests.get('https://%s/redfish/v1/Managers/iDRAC.Embedded.1/Oem/Dell/DellJobService' % idrac_ip, verify=verify_cert, headers={'X-Auth-Token': args["x"]})   
     else:
-        response = requests.get('https://%s/redfish/v1/Managers/iDRAC.Embedded.1/Jobs' % idrac_ip, verify=verify_cert,auth=(idrac_username, idrac_password))
+        response = requests.get('https://%s/redfish/v1/Managers/iDRAC.Embedded.1/Oem/Dell/DellJobService' % idrac_ip, verify=verify_cert,auth=(idrac_username, idrac_password))
     data = response.json()
     if response.status_code == 401:
         logging.warning("\n- WARNING, status code %s returned. Incorrect iDRAC username/password or invalid privilege detected." % response.status_code)
@@ -80,7 +80,7 @@ def get_job_queue_job_ids():
         print("\n")
 
 def delete_jobID():
-    url = "https://%s/redfish/v1/Dell/Managers/iDRAC.Embedded.1/DellJobService/Actions/DellJobService.DeleteJobQueue" % idrac_ip
+    url = "https://%s/redfish/v1/Managers/iDRAC.Embedded.1/Oem/Dell/DellJobService/Actions/DellJobService.DeleteJobQueue" % idrac_ip
     if args["single_job"]:
         payload = {"JobID":args["single_job"]}
     elif args["clear"]:
@@ -110,7 +110,7 @@ def delete_jobID():
         logging.info("\n- INFO, Lifecycle Controller services restarted. Script will loop checking the status of Lifecycle Controller until Ready state")
         time.sleep(60)
         while True:
-            url = 'https://%s/redfish/v1/Dell/Managers/iDRAC.Embedded.1/DellLCService/Actions/DellLCService.GetRemoteServicesAPIStatus' % (idrac_ip)
+            url = 'https://%s/redfish/v1/Managers/iDRAC.Embedded.1/Oem/Dell/DellLCService/Actions/DellLCService.GetRemoteServicesAPIStatus' % (idrac_ip)
             method = "GetRemoteServicesAPIStatus"
             payload={}
             if args["x"]:

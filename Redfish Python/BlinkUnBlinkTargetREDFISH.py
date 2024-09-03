@@ -1,9 +1,7 @@
 #!/usr/bin/python3
 #
-# BlinkUnBlinkTargetREDFISH. Python script using Redfish API with OEM extension to either blink or unblink storage device (drives or virtual disk)
-#
 # _author_ = Texas Roemer <Texas_Roemer@Dell.com>
-# _version_ = 1.0
+# _version_ = 2.0
 #
 # Copyright (c) 2022, Dell, Inc.
 #
@@ -35,14 +33,14 @@ parser.add_argument('-ip',help='iDRAC IP address', required=False)
 parser.add_argument('-u', help='iDRAC username', required=False)
 parser.add_argument('-p', help='iDRAC password. If you do not pass in argument -p, script will prompt to enter user password which will not be echoed to the screen.', required=False)
 parser.add_argument('-x', help='Pass in X-Auth session token for executing Redfish calls. All Redfish calls will use X-Auth token instead of username/password', required=False)
-parser.add_argument('--ssl', help='SSL cert verification for all Redfish calls, pass in value \"true\" or \"false\". By default, this argument is not required and script ignores validating SSL cert for all Redfish calls.', required=False)
+parser.add_argument('--ssl', help='SSL cert verification for all Redfish calls, pass in value true or false. By default, this argument is not required and script ignores validating SSL cert for all Redfish calls.', required=False)
 parser.add_argument('--script-examples', help='Get executing script examples', action="store_true", dest="script_examples", required=False) 
 parser.add_argument('--get-controllers', help='Get server storage controller FQDDs', action="store_true", dest="get_controllers", required=False)
-parser.add_argument('--get-disks', help='Get server storage controller disk FQDDs and their raid status, pass in storage controller FQDD, Example "\RAID.Integrated.1-1\"', dest="get_disks", required=False)
-parser.add_argument('--get-disk-details', help='Get detailed disk information, pass in storage controller FQDD, Example "\RAID.Integrated.1-1\"', dest="get_disk_details", required=False)
-parser.add_argument('--get-virtualdisks', help='Get current server storage controller virtual disk(s) and virtual disk type, pass in storage controller FQDD, Example "\RAID.Integrated.1-1\"', dest="get_virtualdisks", required=False)
-parser.add_argument('--blink', help='Blink target device, pass in drive or virtual disk FQDD, Example \"Disk.Bay.0:Enclosure.Internal.0-1:RAID.Slot.6-1\"', required=False)
-parser.add_argument('--unblink', help='UnBlink target device, pass in drive or virtual disk FQDD, Example \"Disk.Bay.0:Enclosure.Internal.0-1:RAID.Slot.6-1\"', required=False)
+parser.add_argument('--get-disks', help='Get server storage controller disk FQDDs and their raid status, pass in storage controller FQDD, Example RAID.Integrated.1-1', dest="get_disks", required=False)
+parser.add_argument('--get-disk-details', help='Get detailed disk information, pass in storage controller FQDD, Example RAID.Integrated.1-1', dest="get_disk_details", required=False)
+parser.add_argument('--get-virtualdisks', help='Get current server storage controller virtual disk(s) and virtual disk type, pass in storage controller FQDD, Example RAID.Integrated.1-1', dest="get_virtualdisks", required=False)
+parser.add_argument('--blink', help='Blink target device, pass in drive or virtual disk FQDD, Example Disk.Bay.0:Enclosure.Internal.0-1:RAID.Slot.6-1', required=False)
+parser.add_argument('--unblink', help='UnBlink target device, pass in drive or virtual disk FQDD, Example Disk.Bay.0:Enclosure.Internal.0-1:RAID.Slot.6-1', required=False)
 args = vars(parser.parse_args())
 logging.basicConfig(format='%(message)s', stream=sys.stdout, level=logging.INFO)
 
@@ -57,9 +55,9 @@ def script_examples():
 
 def check_supported_idrac_version():
     if args["x"]:
-        response = requests.get('https://%s/redfish/v1/Dell/Systems/System.Embedded.1/DellRaidService' % idrac_ip, verify=verify_cert, headers={'X-Auth-Token': args["x"]})
+        response = requests.get('https://%s/redfish/v1/Systems/System.Embedded.1/Oem/Dell/DellRaidService' % idrac_ip, verify=verify_cert, headers={'X-Auth-Token': args["x"]})
     else:
-        response = requests.get('https://%s/redfish/v1/Dell/Systems/System.Embedded.1/DellRaidService' % idrac_ip, verify=verify_cert,auth=(idrac_username, idrac_password))
+        response = requests.get('https://%s/redfish/v1/Systems/System.Embedded.1/Oem/Dell/DellRaidService' % idrac_ip, verify=verify_cert,auth=(idrac_username, idrac_password))
     data = response.json()
     if response.status_code == 401:
         logging.warning("\n- WARNING, status code %s returned. Incorrect iDRAC username/password or invalid privilege detected." % response.status_code)
@@ -90,31 +88,23 @@ def get_storage_controllers():
         print(i['@odata.id'].split("/")[-1])
 
 def get_pdisks():
+    disk_used_created_vds=[]
+    available_disks=[]
     test_valid_controller_FQDD_string(args["get_disks"])
     if args["x"]:
-        response = requests.get('https://%s/redfish/v1/Systems/System.Embedded.1/Storage/%s' % (idrac_ip, args["get_disks"]), verify=verify_cert, headers={'X-Auth-Token': args["x"]})   
+        response = requests.get('https://%s/redfish/v1/Systems/System.Embedded.1/Storage/%s' % (idrac_ip, args["get_disks"]),verify=verify_cert, headers={'X-Auth-Token': args["x"]})
     else:
-        response = requests.get('https://%s/redfish/v1/Systems/System.Embedded.1/Storage/%s' % (idrac_ip, args["get_disks"]), verify=verify_cert,auth=(idrac_username, idrac_password))
+        response = requests.get('https://%s/redfish/v1/Systems/System.Embedded.1/Storage/%s' % (idrac_ip, args["get_disks"]),verify=verify_cert,auth=(idrac_username, idrac_password))
     data = response.json()
-    if response.status_code != 200:
-        logging.error("\n- FAIL, GET command failed, return code %s" % response.status_code)
-        logging.error("Extended Info Message: {0}".format(response.json()))
-        sys.exit(0)
-    drive_list = []
+    drive_list=[]
     if data['Drives'] == []:
         logging.warning("\n- WARNING, no drives detected for %s" % args["get_disks"])
         sys.exit(0)
     else:
+        logging.info("\n- Drive(s) detected for %s -\n" % args["get_disks"])
         for i in data['Drives']:
             drive_list.append(i['@odata.id'].split("/")[-1])
-    logging.info("\n- Drives detected for controller \"%s\" and RaidStatus\n" % args["get_disks"])
-    for i in drive_list:
-      if args["x"]:
-          response = requests.get('https://%s/redfish/v1/Systems/System.Embedded.1/Storage/Drives/%s' % (idrac_ip, i), verify=verify_cert, headers={'X-Auth-Token': args["x"]})   
-      else:
-          response = requests.get('https://%s/redfish/v1/Systems/System.Embedded.1/Storage/Drives/%s' % (idrac_ip, i), verify=verify_cert,auth=(idrac_username, idrac_password))
-      data = response.json()
-      logging.info(" - Disk: %s, Raidstatus: %s" % (i, data['Oem']['Dell']['DellPhysicalDisk']['RaidStatus']))
+            print(i['@odata.id'].split("/")[-1])
     
 
 def get_virtual_disks():
@@ -124,31 +114,31 @@ def get_virtual_disks():
     else:
         response = requests.get('https://%s/redfish/v1/Systems/System.Embedded.1/Storage/%s/Volumes' % (idrac_ip, args["get_virtualdisks"]),verify=verify_cert,auth=(idrac_username, idrac_password))
     data = response.json()
-    vd_list=[]
+    vd_list_uris = []
     if data['Members'] == []:
         logging.warning("\n- WARNING, no volume(s) detected for %s" % args["get_virtualdisks"])
         sys.exit(0)
-    else:
-        for i in data['Members']:
-            vd_list.append(i['@odata.id'].split("/")[-1])
     logging.info("\n- Volume(s) detected for %s controller -\n" % args["get_virtualdisks"])
-    for ii in vd_list:
+    for i in data["Members"]:
+        for ii in i.items():
+            vd_list_uris.append(ii[1])
+    for i in vd_list_uris:
         if args["x"]:
-            response = requests.get('https://%s/redfish/v1/Systems/System.Embedded.1/Storage/Volumes/%s' % (idrac_ip, ii),verify=verify_cert, headers={'X-Auth-Token': args["x"]})
+            response = requests.get('https://%s%s' % (idrac_ip, i),verify=verify_cert, headers={'X-Auth-Token': args["x"]})
         else:
-            response = requests.get('https://%s/redfish/v1/Systems/System.Embedded.1/Storage/Volumes/%s' % (idrac_ip, ii),verify=verify_cert, auth=(idrac_username, idrac_password))
+            response = requests.get('https://%s%s' % (idrac_ip, i),verify=verify_cert, auth=(idrac_username, idrac_password))
         data = response.json()
-        for i in data.items():
-            if i[0] == "VolumeType":
-                print("%s, Volume type: %s" % (ii, i[1]))
+        for ii in data.items():
+            if ii[0] == "VolumeType":
+                print("%s, Volume type: %s" % (i.split("/")[-1], ii[1]))
 
 def blink_unblink_device():
     if args["blink"]:
-        url = 'https://%s/redfish/v1/Dell/Systems/System.Embedded.1/DellRaidService/Actions/DellRaidService.BlinkTarget' % (idrac_ip)
+        url = 'https://%s/redfish/v1/Systems/System.Embedded.1/Oem/Dell/DellRaidService/Actions/DellRaidService.BlinkTarget' % (idrac_ip)
         payload={"TargetFQDD":args["blink"]}
         operation = "BLINK"
     elif args["unblink"]:
-        url = 'https://%s/redfish/v1/Dell/Systems/System.Embedded.1/DellRaidService/Actions/DellRaidService.UnBlinkTarget' % (idrac_ip)
+        url = 'https://%s/redfish/v1/Systems/System.Embedded.1/Oem/Dell/DellRaidService/Actions/DellRaidService.UnBlinkTarget' % (idrac_ip)
         payload={"TargetFQDD":args["unblink"]}
         operation = "UNBLINK"   
     if args["x"]:

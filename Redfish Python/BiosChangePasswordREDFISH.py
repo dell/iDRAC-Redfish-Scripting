@@ -1,9 +1,7 @@
 #!/usr/bin/python3
 #
-# BiosChangePasswordREDFISH. Python script using Redfish API to set / change or delete either BIOS setup or system password
-#
 # _author_ = Texas Roemer <Texas_Roemer@Dell.com>
-# _version_ = 2.0
+# _version_ = 3.0
 #
 # Copyright (c) 2018, Dell, Inc.
 #
@@ -35,21 +33,21 @@ parser.add_argument('-ip',help='iDRAC IP address', required=False)
 parser.add_argument('-u', help='iDRAC username', required=False)
 parser.add_argument('-p', help='iDRAC password. If you do not pass in argument -p, script will prompt to enter user password which will not be echoed to the screen.', required=False)
 parser.add_argument('-x', help='Pass in X-Auth session token for executing Redfish calls. All Redfish calls will use X-Auth token instead of username/password', required=False)
-parser.add_argument('--ssl', help='SSL cert verification for all Redfish calls, pass in value \"true\" or \"false\". By default, this argument is not required and script ignores validating SSL cert for all Redfish calls.', required=False)
+parser.add_argument('--ssl', help='SSL cert verification for all Redfish calls, pass in value true or false. By default, this argument is not required and script ignores validating SSL cert for all Redfish calls.', required=False)
 parser.add_argument('--script-examples', help='Get executing script examples', action="store_true", dest="script_examples", required=False)
-parser.add_argument('--type', help='Set, Change or Delete BIOS password, pass in the type of password you want to change. Pass in \"1\" for System password, \"2" for Setup password, \"3\" for PersistentMemPassphrase', required=False)
-parser.add_argument('--old', help='Change BIOS password, pass in the old password. If you are setting new password, pass in \"\" for --old argument', required=False)
-parser.add_argument('--new', help='Change BIOS password, pass in the new password. If you are clearing the password, pass in \"\" for --new argument', required=False)
+parser.add_argument('--type', help='Set, shange or delete BIOS password, pass in the type of password you want to change. Pass in \"1\" for System password, \"2" for Setup password, \"3\" for PersistentMemPassphrase', required=False)
+parser.add_argument('--old', help='Change BIOS password, pass in the old password. Note --new argument is also required if changing BIOS password', required=False)
+parser.add_argument('--new', help='Set, change or delete BIOS password. If deleting BIOS password pass in ""', required=False)
 parser.add_argument('--noreboot', help='Pass in this argument to NOT auto reboot the server to change BIOS password. Job will still be scheduled and execute on next server manual reboot.', action="store_true", required=False)
 
 args=vars(parser.parse_args())
 logging.basicConfig(format='%(message)s', stream=sys.stdout, level=logging.INFO)
 
 def script_examples():
-    print("""\n- BiosChangePasswordREDFISH.py -ip 192.168.0.120 -u root -p calvin --type 1 --old "" --new "p@ssw0rd", this example will reboot the server now to set BIOS system password.
-    \n- BiosChangePasswordREDFISH.py -ip 192.168.0.120 -u root --type 1 --old "" --new "p@ssw0rd" --noreboot, this example will first prompt to enter iDRAC user password, then create config job to set BIOS system password but not auto reboot the server to apply the job.
+    print("""\n- BiosChangePasswordREDFISH.py -ip 192.168.0.120 -u root -p calvin --type 1 --new "p@ssw0rd", this example will reboot the server now to set BIOS system password.
+    \n- BiosChangePasswordREDFISH.py -ip 192.168.0.120 -u root --type 1 --new "p@ssw0rd" --noreboot, this example will first prompt to enter iDRAC user password, then create config job to set BIOS system password but not auto reboot the server to apply the job.
     \n- BiosChangePasswordREDFISH.py -ip 192.168.0.120 -u root -p calvin --type 1 --old "p@ssw0rd" --new "newpwd", this example will reboot the server now to change BIOS system password.
-    \n- BiosChangePasswordREDFISH.py -ip 192.168.0.120 -u root -p calvin --type 2 --old "p@ssw0rd" --new "", this example will reboot the server now to clear BIOS setup password.
+    \n- BiosChangePasswordREDFISH.py -ip 192.168.0.120 -u root -p calvin --type 2 --new "", this example will reboot the server now to clear BIOS setup password.
     \n- BiosChangePasswordREDFISH.py -ip 192.168.0.120 -u root -p calvin --type 1 --old "", this example will prompt to the screen to enter BIOS system password to set, reboot server now to apply.
     \n- BiosChangePasswordREDFISH.py -ip 192.168.0.120 -u root -p calvin --type 1, this example will prompt to the screen to enter current BIOS system password, then prompt to enter new system password to set, reboot server now to apply.
     \n- BiosChangePasswordREDFISH.py -ip 192.168.0.120 -u root -p calvin --type 1 --new "", this example will prompt to the screen to enter current BIOS system password, then clear it, reboot server now to apply.""")
@@ -57,7 +55,7 @@ def script_examples():
 
 def check_supported_idrac_version():
     if args["x"]:
-        response = requests.get('https://%s/redfish/v1/Systems/System.Embedded.1/Bios' % idrac_ip, verify=verify_cert, headers={'X-Auth-Token': args["x"]})
+        response = requests.get('https://%s/redfish/v1/Systems/System.Embedded.1/Bios' % idrac_ip, verify=verify_cert, headers={'X-Auth-Token': args["x"]})   
     else:
         response = requests.get('https://%s/redfish/v1/Systems/System.Embedded.1/Bios' % idrac_ip, verify=verify_cert,auth=(idrac_username, idrac_password))
     data = response.json()
@@ -79,29 +77,20 @@ def change_bios_password():
         logging.error("\n- FAIL, invalid value passed in for -c option")
         sys.exit(0)
     url = "https://%s/redfish/v1/Systems/System.Embedded.1/Bios/Actions/Bios.ChangePassword" % idrac_ip
+    payload = {"PasswordName":password_name}
     if args["new"] == "":
-        if not args["old"]:
-            args["old"] = getpass.getpass("\n- Argument --old not detected, pass in old(current) BIOS password: ")
-        payload = {"PasswordName":password_name,"OldPassword":args["old"],"NewPassword":""}
-        logging.info("\n- INFO, clearing BIOS %s" % password_name)
-    elif args["old"] == "":
-        if not args["new"]:
-            args["new"] = getpass.getpass("\n- Argument --new not detected, pass in new BIOS password: ")
-        payload = {"PasswordName":password_name,"":args["old"],"NewPassword":args["new"]}
-        logging.info("\n- INFO, setting new BIOS %s" % password_name)
-    elif args["new"] == "":
-        if not args["old"]:
-            args["old"] = getpass.getpass("\n- Argument --old not detected, pass in old(current) BIOS password: ")
-        payload = {"PasswordName":password_name,"":args["old"],"NewPassword":args["new"]}
-        logging.info("\n- INFO, deleting BIOS %s" % password_name)
-    elif not args["new"] and not args["old"]:
-        args["old"] = getpass.getpass("\n- Argument --old not detected, pass in old(current) BIOS password: ")
-        args["new"] = getpass.getpass("\n- Argument --new not detected, pass in new BIOS password: ")
-        payload = {"PasswordName":password_name,"":args["old"],"NewPassword":args["new"]}
-        logging.info("\n- INFO, changing BIOS %s" % password_name)
+        payload["NewPassword"] = args["new"]
+        logging.info("\n- INFO, clearing BIOS %s password" % password_name)
+    elif args["new"] and args["old"]:
+        payload["NewPassword"] = args["new"]
+        payload["OldPassword"] = args["old"]
+        logging.info("\n- INFO, changing BIOS %s password" % password_name)
+    elif args["new"]:
+        payload["NewPassword"] = args["new"]
+        logging.info("\n- INFO, setting BIOS %s password" % password_name)
     else:
-        payload = {"PasswordName":password_name,"OldPassword":args["old"],"NewPassword":args["new"]}
-        logging.info("- INFO, changing BIOS %s" % password_name)
+        logging.error("- WARNING, missing or incorrect arguments detected, please check help text and examples for more details")
+        sys.exit(1)
     if args["x"]:
         headers = {'content-type': 'application/json', 'X-Auth-Token': args["x"]}
         response = requests.post(url, data=json.dumps(payload), headers=headers, verify=verify_cert)
@@ -112,7 +101,7 @@ def change_bios_password():
     if response.status_code == 200:
         logging.info("\n- PASS: status code %s returned for POST action Bios.ChangePassword" % response.status_code)
     else:
-        logging.error("\n- FAIL, Command failed, error code is %s", response.status_code)
+        logging.error("\n- FAIL, Command failed, errror code is %s" % response.status_code)
         detail_message = str(response.__dict__)
         logging.info(detail_message)
         sys.exit(0)
@@ -144,7 +133,7 @@ def create_bios_config_job():
 def check_schedule_job_status():
     while True:
         if args["x"]:
-            response = requests.get('https://%s/redfish/v1/Managers/iDRAC.Embedded.1/Jobs/%s' % (idrac_ip, job_id), verify=verify_cert, headers={'X-Auth-Token': args["x"]})
+            response = requests.get('https://%s/redfish/v1/Managers/iDRAC.Embedded.1/Jobs/%s' % (idrac_ip, job_id), verify=verify_cert, headers={'X-Auth-Token': args["x"]})   
         else:
             response = requests.get('https://%s/redfish/v1/Managers/iDRAC.Embedded.1/Jobs/%s' % (idrac_ip, job_id), verify=verify_cert,auth=(idrac_username, idrac_password))
         if response.status_code != 200:
@@ -162,7 +151,7 @@ def check_schedule_job_status():
                                                                           
 def reboot_server():
     if args["x"]:
-        response = requests.get('https://%s/redfish/v1/Systems/System.Embedded.1' % idrac_ip, verify=verify_cert, headers={'X-Auth-Token': args["x"]})
+        response = requests.get('https://%s/redfish/v1/Systems/System.Embedded.1' % idrac_ip, verify=verify_cert, headers={'X-Auth-Token': args["x"]})   
     else:
         response = requests.get('https://%s/redfish/v1/Systems/System.Embedded.1' % idrac_ip, verify=verify_cert,auth=(idrac_username, idrac_password))
     data = response.json()
@@ -187,7 +176,7 @@ def reboot_server():
             sys.exit(0)
         while True:
             if args["x"]:
-                response = requests.get('https://%s/redfish/v1/Systems/System.Embedded.1' % idrac_ip, verify=verify_cert, headers={'X-Auth-Token': args["x"]})
+                response = requests.get('https://%s/redfish/v1/Systems/System.Embedded.1' % idrac_ip, verify=verify_cert, headers={'X-Auth-Token': args["x"]})   
             else:
                 response = requests.get('https://%s/redfish/v1/Systems/System.Embedded.1' % idrac_ip, verify=verify_cert,auth=(idrac_username, idrac_password))
             data = response.json()
@@ -208,7 +197,7 @@ def reboot_server():
                     logging.info("- PASS, POST command passed to perform forced shutdown, status code return is %s" % response.status_code)
                     time.sleep(15)
                     if args["x"]:
-                        response = requests.get('https://%s/redfish/v1/Systems/System.Embedded.1' % idrac_ip, verify=verify_cert, headers={'X-Auth-Token': args["x"]})
+                        response = requests.get('https://%s/redfish/v1/Systems/System.Embedded.1' % idrac_ip, verify=verify_cert, headers={'X-Auth-Token': args["x"]})   
                     else:
                         response = requests.get('https://%s/redfish/v1/Systems/System.Embedded.1' % idrac_ip, verify=verify_cert,auth=(idrac_username, idrac_password))
                     data = response.json()
@@ -217,9 +206,9 @@ def reboot_server():
                         break
                     else:
                         logging.error("- FAIL, server not in OFF state, current power status is %s" % data['PowerState'])
-                        sys.exit(0)
+                        sys.exit(0)    
             else:
-                continue
+                continue 
         payload = {'ResetType': 'On'}
         if args["x"]:
             headers = {'content-type': 'application/json', 'X-Auth-Token': args["x"]}
@@ -254,10 +243,10 @@ def reboot_server():
 
 def check_job_status_final():
     if args["type"] == "1":
-        logging.info("\n- INFO, BIOS system password config job detected. If setting new or changing BIOS system password, server will halt during POST prompting to enter password. System password must be entered for POST to complete, mark the job completed\n")
+        logging.info("\n- INFO, BIOS system password config job detected. If setting new or changing BIOS system password, server will halt during POST prompting to enter password. System password must be entered for POST to complete, mark the job completed\n") 
     while True:
         if args["x"]:
-            response = requests.get('https://%s/redfish/v1/Managers/iDRAC.Embedded.1/Jobs/%s' % (idrac_ip, job_id), verify=verify_cert, headers={'X-Auth-Token': args["x"]})
+            response = requests.get('https://%s/redfish/v1/Managers/iDRAC.Embedded.1/Jobs/%s' % (idrac_ip, job_id), verify=verify_cert, headers={'X-Auth-Token': args["x"]})   
         else:
             response = requests.get('https://%s/redfish/v1/Managers/iDRAC.Embedded.1/Jobs/%s' % (idrac_ip, job_id), verify=verify_cert,auth=(idrac_username, idrac_password))
         current_time = (datetime.now()-start_time)

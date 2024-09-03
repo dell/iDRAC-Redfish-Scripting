@@ -1,5 +1,5 @@
 # _author_ = Texas Roemer <Texas_Roemer@Dell.com>
-# _version_ = 3.0
+# _version_ = 5.0
 #
 # Copyright (c) 2023, Dell, Inc.
 #
@@ -112,18 +112,19 @@ def get_remote_services(idrac_ip):
     start_time = datetime.now()
     current_time = str(datetime.now()-start_time)[0:7]
     while True:
-        url = 'https://%s/redfish/v1/Dell/Managers/iDRAC.Embedded.1/DellLCService/Actions/DellLCService.GetRemoteServicesAPIStatus' % idrac_ip
+        url = 'https://%s/redfish/v1/Managers/iDRAC.Embedded.1/Oem/Dell/DellLCService/Actions/DellLCService.GetRemoteServicesAPIStatus' % idrac_ip
         headers = {'content-type': 'application/json'}
         payload = {}
         response = requests.post(url, data=json.dumps(payload), headers=headers, verify=False,auth=(idrac_username,idrac_password))
         data = response.json()
         if response.status_code != 200:
             logger.error("FAIL, POST command failed for GetRemoteServicesAPIStatus method, status code %s returned" % response.status_code)
-            get_remote_service_failure = "yes"
+            get_remote_service_failure == "yes"
             break
         elif current_time >= "0:30:00":
             logger.error("FAIL, Max timeout of 30 minutes reached to poll checking RT and LT ready status, no configuration operations executed. Make sure server is ON and outpof POST in idle state.")
-            get_remote_service_failure = "yes"
+
+            get_remote_service_failure == "yes"
             break     
         elif data["LCStatus"] == "Ready" and data["RTStatus"] == "Ready":
             logger.info("PASS, LC and RT status is ready")
@@ -168,7 +169,7 @@ def enable_controller_encryption(idrac_ip, storage_controller):
     global fail_enable_encryption
     fail_enable_encryption = "no"
     logger.info("Enabling LKM encryption for controller %s" % storage_controller)
-    url = 'https://%s/redfish/v1/Dell/Systems/System.Embedded.1/DellRaidService/Actions/DellRaidService.SetControllerKey' % idrac_ip
+    url = 'https://%s/redfish/v1/Systems/System.Embedded.1/Oem/Dell/DellRaidService/Actions/DellRaidService.SetControllerKey' % idrac_ip
     payload={"TargetFQDD":storage_controller,"Key":passphrase,"Keyid":key_id}
     headers = {'content-type': 'application/json'}
     response = requests.post(url, data=json.dumps(payload), headers=headers, verify=False,auth=(idrac_username,idrac_password))
@@ -219,7 +220,7 @@ def encrypt_new_VD(idrac_ip, vd_FQDD):
     fail_enable_encryption = "no"
     job_creation_success = "no"
     secure_new_VDs_job_creation = []
-    url = 'https://%s/redfish/v1/Dell/Systems/System.Embedded.1/DellRaidService/Actions/DellRaidService.LockVirtualDisk' % (idrac_ip)
+    url = 'https://%s/redfish/v1/Systems/System.Embedded.1/Oem/Dell/DellRaidService/Actions/DellRaidService.LockVirtualDisk' % (idrac_ip)
     payload = {"TargetFQDD": vd_FQDD}
     headers = {'content-type': 'application/json'}
     response = requests.post(url, data=json.dumps(payload), headers=headers, verify=False,auth=(idrac_username,idrac_password))
@@ -273,7 +274,7 @@ def loop_job_status(idrac_ip):
         elif data['JobState'] == "Completed":
             logger.info("PASS, job %s successfully marked completed" % job_id)
             # Delete job ID
-            url = "https://%s/redfish/v1/Dell/Managers/iDRAC.Embedded.1/DellJobService/Actions/DellJobService.DeleteJobQueue" % idrac_ip
+            url = "https://%s/redfish/v1/Managers/iDRAC.Embedded.1/Oem/Dell/DellJobService/Actions/DellJobService.DeleteJobQueue" % idrac_ip
             payload = {"JobID":job_id}
             headers = {'content-type': 'application/json'}
             response = requests.post(url, data=json.dumps(payload), headers=headers, verify=False,auth=(idrac_username,idrac_password))
