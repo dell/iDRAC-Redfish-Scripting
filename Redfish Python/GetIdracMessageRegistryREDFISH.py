@@ -3,7 +3,7 @@
 # GetIdracMessageRegistryREDFISH. Python script using Redfish API with OEM extension to get iDRAC message registry.
 #
 # _author_ = Texas Roemer <Texas_Roemer@Dell.com>
-# _version_ = 3.0
+# _version_ = 5.0
 #
 # Copyright (c) 2020, Dell, Inc.
 #
@@ -28,6 +28,9 @@ import warnings
 
 from pprint import pprint
 from datetime import datetime
+from reportlab.lib.pagesizes import letter
+from reportlab.pdfgen import canvas
+from reportlab.lib.utils import simpleSplit
 
 warnings.filterwarnings("ignore")
 
@@ -49,11 +52,31 @@ def script_examples():
     \n- GetIdracMessageRegistryREDFISH.py -ip 192.168.0.120 -u root -p calvin --message-id SYS409, this example will return information for only message ID SYS409.""")
     sys.exit(0)
 
-def check_supported_idrac_version():
+def get_server_generation():
+    global server_generation
     if args["x"]:
-        response = requests.get('https://%s/redfish/v1/Registries/Messages/EEMIRegistry' % idrac_ip, verify=verify_cert, headers={'X-Auth-Token': args["x"]})
+        response = requests.get('https://%s/redfish/v1/Systems/System.Embedded.1?$select=Oem/Dell/DellSystem/SystemGeneration' % idrac_ip, verify=verify_cert, headers={'X-Auth-Token': args["x"]})
     else:
-        response = requests.get('https://%s/redfish/v1/Registries/Messages/EEMIRegistry' % idrac_ip, verify=verify_cert, auth=(idrac_username, idrac_password))
+        response = requests.get('https://%s/redfish/v1/Systems/System.Embedded.1?$select=Oem/Dell/DellSystem/SystemGeneration' % idrac_ip, verify=False,auth=(idrac_username,idrac_password))
+    data = response.json()
+    if response.status_code == 401:
+        logging.error("- ERROR, status code 401 detected, check to make sure your iDRAC script session has correct username/password credentials or if using X-auth token, confirm the session is still active.")
+        return
+    elif response.status_code != 200:
+        logging.warning("\n- WARNING, unable to get server generation, error: \n%s" % data)
+        sys.exit(0)
+    try:
+        server_generation = data["Oem"]["Dell"]["DellSystem"]["SystemGeneration"]
+    except:
+        logging.error("- FAIL, unable to get server generation from JSON output")
+        sys.exit(0)
+
+
+def check_supported_idrac_version(x):
+    if args["x"]:
+        response = requests.get('https://%s/redfish/v1/Registries/Messages/%s' % (idrac_ip, x), verify=verify_cert, headers={'X-Auth-Token': args["x"]})
+    else:
+        response = requests.get('https://%s/redfish/v1/Registries/Messages/%s' % (idrac_ip, x), verify=verify_cert, auth=(idrac_username, idrac_password))
     data = response.json()
     if response.status_code == 401:
         logging.warning("\n- WARNING, status code %s returned. Incorrect iDRAC username/password or invalid privilege detected." % response.status_code)
@@ -62,16 +85,16 @@ def check_supported_idrac_version():
         logging.warning("\n- WARNING, iDRAC version installed does not support this feature using Redfish API")
         sys.exit(0)
 
-def get_message_registry():
+def get_message_registry(x):
     try:
         os.remove("message_registry.txt")
     except:
         logging.info("- INFO, unable to locate file %s, skipping step" % "message_registry.txt")
     open_file = open("message_registry.txt","w")
     if args["x"]:
-        response = requests.get('https://%s/redfish/v1/Registries/Messages/EEMIRegistry' % idrac_ip, verify=verify_cert, headers={'X-Auth-Token': args["x"]})
+        response = requests.get('https://%s/redfish/v1/Registries/Messages/%s' % (idrac_ip, x), verify=verify_cert, headers={'X-Auth-Token': args["x"]})
     else:
-        response = requests.get('https://%s/redfish/v1/Registries/Messages/EEMIRegistry' % idrac_ip, verify=verify_cert, auth=(idrac_username, idrac_password))
+        response = requests.get('https://%s/redfish/v1/Registries/Messages/%s' % (idrac_ip, x), verify=verify_cert, auth=(idrac_username, idrac_password))
     data = response.json()
     for i in data['Messages'].items():
         pprint(i), print("\n")
@@ -85,11 +108,11 @@ def get_message_registry():
     open_file.close()
     logging.info("\n- INFO, output also captured in \"message_registry.txt\" file")
 
-def get_specific_message_id():
+def get_specific_message_id(x):
     if args["x"]:
-        response = requests.get('https://%s/redfish/v1/Registries/Messages/EEMIRegistry' % idrac_ip, verify=verify_cert, headers={'X-Auth-Token': args["x"]})
+        response = requests.get('https://%s/redfish/v1/Registries/Messages/%s' % (idrac_ip, x), verify=verify_cert, headers={'X-Auth-Token': args["x"]})
     else:
-        response = requests.get('https://%s/redfish/v1/Registries/Messages/EEMIRegistry' % idrac_ip, verify=verify_cert, auth=(idrac_username, idrac_password))
+        response = requests.get('https://%s/redfish/v1/Registries/Messages/%s' % (idrac_ip, x), verify=verify_cert, auth=(idrac_username, idrac_password))
     data = response.json()
     for i in data['Messages'].items():
         if i[0].lower() == args["message_id"].lower():
@@ -99,6 +122,7 @@ def get_specific_message_id():
             print("\n")
             sys.exit(0)
     logging.error("\n - FAIL, either invalid message ID was passed in or message ID does not exist on this iDRAC version")
+
     
 if __name__ == "__main__":
     if args["script_examples"]:
@@ -119,13 +143,21 @@ if __name__ == "__main__":
                 verify_cert = False
         else:
             verify_cert = False
-        check_supported_idrac_version()
+        get_server_generation()
+        if "17G" in server_generation:
+            registry_name = "iDRACMessageRegistry"
+        elif "14G" in server_generation or "15G" in server_generation or "16G" in server_generation:
+            registry_name = "EEMIRegistry"
+        else:
+            registry_name = "iDRACMessageRegistry"
+            
+        check_supported_idrac_version(registry_name)
     else:
         logging.error("\n- FAIL, invalid argument values or not all required parameters passed in. See help text or argument --script-examples for more details.")
         sys.exit(0)
     if args["get"]:
-        get_message_registry()
+        get_message_registry(registry_name)
     elif args["message_id"]:
-        get_specific_message_id()
+        get_specific_message_id(registry_name)
     else:
         logging.error("\n- FAIL, invalid argument values or not all required parameters passed in. See help text or argument --script-examples for more details.")
