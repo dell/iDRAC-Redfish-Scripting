@@ -2705,7 +2705,7 @@ def system_erase(script_examples="", get_supported_components="", erase_componen
             headers = {'content-type': 'application/json'}
             if "," in erase_components:
                 component_list = erase_components.split(",")
-                payload={"Component":erase_components}
+                payload={"Component":component_list}
             else:
                 payload={"Component":[erase_components]}
             logging.info("\n- INFO, component(s) selected for System Erase operation -\n")
