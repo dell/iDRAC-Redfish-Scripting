@@ -263,7 +263,7 @@ def enable_bios_http_device():
         if i[0] == "HttpDev1EnDis" or i[0] == "HttpDev2EnDis" or i[0] == "HttpDev3EnDis" or i[0] == "HttpDev4EnDis" or i[0] == "HttpDev1TlsMode" or i[0] == "HttpDev2TlsMode" or i[0] == "HttpDev3TlsMode" or i[0] == "HttpDev4TlsMode":
             http_device_values.append(i[1])
     if "Disabled" in http_device_values or "None" in http_device_values:
-        logging.info("- INFO, all BIOS HTTP Devices are either not enabled or TLS set to OneWay, creating BIOS config job to set these attributes")
+        logging.info("- INFO, all BIOS HTTP Devices are either not enabled or TLS mode not set to one way, creating BIOS config job to set these attributes")
         run_bios_config_job = True
     else:
         logging.info("\n- INFO, all BIOS HTTP Devices are set to enabled and TLS set to OneWay, no BIOS config job required")
