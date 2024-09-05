@@ -3,7 +3,7 @@
 # GetIdracLcLogsREDFISH. Python script using Redfish API to get iDRAC LC logs.
 #
 # _author_ = Texas Roemer <Texas_Roemer@Dell.com>
-# _version_ = 14.0
+# _version_ = 15.0
 #
 # Copyright (c) 2017, Dell, Inc.
 #	
@@ -41,13 +41,14 @@ parser.add_argument('--ssl', help='SSL cert verification for all Redfish calls, 
 parser.add_argument('--script-examples', help='Get executing script examples', action="store_true", dest="script_examples", required=False)
 parser.add_argument('--get-all', help='Get all iDRAC LC logs', action="store_true", dest="get_all", required=False)
 parser.add_argument('--get-severity', help='Get only specific severity entries from LC logs. Supported values: informational, warning or critical', dest="get_severity", required=False)
-parser.add_argument('--get-category', help='Get only specific category entries from LC logs. Supported values: audit, configuration, updates, systemhealth or storage. NOTE: This argument only supported on iDRAC9 or newer', dest="get_category", required=False)
-parser.add_argument('--get-date-range', help='Get only specific entries within a given date range from LC logs. You must also use arguments --start-date and --end-date to create the filter date range. NOTE: This argument only supported on iDRAC9 or newer', dest="get_date_range", action="store_true", required=False)
+parser.add_argument('--get-category', help='Get only specific category entries from LC logs. Supported values: audit, configuration, updates, systemhealth or storage', dest="get_category", required=False)
+parser.add_argument('--get-date-range', help='Get only specific entries within a given date range from LC logs. You must also use arguments --start-date and --end-date to create the filter date range', dest="get_date_range", action="store_true", required=False)
 parser.add_argument('--start-date', help='Pass in the start date for the date range of LC log entries. Value must be in this format: YYYY-MM-DDTHH:MM:SS-offset (example: 2023-03-14T10:10:10-05:00). Note: If needed run --get-all argument to dump all LC logs, look at Created property to get your date time format.', dest="start_date", required=False)
 parser.add_argument('--end-date', help='Pass in the end date for the date range of LC log entries. Value must be in this format: YYYY-MM-DDTHH:MM:SS-offset (example: 2023-03-15T14:55:10-05:00)', dest="end_date", required=False)
 parser.add_argument('--get-fail', help='Get only failed entries from LC logs (searches for keywords unable, error, fault or fail',  action="store_true", dest="get_fail", required=False)
 parser.add_argument('--get-message-id', help='Get only entries for a specific message ID. To get the correct message ID string format to pass in use argument --get-all to return complete LC logs. iDRAC9 examples of correct message string ID value to pass in: IDRAC.2.9.PDR1001, IDRAC.2.9.LC011. Note: You can also pass in an abbreviated message ID value, example: IDRAC.2.9.LC which will return any message ID that starts with LC. Note: iDRAC8 has a different message ID format, run --get-all argument to see string format.', dest="get_message_id", required=False)
 parser.add_argument('--dump-to-json-file', help='Pass in this argument to dump LC log entries to JSON file(s) which you can then parse the JSON output. Note: Multiple JSON files may be created due to the LC logs file size since Redfish can only report 50 entries at a time.', dest="dump_to_json_file", action="store_true", required=False)
+parser.add_argument('--convert-json-output', help='Pass in this argument to dump output to the screen in JSON format instead of python object which then can be parsed using other tools', action="store_true", dest="convert_json_output", required=False)
 args = vars(parser.parse_args())
 logging.basicConfig(format='%(message)s', stream=sys.stdout, level=logging.INFO)
 
@@ -61,11 +62,11 @@ def script_examples():
     \n- GetIdracLcLogsREDFISH.py -ip 192.168.0.120 -u root -p calvin --get-date-range --start-date 2023-03-15T14:55:10-05:00 --end-date 2023-03-15T14:57:07-05:00, this example will return only LC Log entries within this start and date range.""")
     sys.exit(0)
 
-def check_supported_idrac_version():
+def check_supported_idrac_version(x):
     if args["x"]:
-        response = requests.get('https://%s/redfish/v1/Managers/iDRAC.Embedded.1/LogServices/Lclog' % idrac_ip, verify=verify_cert, headers={'X-Auth-Token': args["x"]})
+        response = requests.get('https://%s/%s' % (idrac_ip, x), verify=verify_cert, headers={'X-Auth-Token': args["x"]})
     else:
-        response = requests.get('https://%s/redfish/v1/Managers/iDRAC.Embedded.1/LogServices/Lclog' % idrac_ip, verify=verify_cert, auth=(idrac_username, idrac_password))
+        response = requests.get('https://%s/%s' % (idrac_ip, x), verify=verify_cert, auth=(idrac_username, idrac_password))
     data = response.json()
     if response.status_code == 401:
         logging.warning("\n- WARNING, status code %s returned. Incorrect iDRAC username/password or invalid privilege detected." % response.status_code)
@@ -93,7 +94,29 @@ def get_iDRAC_version():
     else:
         iDRAC_version = "new"
 
-def get_specific_severity_logs():
+def get_server_generation():
+    global server_generation
+    if args["x"]:
+        response = requests.get('https://%s/redfish/v1/Systems/System.Embedded.1?$select=Oem/Dell/DellSystem/SystemGeneration' % idrac_ip, verify=verify_cert, headers={'X-Auth-Token': args["x"]})
+    else:
+        response = requests.get('https://%s/redfish/v1/Systems/System.Embedded.1?$select=Oem/Dell/DellSystem/SystemGeneration' % idrac_ip, verify=False,auth=(idrac_username,idrac_password))
+    data = response.json()
+    if response.status_code == 401:
+        logging.error("- ERROR, status code 401 detected, check to make sure your iDRAC script session has correct username/password credentials or if using X-auth token, confirm the session is still active.")
+        return
+    elif response.status_code != 200:
+        logging.warning("\n- WARNING, unable to get server generation, error: \n%s" % data)
+        sys.exit(0)
+    try:
+        server_generation = data["Oem"]["Dell"]["DellSystem"]["SystemGeneration"]
+    except:
+        logging.error("- FAIL, unable to get server generation from JSON output")
+        sys.exit(0)
+
+
+def get_specific_severity_logs(x):
+    if not args["convert_json_output"]:
+        logging.info("\n- INFO, this may take 30 seconds to 1 minute to collect all iDRAC LC logs depending on log file size")
     if args["dump_to_json_file"]:
         try:
             shutil.rmtree("%s_LC_log_JSON_files" % idrac_ip)
@@ -101,11 +124,7 @@ def get_specific_severity_logs():
             logging.debug("- INFO, directory does not exist, skipping")
         directory_name = "%s_LC_log_JSON_files" % idrac_ip
         directory_path = os.mkdir(directory_name)
-    if iDRAC_version == "old":
-        uri = "redfish/v1/Managers/iDRAC.Embedded.1/Logs/Lclog"
-    elif iDRAC_version == "new":
-        uri = "redfish/v1/Managers/iDRAC.Embedded.1/LogServices/Lclog/Entries"
-    logging.info("\n- INFO, this may take 30 seconds to 1 minute to collect all iDRAC LC logs depending on log file size")
+    uri = x
     if args["get_severity"].lower() == "informational":
         filter_uri = "%s?$filter=Severity eq 'OK'" % uri
     elif args["get_severity"].lower() == "critical":
@@ -134,7 +153,12 @@ def get_specific_severity_logs():
         logging.info("\n- WARNING, no \"%s\" severity entries detected in iDRAC LC logs" % args["get_severity"])
         sys.exit(0)
     else:
-        lc_logs_list.append(data)
+        if args["convert_json_output"]:
+            json_output = json.dumps(data["Members"])
+            create_json_output_list = []
+            create_json_output_list.append(json_output)
+        else:
+            lc_logs_list.append(data)
         if args["dump_to_json_file"]:
             filename = directory_name + "/lclog_entries_1.json"
             open_file = open(filename,"w")
@@ -165,21 +189,26 @@ def get_specific_severity_logs():
             elif "Members" in data.keys():
                 if data["Members"] == []:
                     break
-            lc_logs_list.append(data)
+            if args["convert_json_output"]:
+                json_output = json.dumps(data["Members"])
+                print(json_output)
+            else:
+                lc_logs_list.append(data)
             if args["dump_to_json_file"]:
                 filename = directory_name + "/lclog_entries_%s.json" % file_count
                 open_file = open(filename, "w")
                 json.dump(data, open_file)
                 open_file.close()
                 file_count += 1
-    pprint(lc_logs_list)
-    if args["dump_to_json_file"]:
+    if args["convert_json_output"]:
+        print(json.dumps(create_json_output_list))
+    elif args["dump_to_json_file"]:
+        pprint(lc_logs_list)
         logging.info("\n- INFO, JSON dump log files copied to directory %s" % directory_name)
+    else:
+        pprint(lc_logs_list)
 
-def get_date_range():
-    if iDRAC_version == "old":
-        logging.info("\n- WARNING, iDRAC 7/8 version does not support this argument")
-        sys.exit(0)
+def get_date_range(x):
     if args["dump_to_json_file"]:
         try:
             shutil.rmtree("%s_LC_log_JSON_files" % idrac_ip)
@@ -188,10 +217,7 @@ def get_date_range():
         directory_name = "%s_LC_log_JSON_files" % idrac_ip
         directory_path = os.mkdir(directory_name)
     logging.info("\n- INFO, this may take 30 seconds to 1 minute to collect all iDRAC LC logs depending on log file size")
-    if iDRAC_version == "old":
-        uri = "redfish/v1/Managers/iDRAC.Embedded.1/Logs/Lclog"
-    elif iDRAC_version == "new":
-        uri = "redfish/v1/Managers/iDRAC.Embedded.1/LogServices/Lclog/Entries"
+    uri = x
     date_range_uri = "%s?$filter=Created ge '%s' and Created le '%s'" % (uri, args["start_date"], args["end_date"])
     if args["x"]:
         response = requests.get('https://%s/%s' % (idrac_ip, date_range_uri), verify=verify_cert, headers={'X-Auth-Token': args["x"]})
@@ -212,7 +238,11 @@ def get_date_range():
         logging.info("- WARNING, no iDRAC LC logs detected within the date range specified")
         sys.exit(0)
     else:
-        lc_logs_list.append(data)
+        if args["convert_json_output"]:
+            json_output = json.dumps(data["Members"])
+            print(json_output)
+        else:
+            lc_logs_list.append(data)
         if args["dump_to_json_file"]:
             filename = directory_name + "/lclog_entries_1.json"
             open_file = open(filename,"w")
@@ -243,19 +273,24 @@ def get_date_range():
             elif "Members" in data.keys():
                 if data["Members"] == []:
                     break
-            lc_logs_list.append(data)
+            if args["dump_to_json_file"]:
+                json_output = json.dumps(data["Members"])
+                print(json_output)
+            else:
+                lc_logs_list.append(data)
             if args["dump_to_json_file"]:
                 filename = directory_name + "/lclog_entries_%s.json" % file_count
                 open_file = open(filename, "w")
                 json.dump(data, open_file)
                 open_file.close()
                 file_count += 1
-    pprint(lc_logs_list)
+    if not args["dump_to_json_file"]:
+        pprint(lc_logs_list)
     if args["dump_to_json_file"]:
         logging.info("\n- INFO, JSON dump log files copied to directory %s" % directory_name)
 
         
-def get_LC_logs():
+def get_LC_logs(x):
     if args["dump_to_json_file"]:
         try:
             shutil.rmtree("%s_LC_log_JSON_files" % idrac_ip)
@@ -263,11 +298,9 @@ def get_LC_logs():
             logging.debug("- INFO, directory does not exist, skipping")
         directory_name = "%s_LC_log_JSON_files" % idrac_ip
         directory_path = os.mkdir(directory_name)
-    logging.info("\n- INFO, this may take 30 seconds to 1 minute to collect all iDRAC LC logs depending on log file size")
-    if iDRAC_version == "old":
-        uri = "redfish/v1/Managers/iDRAC.Embedded.1/Logs/Lclog"
-    elif iDRAC_version == "new":
-        uri = "redfish/v1/Managers/iDRAC.Embedded.1/LogServices/Lclog/Entries"
+    if not args["convert_json_output"]:
+        logging.info("\n- INFO, this may take 30 seconds to 1 minute to collect all iDRAC LC logs depending on log file size")
+    uri = x
     if args["x"]:
         response = requests.get('https://%s/%s' % (idrac_ip, uri), verify=verify_cert, headers={'X-Auth-Token': args["x"]})
     else:
@@ -287,7 +320,12 @@ def get_LC_logs():
         logging.info("\n- WARNING, 'Members' collection is empty, no LC logs detected, script will exit")
         sys.exit(0)
     else:
-        lc_logs_list.append(data)
+        if args["convert_json_output"]:
+            json_output = json.dumps(data["Members"])
+            create_json_output_list = []
+            create_json_output_list.append(json_output)
+        else:
+            lc_logs_list.append(data)
         if args["dump_to_json_file"]:
             filename = directory_name + "/lclog_entries_1.json"
             open_file = open(filename,"w")
@@ -318,18 +356,26 @@ def get_LC_logs():
             elif "Members" in data.keys():
                 if data["Members"] == []:
                     break
-            lc_logs_list.append(data)
+                if args["convert_json_output"]:
+                    json_output = json.dumps(data["Members"])
+                    create_json_output_list.append(json_output)
+                else:
+                    lc_logs_list.append(data)
             if args["dump_to_json_file"]:
                 filename = directory_name + "/lclog_entries_%s.json" % file_count
                 open_file = open(filename, "w")
                 json.dump(data, open_file)
                 open_file.close()
                 file_count += 1
-    pprint(lc_logs_list)
-    if args["dump_to_json_file"]:
-        logging.info("\n- INFO, JSON dump log files copied to directory %s" % directory_name)      
+    if args["convert_json_output"]:
+        print(json.dumps(create_json_output_list))
+    elif args["dump_to_json_file"]:
+        pprint(lc_logs_list)
+        logging.info("\n- INFO, JSON dump log files copied to directory %s" % directory_name)
+    else:
+        pprint(lc_logs_list)
 
-def get_LC_log_failures():
+def get_LC_log_failures(x):
     if args["dump_to_json_file"]:
         try:
             shutil.rmtree("%s_LC_log_JSON_files" % idrac_ip)
@@ -338,10 +384,7 @@ def get_LC_log_failures():
         directory_name = "%s_LC_log_JSON_files" % idrac_ip
         directory_path = os.mkdir(directory_name)
     logging.info("\n- INFO, this may take 30 seconds to 1 minute to collect all iDRAC LC logs depending on log file size\n")
-    if iDRAC_version == "old":
-        uri = "redfish/v1/Managers/iDRAC.Embedded.1/Logs/Lclog"
-    elif iDRAC_version == "new":
-        uri = "redfish/v1/Managers/iDRAC.Embedded.1/LogServices/Lclog/Entries"
+    uri = x
     if args["x"]:
         response = requests.get('https://%s/%s' % (idrac_ip, uri), verify=verify_cert, headers={'X-Auth-Token': args["x"]})
     else:
@@ -366,7 +409,14 @@ def get_LC_log_failures():
             data = response.json()
             if "Members" not in data.keys():
                 logging.debug("- WARNING, 'Members' key not detected in JSON response, script will exit loop skip query")
-                sys.exit(0)
+                pprint(lc_logs_list)
+                if args["dump_to_json_file"]:
+                    filename = directory_name + "/lclog_entries_1.json"
+                    open_file = open(filename,"w")
+                    json.dump(lc_logs_list, open_file)
+                    open_file.close()
+                    logging.info("\n- INFO, JSON dump log files copied to directory %s" % directory_name)
+                break
             elif response.status_code == 500:
                 break
             elif response.status_code != 200:
@@ -392,7 +442,7 @@ def get_LC_log_failures():
         open_file.close()
         logging.info("\n- INFO, JSON dump log files copied to directory %s" % directory_name)      
 
-def get_message_id():
+def get_message_id(x):
     if args["dump_to_json_file"]:
         try:
             shutil.rmtree("%s_LC_log_JSON_files" % idrac_ip)
@@ -401,10 +451,7 @@ def get_message_id():
         directory_name = "%s_LC_log_JSON_files" % idrac_ip
         directory_path = os.mkdir(directory_name)
     logging.info("\n- INFO, this may take 30 seconds to 1 minute to collect all iDRAC LC logs depending on log file size\n")
-    if iDRAC_version == "old":
-        uri = "redfish/v1/Managers/iDRAC.Embedded.1/Logs/Lclog"
-    elif iDRAC_version == "new":
-        uri = "redfish/v1/Managers/iDRAC.Embedded.1/LogServices/Lclog/Entries"
+    uri = x
     uri = "%s?$filter=MessageId eq '%s'" % (uri, args["get_message_id"])
     if args["x"]:
         response = requests.get('https://%s/%s' % (idrac_ip, uri), verify=verify_cert, headers={'X-Auth-Token': args["x"]})
@@ -467,10 +514,7 @@ def get_message_id():
     if args["dump_to_json_file"]:
         logging.info("\n- INFO, JSON dump log files copied to directory %s" % directory_name)    
 
-def get_category_entries():
-    if iDRAC_version == "old":
-        logging.info("\n- WARNING, iDRAC 7/8 version does not support this argument")
-        sys.exit(0)
+def get_category_entries(x):
     if args["get_category"].lower() not in ["audit", "configuration", "updates", "systemhealth", "storage"]:
         logging.info("\n- WARNING, invalid value entered for argument --get-category, see help text for supported values")
         sys.exit(0)
@@ -482,10 +526,7 @@ def get_category_entries():
         directory_name = "%s_LC_log_JSON_files" % idrac_ip
         directory_path = os.mkdir(directory_name)
     logging.info("\n- INFO, this may take 30 seconds to 1 minute to collect all iDRAC LC logs depending on log file size\n")
-    if iDRAC_version == "old":
-        uri = "redfish/v1/Managers/iDRAC.Embedded.1/Logs/Lclog"
-    elif iDRAC_version == "new":
-        uri = "redfish/v1/Managers/iDRAC.Embedded.1/LogServices/Lclog/Entries"
+    uri = x
     if args["x"]:
         response = requests.get('https://%s/%s' % (idrac_ip, uri), verify=verify_cert, headers={'X-Auth-Token': args["x"]})
     else:
@@ -556,22 +597,29 @@ if __name__ == "__main__":
                 verify_cert = False
         else:
             verify_cert = False
-        check_supported_idrac_version()
+        get_server_generation()
+        if "12G" in server_generation or "13G" in server_generation:
+            uri_string = "redfish/v1/Managers/iDRAC.Embedded.1/Logs/Lclog"
+        elif "14G" in server_generation or "15G" in server_generation or "16G" in server_generation or "17G" in server_generation:
+            uri_string = "redfish/v1/Managers/iDRAC.Embedded.1/LogServices/Lclog/Entries"
+        else:
+            uri_string = "redfish/v1/Managers/iDRAC.Embedded.1/LogServices/Lclog/Entries"
+        check_supported_idrac_version(uri_string)
         get_iDRAC_version()
     else:
         logging.error("\n- FAIL, invalid argument values or not all required parameters passed in. See help text or argument --script-examples for more details.")
         sys.exit(0)
     if args["get_fail"]:
-        get_LC_log_failures()
+        get_LC_log_failures(uri_string)
     elif args["get_date_range"] and args["start_date"] and args["end_date"]:
-        get_date_range()    
+        get_date_range(uri_string)    
     elif args["get_severity"]:
-        get_specific_severity_logs()
+        get_specific_severity_logs(uri_string)
     elif args["get_all"]:
-        get_LC_logs()
+        get_LC_logs(uri_string)
     elif args["get_message_id"]:
-        get_message_id()
+        get_message_id(uri_string)
     elif args["get_category"]:
-        get_category_entries()    
+        get_category_entries(uri_string)    
     else:
         logging.error("\n- FAIL, invalid argument values or not all required parameters passed in. See help text or argument --script-examples for more details.")
