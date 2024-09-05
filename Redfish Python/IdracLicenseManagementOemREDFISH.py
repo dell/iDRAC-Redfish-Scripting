@@ -68,9 +68,9 @@ def script_examples():
 
 def check_supported_idrac_version():
     if args["x"]:
-        response = requests.get('https://%s/redfish/v1/Dell/Managers/iDRAC.Embedded.1/DellLicenseCollection' % idrac_ip, verify=verify_cert, headers={'X-Auth-Token': args["x"]})
+        response = requests.get('https://%s/redfish/v1/Managers/iDRAC.Embedded.1/Oem/Dell/DellLicenseManagementService' % idrac_ip, verify=verify_cert, headers={'X-Auth-Token': args["x"]})
     else:
-        response = requests.get('https://%s/redfish/v1/Dell/Managers/iDRAC.Embedded.1/DellLicenseCollection' % idrac_ip, verify=verify_cert,auth=(idrac_username, idrac_password))
+        response = requests.get('https://%s/redfish/v1/Managers/iDRAC.Embedded.1/Oem/Dell/DellLicenseManagementService' % idrac_ip, verify=verify_cert,auth=(idrac_username, idrac_password))
     data = response.json()
     if response.status_code == 401:
         logging.warning("\n- FAIL, status code %s detected, incorrect iDRAC credentials detected" % response.status_code)
@@ -81,9 +81,9 @@ def check_supported_idrac_version():
 
 def get_idrac_license_info():
     if args["x"]:
-        response = requests.get('https://%s/redfish/v1/Dell/Managers/iDRAC.Embedded.1/DellLicenseCollection' % idrac_ip, verify=verify_cert, headers={'X-Auth-Token': args["x"]})
+        response = requests.get('https://%s/redfish/v1/Managers/iDRAC.Embedded.1/Oem/Dell/DellLicenseManagementService' % idrac_ip, verify=verify_cert, headers={'X-Auth-Token': args["x"]})
     else:
-        response = requests.get('https://%s/redfish/v1/Dell/Managers/iDRAC.Embedded.1/DellLicenseCollection' % idrac_ip, verify=verify_cert,auth=(idrac_username, idrac_password))
+        response = requests.get('https://%s/redfish/v1/Managers/iDRAC.Embedded.1/Oem/Dell/DellLicenseManagementService' % idrac_ip, verify=verify_cert,auth=(idrac_username, idrac_password))
     if response.status_code != 200:
         logging.error("\n- FAIL, GET command failed to find iDRAC license data, error: %s" % response)
         sys.exit(0)
@@ -97,9 +97,9 @@ def get_idrac_license_info():
    
 def get_network_share_types():
     if args["x"]:
-        response = requests.get('https://%s/redfish/v1/Dell/Managers/iDRAC.Embedded.1/DellLicenseManagementService' % idrac_ip, verify=verify_cert, headers={'X-Auth-Token': args["x"]})
+        response = requests.get('https://%s/redfish/v1/Managers/iDRAC.Embedded.1/Oem/Dell/DellLicenseManagementService' % idrac_ip, verify=verify_cert, headers={'X-Auth-Token': args["x"]})
     else:
-        response = requests.get('https://%s/redfish/v1/Dell/Managers/iDRAC.Embedded.1/DellLicenseManagementService' % idrac_ip, verify=verify_cert,auth=(idrac_username, idrac_password))
+        response = requests.get('https://%s/redfish/v1/Managers/iDRAC.Embedded.1/Oem/Dell/DellLicenseManagementService' % idrac_ip, verify=verify_cert,auth=(idrac_username, idrac_password))
     if response.status_code != 200:
         logging.error("\n- FAIL, GET command failed to get supported network share types, error is: %s" % response)
         sys.exit(0)
@@ -109,7 +109,7 @@ def get_network_share_types():
         print(i)
     
 def export_idrac_license_locally():
-    url = 'https://%s/redfish/v1/Dell/Managers/iDRAC.Embedded.1/DellLicenseManagementService/Actions/DellLicenseManagementService.ExportLicense' % (idrac_ip)
+    url = 'https://%s/redfish/v1/Managers/iDRAC.Embedded.1/Oem/Dell/DellLicenseManagementService/Actions/DellLicenseManagementService.ExportLicense' % (idrac_ip)
     method = "ExportLicense"
     payload={"EntitlementID":args["export_local"]}
     if args["x"]:
@@ -136,11 +136,11 @@ def export_import_idrac_license_network_share():
     if args["export_share"]:
         license_filename = "%s_iDRAC_license.xml" % args["export_share"]
         method = "ExportLicenseToNetworkShare"
-        url = 'https://%s/redfish/v1/Dell/Managers/iDRAC.Embedded.1/DellLicenseManagementService/Actions/DellLicenseManagementService.ExportLicenseToNetworkShare' % (idrac_ip)
+        url = 'https://%s/redfish/v1/Managers/iDRAC.Embedded.1/Oem/Dell/DellLicenseManagementService/Actions/DellLicenseManagementService.ExportLicenseToNetworkShare' % (idrac_ip)
         payload = {"EntitlementID":args["export_share"],"FileName":license_filename}
     elif args["import_share"]:
         method = "ImportLicenseFromNetworkShare"
-        url = 'https://%s/redfish/v1/Dell/Managers/iDRAC.Embedded.1/DellLicenseManagementService/Actions/DellLicenseManagementService.ImportLicenseFromNetworkShare' % (idrac_ip)
+        url = 'https://%s/redfish/v1/Managers/iDRAC.Embedded.1/Oem/Dell/DellLicenseManagementService/Actions/DellLicenseManagementService.ImportLicenseFromNetworkShare' % (idrac_ip)
         payload = {"FQDD":"iDRAC.Embedded.1","ImportOptions":"Force"}
         if args["licensename"]:
             payload["LicenseName"] = args["licensename"]
@@ -179,7 +179,7 @@ def export_import_idrac_license_network_share():
     logging.info("- PASS, job ID %s successfully created for %s method\n", job_id, method)
 
 def delete_idrac_license():
-    url = 'https://%s/redfish/v1/Dell/Managers/iDRAC.Embedded.1/DellLicenseManagementService/Actions/DellLicenseManagementService.DeleteLicense' % (idrac_ip)
+    url = 'https://%s/redfish/v1/Managers/iDRAC.Embedded.1/Oem/Dell/DellLicenseManagementService/Actions/DellLicenseManagementService.DeleteLicense' % (idrac_ip)
     method = "DeleteLicense"
     payload={"EntitlementID":args["delete"],"DeleteOptions":"Force"}
     if args["x"]:
@@ -210,7 +210,7 @@ def import_idrac_license_local():
     else:
         read_file = filename_open.read()
     filename_open.close()
-    url = 'https://%s/redfish/v1/Dell/Managers/iDRAC.Embedded.1/DellLicenseManagementService/Actions/DellLicenseManagementService.ImportLicense' % (idrac_ip)
+    url = 'https://%s/redfish/v1/Managers/iDRAC.Embedded.1/Oem/Dell/DellLicenseManagementService/Actions/DellLicenseManagementService.ImportLicense' % (idrac_ip)
     payload = {"FQDD":"iDRAC.Embedded.1","ImportOptions":"Force","LicenseFile":read_file}
     if args["x"]:
         headers = {'content-type': 'application/json', 'X-Auth-Token': args["x"]}
