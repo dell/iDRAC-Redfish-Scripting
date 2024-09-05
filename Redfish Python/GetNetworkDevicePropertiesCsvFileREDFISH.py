@@ -154,7 +154,7 @@ def get_remote_services(idrac_ip):
     start_time = datetime.now()
     current_time = str(datetime.now()-start_time)[0:7]
     while True:
-        url = 'https://%s/redfish/v1/Dell/Managers/iDRAC.Embedded.1/DellLCService/Actions/DellLCService.GetRemoteServicesAPIStatus' % idrac_ip
+        url = 'https://%s/redfish/v1/Managers/iDRAC.Embedded.1/Oem/Dell/DellLCService/Actions/DellLCService.GetRemoteServicesAPIStatus' % idrac_ip
         headers = {'content-type': 'application/json'}
         payload = {}
         response = requests.post(url, data=json.dumps(payload), headers=headers, verify=False,auth=(idrac_username,idrac_password))
