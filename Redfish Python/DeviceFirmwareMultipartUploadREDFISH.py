@@ -3,7 +3,7 @@
 # DeviceFirmwareMultipartUploadREDFISH.py. Python script using Redfish API to update a device firmware with DMTF MultipartUpload. Supported file image types are Windows DUPs, d7/d9 image or pm files.
 #
 # _author_ = Texas Roemer <Texas_Roemer@Dell.com>
-# _version_ = 6.0
+# _version_ = 7.0
 #
 # Copyright (c) 2020, Dell, Inc.
 #
@@ -189,15 +189,23 @@ def check_job_status():
                 pprint(i)
             logging.info("\n- JOB ID %s completed in %s" % (job_id, current_time))
             sys.exit(0)
-        if data["TaskState"] == "UserIntervention" and data["PercentComplete"] == 100:
-            logging.info("\n- JOB ID %s completed in %s but user intervention is needed, final job message: %s" % (job_id, current_time, message_string[0]["Message"].rstrip(".")))
-            if args["reboot"]:
-                if "reboot" in message_string[0]["Message"].lower():
-                    logging.info("- INFO, rebooting server for the new firmware installed to become effective")
+        if data["Oem"]["Dell"]["JobState"] == "UserIntervention" and data["Oem"]["Dell"]["PercentComplete"] == 100:
+            logging.info("\n- JOB ID %s completed in %s but user intervention is needed, final job message: %s" % (download_job_id, current_time, message_string[0]["Message"].rstrip(".")))
+            if "reboot" in data["Oem"]["Dell"]["Message"].lower():
+                logging.info("- INFO, server reboot needed for new firmware image installed to become effective")
+                if args["reboot"]:
                     reboot_server()
-                if "virtual" in message_string[0]["Message"].lower():
-                    logging.info("- INFO, server virtual a/c cycle is needed for the new firmware installed to become effective")
-            sys.exit(0)
+                else:
+                    logging.warning("- WARNING, next server manual reboot firmware image installed will become effective")
+                    break
+            if "virtual" in data["Oem"]["Dell"]["Message"].lower():
+                logging.info("- INFO, virtual a/c cycle needed for new firmware image installed to become effective")
+                if args["reboot"]:
+                    oem_ac_power_cycle()
+                else:
+                    logging.warning("- WARNING, next server a/c cycle firmware image installed will become effective")
+                    break
+            break
         if data["TaskState"] == "Completed":
             logging.info("\n- PASS, job ID successfuly marked completed, detailed final job status results\n")
             for i in data['Oem']['Dell'].items():
@@ -292,6 +300,50 @@ def loop_check_final_job_status():
         else:
             logging.info("- INFO, JobStatus not completed, current status: \"%s\", execution time: \"%s\"" % (data['Message'].rstrip("."), current_time))
             time.sleep(1)
+
+def oem_ac_power_cycle():
+    if args["x"]:
+         response = requests.get('https://%s/redfish/v1/Systems/System.Embedded.1?$select=PowerState' % idrac_ip, verify=verify_cert, headers={'X-Auth-Token': args["x"]})
+    else:
+        response = requests.get('https://%s/redfish/v1/Systems/System.Embedded.1?$select=PowerState' % idrac_ip, verify=verify_cert, auth=(idrac_username, idrac_password))
+    data = response.json()
+    if response.status_code != 200:
+        logging.warning("\n- WARNING, GET request failed to get current server power state, status code %s returned." % response.status_code)
+        logging.warning(data)
+        sys.exit(0)
+    if data["PowerState"].lower() == "off":
+        logging.info("- INFO, server already in OFF state, skipping power off operation")
+        return
+    url = "https://%s/redfish/v1/Systems/System.Embedded.1/Actions/ComputerSystem.Reset" % idrac_ip
+    payload = {"ResetType": "ForceOff"}
+    if args["x"]:
+        headers = {"content-type": "application/json", "X-Auth-Token": args["x"]}
+        response = requests.post(url, data=json.dumps(payload), headers=headers, verify=verify_cert)
+    else:
+        headers = {"content-type": "application/json"}
+        response = requests.post(url, data=json.dumps(payload), headers=headers, verify=verify_cert, auth=(idrac_username, idrac_password))
+    if response.status_code == 204:
+        logging.info("\n- PASS, POST command passed to power off the server")
+        time.sleep(10)
+    else:
+        logging.error("\n- FAIL, POST command failed, status code %s returned\n" % response.status_code)
+        logging.error(response.json())
+        sys.exit(1) 
+    url = 'https://%s/redfish/v1/Chassis/System.Embedded.1/Actions/Oem/DellOemChassis.ExtendedReset' % idrac_ip
+    payload = {"ResetType": "PowerCycle", "FinalPowerState":"On"}   
+    if args["x"]:
+        headers = {'content-type': 'application/json', 'X-Auth-Token': args["x"]}
+        response = requests.post(url, data=json.dumps(payload), headers=headers, verify=verify_cert)
+    else:
+        headers = {'content-type': 'application/json'}
+        response = requests.post(url, data=json.dumps(payload), headers=headers, verify=verify_cert, auth=(idrac_username, idrac_password))
+    if response.status_code == 204:
+        logging.info("\n- PASS, POST command passed to perform full virtual server a/c power cycle, status code %s returned" % response.status_code)
+        logging.info("\n- INFO, wait a few minutes for the process to complete, server will automatically power back on")
+    else:
+        logging.error("\n- FAIL, POST command failed, status code %s returned\n" % response.status_code)
+        logging.error(response.json())
+        sys.exit(1)
 
 def reboot_server():
     if args["x"]:
