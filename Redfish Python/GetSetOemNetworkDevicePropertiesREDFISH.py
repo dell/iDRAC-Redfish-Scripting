@@ -92,7 +92,7 @@ def get_idrac_version():
     idrac_fw_version = data["FirmwareVersion"].replace(".","")
 
 def get_idrac_time():
-    url = 'https://%s/redfish/v1/Dell/Managers/iDRAC.Embedded.1/DellTimeService/Actions/DellTimeService.ManageTime' % (idrac_ip)
+    url = 'https://%s/redfish/v1/Managers/iDRAC.Embedded.1/Oem/Dell/DellTimeService/Actions/DellTimeService.ManageTime' % (idrac_ip)
     method = "ManageTime"
     payload={"GetRequest":True}
     if args["x"]:
