@@ -51,9 +51,9 @@ def script_examples():
 
 def check_supported_idrac_version():
     if args["x"]:
-        response = requests.get('https://%s/redfish/v1/Dell/Systems/System.Embedded.1/DellSlotCollection' % idrac_ip, verify=verify_cert, headers={'X-Auth-Token': args["x"]})   
+        response = requests.get('https://%s/redfish/v1/Systems/System.Embedded.1/Oem/Dell/DellSlots' % idrac_ip, verify=verify_cert, headers={'X-Auth-Token': args["x"]})   
     else:
-        response = requests.get('https://%s/redfish/v1/Dell/Systems/System.Embedded.1/DellSlotCollection' % idrac_ip, verify=verify_cert,auth=(idrac_username, idrac_password))
+        response = requests.get('https://%s/redfish/v1/Systems/System.Embedded.1/Oem/Dell/DellSlots' % idrac_ip, verify=verify_cert,auth=(idrac_username, idrac_password))
     data = response.json()
     if response.status_code == 401:
         logging.warning("\n- WARNING, status code %s returned. Incorrect iDRAC username/password or invalid privilege detected." % response.status_code)
@@ -73,9 +73,9 @@ def get_server_slot_info():
     open_file.writelines(current_date_time)
     open_file.writelines("\n\n")
     if args["x"]:
-        response = requests.get('https://%s/redfish/v1/Dell/Systems/System.Embedded.1/DellSlotCollection' % idrac_ip, verify=verify_cert, headers={'X-Auth-Token': args["x"]})   
+        response = requests.get('https://%s/redfish/v1/Systems/System.Embedded.1/Oem/Dell/DellSlots' % idrac_ip, verify=verify_cert, headers={'X-Auth-Token': args["x"]})   
     else:
-        response = requests.get('https://%s/redfish/v1/Dell/Systems/System.Embedded.1/DellSlotCollection' % idrac_ip, verify=verify_cert,auth=(idrac_username, idrac_password))
+        response = requests.get('https://%s/redfish/v1/Systems/System.Embedded.1/Oem/Dell/DellSlots' % idrac_ip, verify=verify_cert,auth=(idrac_username, idrac_password))
     data = response.json()
     if response.status_code != 200:
         logging.error("\n- FAIL, GET request failed, status code %s returned. Detailed error results: \n%s" % (response.status_code,data))
@@ -92,9 +92,9 @@ def get_server_slot_info():
     number_list = [i for i in range (1,100001) if i % 50 == 0]
     for seq in number_list:
         if args["x"]:
-            response = requests.get('https://%s/redfish/v1/Dell/Systems/System.Embedded.1/DellSlotCollection?$skip=%s' % (idrac_ip, seq), verify=verify_cert, headers={'X-Auth-Token': args["x"]})   
+            response = requests.get('https://%s/redfish/v1/Systems/System.Embedded.1/Oem/Dell/DellSlots?$skip=%s' % (idrac_ip, seq), verify=verify_cert, headers={'X-Auth-Token': args["x"]})   
         else:
-            response = requests.get('https://%s/redfish/v1/Dell/Systems/System.Embedded.1/DellSlotCollection?$skip=%s' % (idrac_ip, seq), verify=verify_cert,auth=(idrac_username, idrac_password))
+            response = requests.get('https://%s/redfish/v1/Systems/System.Embedded.1/Oem/Dell/DellSlots?$skip=%s' % (idrac_ip, seq), verify=verify_cert,auth=(idrac_username, idrac_password))
         data = response.json()
         if response.status_code != 200:
             if "query parameter $skip is out of range" in data["error"]["@Message.ExtendedInfo"][0]["Message"]:
@@ -124,9 +124,9 @@ def get_server_slot_info_xml():
     open_file = open("%s_server_slot_info.xml" % idrac_ip,"a")
     open_file.writelines("<CIM>\n")
     if args["x"]:
-        response = requests.get('https://%s/redfish/v1/Dell/Systems/System.Embedded.1/DellSlotCollection' % idrac_ip, verify=verify_cert, headers={'X-Auth-Token': args["x"]})   
+        response = requests.get('https://%s/redfish/v1/Systems/System.Embedded.1/Oem/Dell/DellSlots' % idrac_ip, verify=verify_cert, headers={'X-Auth-Token': args["x"]})   
     else:
-        response = requests.get('https://%s/redfish/v1/Dell/Systems/System.Embedded.1/DellSlotCollection' % idrac_ip, verify=verify_cert,auth=(idrac_username, idrac_password))
+        response = requests.get('https://%s/redfish/v1/Systems/System.Embedded.1/Oem/Dell/DellSlots' % idrac_ip, verify=verify_cert,auth=(idrac_username, idrac_password))
     data = response.json()
     if response.status_code != 200:
         logging.error("\n- FAIL, GET request failed, status code %s returned. Detailed error results: \n%s" % (response.status_code,data))
@@ -151,9 +151,9 @@ def get_server_slot_info_xml():
     number_list = [i for i in range (1,100001) if i % 50 == 0]
     for seq in number_list:
         if args["x"]:
-            response = requests.get('https://%s/redfish/v1/Dell/Systems/System.Embedded.1/DellSlotCollection?$skip=%s' % (idrac_ip, seq), verify=verify_cert, headers={'X-Auth-Token': args["x"]})   
+            response = requests.get('https://%s/redfish/v1/Systems/System.Embedded.1/Oem/Dell/DellSlots?$skip=%s' % (idrac_ip, seq), verify=verify_cert, headers={'X-Auth-Token': args["x"]})   
         else:
-            response = requests.get('https://%s/redfish/v1/Dell/Systems/System.Embedded.1/DellSlotCollection?$skip=%s' % (idrac_ip, seq), verify=verify_cert,auth=(idrac_username, idrac_password))
+            response = requests.get('https://%s/redfish/v1/Systems/System.Embedded.1/Oem/Dell/DellSlots?$skip=%s' % (idrac_ip, seq), verify=verify_cert,auth=(idrac_username, idrac_password))
         data = response.json()
         if response.status_code != 200:
             if "query parameter $skip is out of range" in data["error"]["@Message.ExtendedInfo"][0]["Message"]:
@@ -167,7 +167,7 @@ def get_server_slot_info_xml():
         if "Members" not in data or data["Members"] == [] or response.status_code == 400:
             break
         if data['Members'] == []:
-            logging.error("- FAIL, no data detected for Members property. Manually execute GET on URI 'https://%s/redfish/v1/Dell/Systems/System.Embedded.1/DellSlotCollection' in browser to check. If no data detected, reboot server and run Collecting Inventory to refresh the configuration database for iDRAC, try GET again." % idrac_ip)
+            logging.error("- FAIL, no data detected for Members property. Manually execute GET on URI 'https://%s/redfish/v1/Systems/System.Embedded.1/Oem/Dell/DellSlots' in browser to check. If no data detected, reboot server and run Collecting Inventory to refresh the configuration database for iDRAC, try GET again." % idrac_ip)
             sys.exit(0)
         for i in data['Members']:
             create_dict = {}
