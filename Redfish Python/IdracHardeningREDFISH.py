@@ -40,7 +40,7 @@ idrac_ip = args["ip"]
 idrac_username = args["u"]
 
 def check_supported_idrac_version(x,xx,xxx):
-    response = requests.get('https://%s/redfish/v1/Managers/iDRAC.Embedded.1/Attributes' % idrac_ip,verify=False,auth=(idrac_username, x))
+    response = requests.get('https://%s/redfish/v1/Managers/iDRAC.Embedded.1/Oem/Dell/DellAttributes/iDRAC.Embedded.1' % idrac_ip,verify=False,auth=(idrac_username, x))
     if response.status_code == 401:
         logging.warning("\n- WARNING, status code %s returned. Incorrect iDRAC username/password or invalid privilege detected." % response.status_code)
         sys.exit(0)
@@ -116,7 +116,7 @@ def get_specific_attribute(x,xx):
     set_flag = "no"
     count = 1
     logging.info("- INFO, getting current value for attribute \"%s\"" % xx)
-    response = requests.get('https://%s/redfish/v1/Managers/iDRAC.Embedded.1/Attributes' % idrac_ip,verify=False,auth=(idrac_username, x))
+    response = requests.get('https://%s/redfish/v1/Managers/iDRAC.Embedded.1/Oem/Dell/DellAttributes/iDRAC.Embedded.1' % idrac_ip,verify=False,auth=(idrac_username, x))
     data = response.json()
     attributes_dict=data['Attributes']
     for i in attributes_dict:
@@ -187,7 +187,7 @@ def get_specific_attribute(x,xx):
             logging.info("- INFO, unable to locate attribute \"%s\" to get current value, skipping PATCH command" % xx)
 
 def set_attribute_disabled(x,xx):
-    url = 'https://%s/redfish/v1/Managers/iDRAC.Embedded.1/Attributes' % idrac_ip
+    url = 'https://%s/redfish/v1/Managers/iDRAC.Embedded.1/Oem/Dell/DellAttributes/iDRAC.Embedded.1' % idrac_ip
     payload = {"Attributes":{xx:"Disabled"}}
     headers = {'content-type': 'application/json'}
     response = requests.patch(url, data=json.dumps(payload), headers=headers, verify=False,auth=(idrac_username, x))
@@ -200,7 +200,7 @@ def set_attribute_disabled(x,xx):
         sys.exit(0)
     logging.info("- INFO, getting new current value for attribute \"%s\"" % xx)
     time.sleep(10)
-    response = requests.get('https://%s/redfish/v1/Managers/iDRAC.Embedded.1/Attributes' % idrac_ip,verify=False,auth=(idrac_username, x))
+    response = requests.get('https://%s/redfish/v1/Managers/iDRAC.Embedded.1/Oem/Dell/DellAttributes/iDRAC.Embedded.1' % idrac_ip,verify=False,auth=(idrac_username, x))
     data = response.json()
     attributes_dict = data['Attributes']
     for i in attributes_dict:
@@ -212,7 +212,7 @@ def set_attribute_disabled(x,xx):
                 sys.exit(0)
 
 def set_attribute_enabled(x,xx):
-    url = 'https://%s/redfish/v1/Managers/iDRAC.Embedded.1/Attributes' % idrac_ip
+    url = 'https://%s/redfish/v1/Managers/iDRAC.Embedded.1/Oem/Dell/DellAttributes/iDRAC.Embedded.1' % idrac_ip
     payload = {"Attributes":{xx:"Enabled"}}
     headers = {'content-type': 'application/json'}
     response = requests.patch(url, data=json.dumps(payload), headers=headers, verify=False,auth=(idrac_username, x))
@@ -225,7 +225,7 @@ def set_attribute_enabled(x,xx):
         sys.exit(0)
     logging.info("- INFO, getting new current value for attribute \"%s\"" % xx)
     time.sleep(10)
-    response = requests.get('https://%s/redfish/v1/Managers/iDRAC.Embedded.1/Attributes' % idrac_ip,verify=False,auth=(idrac_username, x))
+    response = requests.get('https://%s/redfish/v1/Managers/iDRAC.Embedded.1/Oem/Dell/DellAttributes/iDRAC.Embedded.1' % idrac_ip,verify=False,auth=(idrac_username, x))
     data = response.json()
     attributes_dict = data['Attributes']
     for i in attributes_dict:
@@ -237,7 +237,7 @@ def set_attribute_enabled(x,xx):
                 sys.exit(0)
 
 def set_TLS_attribute_enabled(x,xx):
-    url = 'https://%s/redfish/v1/Managers/iDRAC.Embedded.1/Attributes' % idrac_ip
+    url = 'https://%s/redfish/v1/Managers/iDRAC.Embedded.1/Oem/Dell/DellAttributes/iDRAC.Embedded.1' % idrac_ip
     payload = {"Attributes":{xx:"TLS 1.3 Only"}}
     headers = {'content-type': 'application/json'}
     response = requests.patch(url, data=json.dumps(payload), headers=headers, verify=False,auth=(idrac_username, x))
@@ -250,7 +250,7 @@ def set_TLS_attribute_enabled(x,xx):
         sys.exit(0)
     logging.info("- INFO, getting new current value for attribute \"%s\", script will wait 1 minute to validate new TLS changes" % xx)
     time.sleep(60)
-    response = requests.get('https://%s/redfish/v1/Managers/iDRAC.Embedded.1/Attributes' % idrac_ip,verify=False,auth=(idrac_username, x))
+    response = requests.get('https://%s/redfish/v1/Managers/iDRAC.Embedded.1/Oem/Dell/DellAttributes/iDRAC.Embedded.1' % idrac_ip,verify=False,auth=(idrac_username, x))
     data = response.json()
     attributes_dict = data['Attributes']
     for i in attributes_dict:
@@ -262,7 +262,7 @@ def set_TLS_attribute_enabled(x,xx):
                 sys.exit(0)
 
 def set_SNMP(x,xx):
-    url = 'https://%s/redfish/v1/Managers/iDRAC.Embedded.1/Attributes' % idrac_ip
+    url = 'https://%s/redfish/v1/Managers/iDRAC.Embedded.1/Oem/Dell/DellAttributes/iDRAC.Embedded.1' % idrac_ip
     payload = {"Attributes":{xx:"SNMPv3"}}
     headers = {'content-type': 'application/json'}
     response = requests.patch(url, data=json.dumps(payload), headers=headers, verify=False,auth=(idrac_username, x))
@@ -274,7 +274,7 @@ def set_SNMP(x,xx):
         logging.error("Extended Info Message: {0}".format(response.json()))
         sys.exit(0)
     time.sleep(10)
-    response = requests.get('https://%s/redfish/v1/Managers/iDRAC.Embedded.1/Attributes' % idrac_ip,verify=False,auth=(idrac_username, x))
+    response = requests.get('https://%s/redfish/v1/Managers/iDRAC.Embedded.1/Oem/Dell/DellAttributes/iDRAC.Embedded.1' % idrac_ip,verify=False,auth=(idrac_username, x))
     data = response.json()
     attributes_dict = data['Attributes']
     for i in attributes_dict:
@@ -286,7 +286,7 @@ def set_SNMP(x,xx):
                 sys.exit(0)
 
 def set_virtual_console_plugin(x,xx):
-    url = 'https://%s/redfish/v1/Managers/iDRAC.Embedded.1/Attributes' % idrac_ip
+    url = 'https://%s/redfish/v1/Managers/iDRAC.Embedded.1/Oem/Dell/DellAttributes/iDRAC.Embedded.1' % idrac_ip
     payload = {"Attributes":{xx:"eHTML5"}}
     headers = {'content-type': 'application/json'}
     response = requests.patch(url, data=json.dumps(payload), headers=headers, verify=False,auth=(idrac_username, x))
@@ -317,7 +317,7 @@ def set_virtual_console_plugin(x,xx):
             logging.error("Extended Info Message: {0}".format(response.json()))
             sys.exit(0)
     time.sleep(10)
-    response = requests.get('https://%s/redfish/v1/Managers/iDRAC.Embedded.1/Attributes' % idrac_ip,verify=False,auth=(idrac_username, x))
+    response = requests.get('https://%s/redfish/v1/Managers/iDRAC.Embedded.1/Oem/Dell/DellAttributes/iDRAC.Embedded.1' % idrac_ip,verify=False,auth=(idrac_username, x))
     data = response.json()
     attributes_dict = data['Attributes']
     for i in attributes_dict:
