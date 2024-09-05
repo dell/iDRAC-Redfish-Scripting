@@ -41,7 +41,7 @@ args = vars(parser.parse_args())
 logging.basicConfig(format='%(message)s', stream=sys.stdout, level=logging.INFO)
 
 def script_examples():
-    print("""\n- ExportServerScreenShotOemREDFISH.py -ip 192.168.0.120 -u root -p calvin --filetype 2, this example will export a screenshot of the current server status.
+    print("""\n- ExportServerScreenShotREDFISH.py -ip 192.168.0.120 -u root -p calvin --filetype 2, this example will export a screenshot of the current server status.
     \n- ExportServerScreenShotREDFISH.py -ip 192.168.0.120 -x 778e341f432fbd0319ff8ecdc5379a12 --filetype 0, this example using X-auth token session will export last server screenshot crash.""")
     sys.exit(0)
 
