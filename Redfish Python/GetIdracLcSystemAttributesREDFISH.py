@@ -118,9 +118,9 @@ def get_attribute_group():
     elif args["group_name"] == "system":
         fqdd = "System.Embedded.1"
     if args["x"]:
-        response = requests.get('https://%s/redfish/v1/Managers/%s/Attributes' % (idrac_ip, fqdd), verify=verify_cert, headers={'X-Auth-Token': args["x"]})
+        response = requests.get('https://%s/redfish/v1/Managers/iDRAC.Embedded.1/Oem/Dell/DellAttributes/%s' % (idrac_ip, fqdd), verify=verify_cert, headers={'X-Auth-Token': args["x"]})
     else:
-        response = requests.get('https://%s/redfish/v1/Managers/%s/Attributes' % (idrac_ip, fqdd), verify=verify_cert, auth=(idrac_username, idrac_password))
+        response = requests.get('https://%s/redfish/v1/Managers/iDRAC.Embedded.1/Oem/Dell/DellAttributes/%s' % (idrac_ip, fqdd), verify=verify_cert, auth=(idrac_username, idrac_password))
     data = response.json()
     attributes_dict = data['Attributes']
     logging.info("\n- %s Attribute Names and Values:\n" % args["group_name"].upper())
@@ -151,9 +151,9 @@ def get_specific_attribute():
     elif args["group_name"] == "system":
         fqdd = "System.Embedded.1"
     if args["x"]:
-        response = requests.get('https://%s/redfish/v1/Managers/%s/Attributes' % (idrac_ip, fqdd), verify=verify_cert, headers={'X-Auth-Token': args["x"]})
+        response = requests.get('https://%s/redfish/v1/Managers/iDRAC.Embedded.1/Oem/Dell/DellAttributes/%s' % (idrac_ip, fqdd), verify=verify_cert, headers={'X-Auth-Token': args["x"]})
     else:
-        response = requests.get('https://%s/redfish/v1/Managers/%s/Attributes' % (idrac_ip, fqdd), verify=verify_cert, auth=(idrac_username, idrac_password))
+        response = requests.get('https://%s/redfish/v1/Managers/iDRAC.Embedded.1/Oem/Dell/DellAttributes/%s' % (idrac_ip, fqdd), verify=verify_cert, auth=(idrac_username, idrac_password))
     data = response.json()
     attributes_dict = data['Attributes']
     for i in attributes_dict:
