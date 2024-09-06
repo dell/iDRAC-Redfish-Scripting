@@ -3,7 +3,7 @@
 # SensorCollectionREDFISH. Python script using Redfish API OEM extensoion to get iDRAC sensor collection data.
 #
 # _author_ = Texas Roemer <Texas_Roemer@Dell.com>
-# _version_ = 2.0
+# _version_ = 3.0
 #
 # Copyright (c) 2019, Dell, Inc.
 #
@@ -73,20 +73,20 @@ def get_sensor_data():
     open_file.writelines(current_date_time)
     open_file.writelines("\n\n")
     if args["get_numeric"]:
-        sensor_key = "DellNumericSensorCollection"
+        sensor_key = "DellNumericSensors"
     elif args["get_power"]:
-        sensor_key = "DellPSNumericSensorCollection"
+        sensor_key = "DellPSNumericSensors"
     elif args["get_status"]:
-        sensor_key = "DellPresenceAndStatusSensorCollection"
+        sensor_key = "DellPresenceAndStatusSensors"
     elif args["get_sensor"]:
-        sensor_key = "DellSensorCollection"
+        sensor_key = "DellSensors"
     else:
         logging.error("- FAIL, you must pass in at least one parameter to get sensor collection data")
         sys.exit(0)
     if args["x"]:
-        response = requests.get('https://%s/redfish/v1/Dell/Systems/System.Embedded.1/%s' % (idrac_ip, sensor_key), verify=verify_cert, headers={'X-Auth-Token': args["x"]})
+        response = requests.get('https://%s/redfish/v1/Systems/System.Embedded.1/Oem/Dell/%s' % (idrac_ip, sensor_key), verify=verify_cert, headers={'X-Auth-Token': args["x"]})
     else:
-        response = requests.get('https://%s/redfish/v1/Dell/Systems/System.Embedded.1/%s' % (idrac_ip, sensor_key), verify=verify_cert, auth=(idrac_username, idrac_password))
+        response = requests.get('https://%s/redfish/v1/Systems/System.Embedded.1/Oem/Dell/%s' % (idrac_ip, sensor_key), verify=verify_cert, auth=(idrac_username, idrac_password))
     data = response.json()
     if response.status_code != 200:
         logging.error("\n- FAIL, GET command failed, status code %s returned" % response.status_code)
@@ -94,7 +94,7 @@ def get_sensor_data():
         sys.exit(0)
     logging.info("\n- Data collection data for \"%s\"\n" % sensor_key) 
     if data['Members'] == []:
-        logging.warning("- WARNING, no data available for URI \"redfish/v1/Dell/Systems/System.Embedded.1/%s\"" % sensor_key)
+        logging.warning("- WARNING, no data available for URI \"redfish/v1/Systems/System.Embedded.1/Oem/Dell/%s\"" % sensor_key)
         sys.exit(0)
     for i in data['Members']:
         for ii in i.items():
@@ -107,9 +107,9 @@ def get_sensor_data():
         number_list = [i for i in range (1,100001) if i % 50 == 0]
         for seq in number_list:
             if args["x"]:
-                response = requests.get('https://%s/redfish/v1/Systems/System.Embedded.1/Oem/Dell/DellNumericSensors?$skip=%s' % (idrac_ip, seq), verify=verify_cert, headers={'X-Auth-Token': args["x"]})   
+                response = requests.get('https://%s/redfish/v1/Systems/System.Embedded.1/Oem/Dell/%s?$skip=%s' % (idrac_ip, sensor_key, seq), verify=verify_cert, headers={'X-Auth-Token': args["x"]})   
             else:
-                response = requests.get('https://%s/redfish/v1/Systems/System.Embedded.1/Oem/Dell/DellNumericSensors?$skip=%s' % (idrac_ip, seq), verify=verify_cert,auth=(idrac_username, idrac_password))
+                response = requests.get('https://%s/redfish/v1/Systems/System.Embedded.1/Oem/Dell/%s?$skip=%s' % (idrac_ip, sensor_key, seq), verify=verify_cert,auth=(idrac_username, idrac_password))
             data = response.json()
             if response.status_code != 200:
                 if "query parameter $skip is out of range" in data["error"]["@Message.ExtendedInfo"][0]["Message"]:
