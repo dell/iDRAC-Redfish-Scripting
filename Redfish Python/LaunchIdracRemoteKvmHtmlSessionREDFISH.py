@@ -83,9 +83,9 @@ def get_iDRAC_version():
 def get_set_iDRAC_vconsole_plugin():
     logging.info("\n- INFO, getting current value for iDRAC attribute \"%s\"" % "VirtualConsole.1.PluginType")
     if args["x"]:
-        response = requests.get('https://%s/redfish/v1/Managers/iDRAC.Embedded.1/Attributes' % idrac_ip, verify=verify_cert, headers={'X-Auth-Token': args["x"]})   
+        response = requests.get('https://%s/redfish/v1/Managers/iDRAC.Embedded.1/Oem/Dell/DellAttributes/iDRAC.Embedded.1' % idrac_ip, verify=verify_cert, headers={'X-Auth-Token': args["x"]})   
     else:
-        response = requests.get('https://%s/redfish/v1/Managers/iDRAC.Embedded.1/Attributes' % idrac_ip, verify=verify_cert,auth=(idrac_username, idrac_password))
+        response = requests.get('https://%s/redfish/v1/Managers/iDRAC.Embedded.1/Oem/Dell/DellAttributes/iDRAC.Embedded.1' % idrac_ip, verify=verify_cert,auth=(idrac_username, idrac_password))
     data = response.json()
     attributes_dict=data['Attributes']
     locate_attribute = "no"
@@ -99,7 +99,7 @@ def get_set_iDRAC_vconsole_plugin():
         sys.exit(0)
     if current_value != args["plugin_type"]:
         logging.info("- INFO, attribute \"%s\" current value not set to %s, executing PATCH operation" % ("VirtualConsole.1.PluginType", args["plugin_type"]))
-        url = 'https://%s/redfish/v1/Managers/iDRAC.Embedded.1/Attributes' % idrac_ip
+        url = 'https://%s/redfish/v1/Managers/iDRAC.Embedded.1/Oem/Dell/DellAttributes/iDRAC.Embedded.1' % idrac_ip
         payload = {'Attributes': {'VirtualConsole.1.PluginType': '%s' % args["plugin_type"]}}
         if args["x"]:
             headers = {'content-type': 'application/json', 'X-Auth-Token': args["x"]}
@@ -112,9 +112,9 @@ def get_set_iDRAC_vconsole_plugin():
             logging.info("- PASS, PATCH command passed to successfully set attribute \"%s\"" % "VirtualConsole.1.PluginType")
             time.sleep(10)
             if args["x"]:
-                response = requests.get('https://%s/redfish/v1/Managers/iDRAC.Embedded.1/Attributes' % idrac_ip, verify=verify_cert, headers={'X-Auth-Token': args["x"]})   
+                response = requests.get('https://%s/redfish/v1/Managers/iDRAC.Embedded.1/Oem/Dell/DellAttributes/iDRAC.Embedded.1' % idrac_ip, verify=verify_cert, headers={'X-Auth-Token': args["x"]})   
             else:
-                response = requests.get('https://%s/redfish/v1/Managers/iDRAC.Embedded.1/Attributes' % idrac_ip, verify=verify_cert,auth=(idrac_username, idrac_password))
+                response = requests.get('https://%s/redfish/v1/Managers/iDRAC.Embedded.1/Oem/Dell/DellAttributes/iDRAC.Embedded.1' % idrac_ip, verify=verify_cert,auth=(idrac_username, idrac_password))
             data = response.json()
             attributes_dict=data['Attributes']
             for i in attributes_dict:
@@ -133,7 +133,7 @@ def get_set_iDRAC_vconsole_plugin():
         
 def export_ssl_cert():
     logging.info("- INFO, exporting iDRAC SSL server cert")
-    url = 'https://%s/redfish/v1/Dell/Managers/iDRAC.Embedded.1/DelliDRACCardService/Actions/DelliDRACCardService.ExportSSLCertificate' % (idrac_ip)
+    url = 'https://%s/redfish/v1/Managers/iDRAC.Embedded.1/Oem/Dell/DelliDRACCardService/Actions/DelliDRACCardService.ExportSSLCertificate' % (idrac_ip)
     payload = {"SSLCertType":"Server"}
     if args["x"]:
         headers = {'content-type': 'application/json', 'X-Auth-Token': args["x"]}
