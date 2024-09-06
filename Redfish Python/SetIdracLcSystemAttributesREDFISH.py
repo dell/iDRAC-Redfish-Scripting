@@ -58,9 +58,9 @@ def script_examples():
 
 def check_supported_idrac_version():
     if args["x"]:
-        response = requests.get('https://%s/redfish/v1/Managers/iDRAC.Embedded.1/Attributes' % idrac_ip, verify=verify_cert, headers={'X-Auth-Token': args["x"]})
+        response = requests.get('https://%s/redfish/v1/Managers/iDRAC.Embedded.1/Oem/Dell/DellAttributes/iDRAC.Embedded.1' % idrac_ip, verify=verify_cert, headers={'X-Auth-Token': args["x"]})
     else:
-        response = requests.get('https://%s/redfish/v1/Managers/iDRAC.Embedded.1/Attributes' % idrac_ip, verify=verify_cert, auth=(idrac_username, idrac_password))
+        response = requests.get('https://%s/redfish/v1/Managers/iDRAC.Embedded.1/Oem/Dell/DellAttributes/iDRAC.Embedded.1' % idrac_ip, verify=verify_cert, auth=(idrac_username, idrac_password))
     data = response.json()
     if response.status_code == 401:
         logging.warning("\n- WARNING, status code %s returned. Incorrect iDRAC username/password or invalid privilege detected." % response.status_code)
@@ -117,11 +117,11 @@ def set_attributes():
     static_ip_value = ""
     static_ip_set = "no"
     if args["set"] == "idrac":
-        url = 'https://%s/redfish/v1/Managers/iDRAC.Embedded.1/Attributes' % idrac_ip
+        url = 'https://%s/redfish/v1/Managers/iDRAC.Embedded.1/Oem/Dell/DellAttributes/iDRAC.Embedded.1' % idrac_ip
     elif args["set"] == "lc":
-        url = 'https://%s/redfish/v1/Managers/LifecycleController.Embedded.1/Attributes' % idrac_ip
+        url = 'https://%s/redfish/v1/Managers/iDRAC.Embedded.1/Oem/Dell/DellAttributes/LifecycleController.Embedded.1' % idrac_ip
     elif args["set"] == "system":
-        url = 'https://%s/redfish/v1/Managers/System.Embedded.1/Attributes' % idrac_ip
+        url = 'https://%s/redfish/v1/Managers/iDRAC.Embedded.1/Oem/Dell/DellAttributes/System.Embedded.1' % idrac_ip
     else:
         print("\n- FAIL, invalid value entered for -s argument")
         sys.exit(0)
@@ -175,7 +175,7 @@ def get_new_attribute_values():
     time.sleep(30)
     if "IPv4.1.Address" in attribute_names:
         logging.info("- INFO, static IP address change detected, script will validate changes using new IP address\n")
-        url_new = 'https://%s/redfish/v1/Managers/iDRAC.Embedded.1/Attributes' % payload["Attributes"]["IPv4.1.Address"]
+        url_new = 'https://%s/redfish/v1/Managers/iDRAC.Embedded.1/Oem/Dell/DellAttributes/iDRAC.Embedded.1' % payload["Attributes"]["IPv4.1.Address"]
         if args["x"]:
             response = requests.get('%s' % (url_new), verify=verify_cert, headers={'X-Auth-Token': args["x"]})
         else:
@@ -198,7 +198,7 @@ def get_new_attribute_values():
                 logging.info("- INFO, attribute %s current value is not set to %s, current value: %s" % (i[0], i[1], attributes_dict[i[0]]))
     elif static_ip_set == "yes":
         logging.info("- INFO, DHCP to static IP change detected, will use new IP to validate attribute changes\n")
-        url_new = 'https://%s/redfish/v1/Managers/iDRAC.Embedded.1/Attributes' % static_ip_value
+        url_new = 'https://%s/redfish/v1/Managers/iDRAC.Embedded.1/Oem/Dell/DellAttributes/iDRAC.Embedded.1' % static_ip_value
         if args["x"]:
             response = requests.get('%s' % (url_new), verify=verify_cert, headers={'X-Auth-Token': args["x"]})
         else:
