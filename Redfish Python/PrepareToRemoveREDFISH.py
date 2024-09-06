@@ -51,9 +51,9 @@ def script_examples():
     
 def check_supported_idrac_version():
     if args["x"]:
-        response = requests.get('https://%s/redfish/v1/Dell/Systems/System.Embedded.1/DellRaidService' % idrac_ip, verify=verify_cert, headers={'X-Auth-Token': args["x"]})
+        response = requests.get('https://%s/redfish/v1/Systems/System.Embedded.1/Oem/Dell/DellRaidService' % idrac_ip, verify=verify_cert, headers={'X-Auth-Token': args["x"]})
     else:
-        response = requests.get('https://%s/redfish/v1/Dell/Systems/System.Embedded.1/DellRaidService' % idrac_ip, verify=verify_cert,auth=(idrac_username, idrac_password))
+        response = requests.get('https://%s/redfish/v1/Systems/System.Embedded.1/Oem/Dell/DellRaidService' % idrac_ip, verify=verify_cert,auth=(idrac_username, idrac_password))
     data = response.json()
     if response.status_code == 401:
         logging.warning("\n- WARNING, status code %s returned. Incorrect iDRAC username/password or invalid privilege detected." % response.status_code)
@@ -117,9 +117,9 @@ def get_pdisks():
 def get_ISM_status():
     logging.info("\n- INFO, validating iDRAC Service Module(iSM) installed in the OS and service is running\n")
     if args["x"]:
-        response = requests.get('https://%s/redfish/v1/Managers/iDRAC.Embedded.1/Attributes' % idrac_ip,verify=verify_cert, headers={'X-Auth-Token': args["x"]})   
+        response = requests.get('https://%s/redfish/v1/Managers/iDRAC.Embedded.1/Oem/Dell/DellAttributes/iDRAC.Embedded.1' % idrac_ip,verify=verify_cert, headers={'X-Auth-Token': args["x"]})   
     else:
-        response = requests.get('https://%s/redfish/v1/Managers/iDRAC.Embedded.1/Attributes' % idrac_ip,verify=verify_cert,auth=(idrac_username, idrac_password))
+        response = requests.get('https://%s/redfish/v1/Managers/iDRAC.Embedded.1/Oem/Dell/DellAttributes/iDRAC.Embedded.1' % idrac_ip,verify=verify_cert,auth=(idrac_username, idrac_password))
     data = response.json()
     if response.status_code != 200:
         logging.error("\n- FAIL, GET command failed, return code %s" % response.status_code)
@@ -140,7 +140,7 @@ def prepare_to_remove():
     global job_id
     global start_time
     start_time = datetime.now()
-    url = 'https://%s/redfish/v1/Dell/Systems/System.Embedded.1/DellRaidService/Actions/DellRaidService.PrepareToRemove' % (idrac_ip)
+    url = 'https://%s/redfish/v1/Systems/System.Embedded.1/Oem/Dell/DellRaidService/Actions/DellRaidService.PrepareToRemove' % (idrac_ip)
     payload = {"TargetFQDD": args["prepare_remove"]}
     if args["x"]:
         headers = {'content-type': 'application/json', 'X-Auth-Token': args["x"]}
