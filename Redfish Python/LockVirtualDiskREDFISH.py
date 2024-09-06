@@ -30,7 +30,7 @@ from pprint import pprint
 
 warnings.filterwarnings("ignore")
 
-parser=argparse.ArgumentParser(description="Python script using Redfish API with OEM extension to lock a virtual disk. Encryption or controller key must already be set on the controller and virtual disk created with SED(self encrypting drive) drives")
+parser=argparse.ArgumentParser(description="Python script using Redfish API with OEM extension to lock(secure) a virtual disk. Encryption or controller key must already be set on the controller and virtual disk created with SED(self encrypting drive) drives")
 parser.add_argument('-ip',help='iDRAC IP address', required=False)
 parser.add_argument('-u', help='iDRAC username', required=False)
 parser.add_argument('-p', help='iDRAC password', required=False)
@@ -38,12 +38,12 @@ parser.add_argument('-x', help='Pass in X-Auth session token for executing Redfi
 parser.add_argument('--ssl', help='SSL cert verification for all Redfish calls, pass in value \"true\" or \"false\". By default, this argument is not required and script ignores validating SSL cert for all Redfish calls.', required=False)
 parser.add_argument('--script-examples', help='Get executing script examples', action="store_true", dest="script_examples", required=False)
 parser.add_argument('--get-controllers', help='Get server storage controller FQDDs', action="store_true", dest="get_controllers", required=False)
-parser.add_argument('--get-disks', help='Get server storage controller disk FQDDs and their raid status, pass in storage controller FQDD, Example "\RAID.Integrated.1-1\"', dest="get_disks", required=False)
+parser.add_argument('--get-disks', help='Get server storage controller disk FQDDs and their raid status, pass in storage controller FQDD, Example RAID.Integrated.1-1', dest="get_disks", required=False)
 parser.add_argument('--get-disk-encryption', help='Get drive encryption capability, pass in storage controller FQDD, Example "\RAID.Integrated.1-1\"', dest="get_disk_encryption", required=False)
-parser.add_argument('--get-virtualdisks', help='Get current server storage controller virtual disk(s) and virtual disk type, pass in storage controller FQDD, Example "\RAID.Integrated.1-1\"', dest="get_virtualdisks", required=False)
-parser.add_argument('--get-virtualdisk-details', help='Get complete details for all virtual disks behind storage controller, pass in storage controller FQDD, Example "\RAID.Integrated.1-1\"', dest="get_virtualdisk_details", required=False)
-parser.add_argument('--check-locked-vds', help='Check for current locked virtual disks, pass in storage controller FQDD, Example "\RAID.Integrated.1-1\"', dest="check_locked_vds", required=False)
-parser.add_argument('--lock', help='Lock virtual disk, pass in the virtual disk FQDD, Example \"Disk.Virtual.0:RAID.Integrated.1-1\"', required=False)
+parser.add_argument('--get-virtualdisks', help='Get current server storage controller virtual disk(s) and virtual disk type, pass in storage controller FQDD, Example RAID.Integrated.1-1', dest="get_virtualdisks", required=False)
+parser.add_argument('--get-virtualdisk-details', help='Get complete details for all virtual disks behind storage controller, pass in storage controller FQDD, Example RAID.Integrated.1-1', dest="get_virtualdisk_details", required=False)
+parser.add_argument('--check-locked-vds', help='Check for current locked virtual disks, pass in storage controller FQDD, Example RAID.Integrated.1-1', dest="check_locked_vds", required=False)
+parser.add_argument('--lock', help='Lock(secure) virtual disk, pass in the virtual disk FQDD, Example Disk.Virtual.0:RAID.Integrated.1-1', required=False)
 args = vars(parser.parse_args())
 logging.basicConfig(format='%(message)s', stream=sys.stdout, level=logging.INFO)
 
@@ -57,15 +57,34 @@ def script_examples():
 
 def check_supported_idrac_version():
     if args["x"]:
-        response = requests.get('https://%s/redfish/v1/Dell/Systems/System.Embedded.1/DellRaidService' % idrac_ip, verify=verify_cert, headers={'X-Auth-Token': args["x"]})
+        response = requests.get('https://%s/redfish/v1/Systems/System.Embedded.1/Oem/Dell/DellRaidService' % idrac_ip, verify=verify_cert, headers={'X-Auth-Token': args["x"]})
     else:
-        response = requests.get('https://%s/redfish/v1/Dell/Systems/System.Embedded.1/DellRaidService' % idrac_ip, verify=verify_cert,auth=(idrac_username, idrac_password))
+        response = requests.get('https://%s/redfish/v1/Systems/System.Embedded.1/Oem/Dell/DellRaidService' % idrac_ip, verify=verify_cert,auth=(idrac_username, idrac_password))
     data = response.json()
     if response.status_code == 401:
         logging.warning("\n- WARNING, status code %s returned. Incorrect iDRAC username/password or invalid privilege detected." % response.status_code)
         sys.exit(0)
     elif response.status_code != 200:
         logging.warning("\n- WARNING, iDRAC version installed does not support this feature using Redfish API")
+        sys.exit(0)
+
+def get_server_generation():
+    global server_generation
+    if args["x"]:
+        response = requests.get('https://%s/redfish/v1/Systems/System.Embedded.1?$select=Oem/Dell/DellSystem/SystemGeneration' % idrac_ip, verify=verify_cert, headers={'X-Auth-Token': args["x"]})
+    else:
+        response = requests.get('https://%s/redfish/v1/Systems/System.Embedded.1?$select=Oem/Dell/DellSystem/SystemGeneration' % idrac_ip, verify=False,auth=(idrac_username,idrac_password))
+    data = response.json()
+    if response.status_code == 401:
+        logging.error("- ERROR, status code 401 detected, check to make sure your iDRAC script session has correct username/password credentials or if using X-auth token, confirm the session is still active.")
+        return
+    elif response.status_code != 200:
+        logging.warning("\n- WARNING, unable to get server generation, error: \n%s" % data)
+        sys.exit(0)
+    try:
+        server_generation = data["Oem"]["Dell"]["DellSystem"]["SystemGeneration"]
+    except:
+        logging.error("- FAIL, unable to get server generation from JSON output")
         sys.exit(0)
 
 def test_valid_controller_FQDD_string(x):
@@ -225,8 +244,10 @@ def check_lock_VDs():
 
 def lock_VD():
     global job_id
-    method = "LockVirtualDisk"
-    url = 'https://%s/redfish/v1/Dell/Systems/System.Embedded.1/DellRaidService/Actions/DellRaidService.LockVirtualDisk' % (idrac_ip)
+    if "14G" in server_generation or "15G" in server_generation or "16G" in server_generation:
+        url = 'https://%s/redfish/v1/Systems/System.Embedded.1/Oem/Dell/DellRaidService/Actions/DellRaidService.LockVirtualDisk' % (idrac_ip)
+    else:
+        url = 'https://%s/redfish/v1/Systems/System.Embedded.1/Oem/Dell/DellRaidService/Actions/DellRaidService.SecureVirtualDisk' % (idrac_ip)    
     payload={"TargetFQDD": args["lock"]}
     if args["x"]:
         headers = {'content-type': 'application/json', 'X-Auth-Token': args["x"]}
@@ -242,7 +263,7 @@ def lock_VD():
         except:
             logging.error("- FAIL, unable to locate job ID in JSON headers output")
             sys.exit(0)
-        logging.info("- Job ID %s successfully created for storage method \"%s\"" % (job_id, method)) 
+        logging.info("- Job ID %s successfully created to secure virtual disk" % job_id) 
     else:
         logging.error("\n- FAIL, POST command failed to lock virtual disk \"%s\"" % args["lock"])
         logging.error("\n- POST command failure results:\n %s" % data)
