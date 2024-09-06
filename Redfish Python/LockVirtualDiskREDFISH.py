@@ -39,7 +39,7 @@ parser.add_argument('--ssl', help='SSL cert verification for all Redfish calls, 
 parser.add_argument('--script-examples', help='Get executing script examples', action="store_true", dest="script_examples", required=False)
 parser.add_argument('--get-controllers', help='Get server storage controller FQDDs', action="store_true", dest="get_controllers", required=False)
 parser.add_argument('--get-disks', help='Get server storage controller disk FQDDs and their raid status, pass in storage controller FQDD, Example RAID.Integrated.1-1', dest="get_disks", required=False)
-parser.add_argument('--get-disk-encryption', help='Get drive encryption capability, pass in storage controller FQDD, Example "\RAID.Integrated.1-1\"', dest="get_disk_encryption", required=False)
+parser.add_argument('--get-disk-encryption', help='Get drive encryption capability, pass in storage controller FQDD, Example RAID.Integrated.1-1', dest="get_disk_encryption", required=False)
 parser.add_argument('--get-virtualdisks', help='Get current server storage controller virtual disk(s) and virtual disk type, pass in storage controller FQDD, Example RAID.Integrated.1-1', dest="get_virtualdisks", required=False)
 parser.add_argument('--get-virtualdisk-details', help='Get complete details for all virtual disks behind storage controller, pass in storage controller FQDD, Example RAID.Integrated.1-1', dest="get_virtualdisk_details", required=False)
 parser.add_argument('--check-locked-vds', help='Check for current locked virtual disks, pass in storage controller FQDD, Example RAID.Integrated.1-1', dest="check_locked_vds", required=False)
