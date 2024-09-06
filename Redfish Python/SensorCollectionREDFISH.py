@@ -51,9 +51,9 @@ def script_examples():
 
 def check_supported_idrac_version():
     if args["x"]:
-        response = requests.get('https://%s/redfish/v1/Dell/Systems/System.Embedded.1/DellNumericSensorCollection' % idrac_ip, verify=verify_cert, headers={'X-Auth-Token': args["x"]})
+        response = requests.get('https://%s/redfish/v1/Systems/System.Embedded.1/Oem/Dell/DellNumericSensors' % idrac_ip, verify=verify_cert, headers={'X-Auth-Token': args["x"]})
     else:
-        response = requests.get('https://%s/redfish/v1/Dell/Systems/System.Embedded.1/DellNumericSensorCollection' % idrac_ip, verify=verify_cert, auth=(idrac_username, idrac_password))
+        response = requests.get('https://%s/redfish/v1/Systems/System.Embedded.1/Oem/Dell/DellNumericSensors' % idrac_ip, verify=verify_cert, auth=(idrac_username, idrac_password))
     data = response.json()
     if response.status_code == 401:
         logging.warning("\n- WARNING, status code %s returned. Incorrect iDRAC username/password or invalid privilege detected." % response.status_code)
@@ -107,9 +107,9 @@ def get_sensor_data():
         number_list = [i for i in range (1,100001) if i % 50 == 0]
         for seq in number_list:
             if args["x"]:
-                response = requests.get('https://%s/redfish/v1/Dell/Systems/System.Embedded.1/DellSlotCollection?$skip=%s' % (idrac_ip, seq), verify=verify_cert, headers={'X-Auth-Token': args["x"]})   
+                response = requests.get('https://%s/redfish/v1/Systems/System.Embedded.1/Oem/Dell/DellNumericSensors?$skip=%s' % (idrac_ip, seq), verify=verify_cert, headers={'X-Auth-Token': args["x"]})   
             else:
-                response = requests.get('https://%s/redfish/v1/Dell/Systems/System.Embedded.1/DellSlotCollection?$skip=%s' % (idrac_ip, seq), verify=verify_cert,auth=(idrac_username, idrac_password))
+                response = requests.get('https://%s/redfish/v1/Systems/System.Embedded.1/Oem/Dell/DellNumericSensors?$skip=%s' % (idrac_ip, seq), verify=verify_cert,auth=(idrac_username, idrac_password))
             data = response.json()
             if response.status_code != 200:
                 if "query parameter $skip is out of range" in data["error"]["@Message.ExtendedInfo"][0]["Message"]:
