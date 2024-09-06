@@ -3,7 +3,7 @@
 # InsertEjectVirtualMediaREDFISH. Python script using Redfish API DMTF to either get virtual media information, insert or eject virtual media
 #
 # _author_ = Texas Roemer <Texas_Roemer@Dell.com>
-# _version_ = 6.0
+# _version_ = 7.0
 #
 # Copyright (c) 2019, Dell, Inc.
 #
@@ -50,13 +50,13 @@ logging.basicConfig(format='%(message)s', stream=sys.stdout, level=logging.INFO)
 
 def script_examples():
     print("""\n- InsertEjectVirtualMediaREDFISH.py -ip 192.168.0.120 -u root -p calvin --get, this example will get current virtual media devices status.
-    \n- InsertEjectVirtualMediaREDFISH.py -ip 192.168.0.120 -u root -p calvin --action insert --index 1 --uripath //192.168.0.130/cifs/idsdm.img --username administrator --password P@ssword, this example shows attaching IMG image for virtual device index 1 (this example is only valid for iDRAC 6.00 or newer).
-    \n- InsertEjectVirtualMediaREDFISH.py -ip 192.168.0.120 -u root -p calvin --action insert --index 2 --uripath //192.168.0.130/cifs/VMware-700-A01.iso --username administrator --password P@ssword, this example shows attaching CD ISO image for virtual device index 2 (this example is only valid for iDRAC 6.00 or newer)
-    \n- InsertEjectVirtualMediaREDFISH.py -ip 192.168.0.120 -u root -p calvin --action insert --uripath //192.168.0.130/cifs/VMware-700-A01.iso --username administrator --password P@ssword- --device cd, this example shows attaching CD ISO image (this example is only valid for iDRAC 5.10 or older).
-    \n- InsertEjectVirtualMediaREDFISH.py -ip 192.168.0.120 -u root -p calvin --action insert --uripath //192.168.0.130/cifs/idsdm.img --username administrator --password P@ssword- --device removabledisk, this example shows attaching IMG image (this example is only valid for iDRAC 5.10 or older).
-    \n- InsertEjectVirtualMediaREDFISH.py -ip 192.168.0.120 -u root -p calvin --action eject --index 1, this example shows ejecting virtual media device index 1 (this example is only valid for iDRAC 6.00 or newer). 
-    \n- InsertEjectVirtualMediaREDFISH.py -ip 192.168.0.120 -u root -p calvin --action eject --device cd, this example shows ejecting virtual media CD ISO image (this example is only valid for iDRAC 5.10 or older). 
-    \n- InsertEjectVirtualMediaREDFISH.py -ip 192.168.0.120 -u root -p calvin --action insert --index 1 --uripath http://192.168.0.130:8080/http_share/RHEL-9.1.x86_64-dvd1.iso --write-protected false, this example shows mounting HTTP share ISO as read write (this example is only valid for iDRAC 6.00 or newer).""")
+    \n- InsertEjectVirtualMediaREDFISH.py -ip 192.168.0.120 -u root -p calvin --action insert --index 1 --uripath //192.168.0.130/cifs/idsdm.img --username administrator --password P@ssword, this example shows attaching IMG image for virtual device index 1 (this example is only valid for iDRAC9 6.00 or newer and iDRAC10).
+    \n- InsertEjectVirtualMediaREDFISH.py -ip 192.168.0.120 -u root -p calvin --action insert --index 2 --uripath //192.168.0.130/cifs/VMware-700-A01.iso --username administrator --password P@ssword, this example shows attaching CD ISO image for virtual device index 2 (this example is only valid for iDRAC9 6.00 or newer and iDRAC10)
+    \n- InsertEjectVirtualMediaREDFISH.py -ip 192.168.0.120 -u root -p calvin --action insert --uripath //192.168.0.130/cifs/VMware-700-A01.iso --username administrator --password P@ssword- --device cd, this example shows attaching CD ISO image (this example is only valid for iDRAC9 5.10 or older).
+    \n- InsertEjectVirtualMediaREDFISH.py -ip 192.168.0.120 -u root -p calvin --action insert --uripath //192.168.0.130/cifs/idsdm.img --username administrator --password P@ssword- --device removabledisk, this example shows attaching IMG image (this example is only valid for iDRAC9 5.10 or older).
+    \n- InsertEjectVirtualMediaREDFISH.py -ip 192.168.0.120 -u root -p calvin --action eject --index 1, this example shows ejecting virtual media device index 1 (this example is only valid for iDRAC9 6.00 or newer and iDRAC10). 
+    \n- InsertEjectVirtualMediaREDFISH.py -ip 192.168.0.120 -u root -p calvin --action eject --device cd, this example shows ejecting virtual media CD ISO image (this example is only valid for iDRAC9 5.10 or older). 
+    \n- InsertEjectVirtualMediaREDFISH.py -ip 192.168.0.120 -u root -p calvin --action insert --index 1 --uripath http://192.168.0.130:8080/http_share/RHEL-9.1.x86_64-dvd1.iso --write-protected false, this example shows mounting HTTP share ISO as read write (this example is only valid for iDRAC9 6.00 or newer and iDRAC10).""")
     sys.exit(0)
 
 def get_iDRAC_version():
@@ -70,29 +70,47 @@ def get_iDRAC_version():
         logging.error("\n- ERROR, status code 401 detected, check to make sure your iDRAC script session has correct username/password credentials or if using X-auth token, confirm the session is still active.")
         sys.exit(0)
     elif response.status_code != 200:
-        logging.warning("\n- WARNING, unable to get current iDRAC version installed")
+        logging.warning("\n- WARNING, unable to get current iDRAC version installed, status code %s returned" % response.status_code)
         sys.exit(0)
-    if int(data["FirmwareVersion"].replace(".","")) >= 6000000:
-        iDRAC_version = "new"
+    iDRAC_version = int(data["FirmwareVersion"].split(".")[0])
+
+def get_server_generation():
+    global server_generation
+    if args["x"]:
+        response = requests.get('https://%s/redfish/v1/Systems/System.Embedded.1?$select=Oem/Dell/DellSystem/SystemGeneration' % idrac_ip, verify=verify_cert, headers={'X-Auth-Token': args["x"]})
     else:
-        iDRAC_version = "old"
-            
-def get_virtual_media_info():
-    if iDRAC_version == "new":
-        if args["x"]:
-            response = requests.get('https://%s/redfish/v1/Systems/System.Embedded.1/VirtualMedia?$expand=*($levels=1)' % idrac_ip, verify=verify_cert, headers={'X-Auth-Token': args["x"]})
-        else:
-            response = requests.get('https://%s/redfish/v1/Systems/System.Embedded.1/VirtualMedia?$expand=*($levels=1)' % idrac_ip, verify=False,auth=(idrac_username,idrac_password))
-    elif iDRAC_version == "old":
-        if args["x"]:
-            response = requests.get('https://%s/redfish/v1/Managers/iDRAC.Embedded.1/VirtualMedia?$expand=*($levels=1)' % idrac_ip, verify=verify_cert, headers={'X-Auth-Token': args["x"]})
-        else:
-            response = requests.get('https://%s/redfish/v1/Managers/iDRAC.Embedded.1/VirtualMedia?$expand=*($levels=1)' % idrac_ip, verify=False,auth=(idrac_username,idrac_password))
+        response = requests.get('https://%s/redfish/v1/Systems/System.Embedded.1?$select=Oem/Dell/DellSystem/SystemGeneration' % idrac_ip, verify=False,auth=(idrac_username,idrac_password))
+    data = response.json()
     if response.status_code == 401:
         logging.error("- ERROR, status code 401 detected, check to make sure your iDRAC script session has correct username/password credentials or if using X-auth token, confirm the session is still active.")
         return
     elif response.status_code != 200:
-        logging.warning("\n- WARNING, unable to get current iDRAC version installed")
+        logging.warning("\n- WARNING, unable to get server generation, error: \n%s" % data)
+        sys.exit(0)
+    try:
+        server_generation = data["Oem"]["Dell"]["DellSystem"]["SystemGeneration"]
+    except:
+        logging.error("- FAIL, unable to get server generation from JSON output")
+        sys.exit(0)
+            
+def get_virtual_media_info():
+    if iDRAC_version < 6 and "14G" in server_generation or iDRAC_version < 6 and "15G" in server_generation or iDRAC_version < 6 and "16G" in server_generation:
+        if args["x"]:
+            response = requests.get('https://%s/redfish/v1/Managers/iDRAC.Embedded.1/VirtualMedia?$expand=*($levels=1)' % idrac_ip, verify=verify_cert, headers={'X-Auth-Token': args["x"]})
+        else:
+            response = requests.get('https://%s/redfish/v1/Managers/iDRAC.Embedded.1/VirtualMedia?$expand=*($levels=1)' % idrac_ip, verify=False,auth=(idrac_username,idrac_password))
+    else:
+        if args["x"]:
+            response = requests.get('https://%s/redfish/v1/Systems/System.Embedded.1/VirtualMedia?$expand=*($levels=1)' % idrac_ip, verify=verify_cert, headers={'X-Auth-Token': args["x"]})
+        else:
+            response = requests.get('https://%s/redfish/v1/Systems/System.Embedded.1/VirtualMedia?$expand=*($levels=1)' % idrac_ip, verify=False,auth=(idrac_username,idrac_password))
+    if response.status_code == 401:
+        logging.error("- ERROR, status code 401 detected, check to make sure your iDRAC script session has correct username/password credentials or if using X-auth token, confirm the session is still active.")
+        return
+    elif response.status_code != 200:
+        logging.warning("\n- WARNING, unable to get current iDRAC version installed, status code %s returned" % response.status_code)
+        data = response.json()
+        print(data)
         sys.exit(0)
     data = response.json()
     print("\n - Virtual Media Device Details -\n")
@@ -101,7 +119,7 @@ def get_virtual_media_info():
         print("\n")
         
 def insert_virtual_media():
-    if iDRAC_version == "old":
+    if iDRAC_version < 6 and "14G" in server_generation or iDRAC_version < 6 and "15G" in server_generation or iDRAC_version < 6 and "16G" in server_generation:
         if args["index"]:
             logging.error("\n- ERROR, argument --index detected but not supported for current iDRAC version. See help text and examples for more details")
             sys.exit(0)
@@ -112,15 +130,12 @@ def insert_virtual_media():
         else:
             logging.error("- FAIL, invalid value passed in for action or device argument")
             sys.exit(0)
-    elif iDRAC_version == "new" and args["index"]:
+    else:
         if args["device"]:
             logging.error("\n- ERROR, argument --device detected but not supported for current iDRAC version. See help text and examples for more details")
             sys.exit(0)
         else:
             url = "https://%s/redfish/v1/Systems/System.Embedded.1/VirtualMedia/%s/Actions/VirtualMedia.InsertMedia" % (idrac_ip, args["index"])
-    else:
-        logging.error("- FAIL, invalid value passed in for action argument or missing index argument")
-        sys.exit(0)
     if args["write_protected"]:
         if args["write_protected"].lower() == "true":
             write_protected_value = True
@@ -147,7 +162,7 @@ def insert_virtual_media():
         logging.info("\n- PASS, POST command passed to successfully insert virtual media, status code %s returned" % response.status_code)
 
 def eject_virtual_media():
-    if iDRAC_version == "old":
+    if iDRAC_version < 6 and "14G" in server_generation or iDRAC_version < 6 and "15G" in server_generation or iDRAC_version < 6 and "16G" in server_generation:
         if args["index"]:
             logging.error("\n- ERROR, argument --index detected but not supported for current iDRAC version. See help text and examples for more details")
             sys.exit(0)
@@ -155,18 +170,12 @@ def eject_virtual_media():
             url = "https://%s/redfish/v1/Managers/iDRAC.Embedded.1/VirtualMedia/CD/Actions/VirtualMedia.EjectMedia" % idrac_ip
         elif args["action"].lower() == "eject" and args["device"].lower() == "removabledisk":
             url = "https://%s/redfish/v1/Managers/iDRAC.Embedded.1/VirtualMedia/RemovableDisk/Actions/VirtualMedia.EjectMedia" % idrac_ip
-        else:
-            logging.error("- FAIL, invalid value passed in for action argument")
-            sys.exit(0)
-    elif iDRAC_version == "new" and args["index"]:
+    else:
         if args["device"]:
             logging.error("\n- ERROR, argument --device detected but not supported for current iDRAC version. See help text and examples for more details")
             sys.exit(0)
         else:
             url = "https://%s/redfish/v1/Systems/System.Embedded.1/VirtualMedia/%s/Actions/VirtualMedia.EjectMedia" % (idrac_ip, args["index"])
-    else:
-        logging.error("- FAIL, invalid value passed in for action argument or missing index argument")
-        sys.exit(0)
     payload = {}
     if args["x"]:
         headers = {'content-type': 'application/json', 'X-Auth-Token': args["x"]}
@@ -204,6 +213,7 @@ if __name__ == "__main__":
         logging.error("\n- FAIL, invalid argument values or not all required parameters passed in. See help text or argument --script-examples for more details.")
         sys.exit(0)
     get_iDRAC_version()
+    get_server_generation()
     if args["get"]:
         get_virtual_media_info()
     elif args["action"].lower() == "insert":
