@@ -48,9 +48,9 @@ def script_examples():
 
 def check_supported_idrac_version():
     if args["x"]:
-        response = requests.get('https://%s/redfish/v1/Dell/Managers/iDRAC.Embedded.1/DellTimeService' % idrac_ip, verify=verify_cert, headers={'X-Auth-Token': args["x"]})
+        response = requests.get('https://%s/redfish/v1/Managers/iDRAC.Embedded.1/Oem/Dell/DellTimeService' % idrac_ip, verify=verify_cert, headers={'X-Auth-Token': args["x"]})
     else:
-        response = requests.get('https://%s/redfish/v1/Dell/Managers/iDRAC.Embedded.1/DellTimeService' % idrac_ip, verify=verify_cert, auth=(idrac_username, idrac_password))
+        response = requests.get('https://%s/redfish/v1/Managers/iDRAC.Embedded.1/Oem/Dell/DellTimeService' % idrac_ip, verify=verify_cert, auth=(idrac_username, idrac_password))
     try:
         data = response.json()
     except:
@@ -61,7 +61,7 @@ def check_supported_idrac_version():
         sys.exit(0)
 
 def get_idrac_time():
-    url = 'https://%s/redfish/v1/Dell/Managers/iDRAC.Embedded.1/DellTimeService/Actions/DellTimeService.ManageTime' % (idrac_ip)
+    url = 'https://%s/redfish/v1/Managers/iDRAC.Embedded.1/Oem/Dell/DellTimeService/Actions/DellTimeService.ManageTime' % (idrac_ip)
     method = "ManageTime"
     payload = {"GetRequest":True}
     if args["x"]:
@@ -80,7 +80,7 @@ def get_idrac_time():
     logging.info("- INFO, current iDRAC date/time: %s" % data["TimeData"])
         
 def set_idrac_time():
-    url = 'https://%s/redfish/v1/Dell/Managers/iDRAC.Embedded.1/DellTimeService/Actions/DellTimeService.ManageTime' % (idrac_ip)
+    url = 'https://%s/redfish/v1/Managers/iDRAC.Embedded.1/Oem/Dell/DellTimeService/Actions/DellTimeService.ManageTime' % (idrac_ip)
     method = "ManageTime"
     payload={"GetRequest":False, "TimeData":args["set"]}
     if args["x"]:
