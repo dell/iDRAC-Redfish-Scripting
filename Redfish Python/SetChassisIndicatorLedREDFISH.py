@@ -1,7 +1,7 @@
 #!/usr/bin/python3
 #
 # _author_ = Texas Roemer <Texas_Roemer@Dell.com>
-# _version_ = 3.0
+# _version_ = 5.0
 #
 # Copyright (c) 2018, Dell, Inc.
 #
@@ -25,22 +25,22 @@ import warnings
 
 warnings.filterwarnings("ignore")
 
-parser=argparse.ArgumentParser(description="Python script using Redfish API to either get current chassis indicator LED state or set chassis indicator LED state")
+parser=argparse.ArgumentParser(description="Python script using Redfish API to either get current chassis LED state or set chassis LED state. Note this script now leverages property LocationIndicatorActive since property IndicatorLED has been deprecated.")
 parser.add_argument('-ip',help='iDRAC IP address', required=False)
 parser.add_argument('-u', help='iDRAC username', required=False)
 parser.add_argument('-p', help='iDRAC password. If you do not pass in argument -p, script will prompt to enter user password which will not be echoed to the screen.', required=False)
 parser.add_argument('-x', help='Pass in X-Auth session token for executing Redfish calls. All Redfish calls will use X-Auth token instead of username/password', required=False)
-parser.add_argument('--ssl', help='SSL cert verification for all Redfish calls, pass in value \"true\" or \"false\". By default, this argument is not required and script ignores validating SSL cert for all Redfish calls.', required=False)
+parser.add_argument('--ssl', help='SSL cert verification for all Redfish calls, pass in value true or false. By default, this argument is not required and script ignores validating SSL cert for all Redfish calls.', required=False)
 parser.add_argument('--script-examples', help='Get executing script examples', action="store_true", dest="script_examples", required=False)
-parser.add_argument('--get', help='Get current chassis indicator LED state', action="store_true", required=False)
-parser.add_argument('--set', help='Set chassis indicator LED state, pass in one of the supported values: \"Lit\" or \"Blinking\". These values are case sensitive so pass in the exact string syntax', required=False)
+parser.add_argument('--get', help='Get current chassis LED state', action="store_true", required=False)
+parser.add_argument('--set', help='Set chassis LED state, pass in one of the supported values: true or false.', required=False)
 args = vars(parser.parse_args())
 logging.basicConfig(format='%(message)s', stream=sys.stdout, level=logging.INFO)
 
 def script_examples():
     print("""\nSetChassisIndicatorLedREDFISH.py -ip 192.168.0.120 -u root -p calvin --get, this example will return current chassis LED state.
-    \nSetChassisIndicatorLedREDFISH.py -ip 192.168.0.120 -u root -p calvin --set Lit, this example will disable blinking and set chassis LED state to Lit.
-    \nSetChassisIndicatorLedREDFISH.py -ip 192.168.0.120 -u root -p calvin --set Blinking, this example will set chassis LED to blink.""")
+    \nSetChassisIndicatorLedREDFISH.py -ip 192.168.0.120 -u root -p calvin --set false, this example will stop chassis LED from blinking.
+    \nSetChassisIndicatorLedREDFISH.py -ip 192.168.0.120 -u root -p calvin --set true, this example will blink chassis LED.""")
     sys.exit(0)
 
 def check_supported_idrac_version():
@@ -56,7 +56,7 @@ def check_supported_idrac_version():
         logging.warning("\n- WARNING, iDRAC version installed does not support this feature using Redfish API")
         sys.exit(0)
 
-def get_current_chassis_indicator_LED_state():
+def get_current_LocationIndicatorActive_property_value():
     if args["x"]:
         response = requests.get('https://%s/redfish/v1/Chassis/System.Embedded.1' % idrac_ip,verify=verify_cert, headers={'X-Auth-Token': args["x"]})   
     else:
@@ -68,12 +68,15 @@ def get_current_chassis_indicator_LED_state():
     elif response.status_code != 200:
         logging.error("- ERROR, status code %s returned, error results: %s" % (response.status_code, data))
         sys.exit(0)
-    logging.info("\n- INFO, current chassis indicator LED state is: %s" % data['IndicatorLED'])
+    logging.info("\n- INFO, current chassis location indicator active property setting: %s" % data["LocationIndicatorActive"])
 
-def set_current_chassis_indicator_LED_state():
+def set_current_LocationIndicatorActive_property():
     url = 'https://%s/redfish/v1/Chassis/System.Embedded.1' % idrac_ip
-    payload = {'IndicatorLED': args["set"].title()}
-    headers = {'content-type': 'application/json'}
+    if args["set"].lower() == "true":
+        payload = {"LocationIndicatorActive": True}
+    elif args["set"].lower() == "false":
+        payload = {"LocationIndicatorActive": False}
+    headers = {"content-type": "application/json"}
     if args["x"]:
         headers = {'content-type': 'application/json', 'X-Auth-Token': args["x"]}
         response = requests.patch(url, data=json.dumps(payload), headers=headers, verify=verify_cert)
@@ -81,9 +84,9 @@ def set_current_chassis_indicator_LED_state():
         headers = {'content-type': 'application/json'}
         response = requests.patch(url, data=json.dumps(payload), headers=headers, verify=verify_cert,auth=(idrac_username,idrac_password))
     if response.status_code == 200:
-        logging.info("\n- PASS, PATCH command successfully completed \"%s\" request for chassis indicator LED" % args["set"])
+        logging.info("\n- PASS, PATCH command passed to set LocationIndicatorActive chassis property")
     else:
-        logging.error("\n- ERROR, status code %s returned, detailed failure results:\n%s" % (response.status_code, response.__dict__))
+        logging.error("\n- ERROR, PATCH command failed, status code %s returned, detailed failure results:\n%s" % (response.status_code, response.__dict__))
         sys.exit(0)
         
 if __name__ == "__main__":
@@ -110,8 +113,8 @@ if __name__ == "__main__":
         logging.error("\n- FAIL, invalid argument values or not all required parameters passed in. See help text or argument --script-examples for more details.")
         sys.exit(0)
     if args["get"]:
-        get_current_chassis_indicator_LED_state()
+        get_current_LocationIndicatorActive_property_value()
     elif args["set"]:
-        set_current_chassis_indicator_LED_state()
+        set_current_LocationIndicatorActive_property()
     else:
         logging.error("\n- FAIL, invalid argument values or not all required parameters passed in. See help text or argument --script-examples for more details.")
