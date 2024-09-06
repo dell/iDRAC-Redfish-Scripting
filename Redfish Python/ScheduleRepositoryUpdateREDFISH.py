@@ -64,9 +64,9 @@ def script_examples():
 def check_supported_idrac_version():
     supported = ""
     if args["x"]:
-        response = requests.get('https://%s/redfish/v1/Dell/Managers/iDRAC.Embedded.1/DellLCService' % idrac_ip, verify=verify_cert, headers={'X-Auth-Token': args["x"]})   
+        response = requests.get('https://%s/redfish/v1/Managers/iDRAC.Embedded.1/Oem/Dell/DellLCService' % idrac_ip, verify=verify_cert, headers={'X-Auth-Token': args["x"]})   
     else:
-        response = requests.get('https://%s/redfish/v1/Dell/Managers/iDRAC.Embedded.1/DellLCService' % idrac_ip, verify=verify_cert, auth=(idrac_username, idrac_password))
+        response = requests.get('https://%s/redfish/v1/Managers/iDRAC.Embedded.1/Oem/Dell/DellLCService' % idrac_ip, verify=verify_cert, auth=(idrac_username, idrac_password))
     if response.__dict__['reason'] == "Unauthorized":
         logging.error("\n- FAIL, unauthorized to execute Redfish command. Check to make sure you are passing in correct iDRAC username/password and the IDRAC user has the correct privileges")
         sys.exit(0)
@@ -80,7 +80,7 @@ def check_supported_idrac_version():
         sys.exit(0)
 
 def get_idrac_time():
-    url = 'https://%s/redfish/v1/Dell/Managers/iDRAC.Embedded.1/DellTimeService/Actions/DellTimeService.ManageTime' % (idrac_ip)
+    url = 'https://%s/redfish/v1/Managers/iDRAC.Embedded.1/Oem/Dell/DellTimeService/Actions/DellTimeService.ManageTime' % (idrac_ip)
     method = "ManageTime"
     payload = {"GetRequest":True}
     if args["x"]:
@@ -119,7 +119,7 @@ def get_repository_update_schedule_details():
 
 def clear_repository_update_schedule_details():
     # Disable auto update feature using PATCH
-    url = 'https://%s/redfish/v1/Managers/LifecycleController.Embedded.1/Attributes' % idrac_ip
+    url = 'https://%s/redfish/v1/Managers/iDRAC.Embedded.1/Oem/Dell/DellAttributes/LifecycleController.Embedded.1' % idrac_ip
     payload = {"Attributes":{"LCAttributes.1.AutoUpdate":"Disabled"}}
     if args["x"]:
         headers = {'content-type': 'application/json', 'X-Auth-Token': args["x"]}
@@ -152,7 +152,7 @@ def clear_repository_update_schedule_details():
 
 def set_repository_update_schedule():
     # Enable auto update feature using PATCH
-    url = 'https://%s/redfish/v1/Managers/LifecycleController.Embedded.1/Attributes' % idrac_ip
+    url = 'https://%s/redfish/v1/Managers/iDRAC.Embedded.1/Oem/Dell/DellAttributes/LifecycleController.Embedded.1' % idrac_ip
     payload = {"Attributes":{"LCAttributes.1.AutoUpdate":"Enabled"}}
     if args["x"]:
         headers = {'content-type': 'application/json', 'X-Auth-Token': args["x"]}
