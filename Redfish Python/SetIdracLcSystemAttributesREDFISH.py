@@ -7,7 +7,7 @@
 # NOTE: Possible supported values for attribute_group parameter are: idrac, lc and system.
 #
 # _author_ = Texas Roemer <Texas_Roemer@Dell.com>
-# _version_ = 14.0
+# _version_ = 15.0
 #
 # Copyright (c) 2017, Dell, Inc.
 #
@@ -116,14 +116,14 @@ def set_attributes():
     global attribute_names
     static_ip_value = ""
     static_ip_set = "no"
-    if args["set"] == "idrac":
+    if args["set"].lower() == "idrac":
         url = 'https://%s/redfish/v1/Managers/iDRAC.Embedded.1/Oem/Dell/DellAttributes/iDRAC.Embedded.1' % idrac_ip
-    elif args["set"] == "lc":
+    elif args["set"].lower() == "lc":
         url = 'https://%s/redfish/v1/Managers/iDRAC.Embedded.1/Oem/Dell/DellAttributes/LifecycleController.Embedded.1' % idrac_ip
-    elif args["set"] == "system":
+    elif args["set"].lower() == "system":
         url = 'https://%s/redfish/v1/Managers/iDRAC.Embedded.1/Oem/Dell/DellAttributes/System.Embedded.1' % idrac_ip
     else:
-        print("\n- FAIL, invalid value entered for -s argument")
+        print("\n- FAIL, invalid value entered for --set argument")
         sys.exit(0)
     if args["x"]:
         response = requests.get('%s' % (url), verify=verify_cert, headers={'X-Auth-Token': args["x"]})

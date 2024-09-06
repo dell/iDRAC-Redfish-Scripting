@@ -7,7 +7,7 @@
 # NOTE: Possible supported values for attribute_group parameter are: idrac, lc and system.
 #
 # _author_ = Texas Roemer <Texas_Roemer@Dell.com>
-# _version_ = 10.0
+# _version_ = 11.0
 #
 # Copyright (c) 2017, Dell, Inc.
 #
@@ -35,7 +35,7 @@ from datetime import datetime
 
 warnings.filterwarnings("ignore")
 
-parser = argparse.ArgumentParser(description="Python script using Redfish API to get either iDRAC, lifecycle controller or system attributes. NOTE: This script is only supported on iDRAC9 or newer. If using iDRAC8 you will need to leverage Server Configuration Profile (SCP) feature to get these attributes.")
+parser = argparse.ArgumentParser(description="Python script using Redfish API to get either iDRAC, lifecycle controller or system attributes")
 parser.add_argument('-ip',help='iDRAC IP address', required=False)
 parser.add_argument('-u', help='iDRAC username', required=False)
 parser.add_argument('-p', help='iDRAC password. If you do not pass in argument -p, script will prompt to enter user password which will not be echoed to the screen.', required=False)
@@ -111,12 +111,15 @@ def attribute_registry_get_specific_attribute():
         
 def get_attribute_group():
     global current_value
-    if args["group_name"] == "idrac":
+    if args["group_name"].lower() == "idrac":
         fqdd = "iDRAC.Embedded.1"
-    elif args["group_name"] == "lc":
+    elif args["group_name"].lower() == "lc":
         fqdd = "LifecycleController.Embedded.1"
-    elif args["group_name"] == "system":
+    elif args["group_name"].lower() == "system":
         fqdd = "System.Embedded.1"
+    else:
+        logging.error("\n- FAIL, invalid value entered for argument --group-name")
+        sys.exit(0)
     if args["x"]:
         response = requests.get('https://%s/redfish/v1/Managers/iDRAC.Embedded.1/Oem/Dell/DellAttributes/%s' % (idrac_ip, fqdd), verify=verify_cert, headers={'X-Auth-Token': args["x"]})
     else:
@@ -144,12 +147,15 @@ def get_attribute_group():
     
 def get_specific_attribute():
     global current_value
-    if args["group_name"] == "idrac":
+    if args["group_name"].lower() == "idrac":
         fqdd = "iDRAC.Embedded.1"
-    elif args["group_name"] == "lc":
+    elif args["group_name"].lower() == "lc":
         fqdd = "LifecycleController.Embedded.1"
-    elif args["group_name"] == "system":
+    elif args["group_name"].lower() == "system":
         fqdd = "System.Embedded.1"
+    else:
+        logging.error("\n- FAIL, invalid value entered for argument --group-name")
+        sys.exit(0)
     if args["x"]:
         response = requests.get('https://%s/redfish/v1/Managers/iDRAC.Embedded.1/Oem/Dell/DellAttributes/%s' % (idrac_ip, fqdd), verify=verify_cert, headers={'X-Auth-Token': args["x"]})
     else:
