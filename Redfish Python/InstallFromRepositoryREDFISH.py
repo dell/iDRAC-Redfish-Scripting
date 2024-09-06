@@ -70,9 +70,9 @@ def script_examples():
 
 def check_supported_idrac_version():
     if args["x"]:
-        response = requests.get('https://%s/redfish/v1/Dell/Systems/System.Embedded.1/DellSoftwareInstallationService' % idrac_ip, verify=verify_cert, headers={'X-Auth-Token': args["x"]})
+        response = requests.get('https://%s/redfish/v1/Systems/System.Embedded.1/Oem/Dell/DellSoftwareInstallationService' % idrac_ip, verify=verify_cert, headers={'X-Auth-Token': args["x"]})
     else:
-        response = requests.get('https://%s/redfish/v1/Dell/Systems/System.Embedded.1/DellSoftwareInstallationService' % idrac_ip, verify=verify_cert, auth=(idrac_username, idrac_password))
+        response = requests.get('https://%s/redfish/v1/Systems/System.Embedded.1/Oem/Dell/DellSoftwareInstallationService' % idrac_ip, verify=verify_cert, auth=(idrac_username, idrac_password))
     data = response.json()
     if response.status_code == 401:
         logging.warning("\n- WARNING, status code %s returned, check your iDRAC username/password is correct or iDRAC user has correct privileges to execute Redfish commands" % response.status_code)
@@ -114,7 +114,7 @@ def get_repo_based_update_list():
     except:
         logging.info("- INFO, unable to locate file %s, skipping step to delete" % "repo_based_update_list.xml")
     open_file = open("repo_based_update_list.xml","w")
-    url = 'https://%s/redfish/v1/Dell/Systems/System.Embedded.1/DellSoftwareInstallationService/Actions/DellSoftwareInstallationService.GetRepoBasedUpdateList' % (idrac_ip)
+    url = 'https://%s/redfish/v1/Systems/System.Embedded.1/Oem/Dell/DellSoftwareInstallationService/Actions/DellSoftwareInstallationService.GetRepoBasedUpdateList' % (idrac_ip)
     payload = {}
     if args["x"]:
         headers = {'content-type': 'application/json', 'X-Auth-Token': args["x"]}
@@ -138,7 +138,7 @@ def get_repo_based_update_list():
 
 def get_device_name_criticality_info():
     logging.info("\n- Device Name and Criticality Details for Updatable Devices -\n")
-    url = 'https://%s/redfish/v1/Dell/Systems/System.Embedded.1/DellSoftwareInstallationService/Actions/DellSoftwareInstallationService.GetRepoBasedUpdateList' % (idrac_ip)
+    url = 'https://%s/redfish/v1/Systems/System.Embedded.1/Oem/Dell/DellSoftwareInstallationService/Actions/DellSoftwareInstallationService.GetRepoBasedUpdateList' % (idrac_ip)
     payload = {}
     if args["x"]:
         headers = {'content-type': 'application/json', 'X-Auth-Token': args["x"]}
@@ -192,7 +192,7 @@ def install_from_repository():
         i = i.strip("'")
         current_jobstore_job_ids.append(i)
     global job_id
-    url = 'https://%s/redfish/v1/Dell/Systems/System.Embedded.1/DellSoftwareInstallationService/Actions/DellSoftwareInstallationService.InstallFromRepository' % (idrac_ip)
+    url = 'https://%s/redfish/v1/Systems/System.Embedded.1/Oem/Dell/DellSoftwareInstallationService/Actions/DellSoftwareInstallationService.InstallFromRepository' % (idrac_ip)
     method = "InstallFromRepository"
     payload = {}
     if args["applyupdate"]:
@@ -238,7 +238,7 @@ def install_from_repository():
 
 def get_update_job_ids():
     global new_job_ids
-    url = 'https://%s/redfish/v1/Dell/Systems/System.Embedded.1/DellSoftwareInstallationService/Actions/DellSoftwareInstallationService.GetRepoBasedUpdateList' % (idrac_ip)
+    url = 'https://%s/redfish/v1/Systems/System.Embedded.1/Oem/Dell/DellSoftwareInstallationService/Actions/DellSoftwareInstallationService.GetRepoBasedUpdateList' % (idrac_ip)
     payload = {}
     if args["x"]:
         headers = {'content-type': 'application/json', 'X-Auth-Token': args["x"]}
