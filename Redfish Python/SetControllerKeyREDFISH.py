@@ -38,10 +38,10 @@ parser.add_argument('--ssl', help='Verify SSL certificate for all Redfish calls,
 parser.add_argument('-x', help='Pass in iDRAC X-auth token session ID to execute all Redfish calls instead of passing in username/password', required=False)
 parser.add_argument('--script-examples', help='Get executing script examples', action="store_true", dest="script_examples", required=False) 
 parser.add_argument('--get-controllers', help='Get server storage controller FQDDs', dest="get_controllers", action="store_true", required=False)
-parser.add_argument('--get-controller-encryption', help='Get current controller encryption mode settings, pass in controller FQDD, Example \"RAID.Slot.6-1\"', dest="get_controller_encryption", required=False)
-parser.add_argument('--set', help='Set the controller key, pass in controller FQDD, Example \"RAID.Slot.6-1\"', required=False)
-parser.add_argument('--passphrase', help='Pass in unique key passpharse for setting controller key. Minimum length is 8 characters, must have at least 1 upper and 1 lowercase, 1 number and 1 special character Example \"Test123##\". Refer to Dell PERC documentation for more information.', required=False)
-parser.add_argument('--keyid', help='Pass in unique key id name for setting the controller key, Example \"H730key\"', required=False)
+parser.add_argument('--get-controller-encryption', help='Get current controller encryption mode settings, pass in controller FQDD, Example RAID.Slot.6-1', dest="get_controller_encryption", required=False)
+parser.add_argument('--set', help='Set the controller key, pass in controller FQDD, Example RAID.Slot.6-1', required=False)
+parser.add_argument('--passphrase', help='Pass in unique key passpharse for setting controller key. Minimum length is 8 characters, must have at least 1 upper and 1 lowercase, 1 number and 1 special character Example Test123##. Refer to Dell PERC documentation for more information.', required=False)
+parser.add_argument('--keyid', help='Pass in unique key id name for setting the controller key, Example H730key', required=False)
 
 args = vars(parser.parse_args())
 logging.basicConfig(format='%(message)s', stream=sys.stdout, level=logging.INFO) 
@@ -55,9 +55,9 @@ def script_examples():
     
 def check_supported_idrac_version():
     if args["x"]:
-         response = requests.get('https://%s/redfish/v1/Dell/Systems/System.Embedded.1/DellRaidService' % idrac_ip, verify=verify_cert, headers={'X-Auth-Token': args["x"]})
+        response = requests.get('https://%s/redfish/v1/Systems/System.Embedded.1/Oem/Dell/DellRaidService' % idrac_ip, verify=verify_cert, headers={'X-Auth-Token': args["x"]})
     else:
-        response = requests.get('https://%s/redfish/v1/Dell/Systems/System.Embedded.1/DellRaidService' % idrac_ip, verify=verify_cert, auth=(idrac_username, idrac_password))
+        response = requests.get('https://%s/redfish/v1/Systems/System.Embedded.1/Oem/Dell/DellRaidService' % idrac_ip, verify=verify_cert, auth=(idrac_username, idrac_password))
     data = response.json()
     if response.status_code == 401:
         logging.warning("\n- WARNING, status code %s returned. Incorrect iDRAC username/password or invalid privilege detected." % response.status_code)
@@ -114,7 +114,7 @@ def set_controller_key():
     if data['Oem']['Dell']['DellController']['SecurityStatus'] == "EncryptionNotCapable":
         logging.warning("\n- WARNING, storage controller %s does not support encryption" % args["set"])
         sys.exit(0)
-    url = 'https://%s/redfish/v1/Dell/Systems/System.Embedded.1/DellRaidService/Actions/DellRaidService.SetControllerKey' % (idrac_ip)
+    url = 'https://%s/redfish/v1/Systems/System.Embedded.1/Oem/Dell/DellRaidService/Actions/DellRaidService.SetControllerKey' % (idrac_ip)
     if not args["passphrase"]:
         args["passphrase"] = getpass.getpass("\n- Argument --passphrase not detected, pass in controller passphrase: ") 
     payload={"TargetFQDD":args["set"],"Key":args["passphrase"],"Keyid":args["keyid"]}
