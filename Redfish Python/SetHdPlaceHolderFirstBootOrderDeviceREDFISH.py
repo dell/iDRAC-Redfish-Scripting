@@ -1,5 +1,5 @@
 # _author_ = Texas Roemer <Texas_Roemer@Dell.com>
-# _version_ = 1.0
+# _version_ = 2.0
 #
 # Copyright (c) 2023, Dell, Inc.
 #
@@ -111,7 +111,7 @@ def get_remote_services(idrac_ip):
     start_time = datetime.now()
     current_time = str(datetime.now()-start_time)[0:7]
     while True:
-        url = 'https://%s/redfish/v1/Dell/Managers/iDRAC.Embedded.1/DellLCService/Actions/DellLCService.GetRemoteServicesAPIStatus' % idrac_ip
+        url = 'https://%s/redfish/v1/Managers/iDRAC.Embedded.1/Oem/Dell/DellLCService/Actions/DellLCService.GetRemoteServicesAPIStatus' % idrac_ip
         headers = {'content-type': 'application/json'}
         payload = {}
         response = requests.post(url, data=json.dumps(payload), headers=headers, verify=False,auth=(idrac_username,idrac_password))
@@ -229,7 +229,7 @@ def loop_job_status(idrac_ip):
             logger.info("Job %s successfully marked completed" % job_id)
             time.sleep(60)
             # Delete job ID
-            url = "https://%s/redfish/v1/Dell/Managers/iDRAC.Embedded.1/DellJobService/Actions/DellJobService.DeleteJobQueue" % idrac_ip
+            url = "https://%s/redfish/v1/Managers/iDRAC.Embedded.1/Oem/Dell/DellJobService/Actions/DellJobService.DeleteJobQueue" % idrac_ip
             payload = {"JobID":job_id}
             headers = {'content-type': 'application/json'}
             response = requests.post(url, data=json.dumps(payload), headers=headers, verify=False,auth=(idrac_username,idrac_password))
@@ -330,7 +330,7 @@ def ping_confirm_valid_ip(idrac_ip):
 def get_current_boot_order(idrac_ip):
     global boot_order_already_set
     boot_order_already_set = "no"
-    response = requests.get('https://%s/redfish/v1/Systems/System.Embedded.1/BootSources' % idrac_ip, verify=False,auth=(idrac_username, idrac_password))
+    response = requests.get('https://%s/redfish/v1/Systems/System.Embedded.1/Oem/Dell/DellBootSources' % idrac_ip, verify=False,auth=(idrac_username, idrac_password))
     data = response.json()
     if response.status_code != 200:
         logger.error("GET command failed to get UEFI boot order, status code %s returned" % response.status_code)
@@ -346,7 +346,7 @@ def get_current_boot_order(idrac_ip):
                 logger.error("First device in boot order not set to %s, current first device: %s" % (hd_device_fqdd, device_string))
                 
 def get_new_boot_order(idrac_ip):
-    response = requests.get('https://%s/redfish/v1/Systems/System.Embedded.1/BootSources' % idrac_ip, verify=False,auth=(idrac_username, idrac_password))
+    response = requests.get('https://%s/redfish/v1/Systems/System.Embedded.1/Oem/Dell/DellBootSources' % idrac_ip, verify=False,auth=(idrac_username, idrac_password))
     data = response.json()
     if response.status_code != 200:
         logger.error("GET command failed to get UEFI boot order, status code %s returned" % response.status_code)
