@@ -74,9 +74,9 @@ def script_examples():
 def check_supported_idrac_version():
     supported = ""
     if args["x"]:
-        response = requests.get('https://%s/redfish/v1/Dell/Managers/iDRAC.Embedded.1/DellLCService' % idrac_ip, verify=verify_cert, headers={'X-Auth-Token': args["x"]})
+        response = requests.get('https://%s/redfish/v1/Managers/iDRAC.Embedded.1/Oem/Dell/DellLCService' % idrac_ip, verify=verify_cert, headers={'X-Auth-Token': args["x"]})
     else:
-        response = requests.get('https://%s/redfish/v1/Dell/Managers/iDRAC.Embedded.1/DellLCService' % idrac_ip, verify=verify_cert,auth=(idrac_username, idrac_password))
+        response = requests.get('https://%s/redfish/v1/Managers/iDRAC.Embedded.1/Oem/Dell/DellLCService' % idrac_ip, verify=verify_cert,auth=(idrac_username, idrac_password))
     if response.__dict__['reason'] == "Unauthorized":
         logging.error("\n- FAIL, unauthorized to execute Redfish command. Check to make sure you are passing in correct iDRAC username/password and the IDRAC user has the correct privileges")
         sys.exit(0)
@@ -93,7 +93,7 @@ def support_assist_collection():
     global job_id
     global start_time
     start_time = datetime.now()
-    url = 'https://%s/redfish/v1/Dell/Managers/iDRAC.Embedded.1/DellLCService/Actions/DellLCService.SupportAssistCollection' % (idrac_ip)
+    url = 'https://%s/redfish/v1/Managers/iDRAC.Embedded.1/Oem/Dell/DellLCService/Actions/DellLCService.SupportAssistCollection' % (idrac_ip)
     method = "SupportAssistCollection"
     payload = {"ShareType":"Local"}
     if args["filter"]:
@@ -146,7 +146,7 @@ def support_assist_collection():
     logging.info("\n- PASS, job ID %s successfully created for %s method\n", job_id, method)
 
 def support_assist_accept_EULA():
-    url = 'https://%s/redfish/v1/Dell/Managers/iDRAC.Embedded.1/DellLCService/Actions/DellLCService.SupportAssistAcceptEULA' % (idrac_ip)
+    url = 'https://%s/redfish/v1/Managers/iDRAC.Embedded.1/Oem/Dell/DellLCService/Actions/DellLCService.SupportAssistAcceptEULA' % (idrac_ip)
     method = "SupportAssistAcceptEULA"
     payload = {}
     if args["x"]:
@@ -166,7 +166,7 @@ def support_assist_accept_EULA():
 
 def support_assist_get_EULA_status():
     global accept_interface
-    url = 'https://%s/redfish/v1/Dell/Managers/iDRAC.Embedded.1/DellLCService/Actions/DellLCService.SupportAssistGetEULAStatus' % (idrac_ip)
+    url = 'https://%s/redfish/v1/Managers/iDRAC.Embedded.1/Oem/Dell/DellLCService/Actions/DellLCService.SupportAssistGetEULAStatus' % (idrac_ip)
     method = "SupportAssistGetEULAStatus"
     payload = {}
     if args["x"]:
@@ -186,7 +186,7 @@ def support_assist_get_EULA_status():
     
 
 def support_assist_register():
-    url = 'https://%s/redfish/v1/Managers/iDRAC.Embedded.1/Attributes' % idrac_ip
+    url = 'https://%s/redfish/v1/Managers/iDRAC.Embedded.1/Oem/Dell/DellAttributes/iDRAC.Embedded.1' % idrac_ip
     payload = {"Attributes":{"OS-BMC.1.AdminState":"Enabled"}}
     if args["x"]:
         headers = {'content-type': 'application/json', 'X-Auth-Token': args["x"]}
@@ -200,7 +200,7 @@ def support_assist_register():
         logging.error("\n- FAIL, Command failed for action %s, status code is: %s\n" % (args["s"].upper(),statusCode))
         logging.error("Extended Info Message: {0}".format(response.json()))
         sys.exit(0)
-    url = 'https://%s/redfish/v1/Dell/Managers/iDRAC.Embedded.1/DellLCService/Actions/DellLCService.SupportAssistRegister' % (idrac_ip)
+    url = 'https://%s/redfish/v1/Managers/iDRAC.Embedded.1/Oem/Dell/DellLCService/Actions/DellLCService.SupportAssistRegister' % (idrac_ip)
     method = "SupportAssistRegister"
     payload = {"City": args["city"], "CompanyName": args["companyname"], "Country":args["country"], "PrimaryFirstName":args["firstname"],"PrimaryLastName":args["lastname"], "PrimaryPhoneNumber":args["phonenumber"], "State":args["state"], "Street1": args["street"],"Zip":args["zip"]}
     if args["first_email"]:
@@ -226,7 +226,7 @@ def support_assist_register():
         data = response.__dict__
         print(data["_content"])
         sys.exit(0)
-    url = 'https://%s/redfish/v1/Dell/Managers/iDRAC.Embedded.1/DellLCService/Actions/DellLCService.SupportAssistGetEULAStatus' % (idrac_ip)
+    url = 'https://%s/redfish/v1/Managers/iDRAC.Embedded.1/Oem/Dell/DellLCService/Actions/DellLCService.SupportAssistGetEULAStatus' % (idrac_ip)
     method = "SupportAssistGetEULAStatus"
     payload = {}
     logging.info("- INFO, validating if Support Assist is registered for iDRAC")
