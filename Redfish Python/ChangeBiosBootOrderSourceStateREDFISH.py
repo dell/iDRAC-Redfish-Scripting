@@ -117,7 +117,7 @@ def create_config_file():
     logging.info("\n- Config file \"change_boot_order.txt\" created. This file can be used to either change the boot order or enable/disable boot order devices")
                 
 def change_boot_source_state():
-    url = 'https://%s/redfish/v1/Systems/System.Embedded.1/BootSources/Settings' % idrac_ip
+    url = 'https://%s/redfish/v1/Systems/System.Embedded.1/Oem/Dell/DellBootSources/Settings' % idrac_ip
     try:
         with open(args["change"], "r") as file:
             json_data = file.read()
