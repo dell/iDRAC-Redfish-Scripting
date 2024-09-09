@@ -55,9 +55,9 @@ def script_examples():
 def check_supported_idrac_version():
     supported = ""
     if args["x"]:
-        response = requests.get('https://%s/redfish/v1/Dell/Managers/iDRAC.Embedded.1/DellLCService' % idrac_ip, verify=verify_cert, headers={'X-Auth-Token': args["x"]})   
+        response = requests.get('https://%s/redfish/v1/Managers/iDRAC.Embedded.1/Oem/Dell/DellLCService' % idrac_ip, verify=verify_cert, headers={'X-Auth-Token': args["x"]})   
     else:
-        response = requests.get('https://%s/redfish/v1/Dell/Managers/iDRAC.Embedded.1/DellLCService' % idrac_ip, verify=verify_cert, auth=(idrac_username, idrac_password))
+        response = requests.get('https://%s/redfish/v1/Managers/iDRAC.Embedded.1/Oem/Dell/DellLCService' % idrac_ip, verify=verify_cert, auth=(idrac_username, idrac_password))
     if response.__dict__['reason'] == "Unauthorized":
         logging.error("\n- FAIL, unauthorized to execute Redfish command. Check to make sure you are passing in correct iDRAC username/password and the IDRAC user has the correct privileges")
         sys.exit(0)
@@ -71,7 +71,7 @@ def check_supported_idrac_version():
         sys.exit(0)
 
 def get_support_assist_auto_collection_details():
-    url = 'https://%s/redfish/v1/Dell/Managers/iDRAC.Embedded.1/DellLCService/Actions/DellLCService.SupportAssistGetAutoCollectSchedule' % (idrac_ip)
+    url = 'https://%s/redfish/v1/Managers/iDRAC.Embedded.1/Oem/Dell/DellLCService/Actions/DellLCService.SupportAssistGetAutoCollectSchedule' % (idrac_ip)
     payload = {}
     if args["x"]:
         headers = {'content-type': 'application/json', 'X-Auth-Token': args["x"]}
@@ -90,7 +90,7 @@ def get_support_assist_auto_collection_details():
             print("%s: %s" % (i[0], i[1]))
 
 def clear_support_assist_auto_collection_details():
-    url = 'https://%s/redfish/v1/Dell/Managers/iDRAC.Embedded.1/DellLCService/Actions/DellLCService.SupportAssistClearAutoCollectSchedule' % (idrac_ip)
+    url = 'https://%s/redfish/v1/Managers/iDRAC.Embedded.1/Oem/Dell/DellLCService/Actions/DellLCService.SupportAssistClearAutoCollectSchedule' % (idrac_ip)
     payload = {}
     if args["x"]:
         headers = {'content-type': 'application/json', 'X-Auth-Token': args["x"]}
@@ -106,7 +106,7 @@ def clear_support_assist_auto_collection_details():
         sys.exit(0)
 
 def set_support_assist_auto_collection():
-    url = 'https://%s/redfish/v1/Dell/Managers/iDRAC.Embedded.1/DellLCService/Actions/DellLCService.SupportAssistSetAutoCollectSchedule' % (idrac_ip)
+    url = 'https://%s/redfish/v1/Managers/iDRAC.Embedded.1/Oem/Dell/DellLCService/Actions/DellLCService.SupportAssistSetAutoCollectSchedule' % (idrac_ip)
     payload = {}
     if args["recurrence"]:
         payload["Recurrence"] = args["recurrence"]
