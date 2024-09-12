@@ -3,7 +3,7 @@
 # ExportServerConfigurationNetworkShareREDFISH. Python script using Redfish API to export server configuration profile to a supported network share.
 #
 # _author_ = Texas Roemer <Texas_Roemer@Dell.com>
-# _version_ = 14.0
+# _version_ = 15.0
 #
 # Copyright (c) 2017, Dell, Inc.
 #
@@ -74,6 +74,26 @@ def check_supported_idrac_version():
         logging.warning("\n- WARNING, GET command failed to check supported iDRAC version, status code %s returned" % response.status_code)
         sys.exit(0)
 
+def get_server_generation():
+    global idrac_version
+    if args["x"]:
+        response = requests.get('https://%s/redfish/v1/Managers/iDRAC.Embedded.1?$select=Model' % idrac_ip, verify=verify_cert, headers={'X-Auth-Token': args["x"]})
+    else:
+        response = requests.get('https://%s/redfish/v1/Managers/iDRAC.Embedded.1?$select=Model' % idrac_ip, verify=False,auth=(idrac_username,idrac_password))
+    data = response.json()
+    if response.status_code == 401:
+        logging.error("\n- ERROR, status code 401 detected, check to make sure your iDRAC script session has correct username/password credentials or if using X-auth token, confirm the session is still active.")
+        sys.exit(0)
+    elif response.status_code != 200:
+        logging.warning("\n- WARNING, unable to get current iDRAC version installed")
+        sys.exit(0)
+    if "12" in data["Model"] or "13" in data["Model"]:
+        idrac_version = 8
+    elif "14" in data["Model"] or "15" in data["Model"] or "16" in data["Model"]:
+        idrac_version = 9
+    else:
+        idrac_version = 10
+
 def get_target_values():
     if args["x"]:
         response = requests.get('https://%s/redfish/v1/Managers/iDRAC.Embedded.1' % idrac_ip, verify=verify_cert, headers={'X-Auth-Token': args["x"]})
@@ -95,7 +115,10 @@ def get_target_values():
 def export_server_configuration_profile():
     global job_id
     method = "ExportSystemConfiguration"
-    url = 'https://%s/redfish/v1/Managers/iDRAC.Embedded.1/Actions/Oem/EID_674_Manager.ExportSystemConfiguration' % idrac_ip
+    if idrac_version >= 10:
+        url = 'https://%s/redfish/v1/Managers/iDRAC.Embedded.1/Actions/Oem/OemManager.ExportSystemConfiguration' % idrac_ip
+    else:    
+        url = 'https://%s/redfish/v1/Managers/iDRAC.Embedded.1/Actions/Oem/EID_674_Manager.ExportSystemConfiguration' % idrac_ip
     payload = {"ExportFormat":args['format_type'].upper(),"ShareParameters":{"Target":args["target"]}}
     if args["export_use"]:
         payload["ExportUse"] = args["export_use"]
@@ -126,7 +149,6 @@ def export_server_configuration_profile():
         payload["ShareParameters"]["IgnoreCertificateWarning"] = args["ignorecertwarning"]
     if args["shareport"]:
         payload["ShareParameters"]["PortNumber"] = args["shareport"]
-    print(payload)
     if args["x"]:
         headers = {'content-type': 'application/json', 'X-Auth-Token': args["x"]}
         response = requests.post(url, data=json.dumps(payload), headers=headers, verify=verify_cert)
@@ -195,6 +217,7 @@ if __name__ == "__main__":
                 verify_cert = False
         else:
             verify_cert = False
+        get_server_generation()
         check_supported_idrac_version()
     else:
         logging.error("\n- FAIL, invalid argument values or not all required parameters passed in. See help text or argument --script-examples for more details.")
