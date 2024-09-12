@@ -67,6 +67,26 @@ def check_supported_idrac_version(idrac_ip, idrac_username, idrac_password):
         failure = "yes"
         return
 
+def get_server_generation():
+    global idrac_version
+    if args["x"]:
+        response = requests.get('https://%s/redfish/v1/Managers/iDRAC.Embedded.1?$select=Model' % idrac_ip, verify=verify_cert, headers={'X-Auth-Token': args["x"]})
+    else:
+        response = requests.get('https://%s/redfish/v1/Managers/iDRAC.Embedded.1?$select=Model' % idrac_ip, verify=False,auth=(idrac_username,idrac_password))
+    data = response.json()
+    if response.status_code == 401:
+        logging.error("\n- ERROR, status code 401 detected, check to make sure your iDRAC script session has correct username/password credentials or if using X-auth token, confirm the session is still active.")
+        sys.exit(0)
+    elif response.status_code != 200:
+        logging.warning("\n- WARNING, unable to get current iDRAC version installed")
+        sys.exit(0)
+    if "12" in data["Model"] or "13" in data["Model"]:
+        idrac_version = 8
+    elif "14" in data["Model"] or "15" in data["Model"] or "16" in data["Model"]:
+        idrac_version = 9
+    else:
+        idrac_version = 10
+
 def import_SCP_local_filename(idrac_ip, idrac_username, idrac_password):
     global job_id
     global failure
@@ -76,7 +96,10 @@ def import_SCP_local_filename(idrac_ip, idrac_username, idrac_password):
     except:
         logging.error("\n- FAIL, \"%s\" file doesn't exist" % args["scp_filename"])
         sys.exit(0)   
-    url = 'https://%s/redfish/v1/Managers/iDRAC.Embedded.1/Actions/Oem/EID_674_Manager.ImportSystemConfiguration' % idrac_ip
+    if idrac_version >= 10:
+        url = 'https://%s/redfish/v1/Managers/iDRAC.Embedded.1/Actions/Oem/OemManager.ImportSystemConfiguration' % idrac_ip
+    else:    
+        url = 'https://%s/redfish/v1/Managers/iDRAC.Embedded.1/Actions/Oem/EID_674_Manager.ImportSystemConfiguration' % idrac_ip
     # Code needed to modify the SCP file to one string to pass in for POST command
     modify_file = open_file.read()
     modify_file = re.sub(" \n ","",modify_file)
@@ -187,6 +210,7 @@ if __name__ == "__main__":
             script_examples()
             sys.exit(0)
         if args["csv_filename"]:
+            get_server_generation()
             idrac_details_dict = {}
             file_path = args["csv_filename"]
             count = 1
