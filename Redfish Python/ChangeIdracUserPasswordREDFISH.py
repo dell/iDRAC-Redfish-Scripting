@@ -3,7 +3,7 @@
 # ChangeIdracUserPasswordREDFISH. Python script using Redfish API with OEM extension to change iDRAC username password. Once the password is changed, the script will also execute a GET command to verify the password change was successful.
 #
 # _author_ = Texas Roemer <Texas_Roemer@Dell.com>
-# _version_ = 10.0
+# _version_ = 11.0
 #
 # Copyright (c) 2017, Dell, Inc.
 #
@@ -38,7 +38,7 @@ parser.add_argument('-x', help='Pass in X-Auth session token for executing Redfi
 parser.add_argument('--ssl', help='SSL cert verification for all Redfish calls, pass in value \"true\" or \"false\". By default, this argument is not required and script ignores validating SSL cert for all Redfish calls.', required=False)
 parser.add_argument('--script-examples', help='Get executing script examples', action="store_true", dest="script_examples", required=False)
 parser.add_argument('--get', help='Get iDRAC user account information. This will return detailed information for each iDRAC user account.', action="store_true", required=False)
-parser.add_argument('--user-id', help='Pass in the iDRAC user account ID you want to change the password for. If needed, use argument -g to get the iDRAC user account ID.', dest="user_id", required=False)
+parser.add_argument('--user-id', help='Pass in iDRAC user account ID you want to change the password for. Note this argument is only supported for iDRAC9 or older versions.', dest="user_id", required=False)
 parser.add_argument('--new-pwd', help='Pass in the new password you want to set for the iDRAC user ID. If you do not pass in this argument, script will prompt to enter new password and will not be echoed to the screen.', dest="new_pwd", required=False)
 
 args=vars(parser.parse_args())
@@ -46,15 +46,15 @@ logging.basicConfig(format='%(message)s', stream=sys.stdout, level=logging.INFO)
 
 def script_examples():
     print("""\n- ChangeIdracUserPasswordREDFISH.py -ip 192.168.0.120 -u root -p calvin --get, this example will get user account information for all iDRAC users.
-    \n- ChangeIdracUserPasswordREDFISH.py -ip 192.168.0.120 -u user -p calvin --user-id 3 --new-pwd pAssw0rd, this example shows changing iDRAC user ID 3 password.
+    \n- ChangeIdracUserPasswordREDFISH.py -ip 192.168.0.120 -u user -p calvin --user-id 3 --new-pwd pAssw0rd, this example shows changing password for iDRAC user account ID 3.
     \n- ChangeIdracUserPasswordREDFISH.py -ip 192.168.0.120 -x 983d154b4a125c7ae3838b8e32256b78 --user-id 8, this example using iDRAC X-auth token session will first prompt to enter new password, then change the password for user ID 8.""")
     sys.exit(0)
 
 def check_supported_idrac_version():
     if args["x"]:
-        response = requests.get('https://%s/redfish/v1/Managers/iDRAC.Embedded.1/Accounts' % idrac_ip, verify=verify_cert, headers={'X-Auth-Token': args["x"]})   
+        response = requests.get('https://%s/redfish/v1/Managers/iDRAC.Embedded.1' % idrac_ip, verify=verify_cert, headers={'X-Auth-Token': args["x"]})   
     else:
-        response = requests.get('https://%s/redfish/v1/Managers/iDRAC.Embedded.1/Accounts' % idrac_ip, verify=verify_cert,auth=(idrac_username, idrac_password))
+        response = requests.get('https://%s/redfish/v1/Managers/iDRAC.Embedded.1' % idrac_ip, verify=verify_cert,auth=(idrac_username, idrac_password))
     data = response.json()
     if response.status_code == 401:
         logging.warning("\n- WARNING, status code %s returned. Incorrect iDRAC username/password or invalid privilege detected." % response.status_code)
@@ -62,6 +62,26 @@ def check_supported_idrac_version():
     if response.status_code != 200:
         logging.warning("\n- WARNING, iDRAC version installed does not support this feature using Redfish API")
         sys.exit(0)
+
+def get_server_generation():
+    global idrac_version
+    if args["x"]:
+        response = requests.get('https://%s/redfish/v1/Managers/iDRAC.Embedded.1?$select=Model' % idrac_ip, verify=verify_cert, headers={'X-Auth-Token': args["x"]})
+    else:
+        response = requests.get('https://%s/redfish/v1/Managers/iDRAC.Embedded.1?$select=Model' % idrac_ip, verify=False,auth=(idrac_username,idrac_password))
+    data = response.json()
+    if response.status_code == 401:
+        logging.error("\n- ERROR, status code 401 detected, check to make sure your iDRAC script session has correct username/password credentials or if using X-auth token, confirm the session is still active.")
+        sys.exit(0)
+    elif response.status_code != 200:
+        logging.warning("\n- WARNING, unable to get current iDRAC version installed")
+        sys.exit(0)
+    if "12" in data["Model"] or "13" in data["Model"]:
+        idrac_version = 8
+    elif "14" in data["Model"] or "15" in data["Model"] or "16" in data["Model"]:
+        idrac_version = 9
+    else:
+        idrac_version = 10
 
 def get_iDRAC_user_account_info():
     if args["x"]:
@@ -78,18 +98,13 @@ def get_iDRAC_user_account_info():
         print("\n")
                 
 def change_idrac_user_password():
-    if args["x"]:
-        response = requests.get('https://%s/redfish/v1/Managers/iDRAC.Embedded.1/Accounts/%s' % (idrac_ip, args["user_id"]), verify=verify_cert, headers={'X-Auth-Token': args["x"]})   
+    payload = {'Password': args["new_pwd"]}
+    if idrac_version >= 10:
+        url = 'https://%s/redfish/v1/AccountService/Accounts/%s' % (idrac_ip, args["user_id"])
     else:
-        response = requests.get('https://%s/redfish/v1/Managers/iDRAC.Embedded.1/Accounts/%s' % (idrac_ip, args["user_id"]), verify=verify_cert,auth=(idrac_username, idrac_password))
-    if response.status_code == 401:
-        logging.warning("\n- WARNING, status code 401 detected, check iDRAC username / password credentials and privilege level")
-        sys.exit(0)
-    data = response.json()
-    url = 'https://%s/redfish/v1/Managers/iDRAC.Embedded.1/Accounts/%s' % (idrac_ip, args["user_id"])
+        url = 'https://%s/redfish/v1/Managers/iDRAC.Embedded.1/Accounts/%s' % (idrac_ip, args["user_id"])
     if not args["new_pwd"]:
         args["new_pwd"] = getpass.getpass("\n- Argument --new-pwd not detected, pass in new user password: ")
-    payload = {'Password': args["new_pwd"]}
     if args["x"]:
         headers = {'content-type': 'application/json', 'X-Auth-Token': args["x"]}
         response = requests.patch(url, data=json.dumps(payload), headers=headers, verify=verify_cert)
@@ -97,7 +112,7 @@ def change_idrac_user_password():
         headers = {'content-type': 'application/json'}
         response = requests.patch(url, data=json.dumps(payload), headers=headers, verify=verify_cert,auth=(idrac_username,idrac_password))
     if response.status_code == 200:
-        logging.info("\n- PASS, status code %s returned for PATCH command to change iDRAC user password for user ID %s" % (response.status_code, args["user_id"]))
+        logging.info("\n- PASS, status code %s returned for PATCH command to change iDRAC user password" % response.status_code)
     else:
         data = response.json()
         logging.error("\n- FAIL, status code %s returned, password was not changed. Detailed error results: \n%s" % (response.status_code, data))
@@ -125,6 +140,7 @@ if __name__ == "__main__":
         else:
             verify_cert = False
         check_supported_idrac_version()
+        get_server_generation()
     else:
         logging.error("\n- FAIL, invalid argument values or not all required parameters passed in. See help text or argument --script-examples for more details.")
         sys.exit(0)
