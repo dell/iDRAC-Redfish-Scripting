@@ -162,6 +162,7 @@ def get_virtual_disks_details():
         for i in data.items():
             pprint(i)
         print("\n")
+        
 def get_DHS_disks():
     url = 'https://%s/redfish/v1/Systems/System.Embedded.1/Oem/Dell/DellRaidService/Actions/DellRaidService.GetDHSDisks' % (idrac_ip)
     payload={"TargetFQDD":args["get_dhs_disks"]}
