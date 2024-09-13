@@ -96,47 +96,50 @@ def get_virtual_disks():
     else:
         response = requests.get('https://%s/redfish/v1/Systems/System.Embedded.1/Storage/%s/Volumes' % (idrac_ip, args["get_virtualdisks"]),verify=verify_cert,auth=(idrac_username, idrac_password))
     data = response.json()
-    vd_list_uris = []
+    vd_list=[]
     if data['Members'] == []:
         logging.warning("\n- WARNING, no volume(s) detected for %s" % args["get_virtualdisks"])
         sys.exit(0)
+    else:
+        for i in data['Members']:
+            vd_list.append(i['@odata.id'].split("/")[-1])
     logging.info("\n- Volume(s) detected for %s controller -\n" % args["get_virtualdisks"])
-    for i in data["Members"]:
-        for ii in i.items():
-            vd_list_uris.append(ii[1])
-    for i in vd_list_uris:
+    for ii in vd_list:
         if args["x"]:
-            response = requests.get('https://%s%s' % (idrac_ip, i),verify=verify_cert, headers={'X-Auth-Token': args["x"]})
+            response = requests.get('https://%s/redfish/v1/Systems/System.Embedded.1/Storage/%s/Volumes/%s' % (idrac_ip, args["get_virtualdisks"], ii),verify=verify_cert, headers={'X-Auth-Token': args["x"]})
         else:
-            response = requests.get('https://%s%s' % (idrac_ip, i),verify=verify_cert, auth=(idrac_username, idrac_password))
+            response = requests.get('https://%s/redfish/v1/Systems/System.Embedded.1/Storage/%s/Volumes/%s' % (idrac_ip, args["get_virtualdisks"], ii),verify=verify_cert, auth=(idrac_username, idrac_password))
         data = response.json()
-        for ii in data.items():
-            if ii[0] == "VolumeType":
-                print("%s, Volume type: %s" % (i.split("/")[-1], ii[1]))
+        for i in data.items():
+            if i[0] == "VolumeType":
+                print("%s, Volume type: %s" % (ii, i[1]))
 
 def get_virtual_disks_details():
     test_valid_controller_FQDD_string(args["get_virtualdisk_details"])
     if args["x"]:
         response = requests.get('https://%s/redfish/v1/Systems/System.Embedded.1/Storage/%s/Volumes' % (idrac_ip, args["get_virtualdisk_details"]),verify=verify_cert, headers={'X-Auth-Token': args["x"]})
     else:
-        response = requests.get('https://%s/redfish/v1/Systems/System.Embedded.1/Storage/%s/Volumes' % (idrac_ip, args["get_virtualdisk_details"]),verify=verify_cert,auth=(idrac_username, idrac_password))
+        response = requests.get('https://%s/redfish/v1/Systems/System.Embedded.1/Storage/%s/Volumes' % (idrac_ip, args["get_virtualdisk_details"]),verify=verify_cert, auth=(idrac_username, idrac_password))
     data = response.json()
-    vd_list_uris = []
+    vd_list = []
     if data['Members'] == []:
-        logging.warning("\n- WARNING, no volume(s) detected for %s" % args["get_virtualdisk_details"])
+        logging.error("\n- WARNING, no volume(s) detected for %s" % args["get_virtualdisk_details"])
         sys.exit(0)
-    for i in data["Members"]:
-        for ii in i.items():
-            vd_list_uris.append(ii[1])
-    for i in vd_list_uris:
+    else:
+        logging.info("\n- Volume(s) detected for %s controller -\n" % args["get_virtualdisk_details"])
+        for i in data['Members']:
+            vd_list.append(i['@odata.id'].split("/")[-1])
+            print(i['@odata.id'].split("/")[-1])
+    for ii in vd_list:
         if args["x"]:
-            response = requests.get('https://%s%s' % (idrac_ip, i),verify=verify_cert, headers={'X-Auth-Token': args["x"]})
+            response = requests.get('https://%s/redfish/v1/Systems/System.Embedded.1/Storage/%s/Volumes/%s' % (idrac_ip, args["get_virtualdisk_details"], ii),verify=verify_cert, headers={'X-Auth-Token': args["x"]})
         else:
-            response = requests.get('https://%s%s' % (idrac_ip, i),verify=verify_cert, auth=(idrac_username, idrac_password))
+            response = requests.get('https://%s/redfish/v1/Systems/System.Embedded.1/Storage/%s/Volumes/%s' % (idrac_ip, args["get_virtualdisk_details"], ii),verify=verify_cert, auth=(idrac_username, idrac_password))
         data = response.json()
-        logging.info("\n- Detailed information for volume %s -\n" % i.split("/")[-1])
-        for ii in data.items():
-            pprint(ii)
+        logging.info("\n----- Detailed Volume information for %s -----\n" % ii)
+        for i in data.items():
+            pprint(i)
+        print("\n")
         
 def cancel_check_consistency():
     global job_id
