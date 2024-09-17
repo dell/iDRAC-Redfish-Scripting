@@ -90,10 +90,10 @@ def import_server_configuration_profile_preview():
     global job_id
     method = "ImportSystemConfigurationPreview"
     if idrac_version >= 10:
-        url = 'https://%s/redfish/v1/Managers/iDRAC.Embedded.1/Actions/Oem/OemManager.ImportSystemConfigurationPreview'' % idrac_ip
+        url = 'https://%s/redfish/v1/Managers/iDRAC.Embedded.1/Actions/Oem/OemManager.ImportSystemConfigurationPreview' % idrac_ip
     else:    
-        url = 'https://%s/redfish/v1/Managers/iDRAC.Embedded.1/Actions/Oem/EID_674_Manager.ImportSystemConfigurationPreview'' % idrac_ip
-    payload = {"ShareParameters":{"Target":"ALL"}}
+        url = 'https://%s/redfish/v1/Managers/iDRAC.Embedded.1/Actions/Oem/EID_674_Manager.ImportSystemConfigurationPreview' % idrac_ip
+    payload = {"ShareParameters":{"Target":["ALL"]}}
     if args["shareip"]:
         payload["ShareParameters"]["IPAddress"] = args["shareip"]
     if args["sharetype"]:
@@ -110,7 +110,6 @@ def import_server_configuration_profile_preview():
         payload["ShareParameters"]["Workgroup"] = args["workgroup"]
     if args["ignorecertwarning"]:
         payload["ShareParameters"]["IgnoreCertificateWarning"] = args["ignorecertwarning"]
-    
     if args["x"]:
         headers = {'content-type': 'application/json', 'X-Auth-Token': args["x"]}
         response = requests.post(url, data=json.dumps(payload), headers=headers, verify=verify_cert)

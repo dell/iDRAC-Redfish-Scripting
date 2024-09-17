@@ -87,6 +87,7 @@ def get_server_generation():
     else:
         idrac_version = 10
 
+
 def get_target_values():
     if args["x"]:
         response = requests.get('https://%s/redfish/v1/Managers/iDRAC.Embedded.1' % idrac_ip, verify=verify_cert, headers={'X-Auth-Token': args["x"]})
@@ -122,7 +123,7 @@ def import_SCP_local_filename():
     modify_file = re.sub(" \n","",modify_file)
     file_string = re.sub("   ","",modify_file)
     open_file.close()
-    payload = {"ImportBuffer":"","ShareParameters":{"Target":args["target"]}}
+    payload = {"ImportBuffer":"","ShareParameters":{"Target":[args["target"]]}}
     if args["shutdown_type"]:
         payload["ShutdownType"] = args["shutdown_type"].title()
     if args["end_powerstate"]:
