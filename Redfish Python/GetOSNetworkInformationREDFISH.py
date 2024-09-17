@@ -64,9 +64,9 @@ def check_supported_idrac_version():
 
 def get_iSM_status():
     if args["x"]:
-        response = requests.get('https://%s/redfish/v1/Managers/iDRAC.Embedded.1/Attributes?$select=Attributes/ServiceModule.1.ServiceModuleState' % idrac_ip, verify=verify_cert, headers={'X-Auth-Token': args["x"]})
+        response = requests.get('https://%s/redfish/v1/Managers/iDRAC.Embedded.1/Oem/Dell/DellAttributes/iDRAC.Embedded.1?$select=Attributes/ServiceModule.1.ServiceModuleState' % idrac_ip, verify=verify_cert, headers={'X-Auth-Token': args["x"]})
     else:
-        response = requests.get('https://%s/redfish/v1/Managers/iDRAC.Embedded.1/Attributes?$select=Attributes/ServiceModule.1.ServiceModuleState' % idrac_ip, verify=verify_cert, auth=(idrac_username, idrac_password))
+        response = requests.get('https://%s/redfish/v1/Managers/iDRAC.Embedded.1/Oem/Dell/DellAttributes/iDRAC.Embedded.1?$select=Attributes/ServiceModule.1.ServiceModuleState' % idrac_ip, verify=verify_cert, auth=(idrac_username, idrac_password))
     data = response.json()
     if response.status_code != 200:
         logging.error("- FAIL, GET command failed to get iDRAC iSM service status, status code %s returned" % response.status_code)
