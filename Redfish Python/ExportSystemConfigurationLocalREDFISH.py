@@ -115,20 +115,20 @@ def export_scp_file_locally():
         url = 'https://%s/redfish/v1/Managers/iDRAC.Embedded.1/Actions/Oem/EID_674_Manager.ExportSystemConfiguration' % idrac_ip
     if not args["format_type"]:
         args["format_type"]="XML"    
-    payload = {"ExportFormat":args["format_type"].upper(),"ShareParameters":{"Target":args["target"]}}
+    payload = {"ExportFormat":args["format_type"].upper(),"ShareParameters":{"Target":[args["target"]]}}
     if args["export_use"]:
         payload["ExportUse"] = args["export_use"]
     if args["include"]:
         if args["include"] == "1":
-            payload["IncludeInExport"] = "Default"
+            payload["IncludeInExport"] = ["Default"]
         if args["include"] == "2":
-            payload["IncludeInExport"] = "IncludeReadOnly"
+            payload["IncludeInExport"] = ["IncludeReadOnly"]
         if args["include"] == "3":
-            payload["IncludeInExport"] = "IncludePasswordHashValues"
+            payload["IncludeInExport"] = ["IncludePasswordHashValues"]
         if args["include"] == "4":
-            payload["IncludeInExport"] = "IncludeReadOnly,IncludePasswordHashValues"
+            payload["IncludeInExport"] = ["IncludeReadOnly,IncludePasswordHashValues"]
         if args["include"] == "5":
-            payload["IncludeInExport"] = "IncludeCustomTelemetry"
+            payload["IncludeInExport"] = ["IncludeCustomTelemetry"]
     if args["x"]:
         headers = {'content-type': 'application/json', 'X-Auth-Token': args["x"]}
         response = requests.post(url, data=json.dumps(payload), headers=headers, verify=verify_cert)
