@@ -193,9 +193,9 @@ def export_scp_file_locally():
                     print(i)
                 print("\n")
                 if args["x"]:
-                    response = requests.get('https://%s/redfish/v1/Managers/iDRAC.Embedded.1/Jobs/%s' % (idrac_ip, job_id), verify=verify_cert, headers={'X-Auth-Token': args["x"]})
+                    response = requests.get('https://%s/redfish/v1/Managers/iDRAC.Embedded.1/Oem/Dell/Jobs/%s' % (idrac_ip, job_id), verify=verify_cert, headers={'X-Auth-Token': args["x"]})
                 else:
-                    response = requests.get('https://%s/redfish/v1/Managers/iDRAC.Embedded.1/Jobs/%s' % (idrac_ip, job_id), verify=verify_cert, auth=(idrac_username, idrac_password))
+                    response = requests.get('https://%s/redfish/v1/Managers/iDRAC.Embedded.1/Oem/Dell/Jobs/%s' % (idrac_ip, job_id), verify=verify_cert, auth=(idrac_username, idrac_password))
                 data = response.json()
                 print("\n- PASS, final detailed job status results for job ID %s -\n" % job_id)
                 for i in data.items():
@@ -215,9 +215,9 @@ def export_scp_file_locally():
                 open_file.write(json.dumps(json.loads(json_format), indent=4))
                 open_file.close()
                 if args["x"]:
-                    response = requests.get('https://%s/redfish/v1/Managers/iDRAC.Embedded.1/Jobs/%s' % (idrac_ip, job_id), verify=verify_cert, headers={'X-Auth-Token': args["x"]})
+                    response = requests.get('https://%s/redfish/v1/Managers/iDRAC.Embedded.1/Oem/Dell/Jobs/%s' % (idrac_ip, job_id), verify=verify_cert, headers={'X-Auth-Token': args["x"]})
                 else:
-                    response = requests.get('https://%s/redfish/v1/Managers/iDRAC.Embedded.1/Jobs/%s' % (idrac_ip, job_id), verify=verify_cert, auth=(idrac_username, idrac_password))
+                    response = requests.get('https://%s/redfish/v1/Managers/iDRAC.Embedded.1/Oem/Dell/Jobs/%s' % (idrac_ip, job_id), verify=verify_cert, auth=(idrac_username, idrac_password))
                 data = response.json()
                 logging.info("\n- PASS, final detailed job status results for job ID %s -\n" % job_id)
                 for i in data.items():
@@ -240,6 +240,9 @@ def export_scp_file_locally():
         if str(current_time)[0:7] >= "0:10:00":
             logging.error("\n- FAIL, Timeout of 10 minutes has been reached before marking the job completed.")
             sys.exit(0)
+        elif data['Oem']['Dell']['Message'] == None:
+            time.sleep(5)
+            continue
         elif "unable" in data['Oem']['Dell']['Message'].lower():
             logging.error("- FAIL, job completed but issue detected: error: %s" % data['Oem']['Dell']['Message'])
             sys.exit(0)

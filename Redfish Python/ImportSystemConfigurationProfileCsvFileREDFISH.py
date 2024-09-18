@@ -156,7 +156,7 @@ def export_scp_file_locally():
             for i in export_xml:
                 open_file.writelines("%s \n" % i)
             open_file.close()
-            response = requests.get('https://%s/redfish/v1/Managers/iDRAC.Embedded.1/Jobs/%s' % (idrac_ip, job_id), verify=False, auth=(idrac_username, idrac_password))
+            response = requests.get('https://%s/redfish/v1/Managers/iDRAC.Embedded.1/Oem/Dell/Jobs/%s' % (idrac_ip, job_id), verify=False, auth=(idrac_username, idrac_password))
             data = response.json()
             logging.info("- INFO, exported attributes saved to file: %s" % filename)
             return
