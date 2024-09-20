@@ -4,7 +4,7 @@
 # subscriptions, create / delete subscriptions or submit test event.
 #
 # _author_ = Texas Roemer <Texas_Roemer@Dell.com>
-# _version_ = 2.0
+# _version_ = 3.0
 #
 # Copyright (c) 2022, Dell, Inc.
 #
@@ -46,7 +46,7 @@ parser.add_argument('--test-event', action="store_true", help='Submit test event
 parser.add_argument('--destination-uri', help='Pass in destination HTTPS URI path for either create subscription or send test event', required=False, dest='destination_uri')
 parser.add_argument('--format-type', help='Pass in Event Format Type for creating a subscription. Supported values: Event, MetricReport or None', required=False, dest='format_type')
 parser.add_argument('--event-type', help='The EventType value for either create subscription or send test event. Supported values: StatusChange, ResourceUpdated, ResourceAdded, ResourceRemoved, Alert or MetricReport.', required=False, dest='event_type')
-parser.add_argument('--message-id', help='Pass in MessageID for sending test event. Example: TMP0118', required=False, dest='message_id')
+parser.add_argument('--message-id', help='Pass in MessageID for sending test event. iDRAC9 example: TMP0118, iDRAC10 example: IDRAC.2.10.CPU0002', required=False, dest='message_id')
 parser.add_argument('--delete', help='Pass in complete service subscription URI to delete. Execute --get-subscriptions argument if needed to get subscription URIs', required=False)
 
 args = vars(parser.parse_args())
@@ -188,7 +188,7 @@ def get_set_ipmi_alert_iDRAC_setting():
         if attributes_dict["IPMILan.1.AlertEnable"] == "Disabled":
             logging.info("- INFO, current value for iDRAC attribute \"IPMILan.1.AlertEnable\" is set to Disabled, setting value to Enabled")
             payload = {"Attributes":{"IPMILan.1.AlertEnable":"Enabled"}}
-            url = 'https://%s/redfish/v1/Managers/iDRAC.Embedded.1/Attributes' % idrac_ip
+            url = 'https://%s/redfish/v1/Managers/iDRAC.Embedded.1/Oem/Dell/DellAttributes/iDRAC.Embedded.1' % idrac_ip
             if args["x"]:
                 headers = {'content-type': 'application/json', 'X-Auth-Token': args["x"]}
                 response = requests.patch(url, data=json.dumps(payload), headers=headers, verify=verify_cert)
@@ -229,7 +229,7 @@ def submit_test_event():
     else:
         headers = {'content-type': 'application/json'}
         response = requests.post(url, data=json.dumps(payload), headers=headers, verify=verify_cert,auth=(idrac_username,idrac_password))
-    if response.status_code == 204:
+    if response.status_code == 204 or response.status_code == 200:
         logging.info("\n- PASS, POST command passed to submit test event, status code %s returned" % response.status_code)
     else:
         logging.error("\n- FAIL, POST command failed to submit test event, status code %s returned, error: %s" % (response.status_code, response.__dict__["_content"]))
