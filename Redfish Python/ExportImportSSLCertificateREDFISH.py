@@ -3,7 +3,7 @@
 # ExportImportSSLCertificateREDFISH.py   Python script using Redfish API with OEM extension to either export or import SSL certificate.
 #
 # _author_ = Texas Roemer <Texas_Roemer@Dell.com>
-# _version_ = 13.0
+# _version_ = 14.0
 #
 # Copyright (c) 2019, Dell, Inc.
 #
@@ -45,7 +45,7 @@ parser.add_argument('--get-cert-types', help='Get current cert type values suppo
 parser.add_argument('--cert-type', help='Pass in SSL cert type value for export or import (note: this value is case sensitive). If needed, use argument --get-cert-types to get supported values.', dest="cert_type", required=False)
 parser.add_argument('--filename', help='Pass in the file name which contains the certificate to import. Cert file should be a base64 encoded string of the XML Certificate file. For importing CSC certificate, convert PKCS file to base64 format. The CTC file content has to be in PEM format (base64 encoded).', required=False)
 parser.add_argument('--passphrase', help='Pass in passphrase string if the cert you are importing is passpharse protected.', required=False)
-parser.add_argument('--reboot-idrac', help='Pass in this argument to reboot the iDRAC now to apply the new cert imported. Note: Starting in iDRAC 6.00.02 version, iDRAC reboot is no longer required after the new cert is imported.', dest="reboot_idrac", action="store_true", required=False)
+parser.add_argument('--reboot-idrac', help='Pass in this argument to reboot the iDRAC now to apply the new cert imported. Note: Starting in iDRAC9 6.00.02 version, iDRAC reboot is no longer required after the new cert is imported. Note if using iDRAC10 reboot is not required', dest="reboot_idrac", action="store_true", required=False)
 parser.add_argument('--csv-file', help='Pass in name of CSV file to configure multiple iDRACs instead of using argument -ip for one iDRAC. For the CSV file creation column A header will be "iDRAC IP" and column B header will be "Cert Name" for the cert you want to import for that iDRAC. If only exporting you only need to fill in column A for iDRAC IPs. Note: arguments -u and -p are still required for iDRAC username and password which this user must be the same on all iDRACs.', required=False)
 parser.add_argument('--upload', help='Upload SSL key, --filename is also required to pass in the key file name', action="store_true", required=False)
 parser.add_argument('--delete', help='Delete SSL cert pass in value CustomCertificate, CSC or ClientTrustCertificate. iDRAC does not support delete server or CA certs', required=False)
@@ -68,8 +68,8 @@ def script_examples():
     print("""\n- ExportImportSSLCertificateREDFISH.py -ip 192.168.0.120 -u root -p calvin --get-current-certs, this example will return current detected/installed certificates.
     \n- ExportImportSSLCertificateREDFISH.py -ip 192.168.0.120 -u root -p calvin --get-cert-types, this example will return current cert type supported values for export or import cert operations.
     \n- ExportImportSSLCertificateREDFISH.py -ip 192.168.0.120 -u root -p calvin --export --cert-type Server, this example will export current iDRAC Server certificate.
-    \n- ExportImportSSLCertificateREDFISH.py -ip 192.168.0.120 -u root -p calvin --import --cert-type CustomCertificate --filename signed_cert_R740.pem --passphrase Test1234#, this example using iDRAC 6.00.02 will import custom signed p12 cert with a passphrase.
-    \n- ExportImportSSLCertificateREDFISH.py -ip 192.168.0.120 -u root -p calvin --import --cert-type CSC --filename signed_cert_R740.pem --reboot-idrac, this example using iDRAC 5.10 will import signed p12 file and reboot the iDRAC.
+    \n- ExportImportSSLCertificateREDFISH.py -ip 192.168.0.120 -u root -p calvin --import --cert-type CustomCertificate --filename signed_cert_R740.pem --passphrase Test1234#, this example using iDRAC9 6.00.02 will import custom signed p12 cert with a passphrase.
+    \n- ExportImportSSLCertificateREDFISH.py -ip 192.168.0.120 -u root -p calvin --import --cert-type CSC --filename signed_cert_R740.pem --reboot-idrac, this example using iDRAC9 5.10 will import signed p12 file and reboot the iDRAC.
     \n- ExportImportSSLCertificateREDFISH.py -ip 192.168.0.120 --export --cert-type Server -ssl true -x 52396c8ac35e15f7b2de4b18673b111f, this example shows validating ssl cert for all Redfish calls to export server cert using X-auth token session.
     \n- ExportImportSSLCertificateREDFISH.py -ip 192.168.0.120 -u root -p calvin --export --cert-type Server --csv-file iDRAC_ips.csv, this example will export current Server certificate for multiple iDRAC IPs using csv file.
     \n- ExportImportSSLCertificateREDFISH.py -ip 192.168.0.120 -u root -p calvin --import --cert-type CustomCertificate --csv-file iDRAC_IPs.csv, this example will import custom certificates for multiple iDRAC IPs using csv file.
@@ -80,7 +80,7 @@ def script_examples():
 
 def check_supported_idrac_version():
     if args["x"]:
-         response = requests.get('https://%s/redfish/v1/Managers/iDRAC.Embedded.1/Oem/Dell/DelliDRACCardService' % idrac_ip, verify=verify_cert, headers={'X-Auth-Token': args["x"]})
+        response = requests.get('https://%s/redfish/v1/Managers/iDRAC.Embedded.1/Oem/Dell/DelliDRACCardService' % idrac_ip, verify=verify_cert, headers={'X-Auth-Token': args["x"]})
     else:
         response = requests.get('https://%s/redfish/v1/Managers/iDRAC.Embedded.1/Oem/Dell/DelliDRACCardService' % idrac_ip, verify=verify_cert, auth=(idrac_username, idrac_password))
     data = response.json()
@@ -90,6 +90,26 @@ def check_supported_idrac_version():
     elif response.status_code != 200:
         logging.warning("\n- WARNING, iDRAC version installed does not support this feature using Redfish API")
         sys.exit(0)
+        
+def get_server_generation():
+    global idrac_server_generation
+    if args["x"]:
+        response = requests.get('https://%s/redfish/v1/Managers/iDRAC.Embedded.1?$select=Model' % idrac_ip, verify=verify_cert, headers={'X-Auth-Token': args["x"]})
+    else:
+        response = requests.get('https://%s/redfish/v1/Managers/iDRAC.Embedded.1?$select=Model' % idrac_ip, verify=False,auth=(idrac_username,idrac_password))
+    data = response.json()
+    if response.status_code == 401:
+        logging.error("\n- ERROR, status code 401 detected, check to make sure your iDRAC script session has correct username/password credentials or if using X-auth token, confirm the session is still active.")
+        sys.exit(0)
+    elif response.status_code != 200:
+        logging.warning("\n- WARNING, unable to get current iDRAC version installed")
+        sys.exit(0)
+    if "12" in data["Model"] or "13" in data["Model"]:
+        idrac_server_generation = 8
+    elif "14" in data["Model"] or "15" in data["Model"] or "16" in data["Model"]:
+        idrac_server_generation = 9
+    else:
+        idrac_server_generation = 10
 
 def get_iDRAC_version():
     global iDRAC_version
@@ -111,12 +131,12 @@ def get_iDRAC_version():
 
 def get_cert_types():
     if args["x"]:
-         response = requests.get('https://%s/redfish/v1/Managers/iDRAC.Embedded.1/Oem/Dell/DelliDRACCardService' % idrac_ip, verify=verify_cert, headers={'X-Auth-Token': args["x"]})
+        response = requests.get('https://%s/redfish/v1/Managers/iDRAC.Embedded.1/Oem/Dell/DelliDRACCardService' % idrac_ip, verify=verify_cert, headers={'X-Auth-Token': args["x"]})
     else:
         response = requests.get('https://%s/redfish/v1/Managers/iDRAC.Embedded.1/Oem/Dell/DelliDRACCardService' % idrac_ip, verify=verify_cert, auth=(idrac_username, idrac_password))
     data = response.json()
     if response.status_code != 200:
-        logging.error("\n- ERROR, GET command failed to get cert types supported for export/import cert operations, status code %s returned", response.status_code)
+        logging.error("\n- ERROR, GET commmand failed to get cert types supported for export/import cert operations, status code %s returned" % response.status_code)
         logging.error("- Detailed error results: %s" % data)
         sys.exit(0)
     for i in data["Actions"].items():
@@ -133,12 +153,12 @@ def get_cert_types():
 
 def get_current_certs():
     if args["x"]:
-         response = requests.get('https://%s/redfish/v1/CertificateService/CertificateLocations?$expand=*($levels=1)' % idrac_ip, verify=verify_cert, headers={'X-Auth-Token': args["x"]})
+        response = requests.get('https://%s/redfish/v1/CertificateService/CertificateLocations?$expand=*($levels=1)' % idrac_ip, verify=verify_cert, headers={'X-Auth-Token': args["x"]})
     else:
         response = requests.get('https://%s/redfish/v1/CertificateService/CertificateLocations?$expand=*($levels=1)' % idrac_ip, verify=verify_cert, auth=(idrac_username, idrac_password))
     data = response.json()
     if response.status_code != 200:
-        logging.error("\n- ERROR, GET command failed to get current cert details, status code %s returned", response.status_code)
+        logging.error("\n- ERROR, GET commmand failed to get current cert details, status code %s returned" % response.status_code)
         logging.error("- Detailed error results: %s" % data)
         sys.exit(0)
     for i in data.items():
@@ -170,7 +190,7 @@ def export_SSL_cert():
         pass
     with open("%s_ssl_certificate.txt" % idrac_ip,"w") as x:
         x.writelines(data['CertificateFile'])
-    logging.info("\n- SSL certificate information also copied to \"%s\%s_ssl_certificate.txt\" file" % (os.getcwd(), idrac_ip))
+    logging.info("\n- SSL certificate information also copied to %s\\%s_ssl_certificate.txt file" % (os.getcwd(), idrac_ip))
 
 def delete_SSL_cert():
     url = 'https://%s/redfish/v1/Managers/iDRAC.Embedded.1/Oem/Dell/DelliDRACCardService/Actions/DelliDRACCardService.DeleteSSLCertificate' % (idrac_ip)
@@ -277,8 +297,8 @@ def import_SSL_cert():
             logging.info("- INFO, iDRAC will now reboot and be back online within a few minutes.")
         else:
             get_iDRAC_version()
-            if iDRAC_version == "old":
-                logging.info("- INFO, argument --reboot-idrac not detected and iDRAC version older than 6.00.02 detected, iDRAC reboot is required to apply the new cert after import.")
+            if iDRAC_version == "old" and idrac_server_generation == 8 or idrac_server_generation == 9:
+                logging.info("- INFO, argument --reboot-idrac not detected and iDRAC9 version older than 6.00.02 detected, iDRAC reboot is required to apply the new cert after import.")
             else:
                 logging.info("- INFO, iDRAC will report newly imported cert within 15-30 seconds, if using browser to access the iDRAC refresh the session")
     else:
@@ -314,6 +334,7 @@ if __name__ == "__main__":
                     else:
                             verify_cert = False
                     check_supported_idrac_version()
+                    get_server_generation()
                 else:
                     logging.error("\n- FAIL, invalid argument values or not all required parameters passed in. See help text or argument --script-examples for more details.")
                     sys.exit(0)
