@@ -233,7 +233,7 @@ def check_job_status():
                     sys.exit(0)
                 else:
                     break
-        elif "completed successfully" in data['Oem']['Dell']['Message']:
+        elif "success" in data['Oem']['Dell']['Message'].lower():
             logging.info("\n- PASS, job ID %s successfully marked completed, detailed final job status results\n")
             for i in data['Oem']['Dell'].items():
                 pprint(i)
@@ -273,7 +273,7 @@ def loop_check_final_job_status():
         elif "Fail" in data['Message'] or "fail" in data['Message'] or "fail" in data['JobState'] or "Fail" in data['JobState']:
             logging.error("- FAIL: job ID %s failed" % job_id)
             sys.exit(0)
-        elif "completed successfully" in data['Message']:
+        elif "success" in data['Message'].lower():
             logging.info("\n- PASS, job ID %s successfully marked completed" % job_id)
             logging.info("\n- Final detailed job results -\n")
             for i in data.items():
