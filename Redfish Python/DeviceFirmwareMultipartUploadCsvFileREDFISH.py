@@ -105,7 +105,7 @@ def loop_check_final_job_status(idrac_ip, idrac_username, idrac_password, job_id
         elif "fail" in data['Message'].lower() or "fail" in data['JobState'].lower():
             logging.error("\n- FAIL: job ID %s failed" % job_id)
             return
-        elif "completed successfully" in data['Message']:
+        elif "completed successfully" in data['Message'].lower() or "success" in in data['Message'].lower():
             logging.info("- PASS, job ID %s successfully marked completed for iDRAC %s" % (job_id, idrac_ip))
             return
         else:
