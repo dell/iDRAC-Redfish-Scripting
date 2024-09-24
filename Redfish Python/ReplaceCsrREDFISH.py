@@ -1,7 +1,7 @@
 #!/usr/bin/python3
 #
 # _author_ = Texas Roemer <Texas_Roemer@Dell.com>
-# _version_ = 3.0
+# _version_ = 4.0
 #
 # Copyright (c) 2021, Dell, Inc.
 #
@@ -35,10 +35,10 @@ parser.add_argument('-p', help='iDRAC password. If you do not pass in argument -
 parser.add_argument('-x', help='Pass in X-Auth session token for executing Redfish calls. All Redfish calls will use X-Auth token instead of username/password', required=False)
 parser.add_argument('--ssl', help='SSL cert verification for all Redfish calls, pass in value \"true\" or \"false\". By default, this argument is not required and script ignores validating SSL cert for all Redfish calls.', required=False)
 parser.add_argument('--script-examples', action="store_true", help='Prints script examples')
-parser.add_argument('--certid', help='Replace iDRAC CSR, pass in the cert ID of the cert you want to replace. If needed, execute -get argument to get the cert ID. Example: SecurityCertificate.1', required=False)
+parser.add_argument('--certid', help='Replace iDRAC CSR, pass in the cert ID of the cert you want to replace. If needed, execute --get argument to get the cert ID. Example: SecurityCertificate.1', required=False)
 parser.add_argument('--filename', help='Replace iDRAC CSR, pass in the filename of the signed CSR.', required=False)
 parser.add_argument('--get', help='Get current iDRAC certs', action="store_true", required=False)
-parser.add_argument('--reset', help='Reset iDRAC to apply the new uploaded CSR. Note: Starting in iDRAC 5.10.10, iDRAC reset is no longer required after uploading new CSR. New CSR will be applied immediately.', action="store_true", required=False)
+parser.add_argument('--reset', help='Reset iDRAC to apply the new uploaded CSR. Note: Starting in iDRAC9 5.10.10, iDRAC reset is no longer required after uploading new CSR. New CSR will be applied immediately.', action="store_true", required=False)
 args = vars(parser.parse_args())
 logging.basicConfig(format='%(message)s', stream=sys.stdout, level=logging.INFO)
 
@@ -60,6 +60,26 @@ def check_supported_idrac_version():
     if response.status_code != 200:
         logging.warning("\n- WARNING, GET command failed to check supported iDRAC version, status code %s returned" % response.status_code)
         sys.exit(0)
+
+def get_server_generation():
+    global idrac_version
+    if args["x"]:
+        response = requests.get('https://%s/redfish/v1/Managers/iDRAC.Embedded.1?$select=Model' % idrac_ip, verify=verify_cert, headers={'X-Auth-Token': args["x"]})
+    else:
+        response = requests.get('https://%s/redfish/v1/Managers/iDRAC.Embedded.1?$select=Model' % idrac_ip, verify=False,auth=(idrac_username,idrac_password))
+    data = response.json()
+    if response.status_code == 401:
+        logging.error("\n- ERROR, status code 401 detected, check to make sure your iDRAC script session has correct username/password credentials or if using X-auth token, confirm the session is still active.")
+        sys.exit(0)
+    elif response.status_code != 200:
+        logging.warning("\n- WARNING, unable to get current iDRAC version installed")
+        sys.exit(0)
+    if "12" in data["Model"] or "13" in data["Model"]:
+        idrac_version = 8
+    elif "14" in data["Model"] or "15" in data["Model"] or "16" in data["Model"]:
+        idrac_version = 9
+    else:
+        idrac_version = 10
 
 def get_current_iDRAC_certs():
     if args["x"]:
@@ -92,10 +112,10 @@ def replace_CSR():
         sys.exit(0)
     read_file = open_filename.read()
     open_filename.close()
-    if int(data["FirmwareVersion"].replace(".","")) >= 5000000:
-        payload = {"CertificateType": "PEM","CertificateUri":{"@odata.id":"/redfish/v1/Managers/iDRAC.Embedded.1/NetworkProtocol/HTTPS/Certificates/%s" % args["certid"]},"CertificateString":read_file}
+    if int(data["FirmwareVersion"].replace(".","")) <= 5000000 and idrac_version == 9 or idrac_version == 8:
+        payload = {"CertificateType": "PEM","CertificateUri":"/redfish/v1/Managers/iDRAC.Embedded.1/NetworkProtocol/HTTPS/Certificates/%s" % args["certid"],"CertificateString":read_file}
     else:
-        payload = {"CertificateType": "PEM","CertificateUri":"/redfish/v1/Managers/iDRAC.Embedded.1/NetworkProtocol/HTTPS/Certificates/%s" % args["certid"],"CertificateString":read_file}   
+        payload = {"CertificateType": "PEM","CertificateUri":{"@odata.id":"/redfish/v1/Managers/iDRAC.Embedded.1/NetworkProtocol/HTTPS/Certificates/%s" % args["certid"]},"CertificateString":read_file} 
     if args["x"]:
         headers = {'content-type': 'application/json', 'X-Auth-Token': args["x"]}
         response = requests.post(url, data=json.dumps(payload), headers=headers, verify=verify_cert)
@@ -147,6 +167,7 @@ if __name__ == "__main__":
         else:
             verify_cert = False
         check_supported_idrac_version()
+        get_server_generation()
     else:
         logging.error("\n- FAIL, invalid argument values or not all required parameters passed in. See help text or argument --script-examples for more details.")
         sys.exit(0)
@@ -154,8 +175,6 @@ if __name__ == "__main__":
         replace_CSR()
         if args["reset"]:
             reset_idrac()
-        else:
-            logging.warning("- WARNING, argument --reset not detected. If using iDRAC version older than 5.10.10, iDRAC reset is needed to apply newly uploaded cert. Rerun script again passing in only --reset argument to reset iDRAC")
     elif args["get"]:
         get_current_iDRAC_certs()
     elif args["reset"]:

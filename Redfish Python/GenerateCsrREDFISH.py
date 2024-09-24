@@ -81,6 +81,26 @@ def get_current_iDRAC_certs():
     for i in data.items():
         pprint(i)
 
+def get_server_generation():
+    global idrac_version
+    if args["x"]:
+        response = requests.get('https://%s/redfish/v1/Managers/iDRAC.Embedded.1?$select=Model' % idrac_ip, verify=verify_cert, headers={'X-Auth-Token': args["x"]})
+    else:
+        response = requests.get('https://%s/redfish/v1/Managers/iDRAC.Embedded.1?$select=Model' % idrac_ip, verify=False,auth=(idrac_username,idrac_password))
+    data = response.json()
+    if response.status_code == 401:
+        logging.error("\n- ERROR, status code 401 detected, check to make sure your iDRAC script session has correct username/password credentials or if using X-auth token, confirm the session is still active.")
+        sys.exit(0)
+    elif response.status_code != 200:
+        logging.warning("\n- WARNING, unable to get current iDRAC version installed")
+        sys.exit(0)
+    if "12" in data["Model"] or "13" in data["Model"]:
+        idrac_version = 8
+    elif "14" in data["Model"] or "15" in data["Model"] or "16" in data["Model"]:
+        idrac_version = 9
+    else:
+        idrac_version = 10
+
 def generate_CSR():
     logging.info("\n- INFO, generating CSR for iDRAC %s, this may take 10-20 seconds to complete\n" % idrac_ip)
     if args["x"]:
@@ -91,15 +111,19 @@ def generate_CSR():
     if response.status_code != 200:
         logging.warning("\n- WARNING, unable to get iDRAC version, status code %s detected, detailed error results: \n%s" % (response.status_code, data))
         sys.exit(0)
-    url = 'https://%s/redfish/v1/CertificateService/Actions/CertificateService.GenerateCSR' % (idrac_ip)
-    if int(data["FirmwareVersion"].replace(".","")) >= 5000000:
-        payload = {"CertificateCollection":{"@odata.id":"/redfish/v1/Managers/iDRAC.Embedded.1/NetworkProtocol/HTTPS/Certificates"},"City":args["city"],"CommonName":args["commonname"],"Country":args["country"],"Organization":args["org"],"OrganizationalUnit":args["orgunit"],"State":args["state"]}
-    else:
+    url = 'https://%s/redfish/v1/CertificateService/Actions/CertificateService.GenerateCSR' % (idrac_ip)   
+    if int(data["FirmwareVersion"].replace(".","")) <= 5000000 and idrac_version == 9 or idrac_version == 8:
         payload = {"CertificateCollection":"/redfish/v1/Managers/iDRAC.Embedded.1/NetworkProtocol/HTTPS/Certificates","City":args["city"],"CommonName":args["commonname"],"Country":args["country"],"Organization":args["org"],"OrganizationalUnit":args["orgunit"],"State":args["state"]}   
+    else:
+        payload = {"CertificateCollection":{"@odata.id":"/redfish/v1/Managers/iDRAC.Embedded.1/NetworkProtocol/HTTPS/Certificates"},"City":args["city"],"CommonName":args["commonname"],"Country":args["country"],"Organization":args["org"],"OrganizationalUnit":args["orgunit"],"State":args["state"]}
+
     if args["email"]:
         payload["Email"] = args["email"]
     if args["sub_alt_name"]:
-        payload["AlternativeNames"] = [args["sub_alt_name"]]
+        if "," in args["sub_alt_name"]:
+            payload["AlternativeNames"] = args["sub_alt_name"].split(",")
+        else:
+            payload["AlternativeNames"] = [args["sub_alt_name"]]
     if args["x"]:
         headers = {'content-type': 'application/json', 'X-Auth-Token': args["x"]}
         response = requests.post(url, data=json.dumps(payload), headers=headers, verify=verify_cert)
@@ -152,6 +176,7 @@ if __name__ == "__main__":
         else:
             verify_cert = False
         check_supported_idrac_version()
+        get_server_generation()
     else:
         logging.error("\n- FAIL, invalid argument values or not all required parameters passed in. See help text or argument --script-examples for more details.")
         sys.exit(0)
