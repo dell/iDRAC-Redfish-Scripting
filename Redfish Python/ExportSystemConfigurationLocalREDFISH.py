@@ -3,7 +3,7 @@
 # ExportServerConfigurationLocalREDFISH. Python script using Redfish API with OEM extension to export the system configuration locally. By default, POST command print all attributes to the screen. This script will also capture these attributes into a file.
 #
 # _author_ = Texas Roemer <Texas_Roemer@Dell.com>
-# _version_ = 11.0
+# _version_ = 12.0
 #
 # Copyright (c) 2017, Dell, Inc.
 #
@@ -141,6 +141,7 @@ def export_scp_file_locally():
         sys.exit(0) 
     try:
         job_id = response.headers['Location'].split("/")[-1]
+        job_id_uri = response.headers['Location']
     except:
         logging.error("- FAIL, unable to find job ID in headers POST response, headers output is:\n%s" % response.headers)
         sys.exit(0)
@@ -149,9 +150,9 @@ def export_scp_file_locally():
     while True:
         current_time = (datetime.now()-start_time)
         if args["x"]:
-            response = requests.get('https://%s/redfish/v1/TaskService/Tasks/%s' % (idrac_ip, job_id), verify=verify_cert, headers={'X-Auth-Token': args["x"]})
+            response = requests.get('https://%s%s' % (idrac_ip, job_id_uri), verify=verify_cert, headers={'X-Auth-Token': args["x"]})
         else:
-            response = requests.get('https://%s/redfish/v1/TaskService/Tasks/%s' % (idrac_ip, job_id), verify=verify_cert, auth=(idrac_username, idrac_password))
+            response = requests.get('https://%s%s' % (idrac_ip, job_id_uri), verify=verify_cert, auth=(idrac_username, idrac_password))
         dict_output = response.__dict__
         if args["format_type"] == "XML":
             if "<SystemConfiguration Model" in str(dict_output):
