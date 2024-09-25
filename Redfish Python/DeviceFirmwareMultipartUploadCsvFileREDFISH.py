@@ -87,7 +87,7 @@ def loop_check_final_job_status(idrac_ip, idrac_username, idrac_password, job_id
             sys.exit(0)
         check_idrac_connection(idrac_ip)
         try:
-            response = requests.get('https://%s/redfish/v1/Managers/iDRAC.Embedded.1/Jobs/%s' % (idrac_ip, job_id), verify=False, auth=(idrac_username, idrac_password))
+            response = requests.get('https://%s/redfish/v1/Managers/iDRAC.Embedded.1/Oem/Dell/Jobs/%s' % (idrac_ip, job_id), verify=False, auth=(idrac_username, idrac_password))
         except requests.ConnectionError as error_message:
             logging.info("- INFO, GET request failed due to connection error, retry")
             time.sleep(10)
