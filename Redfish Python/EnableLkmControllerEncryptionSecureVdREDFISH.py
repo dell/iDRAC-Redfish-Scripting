@@ -259,7 +259,7 @@ def loop_job_status(idrac_ip):
     # Function to loop job status until marked completed
     start_time = datetime.now()
     while True:
-        response = requests.get('https://%s/redfish/v1/Managers/iDRAC.Embedded.1/Jobs/%s' % (idrac_ip, job_id), verify=False,auth=(idrac_username, idrac_password))
+        response = requests.get('https://%s/redfish/v1/Managers/iDRAC.Embedded.1/Oem/Dell/Jobs/%s' % (idrac_ip, job_id), verify=False,auth=(idrac_username, idrac_password))
         current_time = (datetime.now()-start_time)
         if response.status_code != 200:
             logger.error("GET command failed to check job status, return code %s" % response.status_code)
