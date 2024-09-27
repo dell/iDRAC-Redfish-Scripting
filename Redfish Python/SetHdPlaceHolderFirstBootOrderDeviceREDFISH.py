@@ -181,7 +181,7 @@ def get_job_status_scheduled(idrac_ip):
             logging.error("FAIL, GET job status retry count of 5 has been reached, script will exit")
             return
         try:
-            response = requests.get('https://%s/redfish/v1/Managers/iDRAC.Embedded.1/Jobs/%s' % (idrac_ip, job_id), verify=False,auth=(idrac_username, idrac_password))
+            response = requests.get('https://%s/redfish/v1/Managers/iDRAC.Embedded.1/Oem/Dell/Jobs/%s' % (idrac_ip, job_id), verify=False,auth=(idrac_username, idrac_password))
         except requests.ConnectionError as error_message:
             logger.error(error_message)
             logger.info("GET request will try again to poll job status")
