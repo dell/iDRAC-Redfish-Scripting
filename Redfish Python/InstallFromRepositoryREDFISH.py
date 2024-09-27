@@ -182,9 +182,9 @@ def install_from_repository():
     global current_jobstore_job_ids
     global repo_job_id
     if args["x"]:
-        response = requests.get('https://%s/redfish/v1/Managers/iDRAC.Embedded.1/Jobs' % idrac_ip, verify=verify_cert, headers={'X-Auth-Token': args["x"]})
+        response = requests.get('https://%s/redfish/v1/Managers/iDRAC.Embedded.1/Oem/Dell/Jobs' % idrac_ip, verify=verify_cert, headers={'X-Auth-Token': args["x"]})
     else:
-        response = requests.get('https://%s/redfish/v1/Managers/iDRAC.Embedded.1/Jobs' % idrac_ip, verify=verify_cert, auth=(idrac_username, idrac_password))
+        response = requests.get('https://%s/redfish/v1/Managers/iDRAC.Embedded.1/Oem/Dell/Jobs' % idrac_ip, verify=verify_cert, auth=(idrac_username, idrac_password))
     data = str(response.json())
     jobid_search = re.findall("JID_.+?'",data)
     current_jobstore_job_ids = []
@@ -257,9 +257,9 @@ def get_update_job_ids():
             logging.error("\n- POST command failure results:\n %s" % data)
             sys.exit(0)
     if args["x"]:
-        response = requests.get('https://%s/redfish/v1/Managers/iDRAC.Embedded.1/Jobs' % idrac_ip, verify=verify_cert, headers={'X-Auth-Token': args["x"]})
+        response = requests.get('https://%s/redfish/v1/Managers/iDRAC.Embedded.1/Oem/Dell/Jobs' % idrac_ip, verify=verify_cert, headers={'X-Auth-Token': args["x"]})
     else:
-        response = requests.get('https://%s/redfish/v1/Managers/iDRAC.Embedded.1/Jobs' % idrac_ip, verify=verify_cert, auth=(idrac_username, idrac_password))
+        response = requests.get('https://%s/redfish/v1/Managers/iDRAC.Embedded.1/Oem/Dell/Jobs' % idrac_ip, verify=verify_cert, auth=(idrac_username, idrac_password))
     data = str(response.json())
     jobid_search = re.findall("JID_.+?'",data)
     if jobid_search == []:
@@ -287,9 +287,9 @@ def loop_job_status(x):
         while count != 5:
             try:
                 if args["x"]:
-                    response = requests.get('https://%s/redfish/v1/Managers/iDRAC.Embedded.1/Jobs/%s' % (idrac_ip, x), verify=verify_cert, headers={'X-Auth-Token': args["x"]})
+                    response = requests.get('https://%s/redfish/v1/Managers/iDRAC.Embedded.1/Oem/Dell/Jobs/%s' % (idrac_ip, x), verify=verify_cert, headers={'X-Auth-Token': args["x"]})
                 else:
-                    response = requests.get('https://%s/redfish/v1/Managers/iDRAC.Embedded.1/Jobs/%s' % (idrac_ip, x), verify=verify_cert, auth=(idrac_username, idrac_password))
+                    response = requests.get('https://%s/redfish/v1/Managers/iDRAC.Embedded.1/Oem/Dell/Jobs/%s' % (idrac_ip, x), verify=verify_cert, auth=(idrac_username, idrac_password))
                 break
             except requests.ConnectionError as error_message:
                 logging.error("- FAIL, requests command failed to GET job status, detailed error information: \n%s" % error_message)
@@ -352,9 +352,9 @@ def check_schedule_update_job():
     count = 0
     for x in new_job_ids:
         if args["x"]:
-            response = requests.get('https://%s/redfish/v1/Managers/iDRAC.Embedded.1/Jobs/%s' % (idrac_ip, x), verify=verify_cert, headers={'X-Auth-Token': args["x"]})
+            response = requests.get('https://%s/redfish/v1/Managers/iDRAC.Embedded.1/Oem/Dell/Jobs/%s' % (idrac_ip, x), verify=verify_cert, headers={'X-Auth-Token': args["x"]})
         else:
-            response = requests.get('https://%s/redfish/v1/Managers/iDRAC.Embedded.1/Jobs/%s' % (idrac_ip, x), verify=verify_cert, auth=(idrac_username, idrac_password))
+            response = requests.get('https://%s/redfish/v1/Managers/iDRAC.Embedded.1/Oem/Dell/Jobs/%s' % (idrac_ip, x), verify=verify_cert, auth=(idrac_username, idrac_password))
         if response.status_code != 200:
             logging.error("\n- FAIL, Command failed to check job status, return code is %s" % response.status_code)
             logging.error("Extended Info Message: {0}".format(response.json()))
@@ -376,9 +376,9 @@ def check_schedule_update_job():
         logging.info("\n- Current update jobs created for repo update -\n")
         for x in new_job_ids:
             if args["x"]:
-                response = requests.get('https://%s/redfish/v1/Managers/iDRAC.Embedded.1/Jobs/%s' % (idrac_ip, x), verify=verify_cert, headers={'X-Auth-Token': args["x"]})
+                response = requests.get('https://%s/redfish/v1/Managers/iDRAC.Embedded.1/Oem/Dell/Jobs/%s' % (idrac_ip, x), verify=verify_cert, headers={'X-Auth-Token': args["x"]})
             else:
-                response = requests.get('https://%s/redfish/v1/Managers/iDRAC.Embedded.1/Jobs/%s' % (idrac_ip, x), verify=verify_cert, auth=(idrac_username, idrac_password))
+                response = requests.get('https://%s/redfish/v1/Managers/iDRAC.Embedded.1/Oem/Dell/Jobs/%s' % (idrac_ip, x), verify=verify_cert, auth=(idrac_username, idrac_password))
             data = response.json()
             logging.info("Job ID: %s, Job Name: %s, Job Message: %s" % (x, data['Name'], data['Message']))
         sys.exit(0)
