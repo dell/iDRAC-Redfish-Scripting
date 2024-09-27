@@ -3,7 +3,7 @@
 # DeviceFirmwareSimpleUpdateTransferProtocolREDFISH. Python script using Redfish API to update a device firmware with DMTF standard SimpleUpdate with TransferProtocol. Only supported file image type is Windows Dell Update Packages(DUPs).
 #
 # _author_ = Texas Roemer <Texas_Roemer@Dell.com>
-# _version_ = 13.0
+# _version_ = 14.0
 #
 # Copyright (c) 2019, Dell, Inc.
 #
@@ -156,9 +156,24 @@ def check_job_status():
                 response = requests.get('https://%s/redfish/v1/TaskService/Tasks/%s' % (idrac_ip, job_id), verify=verify_cert, headers={'X-Auth-Token': args["x"]})
             else:
                 response = requests.get('https://%s/redfish/v1/TaskService/Tasks/%s' % (idrac_ip, job_id), verify=verify_cert, auth=(idrac_username, idrac_password))
-        except requests.ConnectionError as error_message:
+        except requests.exceptions.ConnectTimeout as json_error:
+            print("ConnectTimeout:", json_error)
+            time.sleep(180)
+            retry_count += 1
+            continue
+        except json.decoder.JSONDecodeError as json_error:
+            print("JSONDecodeError:", json_error)
+            time.sleep(180)
+            retry_count += 1
+            continue
+        except requests.exceptions.ConnectionError as error_message:
             logging.info("- INFO, GET request failed due to connection error, retry")
             time.sleep(10)
+            retry_count += 1
+            continue
+        except requests.exceptions.RequestException as req_error:
+            print("RequestException:", req_error)
+            time.sleep(180)
             retry_count += 1
             continue
         data = response.json()
@@ -185,7 +200,7 @@ def check_job_status():
                     logging.info("- INFO, server virtual a/c cycle is needed for the new firmware installed to become effective")
             sys.exit(0)
         if data["TaskState"] == "Completed":
-            logging.info("\n- PASS, job ID successfully marked completed, detailed final job status results\n")
+            logging.info("\n- PASS, job ID successfuly marked completed, detailed final job status results\n")
             for i in data['Oem']['Dell'].items():
                 pprint(i)
             logging.info("\n- JOB ID %s completed in %s" % (job_id, current_time))
@@ -208,7 +223,7 @@ def check_job_status():
                     sys.exit(0)
                 else:
                     break
-        elif "completed successfully" in data['Oem']['Dell']['Message'].lower() or "success" in data['Oem']['Dell']['Message'].lower():
+        elif "completed successfully" in data['Oem']['Dell']['Message']:
             logging.info("\n- PASS, job ID %s successfully marked completed, detailed final job status results\n")
             for i in data['Oem']['Dell'].items():
                 pprint(i)
@@ -231,9 +246,24 @@ def loop_check_final_job_status():
                 response = requests.get('https://%s/redfish/v1/Managers/iDRAC.Embedded.1/Oem/Dell/Jobs/%s' % (idrac_ip, job_id), verify=verify_cert, headers={'X-Auth-Token': args["x"]})
             else:
                 response = requests.get('https://%s/redfish/v1/Managers/iDRAC.Embedded.1/Oem/Dell/Jobs/%s' % (idrac_ip, job_id), verify=verify_cert,auth=(idrac_username, idrac_password))
-        except requests.ConnectionError as error_message:
+        except requests.exceptions.ConnectTimeout as json_error:
+            print("ConnectTimeout:", json_error)
+            time.sleep(180)
+            retry_count += 1
+            continue
+        except json.decoder.JSONDecodeError as json_error:
+            print("JSONDecodeError:", json_error)
+            time.sleep(180)
+            retry_count += 1
+            continue
+        except requests.exceptions.ConnectionError as error_message:
             logging.info("- INFO, GET request failed due to connection error, retry")
             time.sleep(10)
+            retry_count += 1
+            continue
+        except requests.exceptions.RequestException as req_error:
+            print("RequestException:", req_error)
+            time.sleep(180)
             retry_count += 1
             continue 
         current_time = str((datetime.now()-start_time))[0:7]
@@ -248,7 +278,7 @@ def loop_check_final_job_status():
         elif "Fail" in data['Message'] or "fail" in data['Message'] or "fail" in data['JobState'] or "Fail" in data['JobState']:
             logging.error("- FAIL: job ID %s failed" % job_id)
             sys.exit(0)
-        elif "completed successfully" in data['Message'].lower() or "success" in data['Message'].lower():
+        elif "completed successfully" in data['Message']:
             logging.info("\n- PASS, job ID %s successfully marked completed" % job_id)
             logging.info("\n- Final detailed job results -\n")
             for i in data.items():
