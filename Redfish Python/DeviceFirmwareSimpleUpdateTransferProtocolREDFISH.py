@@ -3,7 +3,7 @@
 # DeviceFirmwareSimpleUpdateTransferProtocolREDFISH. Python script using Redfish API to update a device firmware with DMTF standard SimpleUpdate with TransferProtocol. Only supported file image type is Windows Dell Update Packages(DUPs).
 #
 # _author_ = Texas Roemer <Texas_Roemer@Dell.com>
-# _version_ = 14.0
+# _version_ = 15.0
 #
 # Copyright (c) 2019, Dell, Inc.
 #
@@ -67,7 +67,8 @@ def check_supported_idrac_version():
         logging.error("\n- ERROR, status code %s returned. Incorrect iDRAC username/password or invalid privilege detected." % response.status_code)
         sys.exit(0)
     if response.status_code != 200:
-        logging.error("\n- ERROR, iDRAC version installed does not support this feature using Redfish API")
+        logging.error("\n- ERROR, either iDRAC version installed does not support this feature or supported iDRAC but GET request failed, status code %s returned" % response.status_code)
+        print(data)
         sys.exit(0)
     try:
         supported_idrac = data['Actions']['#UpdateService.SimpleUpdate']['TransferProtocol@Redfish.AllowableValues']
@@ -146,10 +147,15 @@ def install_image_payload():
 def check_job_status():
     retry_count = 1
     schedule_job_status_count = 1
+    if "idrac" in args["uri"].lower():
+        idrac_update = "yes"
+    else:
+        idrac_update = "no"
     while True:
+        current_time = str(datetime.now()-start_time)[0:7]
         check_idrac_connection()
-        if retry_count == 20:
-            logging.warning("- WARNING, GET command retry count of 20 has been reached, script will exit")
+        if retry_count == 30:
+            logging.warning("- WARNING, GET command retry count of 30 has been reached, script will exit")
             sys.exit(0)
         try:
             if args["x"]:
@@ -167,8 +173,8 @@ def check_job_status():
             retry_count += 1
             continue
         except requests.exceptions.ConnectionError as error_message:
-            logging.info("- INFO, GET request failed due to connection error, retry")
-            time.sleep(10)
+            logging.info("- INFO, GET request failed due to connection error, retry in 30 seconds")
+            time.sleep(30)
             retry_count += 1
             continue
         except requests.exceptions.RequestException as req_error:
@@ -176,16 +182,80 @@ def check_job_status():
             time.sleep(180)
             retry_count += 1
             continue
-        data = response.json()
-        current_time = str(datetime.now()-start_time)[0:7]   
-        message_string = data["Messages"]
+        try:
+            data = response.json()
+        except:
+            logging.warning("- WARNING, unable to get JSON data response from GET request, script will retry in 1 minute")
+            time.sleep(60)
+            retry_count +=1 
+            continue
         if response.status_code == 200 or response.status_code == 202:
             time.sleep(1)
+        elif response.status_code == 404:
+            if idrac_update == "yes":
+                if args["x"]:
+                    response = requests.get('https://%s/redfish/v1/JobService/Jobs/%s' % (idrac_ip, job_id), verify=verify_cert, headers={'X-Auth-Token': args["x"]})
+                else:
+                    response = requests.get('https://%s/redfish/v1/JobService/Jobs/%s' % (idrac_ip, job_id), verify=verify_cert, auth=(idrac_username, idrac_password))
+                if response.status_code == 200 or response.status_code == 202:
+                    time.sleep(1)
+                else:
+                    logging.error("\n- ERROR, GET request failed to get job ID details, status code %s returned, error: \n%s" % (response.status_code, data))
+                data = response.json()
+                if "success" in data["Messages"][0]["Message"].lower() and data["JobState"] == "Completed":
+                    logging.info("\n- PASS, job completed, detailed final job status results\n")
+                    pprint(data)
+                    logging.info("\n- JOB ID %s completed in %s" % (job_id, current_time))
+                    sys.exit(0)
+            else:
+                time.sleep(10)
+                retry_count +=1
+                continue
+        elif response.status_code == 500:
+            logging.warning("- WARNING, status code 500 returned for internal server error, GET request will retry in 1 minute")
+            time.sleep(60)
+            retry_count +=1 
+            continue
+        elif response.status_code == 401 and idrac_update == "yes":
+            logging.warning("- WARNING, status code 401 detected for iDRAC firmware update, GET will retry in 1 minute")
+            time.sleep(60)
+            retry_count +=1 
+            continue
+        elif response.status_code == 503:
+            logging.warning("- WARNING, status code 503 returned for service unavailable, GET request will retry in 1 minute")
+            time.sleep(60)
+            retry_count +=1 
+            continue
         else:
             logging.error("\n- ERROR, GET request failed to get job ID details, status code %s returned, error: \n%s" % (response.status_code, data))
             sys.exit(0)
+        try:
+            message_string = data["Messages"]
+        except:
+            logging.warning("- WARNING, unable to get Messages property value from JSON response, script will retry in 1 minute")
+            time.sleep(60)
+            retry_count += 1
+            if idrac_update == "yes":
+                if args["x"]:
+                    response = requests.get('https://%s/redfish/v1/JobService/Jobs/%s' % (idrac_ip, job_id), verify=verify_cert, headers={'X-Auth-Token': args["x"]})
+                else:
+                    response = requests.get('https://%s/redfish/v1/JobService/Jobs/%s' % (idrac_ip, job_id), verify=verify_cert, auth=(idrac_username, idrac_password))
+                if response.status_code == 200 or response.status_code == 202:
+                    time.sleep(1)
+                else:
+                    logging.error("\n- ERROR, GET request failed to get job ID details, status code %s returned, error: \n%s" % (response.status_code, data))
+                data = response.json()
+                if "success" in data["Messages"][0]["Message"].lower() and data["JobState"] == "Completed":
+                    logging.info("\n- PASS, job completed, detailed final job status results\n")
+                    pprint(data)
+                    logging.info("\n- JOB ID %s completed in %s" % (job_id, current_time))
+                    sys.exit(0)
+                else:
+                    time.sleep(10)
+                    retry_count +=1
+                    continue
         if data["TaskState"] == "Completed" and data["Oem"]["Dell"]["JobState"]:
-            logging.info("\n- INFO, job completed, detailed final job status results\n")
+            logging.info("\n- PASS, job ID successfuly marked completed, detailed final job status results\n")
             for i in data['Oem']['Dell'].items():
                 pprint(i)
             logging.info("\n- JOB ID %s completed in %s" % (job_id, current_time))

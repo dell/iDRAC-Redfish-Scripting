@@ -1,7 +1,7 @@
 #!/usr/bin/python3
 #
 # _author_ = Texas Roemer <Texas_Roemer@Dell.com>
-# _version_ = 1.0
+# _version_ = 2.0
 #
 # Copyright (c) 2024, Dell, Inc.
 #
@@ -17,12 +17,6 @@
 # iDRAC IP	        iDRAC Username	iDRAC Password  
 # 192.168.0.120	        root            calvin		
 # 192.168.0.130	        root            calvin  
-#
-# Script workflow pseudo code
-# 1. Generate update job for each iDRAC from the CSV file
-# 2. Once all update jobs are created for each iDRAC, all jobs will now run in parallel to apply the update to each iDRAC.
-# 3. Script will loop one job ID at the time even though all updates are running in parallel. 
-# 4. Once one job ID is marked completed the next job ID will get checked which should show a completed status within 1 or 2 minutes. 
 
 import argparse
 import csv
@@ -47,7 +41,7 @@ parser = argparse.ArgumentParser(description="Python script using Redfish API to
 parser.add_argument('--script-examples', action="store_true", help='Prints script examples')
 parser.add_argument('--get', help='Get current supported devices for firmware updates and their current firmware versions', action="store_true", required=False)
 parser.add_argument('--location', help='Pass in the full directory path location of the firmware image. Make sure to also pass in the name of the Dell Update package (DUP) executable, example: C:\\Users\\admin\\Downloads\\Diagnostics_Application_CH7FG_WN64_4301A42_4301.43.EXE', required=False)
-parser.add_argument('--csv-filename', help='Pass in directory path and name of csv file which contains details for all iDRACs, see script comments for CSV content example', dest="csv_filename", required=False)
+parser.add_argument('--csv-filename', help='Pass in full directory path and name of csv file which contains details for all iDRACs, see script comments for CSV content example', dest="csv_filename", required=False)
 
 args = vars(parser.parse_args())
 logging.basicConfig(format='%(message)s', stream=sys.stdout, level=logging.INFO)
@@ -105,7 +99,7 @@ def loop_check_final_job_status(idrac_ip, idrac_username, idrac_password, job_id
         elif "fail" in data['Message'].lower() or "fail" in data['JobState'].lower():
             logging.error("\n- FAIL: job ID %s failed" % job_id)
             return
-        elif "completed successfully" in data['Message'].lower() or "success" in in data['Message'].lower():
+        elif "completed successfully" in data['Message']:
             logging.info("- PASS, job ID %s successfully marked completed for iDRAC %s" % (job_id, idrac_ip))
             return
         else:
@@ -146,7 +140,7 @@ def check_idrac_connection(idrac_ip):
                     break
             while True:
                 try:
-                    response = requests.get('https://%s/redfish/v1/TaskService/Tasks/%s' % (idrac_ip, job_id), verify=False, auth=(idrac_username, idrac_password))
+                    response = requests.get('https://%s/redfish/v1/JobService/Jobs/%s' % (idrac_ip, job_id), verify=False, auth=(idrac_username, idrac_password))
                 except requests.ConnectionError as error_message:
                     logging.info("- INFO, GET request failed due to connection error, retry")
                     time.sleep(10)
