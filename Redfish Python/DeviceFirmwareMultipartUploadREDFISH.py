@@ -158,7 +158,7 @@ def download_image_create_update_job():
 def check_job_status():
     retry_count = 1
     schedule_job_status_count = 1
-    if "idrac" in args["uri"].lower():
+    if "idrac" in args["location"].lower():
         idrac_update = "yes"
     else:
         idrac_update = "no"
