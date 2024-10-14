@@ -81,9 +81,9 @@ def check_supported_idrac_version():
 
 def get_idrac_license_info():
     if args["x"]:
-        response = requests.get('https://%s/redfish/v1/Managers/iDRAC.Embedded.1/Oem/Dell/DellLicenseManagementService' % idrac_ip, verify=verify_cert, headers={'X-Auth-Token': args["x"]})
+        response = requests.get('https://%s/redfish/v1/Managers/iDRAC.Embedded.1/Oem/Dell/DellLicenses' % idrac_ip, verify=verify_cert, headers={'X-Auth-Token': args["x"]})
     else:
-        response = requests.get('https://%s/redfish/v1/Managers/iDRAC.Embedded.1/Oem/Dell/DellLicenseManagementService' % idrac_ip, verify=verify_cert,auth=(idrac_username, idrac_password))
+        response = requests.get('https://%s/redfish/v1/Managers/iDRAC.Embedded.1/Oem/Dell/DellLicenses' % idrac_ip, verify=verify_cert,auth=(idrac_username, idrac_password))
     if response.status_code != 200:
         logging.error("\n- FAIL, GET command failed to find iDRAC license data, error: %s" % response)
         sys.exit(0)
