@@ -84,10 +84,14 @@ def get_server_generation():
         idrac_version = 10
 
 def get_iDRAC_user_account_info():
-    if args["x"]:
-        response = requests.get('https://%s/redfish/v1/Managers/iDRAC.Embedded.1/Accounts?$expand=*($levels=1)' % idrac_ip, verify=verify_cert, headers={'X-Auth-Token': args["x"]})   
+    if idrac_version >= 10:
+        uri = "redfish/v1/AccountService/Accounts?$expand=*($levels=1)"
     else:
-        response = requests.get('https://%s/redfish/v1/Managers/iDRAC.Embedded.1/Accounts?$expand=*($levels=1)' % idrac_ip, verify=verify_cert,auth=(idrac_username, idrac_password))
+        uri = "redfish/v1/Managers/iDRAC.Embedded.1/Accounts?$expand=*($levels=1)"
+    if args["x"]:
+        response = requests.get('https://%s/%s' % (idrac_ip, uri), verify=verify_cert, headers={'X-Auth-Token': args["x"]})   
+    else:
+        response = requests.get('https://%s/%s' % (idrac_ip, uri), verify=verify_cert,auth=(idrac_username, idrac_password))
     data = response.json()
     if response.status_code != 200:
         logging.error("\n- FAIL, status code %s returned for GET command. Detail error results: \n%s" % (statusCode, data))
