@@ -192,7 +192,7 @@ def import_SCP_local_filename():
             sys.exit(0)
         data = response.json()
         try:
-            current_job_message = data['Oem']['Dell']['Message']
+            current_job_message = data["Oem"]["Dell"]["Message"]
         except:
             logging.info("- INFO, unable to get job ID message string from JSON output, retry")
             count += 1
@@ -210,7 +210,13 @@ def import_SCP_local_filename():
             get_job_status_count += 1
             time.sleep(5)
             continue
-        if data['Oem']['Dell']['JobState'] == "Failed" or data['Oem']['Dell']['JobState'] == "CompletedWithErrors":
+        elif "no reboot" in data["Oem"]["Dell"]["Message"].lower():
+            logging.info("- PASS, job ID %s successfully marked completed. NoReboot value detected and config changes will not be applied until next manual server reboot\n" % job_id)
+            logging.info("\n- Detailed job results for job ID %s\n" % job_id)
+            for i in data['Oem']['Dell'].items():
+                print("%s: %s" % (i[0], i[1]))
+            sys.exit(0)
+        elif data["Oem"]["Dell"]["JobState"] == "Failed" or data["Oem"]["Dell"]["JobState"] == "CompletedWithErrors":
             logging.info("\n- INFO, job ID %s status marked as \"%s\"" % (job_id, data['Oem']['Dell']['JobState']))
             logging.info("\n- Detailed configuration changes and job results for \"%s\"\n" % job_id)
             try:
@@ -222,9 +228,9 @@ def import_SCP_local_filename():
                     print("%s: %s" % (i[0], i[1]))
             logging.info("- %s completed in: %s" % (job_id, str(current_time)[0:7]))
             sys.exit(0)
-        elif data['Oem']['Dell']['JobState'] == "Completed":
-            if "fail" in data['Oem']['Dell']['Message'].lower() or "error" in data['Oem']['Dell']['Message'].lower() or "not" in data['Oem']['Dell']['Message'].lower() or "unable" in data['Oem']['Dell']['Message'].lower() or "no device configuration" in data['Oem']['Dell']['Message'].lower() or "time" in data['Oem']['Dell']['Message'].lower():
-                logging.error("- FAIL, Job ID %s marked as %s but detected issue(s). See detailed job results below for more information on failure\n" % (job_id, data['Oem']['Dell']['JobState']))
+        elif data["Oem"]["Dell"]["JobState"] == "Completed":
+            if "fail" in data["Oem"]["Dell"]["Message"].lower() or "error" in data["Oem"]["Dell"]["Message"].lower() or "not" in data["Oem"]["Dell"]["Message"].lower() or "unable" in data["Oem"]["Dell"]["Message"].lower() or "no device configuration" in data['Oem']['Dell']['Message'].lower() or "time" in data['Oem']['Dell']['Message'].lower():
+                logging.error("- FAIL, Job ID %s marked as %s but detected issue(s). See detailed job results below for more information on failure\n" % (job_id, data["Oem"]["Dell"]["JobState"]))
             elif "success" in data['Oem']['Dell']['Message'].lower():
                 logging.info("- PASS, job ID %s successfully marked completed\n" % job_id)
             elif "no changes" in data['Oem']['Dell']['Message'].lower():
@@ -243,15 +249,9 @@ def import_SCP_local_filename():
                     pprint(i)
             logging.info("\n- %s completed in: %s" % (job_id, str(current_time)[0:7]))
             sys.exit(0)
-        elif "No reboot Server" in data['Oem']['Dell']['Message']:
-            logging.info("- PASS, job ID %s successfully marked completed. NoReboot value detected and config changes will not be applied until next manual server reboot\n" % job_id)
-            logging.info("\n- Detailed job results for job ID %s\n" % job_id)
-            for i in data['Oem']['Dell'].items():
-                print("%s: %s" % (i[0], i[1]))
-            sys.exit(0)
         else:
             if start_job_message != current_job_message:
-                logging.info("- INFO, \"%s\", percent complete: %s" % (data['Oem']['Dell']['Message'],data['Oem']['Dell']['PercentComplete']))
+                logging.info("- INFO, \"%s\", percent complete: %s" % (data["Oem"]["Dell"]["Message"],data["Oem"]["Dell"]["PercentComplete"]))
                 start_job_message = current_job_message
                 continue
             
