@@ -280,7 +280,13 @@ def loop_job_id(job_id, idrac_ip, idrac_password):
             get_job_status_count += 1
             time.sleep(5)
             continue
-        if data['Oem']['Dell']['JobState'] == "Failed" or data['Oem']['Dell']['JobState'] == "CompletedWithErrors":
+        elif "No reboot Server" in data['Oem']['Dell']['Message']:
+            logging.info("- PASS, job ID %s successfully marked completed. NoReboot value detected and config changes will not be applied until next manual server reboot\n" % job_id)
+            logging.info("\n- Detailed job results for job ID %s\n" % job_id)
+            for i in data['Oem']['Dell'].items():
+                print("%s: %s" % (i[0], i[1]))
+            return
+        elif data['Oem']['Dell']['JobState'] == "Failed" or data['Oem']['Dell']['JobState'] == "CompletedWithErrors":
             logging.info("\n- INFO, job ID %s status marked as \"%s\" for iDRAC IP %s" % (job_id, data['Oem']['Dell']['JobState'], idrac_ip))
             logging.info("\n- Detailed configuration changes and job results for \"%s\"\n" % job_id)
             try:
@@ -313,12 +319,6 @@ def loop_job_id(job_id, idrac_ip, idrac_password):
                 for i in data['Oem']['Dell'].items():
                     pprint(i)
             logging.debug("\n- %s completed in: %s\n" % (job_id, str(current_time)[0:7]))
-            return
-        elif "No reboot Server" in data['Oem']['Dell']['Message']:
-            logging.info("- PASS, job ID %s successfully marked completed. NoReboot value detected and config changes will not be applied until next manual server reboot\n" % job_id)
-            logging.info("\n- Detailed job results for job ID %s\n" % job_id)
-            for i in data['Oem']['Dell'].items():
-                print("%s: %s" % (i[0], i[1]))
             return
         else:
             if start_job_message != current_job_message:
