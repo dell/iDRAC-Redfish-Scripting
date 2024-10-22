@@ -28,7 +28,7 @@ from pprint import pprint
 
 warnings.filterwarnings("ignore")
 
-parser=argparse.ArgumentParser(description="Python script using Redfish API with OEM extension to add a custom string comment to iDRAC Lifecycle logs.")
+parser=argparse.ArgumentParser(description="Python script using Redfish API with OEM extension to add a custom string comment to iDRAC Lifecycle logs. Running this action will also generate the same comment under iDRAC GUI / Dashboard / Notes section.")
 parser.add_argument('-ip',help='iDRAC IP address', required=False)
 parser.add_argument('-u', help='iDRAC username', required=False)
 parser.add_argument('-p', help='iDRAC password. If you do not pass in argument -p, script will prompt to enter user password which will not be echoed to the screen.', required=False)
