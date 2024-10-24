@@ -1,7 +1,7 @@
 #!/usr/bin/python3
 #
 # _author_ = Texas Roemer <Texas_Roemer@Dell.com>
-# _version_ = 3.0
+# _version_ = 4.0
 #
 # Copyright (c) 2018, Dell, Inc.
 #
@@ -36,21 +36,18 @@ parser.add_argument('-x', help='Pass in X-Auth session token for executing Redfi
 parser.add_argument('--ssl', help='SSL cert verification for all Redfish calls, pass in value true or false. By default, this argument is not required and script ignores validating SSL cert for all Redfish calls.', required=False)
 parser.add_argument('--script-examples', help='Get executing script examples', action="store_true", dest="script_examples", required=False)
 parser.add_argument('--type', help='Set, shange or delete BIOS password, pass in the type of password you want to change. Pass in \"1\" for System password, \"2" for Setup password, \"3\" for PersistentMemPassphrase', required=False)
-parser.add_argument('--old', help='Change BIOS password, pass in the old password. Note --new argument is also required if changing BIOS password', required=False)
-parser.add_argument('--new', help='Set, change or delete BIOS password. If deleting BIOS password pass in ""', required=False)
+parser.add_argument('--old', help='Set, change or delete BIOS password, pass in the old password. Note if setting new password or delete current password pass in "" for argument value', required=False)
+parser.add_argument('--new', help='Set, change or delete BIOS password. Note if deleting current password pass in "" for argument value', required=False)
 parser.add_argument('--noreboot', help='Pass in this argument to NOT auto reboot the server to change BIOS password. Job will still be scheduled and execute on next server manual reboot.', action="store_true", required=False)
 
 args=vars(parser.parse_args())
 logging.basicConfig(format='%(message)s', stream=sys.stdout, level=logging.INFO)
 
 def script_examples():
-    print("""\n- BiosChangePasswordREDFISH.py -ip 192.168.0.120 -u root -p calvin --type 1 --new "p@ssw0rd", this example will reboot the server now to set BIOS system password.
-    \n- BiosChangePasswordREDFISH.py -ip 192.168.0.120 -u root --type 1 --new "p@ssw0rd" --noreboot, this example will first prompt to enter iDRAC user password, then create config job to set BIOS system password but not auto reboot the server to apply the job.
+    print("""\n- BiosChangePasswordREDFISH.py -ip 192.168.0.120 -u root -p calvin --type 1 --old "" --new "p@ssw0rd", this example will reboot the server now to set BIOS system password.
+    \n- BiosChangePasswordREDFISH.py -ip 192.168.0.120 -u root --type 1 --old "" --new "p@ssw0rd" --noreboot, this example will first prompt to enter iDRAC user password, then create config job to set BIOS system password but not auto reboot the server to apply the job.
     \n- BiosChangePasswordREDFISH.py -ip 192.168.0.120 -u root -p calvin --type 1 --old "p@ssw0rd" --new "newpwd", this example will reboot the server now to change BIOS system password.
-    \n- BiosChangePasswordREDFISH.py -ip 192.168.0.120 -u root -p calvin --type 2 --new "", this example will reboot the server now to clear BIOS setup password.
-    \n- BiosChangePasswordREDFISH.py -ip 192.168.0.120 -u root -p calvin --type 1 --old "", this example will prompt to the screen to enter BIOS system password to set, reboot server now to apply.
-    \n- BiosChangePasswordREDFISH.py -ip 192.168.0.120 -u root -p calvin --type 1, this example will prompt to the screen to enter current BIOS system password, then prompt to enter new system password to set, reboot server now to apply.
-    \n- BiosChangePasswordREDFISH.py -ip 192.168.0.120 -u root -p calvin --type 1 --new "", this example will prompt to the screen to enter current BIOS system password, then clear it, reboot server now to apply.""")
+    \n- BiosChangePasswordREDFISH.py -ip 192.168.0.120 -u root -p calvin --type 2 --old "" --new "", this example will reboot the server now to clear BIOS setup password.""")
     sys.exit(0)
 
 def check_supported_idrac_version():
@@ -74,23 +71,10 @@ def change_bios_password():
     elif args["type"] == "3":
         password_name = "PersistentMemPassphrase"
     else:
-        logging.error("\n- FAIL, invalid value passed in for -c option")
+        logging.error("\n- FAIL, invalid value passed in for --type argument")
         sys.exit(0)
     url = "https://%s/redfish/v1/Systems/System.Embedded.1/Bios/Actions/Bios.ChangePassword" % idrac_ip
-    payload = {"PasswordName":password_name}
-    if args["new"] == "":
-        payload["NewPassword"] = args["new"]
-        logging.info("\n- INFO, clearing BIOS %s password" % password_name)
-    elif args["new"] and args["old"]:
-        payload["NewPassword"] = args["new"]
-        payload["OldPassword"] = args["old"]
-        logging.info("\n- INFO, changing BIOS %s password" % password_name)
-    elif args["new"]:
-        payload["NewPassword"] = args["new"]
-        logging.info("\n- INFO, setting BIOS %s password" % password_name)
-    else:
-        logging.error("- WARNING, missing or incorrect arguments detected, please check help text and examples for more details")
-        sys.exit(1)
+    payload = {"PasswordName":password_name, "OldPassword":args["old"], "NewPassword":args["new"]}
     if args["x"]:
         headers = {'content-type': 'application/json', 'X-Auth-Token': args["x"]}
         response = requests.post(url, data=json.dumps(payload), headers=headers, verify=verify_cert)
@@ -109,7 +93,7 @@ def change_bios_password():
 def create_bios_config_job():
     global job_id
     global start_time
-    url = 'https://%s/redfish/v1/Managers/iDRAC.Embedded.1/Jobs' % idrac_ip
+    url = 'https://%s/redfish/v1/Managers/iDRAC.Embedded.1/Oem/Dell/Jobs' % idrac_ip
     payload = {"TargetSettingsURI":"/redfish/v1/Systems/System.Embedded.1/Bios/Settings"}
     if args["x"]:
         headers = {'content-type': 'application/json', 'X-Auth-Token': args["x"]}
