@@ -1,7 +1,7 @@
 #!/usr/bin/python3
 #
 # _author_ = Texas Roemer <Texas_Roemer@Dell.com>
-# _version_ = 2.0
+# _version_ = 3.0
 #
 # Copyright (c) 2023, Dell, Inc.
 #
@@ -66,9 +66,9 @@ def check_supported_idrac_version():
 def get_reboot_jobs():
     # Get current reboot job IDs in the iDRAC job queue
     if args["x"]:
-        response = requests.get('https://%s/redfish/v1/Managers/iDRAC.Embedded.1/Jobs' % idrac_ip, verify=verify_cert, headers={'X-Auth-Token': args["x"]})   
+        response = requests.get('https://%s/redfish/v1/Managers/iDRAC.Embedded.1/Oem/Dell/Jobs' % idrac_ip, verify=verify_cert, headers={'X-Auth-Token': args["x"]})   
     else:
-        response = requests.get('https://%s/redfish/v1/Managers/iDRAC.Embedded.1/Jobs' % idrac_ip, verify=verify_cert,auth=(idrac_username, idrac_password))
+        response = requests.get('https://%s/redfish/v1/Managers/iDRAC.Embedded.1/Oem/Dell/Jobs' % idrac_ip, verify=verify_cert,auth=(idrac_username, idrac_password))
     data = response.json()
     if data["Members"] == []:
         logging.warning("\n- WARNING, no reboot IDs detected in the job queue")
@@ -129,8 +129,8 @@ def create_reboot_jobID():
     else:
         logging.error("\n- FAIL, CreateRebootJob action failed, status code %s returned" % (response.status_code))
         data = response.json()
-        sys.exit(0)
         logging.error("\n- POST command failure:\n %s" % data)
+        sys.exit(0)
     try:
         reboot_job_id = response.headers['Location'].split("/")[-1]
     except:
