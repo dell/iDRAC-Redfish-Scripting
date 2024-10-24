@@ -5,7 +5,7 @@
 # to delete the downloaded payload.
 #
 # _author_ = Texas Roemer <Texas_Roemer@Dell.com>
-# _version_ = 5.0
+# _version_ = 6.0
 #
 # Copyright (c) 2017, Dell, Inc.
 #
@@ -216,11 +216,11 @@ if __name__ == "__main__":
                 verify_cert = False
         else:
             verify_cert = False
+        check_supported_idrac_version()
         get_server_generation()
         if idrac_version >= 10:
-            logging.info("\n- WARNING, iDRAC version detected does not support this feature/script")
+            logging.info("\n- INFO, current iDRAC version detected does not support this feature/script")
             sys.exit(0)
-        check_supported_idrac_version()
     else:
         logging.error("\n- FAIL, invalid argument values or not all required parameters passed in. See help text or argument --script-examples for more details.")
         sys.exit(0)
