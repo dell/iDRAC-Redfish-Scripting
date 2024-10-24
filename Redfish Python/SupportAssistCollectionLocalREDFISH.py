@@ -3,7 +3,7 @@
 # SupportAssistCollectionLocalREDFISH. Python script using Redfish API with OEM extension to perform Support Assist operations.
 #
 # _author_ = Texas Roemer <Texas_Roemer@Dell.com>
-# _version_ = 16.0
+# _version_ = 17.0
 #
 # Copyright (c) 2020, Dell, Inc.
 #
@@ -89,8 +89,26 @@ def check_supported_idrac_version():
         logging.warning("\n- WARNING, iDRAC version installed does not support this feature using Redfish API")
         sys.exit(0)
 
+def get_server_generation():
+    global idrac_model
+    if args["x"]:
+        response = requests.get('https://%s/redfish/v1/Managers/iDRAC.Embedded.1?$select=Model' % idrac_ip, verify=verify_cert, headers={'X-Auth-Token': args["x"]})
+    else:
+        response = requests.get('https://%s/redfish/v1/Managers/iDRAC.Embedded.1?$select=Model' % idrac_ip, verify=False,auth=(idrac_username,idrac_password))
+    data = response.json()
+    if response.status_code == 401:
+        logging.error("\n- ERROR, status code 401 detected, check to make sure your iDRAC script session has correct username/password credentials or if using X-auth token, confirm the session is still active.")
+        sys.exit(0)
+    elif response.status_code != 200:
+        logging.warning("\n- WARNING, unable to get current server model generation")
+        sys.exit(0)
+    if "14" in data["Model"] or "15" in data["Model"] or "16" in data["Model"]:
+        idrac_model = 9
+    else:
+        idrac_model = 10
+
 def support_assist_collection():
-    global job_id
+    global job_id_uri
     global start_time
     start_time = datetime.now()
     url = 'https://%s/redfish/v1/Managers/iDRAC.Embedded.1/Oem/Dell/DellLCService/Actions/DellLCService.SupportAssistCollection' % (idrac_ip)
@@ -139,11 +157,11 @@ def support_assist_collection():
         logging.error("\n- FAIL, status code %s returned, detailed error information:\n %s" % (response.status_code, data))
         sys.exit(0)
     try:
-        job_id = response.headers['Location'].split("/")[-1]
+        job_id_uri = response.headers['Location']
     except:
         logging.error("- FAIL, unable to find job ID in headers POST response, headers output is:\n%s" % response.headers)
         sys.exit(0)
-    logging.info("\n- PASS, job ID %s successfully created for %s method\n", job_id, method)
+    logging.info("\n- PASS, job ID %s successfully created for %s method\n", job_id_uri.split("/")[-1], method)
 
 def support_assist_accept_EULA():
     url = 'https://%s/redfish/v1/Managers/iDRAC.Embedded.1/Oem/Dell/DellLCService/Actions/DellLCService.SupportAssistAcceptEULA' % (idrac_ip)
@@ -244,26 +262,55 @@ def support_assist_register():
         logging.error("\n- FAIL, Support Assist not registered, current status is: %s" % data["IsRegistered"])
         sys.exit(0)
 
-def loop_job_status():
+def loop_job_status_iDRAC9():
     loop_count = 0
     while True:
-        if loop_count == 20:
-            logging.info("- INFO, retry count for GET request has been elapsed, script will exit. Manually check the job queue for final job status results")
+        if loop_count == 30:
+            logging.info("- INFO, retry count of 30 for GET request has been elapsed, script will exit. Manually check the job queue for final job status results")
             sys.exit(0)
-        if args["x"]:
-            response = requests.get('https://%s/redfish/v1/Managers/iDRAC.Embedded.1/Oem/Dell/Jobs/%s' % (idrac_ip, job_id), verify=verify_cert, headers={'X-Auth-Token': args["x"]})
-        else:
-            response = requests.get('https://%s/redfish/v1/Managers/iDRAC.Embedded.1/Oem/Dell/Jobs/%s' % (idrac_ip, job_id), verify=verify_cert,auth=(idrac_username, idrac_password))
+        try:
+            if args["x"]:
+                response = requests.get('https://%s%s' % (idrac_ip, job_id_uri), verify=verify_cert, headers={'X-Auth-Token': args["x"]})
+            else:
+                response = requests.get('https://%s%s' % (idrac_ip, job_id_uri), verify=verify_cert,auth=(idrac_username, idrac_password))
+        except requests.exceptions.ConnectTimeout as json_error:
+            print("ConnectTimeout:", json_error)
+            time.sleep(5)
+            loop_count += 1
+            continue
+        except json.decoder.JSONDecodeError as json_error:
+            print("JSONDecodeError:", json_error)
+            time.sleep(5)
+            loop_count += 1
+            continue
+        except requests.exceptions.ConnectionError as error_message:
+            logging.info("- INFO, GET request failed due to connection error, retry")
+            time.sleep(5)
+            loop_count += 1
+            continue
+        except requests.exceptions.RequestException as req_error:
+            print("RequestException:", req_error)
+            time.sleep(5)
+            loop_count += 1
+            continue
         current_time = (datetime.now()-start_time)
-        data = response.json()
-        if response.status_code != 200:
+        if response.status_code == 200 or response.status_code == 202:
+            logging.debug("- PASS, GET command passed status code %s returned" % response.status_code)
+        else:
             logging.error("- FAIL, status code %s returned, GET command will retry" % response.status_code)
             time.sleep(10)
             loop_count += 1
             continue
         try:
-            if response.headers['Location'] == "/redfish/v1/Dell/sacollect.zip" or response.headers['Location'] == "/redfish/v1/Oem/Dell/sacollect.zip":
-                logging.info("- PASS, job ID %s successfully marked completed" % job_id)
+            data = response.json()
+        except:
+            logging.info("- INFO, unable to parse JSON response from GET request, retry")
+            time.sleep(5)
+            loop_count += 1
+            continue
+        try:
+            if "sacollect.zip" in response.headers['Location'].lower():
+                logging.info("- PASS, job ID %s successfully marked completed" % job_id_uri.split("/")[-1])
                 if args["x"]:
                     response = requests.get('https://%s%s' % (idrac_ip, response.headers['Location']), verify=verify_cert, headers={'X-Auth-Token': args["x"]})
                 else:
@@ -284,13 +331,13 @@ def loop_job_status():
             if str(current_time)[0:7] >= "0:30:00":
                 logging.error("\n- FAIL: Timeout of 30 minutes has been hit, script stopped\n")
                 sys.exit(0)
-            elif data['JobState'] == "CompletedWithErrors":
+            elif data["JobState"] == "CompletedWithErrors":
                 logging.info("\n- INFO, SA collection completed with errors, please check iDRAC Lifecycle Logs for more details")
                 sys.exit(0)
-            elif "Fail" in data['Message'] or "fail" in data['Message'] or data['JobState'] == "Failed" or "error" in data['Message'] or "Error" in data['Message']:
-                logging.error("- FAIL: job ID %s failed, failed message is: %s" % (job_id, data['Message']))
+            elif "Fail" in data["Message"] or "fail" in data["Message"] or data["JobState"] == "Failed" or "error" in data["Message"] or "Error" in data["Message"]:
+                logging.error("- FAIL: job ID %s failed, failed message is: %s" % (job_id, data["Message"]))
                 sys.exit(0)
-            elif data['JobState'] == "Completed" or "complete" in data['Message'].lower():
+            elif data["JobState"] == "Completed" or "complete" in data["Message"].lower():
                 if "local path" in data['Message']:
                     logging.info("\n--- PASS, Final Detailed Job Status Results ---\n")
                 else:
@@ -302,6 +349,94 @@ def loop_job_status():
             else:
                 logging.info("- INFO, Job status not marked completed, polling job status again, execution time: %s" % str(current_time)[0:7])
                 time.sleep(5)
+
+
+def loop_job_status_iDRAC10():
+    loop_count = 0
+    while True:
+        if loop_count == 30:
+            logging.info("- INFO, retry count of 30 for GET request has been elapsed, script will exit. Manually check the job queue for final job status results")
+            sys.exit(0)
+        try:
+            if args["x"]:
+                response = requests.get('https://%s%s' % (idrac_ip, job_id_uri), verify=verify_cert, headers={'X-Auth-Token': args["x"]})
+            else:
+                response = requests.get('https://%s%s' % (idrac_ip, job_id_uri), verify=verify_cert,auth=(idrac_username, idrac_password))
+        except requests.exceptions.ConnectTimeout as json_error:
+            print("ConnectTimeout:", json_error)
+            time.sleep(5)
+            loop_count += 1
+            continue
+        except json.decoder.JSONDecodeError as json_error:
+            print("JSONDecodeError:", json_error)
+            time.sleep(5)
+            loop_count += 1
+            continue
+        except requests.exceptions.ConnectionError as error_message:
+            logging.info("- INFO, GET request failed due to connection error, retry")
+            time.sleep(5)
+            loop_count += 1
+            continue
+        except requests.exceptions.RequestException as req_error:
+            print("RequestException:", req_error)
+            time.sleep(5)
+            loop_count += 1
+            continue
+        current_time = (datetime.now()-start_time)
+        if response.status_code == 200 or response.status_code == 202:
+            logging.debug("- PASS, GET command passed status code %s returned" % response.status_code)
+        elif response.status_code == 204:
+            if "sacollect.zip" in response.headers['Location'].lower():
+                logging.info("- PASS, job ID %s successfully marked completed" % job_id_uri.split("/")[-1])
+                if args["x"]:
+                    response = requests.get('https://%s%s' % (idrac_ip, response.headers['Location']), verify=verify_cert, headers={'X-Auth-Token': args["x"]})
+                else:
+                    response = requests.get('https://%s%s' % (idrac_ip, response.headers['Location']), verify=verify_cert,auth=(idrac_username, idrac_password))
+                if args["filename"]:
+                    SA_export_filename = args["filename"]
+                else:
+                    SA_export_filename = "sacollect.zip"
+                with open(SA_export_filename, "wb") as output:
+                    output.write(response.content)
+                logging.info("\n- INFO, check your local directory for SupportAssist collection zip file \"%s\"" % SA_export_filename)
+                sys.exit(0)
+            else:
+                data = response.json()
+                logging.error("- ERROR, unable to locate SA collection URI in headers output, JSON response: \n%s" % data)
+                sys.exit(0)    
+        else:
+            logging.error("- FAIL, status code %s returned, GET command will retry" % response.status_code)
+            time.sleep(10)
+            loop_count += 1
+            continue
+        try:
+            data = response.json()
+        except:
+            logging.info("- INFO, unable to parse JSON response from GET request, retry")
+            time.sleep(5)
+            loop_count += 1
+            continue
+        if str(current_time)[0:7] >= "0:30:00":
+            logging.error("\n- FAIL: Timeout of 30 minutes has been hit, script stopped\n")
+            sys.exit(0)
+        elif data["Oem"]["Dell"]["JobState"] == "CompletedWithErrors":
+            logging.info("\n- INFO, SA collection completed with errors, please check iDRAC Lifecycle Logs for more details")
+            sys.exit(0)
+        elif "Fail" in data["Oem"]["Dell"]["Message"] or "fail" in data["Oem"]["Dell"]["Message"] or data["Oem"]["Dell"]["JobState"] == "Failed" or "error" in data["Oem"]["Dell"]["Message"] or "Error" in data["Oem"]["Dell"]["Message"]:
+            logging.error("- FAIL: job ID %s failed, failed message is: %s" % (job_id, data["Oem"]["Dell"]["Message"]))
+            sys.exit(0)
+        elif data["Oem"]["Dell"]["JobState"] == "Completed" or "complete" in data["Oem"]["Dell"]["Message"].lower():
+            if "local path" in data["Oem"]["Dell"]['Message']:
+                logging.info("\n--- PASS, Final Detailed Job Status Results ---\n")
+            else:
+                logging.warning("- WARNING, unable to detect final job status message. Manually run GET on URI \"%s\" using browser to see if SA zip collection is available to download." % response.headers['Location'])
+                sys.exit(0)
+            for i in data.items():
+                pprint(i)
+            break
+        else:
+            logging.info("- INFO, Job status not marked completed, polling job status again, execution time: %s" % str(current_time)[0:7])
+            time.sleep(5)
             
 
     
@@ -339,7 +474,13 @@ if __name__ == "__main__":
             sys.exit(0)
     if args["export"]:
         support_assist_collection()
-        loop_job_status()
+        get_server_generation()
+        if idrac_model == 9:
+            loop_job_status_iDRAC9()
+        elif idrac_model == 10:
+            loop_job_status_iDRAC10()
+        else:
+            logging.warning("- WARNING, unable to identify server model type to check job status, please manually check job ID status in iDRAC job queue")
         sys.exit(0)
     if args["get"]:
         support_assist_get_EULA_status()
