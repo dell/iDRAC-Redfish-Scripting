@@ -135,7 +135,9 @@ def export_scp_file_locally():
     else:
         headers = {'content-type': 'application/json'}
         response = requests.post(url, data=json.dumps(payload), headers=headers, verify=verify_cert,auth=(idrac_username,idrac_password))
-    if response.status_code != 202:
+    if response.status_code == 200 or response.status_code == 202:
+        logging.debug("- PASS, POST command passed")
+    else:
         logging.error("- FAIL, POST command failed to export system configuration, status code %s returned" % response.status_code)
         logging.error("- Error details: %s" % response.__dict__)
         sys.exit(0) 
@@ -197,6 +199,12 @@ def export_scp_file_locally():
                     response = requests.get('https://%s/redfish/v1/Managers/iDRAC.Embedded.1/Oem/Dell/Jobs/%s' % (idrac_ip, job_id), verify=verify_cert, headers={'X-Auth-Token': args["x"]})
                 else:
                     response = requests.get('https://%s/redfish/v1/Managers/iDRAC.Embedded.1/Oem/Dell/Jobs/%s' % (idrac_ip, job_id), verify=verify_cert, auth=(idrac_username, idrac_password))
+                if response.status_code == 200 or response.status_code == 202:
+                    logging.debug("- PASS, GET request passed to check job status")
+                else:
+                    logging.error("\n- FAIL, GET command failed to check job status, return code %s" % response.status_code)
+                    logging.error("Extended Info Message: {0}".format(response.json()))
+                    sys.exit(0)
                 data = response.json()
                 print("\n- PASS, final detailed job status results for job ID %s -\n" % job_id)
                 for i in data.items():
@@ -219,6 +227,12 @@ def export_scp_file_locally():
                     response = requests.get('https://%s/redfish/v1/Managers/iDRAC.Embedded.1/Oem/Dell/Jobs/%s' % (idrac_ip, job_id), verify=verify_cert, headers={'X-Auth-Token': args["x"]})
                 else:
                     response = requests.get('https://%s/redfish/v1/Managers/iDRAC.Embedded.1/Oem/Dell/Jobs/%s' % (idrac_ip, job_id), verify=verify_cert, auth=(idrac_username, idrac_password))
+                if response.status_code == 200 or response.status_code == 202:
+                    logging.debug("- PASS, GET request passed to check job status")
+                else:
+                    logging.error("\n- FAIL, GET command failed to check job status, return code %s" % response.status_code)
+                    logging.error("Extended Info Message: {0}".format(response.json()))
+                    sys.exit(0)
                 data = response.json()
                 logging.info("\n- PASS, final detailed job status results for job ID %s -\n" % job_id)
                 for i in data.items():
