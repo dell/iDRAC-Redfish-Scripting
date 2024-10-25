@@ -153,7 +153,7 @@ def loop_job_status():
         if str(current_time)[0:7] >= "0:05:00":
             logging.error("\n- FAIL: Timeout of 5 minutes has been hit, script stopped\n")
             sys.exit(0)
-        elif "Fail" in data['Message'] or "fail" in data['Message'] or data['JobState'] == "Failed" or "Unable" in data['Message']:
+        elif "fail" in data['Message'].lower() or "unable" in data['Message'].lower():
             logging.error("- FAIL: job ID %s failed, failed message is: %s" % (job_id, data['Message']))
             sys.exit(0)
         elif data['JobState'] == "Completed":
