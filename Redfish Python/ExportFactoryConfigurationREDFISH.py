@@ -3,7 +3,7 @@
 # ExportFactoryConfigurationREDFISH. Python script using Redfish API with OEM extension to export server factory configuration to a network share
 #
 # _author_ = Texas Roemer <Texas_Roemer@Dell.com>
-# _version_ = 2.0
+# _version_ = 3.0
 #
 # Copyright (c) 2019, Dell, Inc.
 #
@@ -38,7 +38,7 @@ parser.add_argument('-x', help='Pass in X-Auth session token for executing Redfi
 parser.add_argument('--ssl', help='SSL cert verification for all Redfish calls, pass in value \"true\" or \"false\". By default, this argument is not required and script ignores validating SSL cert for all Redfish calls.', required=False)
 parser.add_argument('--script-examples', action="store_true", help='Prints script examples')
 parser.add_argument('--shareip', help='Pass in the IP address of the network share', required=False)
-parser.add_argument('--sharetype', help='Pass in the share type of the network share. Supported values are Local, NFS, CIFS, HTTP, HTTPS.', required=False)
+parser.add_argument('--sharetype', help='Pass in the share type of the network share. Supported values are NFS, CIFS, HTTP, HTTPS.', required=False)
 parser.add_argument('--sharename', help='Pass in the network share share name', required=False)
 parser.add_argument('--username', help='Pass in the CIFS username', required=False)
 parser.add_argument('--password', help='Pass in the CIFS username pasword', required=False)
@@ -103,24 +103,11 @@ def export_factory_configuration():
         data = response.json()
         logging.error("\n- POST command failure results:\n %s" % data)
         sys.exit(0)
-    if args["sharetype"].lower() == "local":
-        if response.headers['Location'] == "/redfish/v1/Dell/factoryconfig.xml":
-            while True:
-                request = input(str("\n- INFO, open browser session to download factory config XML? Type \"y\" to download or \"n\" to not download: "))
-                if request.lower() == "y":
-                    webbrowser.open("https://%s%s" % (idrac_ip, response.headers["Location"]))
-                    logging.info("\n- INFO, check your default browser session for downloaded factory config XML file.")
-                    break
-                elif request.lower() == "n":
-                    break
-                else:
-                    logging.error("\n- FAIL, incorrect value passed in for request, try again")
-    else:
-        try:
-            job_id = response.headers['Location'].split("/")[-1]
-        except:
-            logging.error("- FAIL, unable to find job ID in headers POST response, headers output is:\n%s" % response.headers)
-            sys.exit(0)
+    try:
+        job_id = response.headers['Location'].split("/")[-1]
+    except:
+        logging.error("- FAIL, unable to find job ID in headers POST response, headers output is:\n%s" % response.headers)
+        sys.exit(0)
         logging.info("- PASS, job ID %s successfully created for %s method\n", job_id, method)
     
 def loop_job_status():
@@ -150,6 +137,9 @@ def loop_job_status():
         data = response.json()
         if str(current_time)[0:7] >= "0:05:00":
             logging.error("\n- FAIL: Timeout of 5 minutes has been hit, script stopped\n")
+            sys.exit(0)
+        elif data['JobState'] == "Failed":
+            logging.error("- FAIL: job ID %s failed, failed message: %s" % (job_id, data['Message']))
             sys.exit(0)
         elif "fail" in data['Message'].lower() or "unable" in data['Message'].lower():
             logging.error("- FAIL: job ID %s failed, failed message: %s" % (job_id, data['Message']))
