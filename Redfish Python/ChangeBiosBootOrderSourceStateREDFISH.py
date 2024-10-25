@@ -180,7 +180,7 @@ def get_job_status_scheduled():
             time.sleep(5)
             count += 1
             continue
-        if response.status_code == 200:
+        if response.status_code == 200 or response.status_code == 202:
             time.sleep(5)
         else:
             logging.error("\n- FAIL, Command failed to check job status, return code %s" % response.status_code)
@@ -215,8 +215,10 @@ def loop_job_status_final():
             retry_count += 1
             continue
         current_time = (datetime.now()-start_time)
-        if response.status_code != 200:
-            logging.error("\n- FAIL, GET command failed to check job status, return code is %s" % response.status_code)
+        if response.status_code == 200 or response.status_code == 202:
+            logging.debug("- PASS, GET request passed to check job status")
+        else:
+            logging.error("\n- FAIL, GET command failed to check job status, return code %s" % response.status_code)
             logging.error("Extended Info Message: {0}".format(req.json()))
             return
         data = response.json()
