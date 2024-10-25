@@ -141,7 +141,9 @@ def loop_job_status():
             retry_count += 1
             continue
         current_time = (datetime.now()-start_time)
-        if response.status_code != 200:
+        if response.status_code == 200 or response.status_code == 202:
+            logging.debug("- PASS, GET request passed to check job status")
+        else:
             logging.error("\n- FAIL, Command failed to check job status, return code is %s" % response.status_code)
             print("Extended Info Message: {0}".format(response.json()))
             sys.exit(0)
@@ -149,8 +151,8 @@ def loop_job_status():
         if str(current_time)[0:7] >= "0:05:00":
             logging.error("\n- FAIL: Timeout of 5 minutes has been hit, script stopped\n")
             sys.exit(0)
-        elif "Fail" in data['Message'] or "fail" in data['Message'] or data['JobState'] == "Failed" or "Unable" in data['Message']:
-            logging.error("- FAIL: job ID %s failed, failed message is: %s" % (job_id, data['Message']))
+        elif "fail" in data['Message'].lower() or "unable" in data['Message'].lower():
+            logging.error("- FAIL: job ID %s failed, failed message: %s" % (job_id, data['Message']))
             sys.exit(0)
         elif data['JobState'] == "Completed":
             if data['Message'] == "Factory Configuration Export was successful":
