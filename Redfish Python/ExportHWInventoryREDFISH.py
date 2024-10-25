@@ -5,7 +5,7 @@
 #
 # _author_ = Texas Roemer <Texas_Roemer@Dell.com>
 # _author_ = Grant Curell <grant_curell@dell.com>
-# _version_ = 15.0
+# _version_ = 16.0
 #
 # Copyright (c) 2022, Dell, Inc.
 #
@@ -70,7 +70,8 @@ def check_supported_idrac_version():
         logging.warning("\n- WARNING, status code %s returned, check your iDRAC username/password is correct or iDRAC user has correct privileges to execute Redfish commands" % response.status_code)
         sys.exit(0)
     if response.status_code != 200:
-        logging.warning("\n- WARNING, GET command failed to check supported iDRAC version, status code %s returned" % response.status_code)
+        logging.warning("\n- WARNING, GET command failed, status code %s returned" % response.status_code)
+        print(data)
         sys.exit(0)
 
 def export_hw_inventory():
