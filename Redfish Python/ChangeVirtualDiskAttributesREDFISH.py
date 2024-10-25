@@ -239,7 +239,7 @@ def loop_job_status_final():
             logging.debug("- PASS, GET request passed to check job status")
         else:
             logging.error("\n- FAIL, GET command failed to check job status, return code is %s" % response.status_code)
-            logging.error("Extended Info Message: {0}".format(req.json()))
+            logging.error("Extended Info Message: {0}".format(response.json()))
             sys.exit(0)
         data = response.json()
         if str(current_time)[0:7] >= "2:00:00":
