@@ -3,7 +3,7 @@
 # DeviceFirmwareMultipartUploadREDFISH.py. Python script using Redfish API to update a device firmware with DMTF MultipartUpload. Supported file image types are Windows DUPs, d7/d9 image or pm files.
 #
 # _author_ = Texas Roemer <Texas_Roemer@Dell.com>
-# _version_ = 8.0
+# _version_ = 9.0
 #
 # Copyright (c) 2020, Dell, Inc.
 #
@@ -141,6 +141,7 @@ def download_image_create_update_job():
         logging.error("- FAIL, unable to locate job ID in header")
         sys.exit(0)
     logging.info("- PASS, update job ID %s successfully created, script will now loop polling the job status\n" % job_id)
+    time.sleep(10)
     if args["x"]:
         response = requests.get('https://%s/redfish/v1/TaskService/Tasks/%s' % (idrac_ip, job_id), verify=verify_cert, headers={'X-Auth-Token': args["x"]})
     else:
@@ -265,7 +266,10 @@ def check_job_status():
                     time.sleep(10)
                     retry_count +=1
                     continue
-        if data["TaskState"] == "Completed" and data["Oem"]["Dell"]["JobState"]:
+        if "fail" in data['Oem']['Dell']['Message'].lower() or "error" in data['Oem']['Dell']['Message'].lower() or "unable" in data['Oem']['Dell']['Message'].lower():
+            logging.error("- FAIL: Job failed, current message: %s" % data["Messages"])
+            sys.exit(0)
+        elif data["TaskState"] == "Completed" and data["Oem"]["Dell"]["JobState"]:
             logging.info("\n- PASS, job ID successfuly marked completed, detailed final job status results\n")
             for i in data['Oem']['Dell'].items():
                 pprint(i)
@@ -288,9 +292,6 @@ def check_job_status():
             sys.exit(0)
         if str(current_time)[0:7] >= "0:30:00":
             logging.error("\n- FAIL: Timeout of 30 minutes has been hit, update job should of already been marked completed. Check the iDRAC job queue and LC logs to debug the issue\n")
-            sys.exit(0)
-        elif "failed" in data['Oem']['Dell']['Message'] or "completed with errors" in data['Oem']['Dell']['Message'] or "Failed" in data['Oem']['Dell']['Message']:
-            logging.error("- FAIL: Job failed, current message: %s" % data["Messages"])
             sys.exit(0)
         elif "scheduled" in data['Oem']['Dell']['Message']:
             if schedule_job_status_count == 1:
@@ -355,7 +356,9 @@ def loop_check_final_job_status():
             continue
         current_time = str((datetime.now()-start_time))[0:7]
         data = response.json()
-        if response.status_code != 200:
+        if response.status_code == 200 or response.status_code == 202:
+            logging.debug("- PASS, GET request passed to check job status")
+        else:
             logging.error("\n- FAIL, GET command failed to check job status, return code %s" % response.status_code)
             logging.error("Extended Info Message: {0}".format(response.json()))
             sys.exit(0)
@@ -589,12 +592,7 @@ if __name__ == "__main__":
         check_job_status()
         if args["reboot"]:
             logging.info("- INFO, powering on or rebooting server to apply the firmware")
-            if int(idrac_fw_version[0]) >= 5 and idrac_model == 9:
-                loop_check_final_job_status()
-            else:
-                logging.info("- INFO, older iDRAC version detected, execute action ComputerSystem.Reset to reboot the server")
-                reboot_server()
-                loop_check_final_job_status()
+            loop_check_final_job_status()
         else:
             logging.info("- INFO, argument --reboot not detected. Update job is marked as scheduled and will be applied on next server reboot")
             sys.exit(0)

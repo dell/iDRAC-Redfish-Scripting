@@ -3,7 +3,7 @@
 # DeviceFirmwareSimpleUpdateTransferProtocolREDFISH. Python script using Redfish API to update a device firmware with DMTF standard SimpleUpdate with TransferProtocol. Only supported file image type is Windows Dell Update Packages(DUPs).
 #
 # _author_ = Texas Roemer <Texas_Roemer@Dell.com>
-# _version_ = 15.0
+# _version_ = 16.0
 #
 # Copyright (c) 2019, Dell, Inc.
 #
@@ -337,7 +337,9 @@ def loop_check_final_job_status():
             retry_count += 1
             continue 
         current_time = str((datetime.now()-start_time))[0:7]
-        if response.status_code != 200:
+        if response.status_code == 200 or response.status_code == 202:
+            logging.debug("- PASS, GET request passed to check job status")
+        else:
             logging.error("\n- FAIL, GET command failed to check job status, return code %s" % response.status_code)
             logging.error("Extended Info Message: {0}".format(response.json()))
             sys.exit(0)
@@ -527,13 +529,8 @@ if __name__ == "__main__":
         install_image_payload()
         check_job_status()
         if args["reboot"]:
-            logging.info("- INFO, user selected to reboot the server now to execute update job")
-            if int(idrac_fw_version[0]) >= 5:
-                loop_check_final_job_status()
-            else:
-                logging.info("- INFO, older iDRAC version detected, execute action ComputerSystem.Reset to reboot the server")
-                reboot_server()
-                loop_check_final_job_status()
+            logging.info("- INFO, powering on or rebooting server to apply the firmware")
+            loop_check_final_job_status()
         else:
             logging.info("- INFO, argument --reboot not detected. Job is still scheduled and will execute on next server manual reboot.")
             sys.exit(0)
