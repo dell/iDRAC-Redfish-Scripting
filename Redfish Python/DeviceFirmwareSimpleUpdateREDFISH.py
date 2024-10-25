@@ -3,7 +3,7 @@
 # DeviceFirmwareSimpleUpdateREDFISH. Python script using Redfish API to update a device firmware with DMTF action SimpleUpdate. Supported file image types are Windows DUPs, d7/d9 image or pm files.
 #
 # _author_ = Texas Roemer <Texas_Roemer@Dell.com>
-# _version_ = 20.0
+# _version_ = 21.0
 #
 # Copyright (c) 2018, Dell, Inc.
 #
@@ -67,7 +67,31 @@ def check_supported_idrac_version():
         sys.exit(0)
     if response.status_code != 200:
         logging.warning("\n- WARNING, GET command failed to check supported iDRAC version, status code %s returned" % response.status_code)
-        sys.exit(0) 
+        sys.exit(0)
+    if idrac_version >= 10:
+        logging.warning("\n- WARNING, iDRAC version detected does not support SimpleUpdate using HttpPushUri, please use either SimpleUpdate with ImageURI or MultpartUpload to perform firmware update")
+        sys.exit(0)
+        
+        
+def get_server_generation():
+    global idrac_version
+    if args["x"]:
+        response = requests.get('https://%s/redfish/v1/Managers/iDRAC.Embedded.1?$select=Model' % idrac_ip, verify=verify_cert, headers={'X-Auth-Token': args["x"]})
+    else:
+        response = requests.get('https://%s/redfish/v1/Managers/iDRAC.Embedded.1?$select=Model' % idrac_ip, verify=False,auth=(idrac_username,idrac_password))
+    data = response.json()
+    if response.status_code == 401:
+        logging.error("\n- ERROR, status code 401 detected, check to make sure your iDRAC script session has correct username/password credentials or if using X-auth token, confirm the session is still active.")
+        sys.exit(0)
+    elif response.status_code != 200:
+        logging.warning("\n- WARNING, unable to get current iDRAC version installed")
+        sys.exit(0)
+    if "12" in data["Model"] or "13" in data["Model"]:
+        idrac_version = 8
+    elif "14" in data["Model"] or "15" in data["Model"] or "16" in data["Model"]:
+        idrac_version = 9
+    else:
+        idrac_version = 10
 
 def get_idrac_version():
     global idrac_fw_version
@@ -253,9 +277,9 @@ def loop_check_final_job_status():
         check_idrac_connection()
         try:
             if args["x"]:
-                response = requests.get('https://%s/redfish/v1/Managers/iDRAC.Embedded.1/Oem/Dell/Jobs/%s' % (idrac_ip, job_id), verify=verify_cert, headers={'X-Auth-Token': args["x"]})
+                response = requests.get('https://%s/redfish/v1/Managers/iDRAC.Embedded.1/Jobs/%s' % (idrac_ip, job_id), verify=verify_cert, headers={'X-Auth-Token': args["x"]})
             else:
-                response = requests.get('https://%s/redfish/v1/Managers/iDRAC.Embedded.1/Oem/Dell/Jobs/%s' % (idrac_ip, job_id), verify=verify_cert,auth=(idrac_username, idrac_password))
+                response = requests.get('https://%s/redfish/v1/Managers/iDRAC.Embedded.1/Jobs/%s' % (idrac_ip, job_id), verify=verify_cert,auth=(idrac_username, idrac_password))
         except requests.ConnectionError as error_message:
             logging.info("- INFO, GET request failed due to connection error, retry")
             time.sleep(10)
@@ -456,6 +480,7 @@ if __name__ == "__main__":
                 verify_cert = False
         else:
             verify_cert = False
+        get_server_generation()
         check_supported_idrac_version()
     else:
         logging.error("\n- FAIL, invalid argument values or not all required parameters passed in. See help text or argument --script-examples for more details.")
