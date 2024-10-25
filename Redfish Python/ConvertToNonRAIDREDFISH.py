@@ -166,9 +166,11 @@ def loop_job_status():
         else:
             response = requests.get('https://%s/redfish/v1/Managers/iDRAC.Embedded.1/Oem/Dell/Jobs/%s' % (idrac_ip, job_id), verify=verify_cert,auth=(idrac_username, idrac_password))
         current_time = (datetime.now()-start_time)
-        if response.status_code != 200:
-            logging.error("\n- FAIL, GET command failed to check job status, return code is %s" % statusCode)
-            logging.error("Extended Info Message: {0}".format(req.json()))
+        if response.status_code == 200 or response.status_code == 202:
+            logging.debug("- PASS, GET request passed to check job status")
+        else:
+            logging.error("\n- FAIL, GET command failed to check job status, return code is %s" % response.status_code)
+            logging.error("Extended Info Message: {0}".format(response.json()))
             sys.exit(0)
         data = response.json()
         if str(current_time)[0:7] >= "2:00:00":
