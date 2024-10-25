@@ -124,7 +124,7 @@ def create_reboot_jobID():
     else:
         headers = {'content-type': 'application/json'}
         response = requests.post(url, data=json.dumps(payload), headers=headers, verify=verify_cert,auth=(idrac_username,idrac_password))
-    if response.status_code == 202:
+    if response.status_code == 200 or response.status_code == 202:
         logging.debug("\n- PASS: POST command passed to create reboot job ID")  
     else:
         logging.error("\n- FAIL, CreateRebootJob action failed, status code %s returned" % (response.status_code))
@@ -145,7 +145,7 @@ def create_reboot_jobID():
     else:
         headers = {'content-type': 'application/json'}
         response = requests.post(url, data=json.dumps(payload), headers=headers, verify=verify_cert,auth=(idrac_username,idrac_password))
-    if response.status_code == 200:
+    if response.status_code == 200 or response.status_code == 202:
         logging.info("\n- PASS: POST command passed to create and schedule reboot job ID \"%s\"" % reboot_job_id)  
     else:
         logging.error("\n- FAIL, SetupJobQueue action failed, status code %s returned" % (response.status_code))
