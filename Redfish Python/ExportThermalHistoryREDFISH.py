@@ -114,7 +114,7 @@ def export_thermal_history():
             
 def loop_job_status():
     """
-    Job ID returned from DellLCService.ExportHWInventory action, this will loop checking the job status until marked completed. 
+    Job ID returned from ExportThermalHistory action, this will loop checking the job status until marked completed. 
     """
     start_time = datetime.now()
     while True:
