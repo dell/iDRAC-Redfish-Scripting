@@ -3,7 +3,7 @@
 # ImportSystemConfigurationLocalFilenameREDFISH. Python script using Redfish API to import system configuration profile attributes locally from a configuration file.
 #
 # _author_ = Texas Roemer <Texas_Roemer@Dell.com>
-# _version_ = 21.0
+# _version_ = 22.0
 #
 # Copyright (c) 2017, Dell, Inc.
 #
@@ -89,6 +89,9 @@ def get_server_generation():
 
 
 def get_target_values():
+    if idrac_version >= 10:
+        logging.info("\n- INFO, supported target values:\n\nALL\nIDRAC\nBIOS\nNIC\nRAID\nFC\nInfiniBand\nSupportAssist\nEventFilters\nSystem\nLifecycleController\nAHCI\nPCIeSSD")
+        sys.exit(0)
     if args["x"]:
         response = requests.get('https://%s/redfish/v1/Managers/iDRAC.Embedded.1' % idrac_ip, verify=verify_cert, headers={'X-Auth-Token': args["x"]})
     else:
@@ -115,8 +118,12 @@ def import_SCP_local_filename():
         sys.exit(0)    
     if idrac_version >= 10:
         url = 'https://%s/redfish/v1/Managers/iDRAC.Embedded.1/Actions/Oem/OemManager.ImportSystemConfiguration' % idrac_ip
+        #task_uri = "redfish/v1/TaskService/TaskMonitors/"
+        task_uri = "redfish/v1/TaskService/Tasks/"
     else:    
         url = 'https://%s/redfish/v1/Managers/iDRAC.Embedded.1/Actions/Oem/EID_674_Manager.ImportSystemConfiguration' % idrac_ip
+        task_uri = "redfish/v1/TaskService/Tasks/"
+        
     # Code needed to modify the SCP file to one string to pass in for POST command
     modify_file = open_file.read()
     modify_file = re.sub(" \n ","",modify_file)
@@ -159,9 +166,9 @@ def import_SCP_local_filename():
             sys.exit(0)
         try:
             if args["x"]:
-                response = requests.get('https://%s/redfish/v1/TaskService/Tasks/%s' % (idrac_ip, job_id), verify=verify_cert, headers={'X-Auth-Token': args["x"]})
+                response = requests.get('https://%s/%s/%s' % (idrac_ip, task_uri, job_id), verify=verify_cert, headers={'X-Auth-Token': args["x"]})
             else:
-                response = requests.get('https://%s/redfish/v1/TaskService/Tasks/%s' % (idrac_ip, job_id), verify=verify_cert, auth=(idrac_username, args["p"]))
+                response = requests.get('https://%s/%s/%s' % (idrac_ip, task_uri, job_id), verify=verify_cert, auth=(idrac_username, args["p"]))
         except requests.ConnectionError as error_message:
             logging.warning("- WARNING, requests command failed to GET job status, detailed error information: \n%s" % error_message)
             logging.info("- INFO, script will attempt to get job status again")
@@ -179,9 +186,9 @@ def import_SCP_local_filename():
             time.sleep(5)
             args["p"] = args["new_password"]
             if args["x"]:
-                response = requests.get('https://%s/redfish/v1/TaskService/Tasks/%s' % (idrac_ip, job_id), verify=verify_cert, headers={'X-Auth-Token': args["x"]})
+                response = requests.get('https://%s/%s/%s' % (idrac_ip, task_uri, job_id), verify=verify_cert, headers={'X-Auth-Token': args["x"]})
             else:
-                response = requests.get('https://%s/redfish/v1/TaskService/Tasks/%s' % (idrac_ip, job_id), verify=verify_cert, auth=(idrac_username, args["p"]))
+                response = requests.get('https://%s/%s/%s' % (idrac_ip, task_uri, job_id), verify=verify_cert, auth=(idrac_username, args["p"]))
             if response.status_code == 401:
                 logging.info("- INFO, new password passed in for argument --new-password still failed with status code 401 for idrac user \"%s\", unable to check job status" % idrac_username)
                 sys.exit(0)
