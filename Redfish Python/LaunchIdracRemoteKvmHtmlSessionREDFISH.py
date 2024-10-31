@@ -1,7 +1,7 @@
 #!/usr/bin/python3
 #
 # _author_ = Texas Roemer <Texas_Roemer@Dell.com>
-# _version_ = 2.0
+# _version_ = 3.0
 #
 # Copyright (c) 2021, Dell, Inc.
 #
@@ -39,13 +39,11 @@ parser.add_argument('-p', help='iDRAC password. If you do not pass in argument -
 parser.add_argument('-x', help='Pass in X-Auth session token for executing Redfish calls. All Redfish calls will use X-Auth token instead of username/password', required=False)
 parser.add_argument('--ssl', help='SSL cert verification for all Redfish calls, pass in value \"true\" or \"false\". By default, this argument is not required and script ignores validating SSL cert for all Redfish calls.', required=False)
 parser.add_argument('--script-examples', help='Get executing script examples', action="store_true", dest="script_examples", required=False)
-parser.add_argument('--plugin-type', help='Pass in virtual console plugin type, supported values: \"HTML5\" or \"eHTML5\". NOTE: this argument is only required if using DRAC version older than 6.00.00. Starting in 6.00.00 iDRAC version, changing plugin type for virtual console has been removed.', dest="plugin_type", required=False)
 args = vars(parser.parse_args())
 logging.basicConfig(format='%(message)s', stream=sys.stdout, level=logging.INFO)
 
 def script_examples():
-    print("""\n- LaunchIdracRemoteKvmHtmlSessionREDFISH.py -ip 192.168.0.120 -u root -p calvin --plugin-type eHTML5, this example using iDRAC older than 6.00.00 will launch iDRAC eHTML5 KVM session using your default browser.
-    \n- LaunchIdracRemoteKvmHtmlSessionREDFISH.py -ip 192.168.0.120 -u root -p calvin, this example using iDRAC version 6.00.00 or newer will launch iDRAC eHTML5 KVM session using your default browser.""")
+    print("""\n- LaunchIdracRemoteKvmHtmlSessionREDFISH.py -ip 192.168.0.120 -u root -p calvin, this example will launch iDRAC eHTML5 KVM session using your default browser.""")
     sys.exit(0)
 
 def check_supported_idrac_version():
@@ -61,75 +59,6 @@ def check_supported_idrac_version():
     if "#DelliDRACCardService.GetKVMSession" not in data['Actions'].keys():
         logging.warning("\n- WARNING, iDRAC version installed does not support this feature using Redfish API")
         sys.exit(0)
-
-def get_iDRAC_version():
-    global iDRAC_version
-    if args["x"]:
-        response = requests.get('https://%s/redfish/v1/Managers/iDRAC.Embedded.1?$select=FirmwareVersion' % idrac_ip, verify=verify_cert, headers={'X-Auth-Token': args["x"]})   
-    else:
-        response = requests.get('https://%s/redfish/v1/Managers/iDRAC.Embedded.1?$select=FirmwareVersion' % idrac_ip, verify=verify_cert,auth=(idrac_username, idrac_password))
-    data = response.json()
-    if response.status_code == 401:
-        logging.error("- ERROR, status code 401 detected, check to make sure your iDRAC script session has correct username/password credentials or if using X-auth token, confirm the session is still active.")
-        sys.exit(0)
-    elif response.status_code != 200:
-        logging.warning("\n- WARNING, unable to get current iDRAC version installed")
-        sys.exit(0)
-    if int(data["FirmwareVersion"].replace(".","")) >= 6000000:
-        iDRAC_version = "new"
-    else:
-        iDRAC_version = "old"
-        
-def get_set_iDRAC_vconsole_plugin():
-    logging.info("\n- INFO, getting current value for iDRAC attribute \"%s\"" % "VirtualConsole.1.PluginType")
-    if args["x"]:
-        response = requests.get('https://%s/redfish/v1/Managers/iDRAC.Embedded.1/Oem/Dell/DellAttributes/iDRAC.Embedded.1' % idrac_ip, verify=verify_cert, headers={'X-Auth-Token': args["x"]})   
-    else:
-        response = requests.get('https://%s/redfish/v1/Managers/iDRAC.Embedded.1/Oem/Dell/DellAttributes/iDRAC.Embedded.1' % idrac_ip, verify=verify_cert,auth=(idrac_username, idrac_password))
-    data = response.json()
-    attributes_dict=data['Attributes']
-    locate_attribute = "no"
-    for i in attributes_dict:
-        if i == "VirtualConsole.1.PluginType":
-            logging.info("- INFO, Attribute Name: %s, Current Value: %s" % (i, attributes_dict[i]))
-            current_value = attributes_dict[i]
-            locate_attribute = "yes"
-    if locate_attribute == "no":
-        logging.error("\n- FAIL, unable to locate attribute \"%s\". Either current iDRAC version installed doesn\'t support this attribute or iDRAC missing required license" % "VirtualConsole.1.PluginType")
-        sys.exit(0)
-    if current_value != args["plugin_type"]:
-        logging.info("- INFO, attribute \"%s\" current value not set to %s, executing PATCH operation" % ("VirtualConsole.1.PluginType", args["plugin_type"]))
-        url = 'https://%s/redfish/v1/Managers/iDRAC.Embedded.1/Oem/Dell/DellAttributes/iDRAC.Embedded.1' % idrac_ip
-        payload = {'Attributes': {'VirtualConsole.1.PluginType': '%s' % args["plugin_type"]}}
-        if args["x"]:
-            headers = {'content-type': 'application/json', 'X-Auth-Token': args["x"]}
-            response = requests.patch(url, data=json.dumps(payload), headers=headers, verify=verify_cert)
-        else:
-            headers = {'content-type': 'application/json'}
-            response = requests.patch(url, data=json.dumps(payload), headers=headers, verify=verify_cert,auth=(idrac_username,idrac_password))
-        data = response.json()
-        if response.status_code == 200 or response.status_code == 202:
-            logging.info("- PASS, PATCH command passed to successfully set attribute \"%s\"" % "VirtualConsole.1.PluginType")
-            time.sleep(10)
-            if args["x"]:
-                response = requests.get('https://%s/redfish/v1/Managers/iDRAC.Embedded.1/Oem/Dell/DellAttributes/iDRAC.Embedded.1' % idrac_ip, verify=verify_cert, headers={'X-Auth-Token': args["x"]})   
-            else:
-                response = requests.get('https://%s/redfish/v1/Managers/iDRAC.Embedded.1/Oem/Dell/DellAttributes/iDRAC.Embedded.1' % idrac_ip, verify=verify_cert,auth=(idrac_username, idrac_password))
-            data = response.json()
-            attributes_dict=data['Attributes']
-            for i in attributes_dict:
-                if i == "VirtualConsole.1.PluginType":
-                    new_current_value = attributes_dict[i]
-            if new_current_value == args["plugin_type"]:
-                logging.info("- PASS, verified attribute \"%s\" is set to %s" % ("VirtualConsole.1.PluginType",args["plugin_type"]))
-            else:
-                logging.error("- FAIL, verified attribute \"%s\" is NOT set to %s, current value is \"%s\"" % ("VirtualConsole.1.PluginType", args["plugin_type"],new_current_value))
-                sys.exit(0)
-        else:
-            print("- FAIL, PATCH command failed to set attribute \"%s\", status code \"%s\" returned, detailed error results:\n%s" % ("VirtualConsole.1.PluginType", response.status_code, data))
-            sys.exit(0)
-    else:
-        logging.info("- INFO, attribute \"%s\" current value set to %s, skipping PATCH operation" % ("VirtualConsole.1.PluginType", args["plugin_type"]))
         
 def export_ssl_cert():
     logging.info("- INFO, exporting iDRAC SSL server cert")
@@ -214,17 +143,7 @@ if __name__ == "__main__":
         check_supported_idrac_version()
     else:
         logging.error("\n- FAIL, invalid argument values or not all required parameters passed in. See help text or argument --script-examples for more details.")
-        sys.exit(0)
-    get_iDRAC_version()
-    if iDRAC_version == "old":
-        if not args["plugin_type"]:
-            logging.warning("- WARNING, older iDRAC version detected and argument --plugin-type missing. Please rerun script passing in argument.")
-            sys.exit(0)
-        else:
-            logging.info("- INFO, older iDRAC version detected, script will configure virtual console plugin type") 
-        get_set_iDRAC_vconsole_plugin()
-    elif iDRAC_version == "new":
-        logging.info("- INFO, newer iDRAC version detected, script will skip configuring virtual console plugin type")   
+        sys.exit(0)  
     export_ssl_cert()
     get_KVM_session_info()
     launch_KVM_session()
