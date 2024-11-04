@@ -1,7 +1,7 @@
 #!/usr/bin/python3
 #
 # _author_ = Texas Roemer <Texas_Roemer@Dell.com>
-# _version_ = 12.0
+# _version_ = 13.0
 #
 # Copyright (c) 2019, Dell, Inc.
 #
@@ -60,6 +60,27 @@ def check_supported_idrac_version():
         logging.warning("\n- WARNING, iDRAC version installed does not support this feature using Redfish API")
         sys.exit(0)
 
+def get_server_generation():
+    global idrac_version
+    if args["x"]:
+        response = requests.get('https://%s/redfish/v1/Managers/iDRAC.Embedded.1?$select=Model' % idrac_ip, verify=verify_cert, headers={'X-Auth-Token': args["x"]})
+    else:
+        response = requests.get('https://%s/redfish/v1/Managers/iDRAC.Embedded.1?$select=Model' % idrac_ip, verify=False,auth=(idrac_username,idrac_password))
+    data = response.json()
+    if response.status_code == 401:
+        logging.error("\n- ERROR, status code 401 detected, check to make sure your iDRAC script session has correct username/password credentials or if using X-auth token, confirm the session is still active.")
+        sys.exit(0)
+    elif response.status_code != 200:
+        logging.warning("\n- WARNING, unable to get current iDRAC version installed")
+        sys.exit(0)
+    if "12" in data["Model"] or "13" in data["Model"]:
+        idrac_version = 8
+    elif "14" in data["Model"] or "15" in data["Model"] or "16" in data["Model"]:
+        idrac_version = 9
+    else:
+        idrac_version = 10
+
+
 def get_current_boot_order():
     if args["x"]:
         response = requests.get('https://%s/redfish/v1/Systems/System.Embedded.1/Bios' % idrac_ip, verify=verify_cert, headers={'X-Auth-Token': args["x"]})   
@@ -97,7 +118,11 @@ def change_boot_order():
         response = requests.get('https://%s/redfish/v1/Systems/System.Embedded.1/Bios' % idrac_ip, verify=verify_cert,auth=(idrac_username, idrac_password))
     data = response.json()
     current_boot_mode = data['Attributes']['BootMode']
-    url = 'https://%s/redfish/v1/Systems/System.Embedded.1' % idrac_ip
+    logging.info("\n- INFO: changing %s boot order sequence" % current_boot_mode)
+    if idrac_version == 10:
+        url = 'https://%s/redfish/v1/Systems/System.Embedded.1/Settings' % idrac_ip
+    else:
+        url = 'https://%s/redfish/v1/Systems/System.Embedded.1' % idrac_ip
     if "," in args["change"]:
         boot_order_ids = args["change"].split(",")
     else:
@@ -123,7 +148,7 @@ def change_boot_order():
         logging.error("- FAIL, unable to find job ID in headers PATCH response, headers output is:\n%s" % response.headers)
         sys.exit(0)
     logging.info("- PASS, job ID \"%s\" successfully created to change %s boot order sequence" % (job_id, current_boot_mode))
-    
+
 def get_job_status_scheduled():
     count = 0
     while True:
@@ -301,6 +326,7 @@ if __name__ == "__main__":
         else:
             verify_cert = False
         check_supported_idrac_version()
+        get_server_generation()
     else:
         logging.error("\n- FAIL, invalid argument values or not all required parameters passed in. See help text or argument --script-examples for more details.")
         sys.exit(0)
