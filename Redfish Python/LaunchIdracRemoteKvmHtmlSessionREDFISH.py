@@ -1,7 +1,7 @@
 #!/usr/bin/python3
 #
 # _author_ = Texas Roemer <Texas_Roemer@Dell.com>
-# _version_ = 3.0
+# _version_ = 4.0
 #
 # Copyright (c) 2021, Dell, Inc.
 #
@@ -59,17 +59,32 @@ def check_supported_idrac_version():
     if "#DelliDRACCardService.GetKVMSession" not in data['Actions'].keys():
         logging.warning("\n- WARNING, iDRAC version installed does not support this feature using Redfish API")
         sys.exit(0)
+
+def create_x_auth_session():
+    global x_auth_token
+    global x_auth_session_uri
+    url = 'https://%s/redfish/v1/SessionService/Sessions' % idrac_ip
+    payload = {"UserName":idrac_username,"Password":idrac_password}
+    headers = {'content-type': 'application/json'}
+    response = requests.post(url, data=json.dumps(payload), headers=headers, verify=False)
+    data = response.json()
+    if response.status_code == 201:
+        logging.debug("- PASS, successfully created X auth session")
+    else:
+        try:
+            logging.error("\n- FAIL, unable to create X-auth_token session, status code %s returned, detailed error results:\n %s" % (response.status_code, data))
+        except:
+            logging.error("\n- FAIL, unable to create X-auth_token session, status code %s returned" % (response.status_code))
+        sys.exit(0)
+    x_auth_token = response.headers["X-Auth-Token"]
+    x_auth_session_uri = response.headers["Location"]
         
 def export_ssl_cert():
     logging.info("- INFO, exporting iDRAC SSL server cert")
     url = 'https://%s/redfish/v1/Managers/iDRAC.Embedded.1/Oem/Dell/DelliDRACCardService/Actions/DelliDRACCardService.ExportSSLCertificate' % (idrac_ip)
     payload = {"SSLCertType":"Server"}
-    if args["x"]:
-        headers = {'content-type': 'application/json', 'X-Auth-Token': args["x"]}
-        response = requests.post(url, data=json.dumps(payload), headers=headers, verify=verify_cert)
-    else:
-        headers = {'content-type': 'application/json'}
-        response = requests.post(url, data=json.dumps(payload), headers=headers, verify=verify_cert,auth=(idrac_username,idrac_password))
+    headers = {'content-type': 'application/json', 'X-Auth-Token': args["x"]}
+    response = requests.post(url, data=json.dumps(payload), headers=headers, verify=verify_cert)
     data = response.json()
     if response.status_code == 200 or response.status_code == 202:
         logging.debug("- INFO, POST command passed to export SSL cert")
@@ -93,12 +108,8 @@ def get_KVM_session_info():
     logging.info("- INFO, getting KVM session temporary username, password")
     url = 'https://%s/redfish/v1/Managers/iDRAC.Embedded.1/Oem/Dell/DelliDRACCardService/Actions/DelliDRACCardService.GetKVMSession' % (idrac_ip)
     payload={"SessionTypeName":"ssl_cert.txt"}
-    if args["x"]:
-        headers = {'content-type': 'application/json', 'X-Auth-Token': args["x"]}
-        response = requests.post(url, data=json.dumps(payload), headers=headers, verify=verify_cert)
-    else:
-        headers = {'content-type': 'application/json'}
-        response = requests.post(url, data=json.dumps(payload), headers=headers, verify=verify_cert,auth=(idrac_username,idrac_password))
+    headers = {'content-type': 'application/json', 'X-Auth-Token': args["x"]}
+    response = requests.post(url, data=json.dumps(payload), headers=headers, verify=verify_cert)
     data = response.json()
     if response.status_code == 200 or response.status_code == 202:
         logging.debug("- INFO, POST command passed to get KVM session")
@@ -120,6 +131,22 @@ def launch_KVM_session():
         os.remove("ssl_cert.txt")
     except:
         logging.debug("- INFO, unable to locate ssl_cert.txt file, skipping step to delete file")
+
+def delete_session():
+    try:
+        url = 'https://%s%s' % (idrac_ip, x_auth_session_uri)
+    except:
+        logging.debug("- INFO, no session to delete, skipping this step")
+        sys.exit(0)
+    headers = {'content-type': 'application/json', 'X-Auth-Token': args["x"]}
+    response = requests.delete(url, headers=headers, verify=verify_cert)
+    if response.status_code == 202 or response.status_code == 200:
+        logging.debug("\n- PASS: DELETE command passed to delete session, status code %s returned" % response.status_code)
+    else:
+        logging.error("\n- FAIL, DELETE command failed, status code returned %s returned" % response.status_code)
+        data = response.json()
+        logging.error("\n- DELETE command failure:\n %s" % data)
+        sys.exit(0)
 
 if __name__ == "__main__":
     if args["script_examples"]:
@@ -143,7 +170,12 @@ if __name__ == "__main__":
         check_supported_idrac_version()
     else:
         logging.error("\n- FAIL, invalid argument values or not all required parameters passed in. See help text or argument --script-examples for more details.")
-        sys.exit(0)  
+        sys.exit(0)
+    if not args["x"]:
+        create_x_auth_session()
+        args["x"] = x_auth_token
     export_ssl_cert()
     get_KVM_session_info()
     launch_KVM_session()
+    time.sleep(20)
+    delete_session()
