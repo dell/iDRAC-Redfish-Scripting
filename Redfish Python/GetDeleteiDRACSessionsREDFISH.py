@@ -3,7 +3,7 @@
 # GetDeleteiDRACSessionsREDFISH. Python script using Redfish API to either get current iDRAC sessions or delete iDRAC session
 #
 # _author_ = Texas Roemer <Texas_Roemer@Dell.com>
-# _version_ = 3.0
+# _version_ = 4.0
 #
 # Copyright (c) 2019, Dell, Inc.
 #
@@ -48,9 +48,9 @@ def script_examples():
 
 def check_supported_idrac_version():
     if args["x"]:
-        response = requests.get('https://%s/redfish/v1/Sessions' % idrac_ip, verify=verify_cert, headers={'X-Auth-Token': args["x"]})
+        response = requests.get('https://%s/redfish/v1/SessionService/Sessions' % idrac_ip, verify=verify_cert, headers={'X-Auth-Token': args["x"]})
     else:
-        response = requests.get('https://%s/redfish/v1/Sessions' % idrac_ip, verify=verify_cert, auth=(idrac_username, idrac_password))
+        response = requests.get('https://%s/redfish/v1/SessionService/Sessions' % idrac_ip, verify=verify_cert, auth=(idrac_username, idrac_password))
     data = response.json()
     if response.status_code == 401:
         logging.warning("\n- WARNING, status code %s returned. Incorrect iDRAC username/password or invalid privilege detected." % response.status_code)
@@ -61,20 +61,23 @@ def check_supported_idrac_version():
     
 def get_current_iDRAC_sessions():
     if args["x"]:
-        response = requests.get('https://%s/redfish/v1/Sessions?$expand=*($levels=1)' % idrac_ip, verify=verify_cert, headers={'X-Auth-Token': args["x"]})
+        response = requests.get('https://%s/redfish/v1/SessionService/Sessions?$expand=*($levels=1)' % idrac_ip, verify=verify_cert, headers={'X-Auth-Token': args["x"]})
     else:
-        response = requests.get('https://%s/redfish/v1/Sessions?$expand=*($levels=1)' % idrac_ip, verify=verify_cert, auth=(idrac_username, idrac_password))
+        response = requests.get('https://%s/redfish/v1/SessionService/Sessions?$expand=*($levels=1)' % idrac_ip, verify=verify_cert, auth=(idrac_username, idrac_password))
     data = response.json()
     if response.status_code != 200:
         logging.error("- FAIL, GET command failed to get iDRAC session details, status code %s returned" % response.status_code)
         logging.error(data)
+        sys.exit(0)
+    if data["Members"] == []:
+        logging.info("\n- INFO, no active iDRAC sessions detected")
         sys.exit(0)
     logging.info("\n- Current running session(s) detected for iDRAC %s -\n" % idrac_ip) 
     for i in data['Members']:
         pprint(i), print("\n")
 
 def delete_session():
-    url = 'https://%s/redfish/v1/Sessions/%s' % (idrac_ip, args["delete"])
+    url = 'https://%s/redfish/v1/SessionService/Sessions/%s' % (idrac_ip, args["delete"])
     if args["x"]:
         headers = {'content-type': 'application/json', 'X-Auth-Token': args["x"]}
         response = requests.delete(url, headers=headers, verify=verify_cert)
@@ -84,9 +87,9 @@ def delete_session():
     if response.status_code == 202 or response.status_code == 200:
         logging.info("\n- PASS: DELETE command passed to delete session id \"%s\", status code %s returned" % (args["delete"], response.status_code))
         if args["x"]:
-            response = requests.get('https://%s/redfish/v1/Sessions/%s' % (idrac_ip, args["delete"]), verify=verify_cert, headers={'X-Auth-Token': args["x"]})
+            response = requests.get('https://%s/redfish/v1/SessionService/Sessions/%s' % (idrac_ip, args["delete"]), verify=verify_cert, headers={'X-Auth-Token': args["x"]})
         else:
-            response = requests.get('https://%s/redfish/v1/Sessions/%s' % (idrac_ip, args["delete"]), verify=verify_cert, auth=(idrac_username, idrac_password))
+            response = requests.get('https://%s/redfish/v1/SessionService/Sessions/%s' % (idrac_ip, args["delete"]), verify=verify_cert, auth=(idrac_username, idrac_password))
         if response.status_code == 404:
             logging.info("- PASS, validation passed to confirm session %s has been deleted" % args["delete"])
         else:
