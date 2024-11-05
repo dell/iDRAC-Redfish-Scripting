@@ -23,7 +23,7 @@ http://www.gnu.org/licenses/old-licenses/gpl-2.0.txt
 # RootModule = ''
 
 # Version number of this module.
-ModuleVersion = '7.0.0'
+ModuleVersion = '8.0.0'
 
 # Supported PSEditions
 # CompatiblePSEditions = @()
