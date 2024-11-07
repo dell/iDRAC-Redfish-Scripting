@@ -116,7 +116,6 @@ def replace_CSR():
         payload = {"CertificateType": "PEM","CertificateUri":"/redfish/v1/Managers/iDRAC.Embedded.1/NetworkProtocol/HTTPS/Certificates/%s" % args["certid"],"CertificateString":read_file}
     else:
         payload = {"CertificateType": "PEM","CertificateUri":{"@odata.id":"/redfish/v1/Managers/iDRAC.Embedded.1/NetworkProtocol/HTTPS/Certificates/%s" % args["certid"]},"CertificateString":read_file} 
-    print(payload)
     if args["x"]:
         headers = {'content-type': 'application/json', 'X-Auth-Token': args["x"]}
         response = requests.post(url, data=json.dumps(payload), headers=headers, verify=verify_cert)
