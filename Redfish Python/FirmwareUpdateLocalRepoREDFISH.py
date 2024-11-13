@@ -1,7 +1,7 @@
 #!/usr/bin/python3
 #
 # _author_ = Texas Roemer <administrator@Dell.com>
-# _version_ = 7.0
+# _version_ = 8.0
 #
 # Copyright (c) 2023, Dell, Inc.
 #
@@ -712,9 +712,9 @@ def check_idrac_connection():
             while True:
                 try:
                     if args["x"]:
-                        response = requests.get('https://%s/redfish/v1/TaskService/Tasks/%s' % (idrac_ip, job_id), verify=verify_cert, headers={'X-Auth-Token': args["x"]})
+                        response = requests.get('https://%s/redfish/v1/TaskService' % idrac_ip, verify=verify_cert, headers={'X-Auth-Token': args["x"]})
                     else:
-                        response = requests.get('https://%s/redfish/v1/TaskService/Tasks/%s' % (idrac_ip, job_id), verify=verify_cert, auth=(idrac_username, idrac_password))
+                        response = requests.get('https://%s/redfish/v1/TaskService' % idrac_ip, verify=verify_cert, auth=(idrac_username, idrac_password))
                 except requests.ConnectionError as error_message:
                     logging.info("- INFO, GET request failed due to connection error, retry")
                     time.sleep(10)
