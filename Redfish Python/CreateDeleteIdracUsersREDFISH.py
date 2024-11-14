@@ -3,7 +3,7 @@
 # CreateDeleteIdracUsersREDFISH.py Python script using Redfish API to either create or delete iDRAC user account.
 #
 # _author_ = Texas Roemer <Texas_Roemer@Dell.com>
-# _version_ = 8.0
+# _version_ = 9.0
 #
 # Copyright (c) 2018, Dell, Inc.
 #
@@ -38,10 +38,11 @@ parser.add_argument('-x', help='Pass in X-Auth session token for executing Redfi
 parser.add_argument('--ssl', help='SSL cert verification for all Redfish calls, pass in value \"true\" or \"false\". By default, this argument is not required and script ignores validating SSL cert for all Redfish calls.', required=False)
 parser.add_argument('--script-examples', help='Get executing script examples', action="store_true", dest="script_examples", required=False)
 parser.add_argument('--get', help='Get current iDRAC user account information for all iDRAC ids.', action="store_true", required=False)
+parser.add_argument('--get-custom-roles', help='Get current custom roles created. Note custom roles are only supported for iDRAC10 or newer versions.', action="store_true", dest="get_custom_roles", required=False)
 parser.add_argument('--user-id', help='Pass in the iDRAC user account ID you want to create. Supported values are 2 to 16. Note on iDRAC10 this argument is optional, if you do not pass in argument new user created will get assigned the first available id.', dest="user_id", required=False)
 parser.add_argument('--new-user', help='Pass in the name of the iDRAC user you want to create', dest="new_user", required=False)
 parser.add_argument('--new-pwd', help='Pass in the password of the iDRAC user you are creating. If you do not pass in this argument, script will prompt you enter password.', dest="new_pwd", required=False)
-parser.add_argument('--privilege-role', help='Pass in the privilege role for the user you are creating. Supported values are 1 for Administrator, 2 for Operator, 3 for ReadOnly for 4 for None. Note: None value is only supported for iDRAC9 or older versions.', dest="privilege_role", required=False)
+parser.add_argument('--privilege-role', help='Pass in the privilege role for the user you are creating. Supported values are 1 for Administrator, 2 for Operator, 3 for ReadOnly for 4 for None. Note: (4)None value is only supported for iDRAC9 or older versions. Note iDRAC10 allows you to pass in a custom role for privilege, run --get-custom-roles argument to see if any custom roles are created. If custom role created pass in custom role string name.', dest="privilege_role", required=False)
 parser.add_argument('--enable', help='Enable the new user you are creating, pass in \"y\" to enable, \"n\" to disable', required=False)
 parser.add_argument('--delete', help='Delete iDRAC user, pass in the iDRAC user account id', required=False)
 
@@ -90,6 +91,45 @@ def get_server_generation():
     else:
         idrac_version = 10
 
+def get_current_custom_roles():
+    uri = "redfish/v1/AccountService/Roles"
+    if args["x"]:
+        response = requests.get('https://%s/%s' % (idrac_ip, uri), verify=verify_cert, headers={'X-Auth-Token': args["x"]})   
+    else:
+        response = requests.get('https://%s/%s' % (idrac_ip, uri), verify=verify_cert,auth=(idrac_username, idrac_password))
+    data = response.json()
+    if response.status_code != 200:
+        logging.error("\n- FAIL, status code %s returned for GET command. Detail error results: \n%s" % (statusCode, data))
+        sys.exit(0)
+    custom_role_uris = []
+    for i in data["Members"]:
+        for ii in i.items():
+            if args["x"]:
+                response = requests.get('https://%s%s' % (idrac_ip, ii[1]), verify=verify_cert, headers={'X-Auth-Token': args["x"]})   
+            else:
+                response = requests.get('https://%s%s' % (idrac_ip, ii[1]), verify=verify_cert,auth=(idrac_username, idrac_password))
+            data = response.json()
+            if response.status_code != 200:
+                logging.error("\n- FAIL, status code %s returned for GET command. Detail error results: \n%s" % (statusCode, data))
+                sys.exit(0)
+            if data["Description"] == "Custom User Role":
+                custom_role_uris.append(ii[1])
+    if custom_role_uris == []:
+        logging.warning("\n- WARNING, no custom roles detected")
+    else:
+        logging.info("\n- INFO custom iDRAC user role(s) detected\n")
+        for i in custom_role_uris:
+            if args["x"]:
+                response = requests.get('https://%s%s' % (idrac_ip, i), verify=verify_cert, headers={'X-Auth-Token': args["x"]})   
+            else:
+                response = requests.get('https://%s%s' % (idrac_ip, i), verify=verify_cert,auth=(idrac_username, idrac_password))
+            data = response.json()
+            if response.status_code != 200:
+                logging.error("\n- FAIL, status code %s returned for GET command. Detail error results: \n%s" % (statusCode, data))
+                sys.exit(0)
+            pprint(data)
+            print("\n")
+
 def create_idrac_user_password():
     payload = {"UserName":args["new_user"], "Password":args["new_pwd"]}
     if idrac_version >= 10:
@@ -101,22 +141,21 @@ def create_idrac_user_password():
     if not args["new_pwd"]:
         args["new_pwd"] = getpass.getpass("\n- Argument --new-pwd not detected, pass in password for new user: ")
     if args["privilege_role"] == "1":
-        payload["RoleId"]="Administrator"
+        payload["RoleId"] = "Administrator"
     elif args["privilege_role"] == "2":
-        payload["RoleId"]="Operator"
+        payload["RoleId"] = "Operator"
     elif args["privilege_role"] == "3":
-        payload["RoleId"]="ReadOnly"
+        payload["RoleId"] = "ReadOnly"
     elif args["privilege_role"] == "4":
-        payload["RoleId"]="None"
+        payload["RoleId"] = "None"
     else:
-        logging.error("- FAIL, invalid value passed in for argument -pl")
-        sys.exit()
+        payload["RoleId"] =  args["privilege_role"]
     if args["enable"].lower() == "y":
         payload["Enabled"] = True
     elif args["enable"].lower() == "n":
         payload["Enabled"] = False
     else:
-        logging.error("- FAIL, invalid value passed in for argument -e")
+        logging.error("- FAIL, invalid value passed in for argument --enable")
         sys.exit(0)
     if idrac_version >= 10:
         if args["x"]:
@@ -126,7 +165,7 @@ def create_idrac_user_password():
             headers = {'content-type': 'application/json'}
             response = requests.post(url, data=json.dumps(payload), headers=headers, verify=verify_cert,auth=(idrac_username,idrac_password))
         if "error" in response.json().keys():
-            logging.error("- FAIL, POST command failed, detailed error results: \n%s" % response.json()["error"])
+            logging.error("\n- FAIL, POST command failed, detailed error results: \n%s" % response.json()["error"])
             sys.exit(0)
         if response.status_code == 201:
             logging.info("\n- PASS, status code %s returned for POST command to create iDRAC user \"%s\"" % (response.status_code, args["new_user"]))
@@ -255,6 +294,8 @@ if __name__ == "__main__":
         create_idrac_user_password()
     elif args["delete"]:
         delete_idrac_user()
+    elif args["get_custom_roles"]:
+        get_current_custom_roles()
     elif args["get"]:
         get_iDRAC_user_account_info()   
     else:
