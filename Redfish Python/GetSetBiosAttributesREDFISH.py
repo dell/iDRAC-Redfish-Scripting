@@ -63,7 +63,7 @@ def script_examples():
     \n- GetSetBiosAttributesREDFISH.py -ip 192.168.0.120 -x 3fe2401de68b718b5ce2761cb0651aac --get-registry, this example using iDRAC X-auth token session will return attribute registry details. 
     \n- GetSetBiosAttributesREDFISH.py -ip 192.168.0.120 -u root -p calvin --attribute-names MemTest --attribute-values Disabled --maintenance-reboot autoreboot --start-time "2018-10-30T20:10:10-05:00" --duration-time 600, this example shows setting BIOS attribute using scheduled start time with maintenance window. Once the scheduled time has elapsed, server will auto reboot to execute config job.
     \n- GetSetBiosAttributesREDFISH.py -ip 192.168.0.120 -u root -p calvin --attribute-names EmbSata,NvmeMode --attribute-values RaidMode,Raid --reboot, this example shows setting multiple BIOS attributes with reboot now to apply.
-    \n- GetSetBiosAttributesREDFISH.py --config-file C:\Python310\bios_config.ini, this example shows using config ini file to set BIOS attributes.""")
+    \n- GetSetBiosAttributesREDFISH.py --config-file C:\\Python310\\bios_config.ini, this example shows using config ini file to set BIOS attributes.""")
     sys.exit(0)
 
 def config_ini_file_examples():
