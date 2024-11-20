@@ -462,7 +462,7 @@ def check_idrac_connection():
     else:
         logging.error("- FAIL, unable to determine OS type, check iDRAC connection function will not execute")
         run_network_connection_function = "fail"
-    execute_command = subprocess.call(ping_command, stdout=subprocess.PIPE, shell=True)
+    execute_command = subprocess.call(ping_command, stdout=subprocess.PIPE)
     if execute_command != 0:
         ping_status = "lost"
     else:
