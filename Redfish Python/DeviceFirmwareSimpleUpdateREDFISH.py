@@ -421,7 +421,7 @@ def check_idrac_connection():
             while True:
                 if run_network_connection_function == "fail":
                     break
-                execute_command=subprocess.call(ping_command, stdout=subprocess.PIPE, shell=True)
+                execute_command=subprocess.call(ping_command, stdout=subprocess.PIPE)
                 if execute_command != 0:
                     ping_status = "lost"
                 else:
