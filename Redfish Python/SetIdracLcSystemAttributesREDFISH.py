@@ -7,7 +7,7 @@
 # NOTE: Possible supported values for attribute_group parameter are: idrac, lc and system.
 #
 # _author_ = Texas Roemer <Texas_Roemer@Dell.com>
-# _version_ = 15.0
+# _version_ = 16.0
 #
 # Copyright (c) 2017, Dell, Inc.
 #
@@ -42,8 +42,8 @@ parser.add_argument('-x', help='Pass in X-Auth session token for executing Redfi
 parser.add_argument('--ssl', help='SSL cert verification for all Redfish calls, pass in value \"true\" or \"false\". By default, this argument is not required and script ignores validating SSL cert for all Redfish calls.', required=False)
 parser.add_argument('--script-examples', help='Get executing script examples', action="store_true", dest="script_examples", required=False)
 parser.add_argument('--set', help='Set attributes, pass in the group name of the attributes you want to configure. Supported values are \"idrac\", \"lc\" and \"system\"', required=False)
-parser.add_argument('--attribute-names', help='Pass in the attribute name you want to configure. If you want to configure multiple attribute names, make sure to use a pipe ( | ) separator between each attribute name. Note: Make sure you are passing in the correct attributes which match the value you are passing in for argument -s. Note: Attribute names are case sensitive, make sure to pass in the exact syntax of the attribute name', dest="attribute_names", required=False)
-parser.add_argument('--attribute-values', help='Pass in the attribute value you want to set the attribute to. If you want to configure multiple attribute values, make sure to use a pipe ( | ) separator between each attribute value. Note: Attribute values are case sensitive, make sure to pass in the exact syntax of the attribute value', dest="attribute_values", required=False)
+parser.add_argument('--attribute-names', help='Pass in the attribute name you want to configure. If you want to configure multiple attribute names, make sure to use a pipe separator between each attribute name and surround the complete argument value with double quotes. Note: Attribute names are case sensitive, make sure to pass in the exact syntax of the attribute name', dest="attribute_names", required=False)
+parser.add_argument('--attribute-values', help='Pass in the attribute value you want to set the attribute to. If you want to configure multiple attribute values, make sure to use a pipe separator between each attribute value and surround the complete argument value with double quotes. Note: Attribute values are case sensitive, make sure to pass in the exact syntax of the attribute value.', dest="attribute_values", required=False)
 parser.add_argument('--get-registry', help='Get the attribute registry for all iDRAC, System and LC attributes. This option is helpful for viewing attributes to see if they are read only or read write, supported possible values.', dest="get_registry", action="store_true", required=False)
 parser.add_argument('--registry-attribute', help='Get attribute registry information for a specific attribute, pass in the attribute name', dest="registry_attribute", required=False)
 args = vars(parser.parse_args())
@@ -53,7 +53,7 @@ def script_examples():
     print("""\n- SetIdracLcSystemAttributesREDFISH.py -ip 192.168.0.120 -u root -p calvin --get-registry, this example will return complete attribute registry and redirect output to a text file.
     \n- SetIdracLcSystemAttributesREDFISH.py -ip 192.168.0.120 -u root -p calvin --registry-attribute SNMPAlert.8.SNMPv3UserID, this example will return registry details for only this attribute.
     \n- SetIdracLcSystemAttributesREDFISH.py -ip 192.168.0.120 -u root -p calvin --set idrac --attribute-names EmailAlert.4.Enable --attribute-values Disabled, this example shows setting one iDRAC attribute.
-    \n- SetIdracLcSystemAttributesREDFISH.py -ip 192.168.0.120 -u root -p calvin --set idrac --attribute-names Time.1.Timezone|Telnet.1.Enable|RemoteHosts.1.SMTPServerIPAddress --attribute-values CST6CDT|enabled|test.labs.net, this example shows setting multiple iDRAC attributes.""")
+    \n- SetIdracLcSystemAttributesREDFISH.py -ip 192.168.0.120 -u root -p calvin --set idrac --attribute-names "Time.1.Timezone|Telnet.1.Enable|RemoteHosts.1.SMTPServerIPAddress" --attribute-values "CST6CDT|enabled|test.labs.net", this example shows setting multiple iDRAC attributes.""")
     sys.exit(0)
 
 def check_supported_idrac_version():
