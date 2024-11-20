@@ -77,8 +77,8 @@ def reset_idrac():
     logging.info("- INFO, iDRAC will now reset and be back online within a few minutes.")
 
 def check_idrac_connection():
-    logging.info("- INFO, argument --check detected, script will start ping requests in 1 minute")
-    time.sleep(60)
+    logging.info("- INFO, argument --check detected, script will start ping requests in 3 minutes")
+    time.sleep(180)
     if platform.system().lower() == "windows":
         ping_command = "ping -n 3 %s" % idrac_ip
     elif platform.system().lower() == "linux":
@@ -87,7 +87,7 @@ def check_idrac_connection():
         logging.error("- FAIL, unable to determine OS type, check iDRAC connection function will not execute")
         sys.exit(0)
     while True:
-        execute_command = subprocess.call(ping_command, stdout=subprocess.PIPE, shell=True)
+        execute_command = subprocess.call(ping_command, stdout=subprocess.PIPE)
         if execute_command != 0:
             logging.info("- INFO, unable to ping iDRAC IP, script will wait 30 seconds and try again")
             time.sleep(30)
