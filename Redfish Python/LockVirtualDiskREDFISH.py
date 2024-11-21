@@ -3,7 +3,7 @@
 # LockVirtualDiskREDFISH. Python script using Redfish API with OEM extension to lock a virtual disk.
 #
 # _author_ = Texas Roemer <Texas_Roemer@Dell.com>
-# _version_ = 5.0
+# _version_ = 6.0
 #
 # Copyright (c) 2018, Dell, Inc.
 #
@@ -129,11 +129,11 @@ def get_pdisks():
     logging.info("\n- Drives detected for controller \"%s\" and RaidStatus\n" % args["get_disks"])
     for i in drive_list:
       if args["x"]:
-          response = requests.get('https://%s/redfish/v1/Systems/System.Embedded.1/Storage/Drives/%s' % (idrac_ip, i), verify=verify_cert, headers={'X-Auth-Token': args["x"]})   
+          response = requests.get('https://%s/redfish/v1/Systems/System.Embedded.1/Storage/%s/Drives/%s' % (idrac_ip, args["get_disks"], i), verify=verify_cert, headers={'X-Auth-Token': args["x"]})   
       else:
-          response = requests.get('https://%s/redfish/v1/Systems/System.Embedded.1/Storage/Drives/%s' % (idrac_ip, i), verify=verify_cert,auth=(idrac_username, idrac_password))
+          response = requests.get('https://%s/redfish/v1/Systems/System.Embedded.1/Storage/%s/Drives/%s' % (idrac_ip, args["get_disks"], i), verify=verify_cert,auth=(idrac_username, idrac_password))
       data = response.json()
-      logging.info(" - Disk: %s, Raidstatus: %s" % (i, data['Oem']['Dell']['DellPhysicalDisk']['RaidStatus']))
+      logging.info("- Disk: %s, Raidstatus: %s" % (i, data['Oem']['Dell']['DellPhysicalDisk']['RaidStatus']))
 
 def get_virtual_disks():
     test_valid_controller_FQDD_string(args["get_virtualdisks"])
@@ -206,9 +206,9 @@ def check_drive_capabiity():
     logging.info("\n - INFO, Disk FQDD/encryption ability status for controller %s disk(s)\n" % args["get_disk_encryption"])
     for i in drive_list:
       if args["x"]:
-          response = requests.get('https://%s/redfish/v1/Systems/System.Embedded.1/Storage/Drives/%s' % (idrac_ip, i),verify=verify_cert, headers={'X-Auth-Token': args["x"]})
+          response = requests.get('https://%s/redfish/v1/Systems/System.Embedded.1/Storage/%s/Drives/%s' % (idrac_ip, args["get_disk_encryption"], i),verify=verify_cert, headers={'X-Auth-Token': args["x"]})
       else:
-          response = requests.get('https://%s/redfish/v1/Systems/System.Embedded.1/Storage/Drives/%s' % (idrac_ip, i),verify=verify_cert, auth=(idrac_username, idrac_password))
+          response = requests.get('https://%s/redfish/v1/Systems/System.Embedded.1/Storage/%s/Drives/%s' % (idrac_ip, args["get_disk_encryption"], i),verify=verify_cert, auth=(idrac_username, idrac_password))
       data = response.json()
       for ii in data.items():
           if ii[0] == "EncryptionAbility":
