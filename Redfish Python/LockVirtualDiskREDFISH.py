@@ -233,9 +233,9 @@ def check_lock_VDs():
     logging.info("\n- Volume(s) detected for %s controller -\n" % args["check_locked_vds"])
     for ii in vd_list:
         if args["x"]:
-            response = requests.get('https://%s/redfish/v1/Systems/System.Embedded.1/Storage/Volumes/%s' % (idrac_ip, ii),verify=verify_cert, headers={'X-Auth-Token': args["x"]})
+            response = requests.get('https://%s/redfish/v1/Systems/System.Embedded.1/Storage/%s/Volumes/%s' % (idrac_ip, args["check_locked_vds"].split(":")[-1], ii),verify=verify_cert, headers={'X-Auth-Token': args["x"]})
         else:
-            response = requests.get('https://%s/redfish/v1/Systems/System.Embedded.1/Storage/Volumes/%s' % (idrac_ip, ii),verify=verify_cert, auth=(idrac_username, idrac_password))
+            response = requests.get('https://%s/redfish/v1/Systems/System.Embedded.1/Storage/%s/Volumes/%s' % (idrac_ip, args["check_locked_vds"].split(":")[-1], ii),verify=verify_cert, auth=(idrac_username, idrac_password))
         data = response.json()
         for i in data.items():
             if i[0] == "Encrypted":
