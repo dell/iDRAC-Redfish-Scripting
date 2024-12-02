@@ -3,7 +3,7 @@
 # SecureEraseDevicesREDFISH. Python script using Redfish API to either get storage controllers/supported secure erase devices and erase supported devices.
 #
 # _author_ = Texas Roemer <Texas_Roemer@Dell.com>
-# _version_ = 15.0
+# _version_ = 16.0
 #
 # Copyright (c) 2024, Dell, Inc.
 #
@@ -59,10 +59,10 @@ def check_supported_idrac_version():
     data = response.json()
     if response.status_code == 401:
         logging.error("\n- ERROR, status code %s returned. Incorrect iDRAC username/password or invalid privilege detected." % response.status_code)
-        sys.exit(1)
+        sys.exit(0)
     if response.status_code != 200:
         logging.error("\n- ERROR, iDRAC version installed does not support this feature using Redfish API")
-        sys.exit(1)
+        sys.exit(0)
     server_model_number = int(data["Model"].split(" ")[0].strip("G"))
 
 def get_storage_controllers():
@@ -74,7 +74,7 @@ def get_storage_controllers():
     if response.status_code != 200:
         logging.error("\n- FAIL, GET command failed, status code %s returned" % response.status_code)
         logging.error(data)
-        sys.exit(1)
+        sys.exit(0)
     logging.info("\n- Server controller(s) detected -\n")
     controller_list = []
     for i in data['Members']:
@@ -89,12 +89,12 @@ def check_secure_erase_device_iDRAC9(device):
     if response.status_code != 200:
         logging.error("\n- FAIL, could not fetch device info for device %s" % device)
         logging.error("Extended Error Message: {0}".format(response.json()))
-        sys.exit(1)
+        sys.exit(0)
     data = response.json()
     if "Oem" not in data or "Dell" not in data["Oem"]:
         logging.error("\n- ERROR, Could not fetch OEM data for device %s" % device)
         logging.error("Received device object: {0}".format(data))
-        sys.exit(1)
+        sys.exit(0)
     if "pcie" in data["Name"].lower():
         if data["Oem"]["Dell"]["DellPCIeSSD"]["CryptographicEraseCapable"].lower() == "capable":
             logging.info("\n- INFO, \"%s\" supports instant scramble erase" % device)
@@ -105,7 +105,7 @@ def check_secure_erase_device_iDRAC9(device):
             logging.info("\n- INFO, \"%s\" supports instant scramble erase(ISE) but is part of a RAID volume, delete the RAID volume before running SecureErase operation" % device)
         elif data["Oem"]["Dell"]["DellPhysicalDisk"]["CryptographicEraseCapable"].lower() == "incapable" or data["Oem"]["Dell"]["DellPhysicalDisk"]["CryptographicEraseCapable"].lower() != "capable":
             logging.error("\n- ERROR, \"%s\" does not support instant scramble erase(ISE)" % device)
-            sys.exit(1)
+            sys.exit(0)
 
 def get_secure_erase_devices_iDRAC9():
     if args["x"]:
@@ -116,7 +116,7 @@ def get_secure_erase_devices_iDRAC9():
     drive_list = []
     if response.status_code != 200:
         logging.error("\n- FAIL, either controller not found on server or typo in controller FQDD name")
-        sys.exit(1)
+        sys.exit(0)
     if data["Drives"] == []:
         logging.warning("\n- WARNING, no drives detected for controller %s" % args["get_disks"])
         sys.exit(0)
@@ -149,7 +149,7 @@ def get_secure_erase_devices_iDRAC8():
         logging.debug("- PASS, PCI string not valid for iDRAC8")
     else:
         logging.error("\n- FAIL, iDRAC 7/8 only supports secure erase operation for PCIeSSD devices")
-        sys.exit(1)
+        sys.exit(0)
     if args["x"]:
         response = requests.get('https://%s/redfish/v1/Systems/System.Embedded.1/Storage/%s' % (idrac_ip, args["get_disks"]),verify=verify_cert, headers={'X-Auth-Token': args["x"]})   
     else:
@@ -158,7 +158,7 @@ def get_secure_erase_devices_iDRAC8():
     drive_list = []
     if response.status_code != 200:
         logging.error("\n- FAIL, either controller not found on server or typo in controller FQDD name")
-        sys.exit(1)
+        sys.exit(0)
     if data['Drives'] == []:
         logging.warning("\n- WARNING, no drives detected for controller %s" % args["get_disks"])
         sys.exit(0)
@@ -204,17 +204,24 @@ def secure_erase():
         logging.error("\n- FAIL, POST command failed for secure erase, status code is %s" % response.status_code)
         data = response.json()
         logging.error("\n- POST command failure is:\n %s" % data)
-        sys.exit(1)
+        sys.exit(0)
     location_search = response.headers["Location"]
     try:
         job_id = response.headers['Location'].split("/")[-1]
     except:
         logging.error("- FAIL, unable to locate job ID in JSON headers output")
-        sys.exit(1)
+        sys.exit(0)
+    time.sleep(10)
     if args["x"]:
         response = requests.get('https://%s/redfish/v1/Managers/iDRAC.Embedded.1/Oem/Dell/Jobs/%s' % (idrac_ip, job_id), verify=verify_cert, headers={'X-Auth-Token': args["x"]})
     else:
         response = requests.get('https://%s/redfish/v1/Managers/iDRAC.Embedded.1/Oem/Dell/Jobs/%s' % (idrac_ip, job_id), verify=verify_cert,auth=(idrac_username, idrac_password))
+    if response.status_code == 200:
+        logging.debug("- PASS, GET command passed to check job status")
+    else:
+        logging.error("\n- FAIL, GET command failed to check job status, return code is %s" % response.status_code)
+        logging.error("Extended Info Message: {0}".format(response.json()))
+        sys.exit(0)
     data = response.json()
     if data['JobType'] == "RAIDConfiguration":
         job_type = "staged"
@@ -226,12 +233,12 @@ def get_job_status_scheduled():
     while True:
         if count == 5:
             logging.error("- FAIL, GET job status retry count of 5 has been reached, script will exit")
-            sys.exit(1)
+            sys.exit(0)
         try:
             if args["x"]:
-                response = requests.get('https://%s/redfish/v1/Managers/iDRAC.Embedded.1/Jobs/%s' % (idrac_ip, job_id), verify=verify_cert, headers={'X-Auth-Token': args["x"]})
+                response = requests.get('https://%s/redfish/v1/Managers/iDRAC.Embedded.1/Oem/Dell/Jobs/%s' % (idrac_ip, job_id), verify=verify_cert, headers={'X-Auth-Token': args["x"]})
             else:
-                response = requests.get('https://%s/redfish/v1/Managers/iDRAC.Embedded.1/Jobs/%s' % (idrac_ip, job_id), verify=verify_cert,auth=(idrac_username, idrac_password))
+                response = requests.get('https://%s/redfish/v1/Managers/iDRAC.Embedded.1/Oem/Dell/Jobs/%s' % (idrac_ip, job_id), verify=verify_cert,auth=(idrac_username, idrac_password))
         except requests.ConnectionError as error_message:
             logging.error(error_message)
             logging.info("\n- INFO, GET request will try again to poll job status")
@@ -243,7 +250,7 @@ def get_job_status_scheduled():
         else:
             logging.error("\n- FAIL, Command failed to check job status, return code is %s" % response.status_code)
             logging.error("Extended Info Message: {0}".format(response.json()))
-            sys.exit(1)
+            sys.exit(0)
         data = response.json()
         if data['Message'] == "Task successfully scheduled.":
             logging.info("- INFO, staged config job marked as scheduled, rebooting the system")
@@ -253,32 +260,27 @@ def get_job_status_scheduled():
 
 def loop_job_status_final():
     start_time = datetime.now()
-    if args["x"]:
-        response = requests.get('https://%s/redfish/v1/Managers/iDRAC.Embedded.1/Jobs/%s' % (idrac_ip, job_id), verify=verify_cert, headers={'X-Auth-Token': args["x"]})
-    else:
-        response = requests.get('https://%s/redfish/v1/Managers/iDRAC.Embedded.1/Jobs/%s' % (idrac_ip, job_id), verify=verify_cert,auth=(idrac_username, idrac_password))
-    data = response.json()
-    if data['JobType'] == "RAIDConfiguration":
-        logging.info("- PASS, staged jid \"%s\" successfully created. Server will now reboot to apply the configuration changes" % job_id)
-    elif data['JobType'] == "RealTimeNoRebootConfiguration":
-        logging.info("- PASS, realtime jid \"%s\" successfully created. Server will apply the configuration changes in real time, no server reboot needed" % job_id)
+    if job_type == "staged":
+        logging.info("- PASS, staged job \"%s\" successfully created. Server will now reboot to apply the configuration changes" % job_id)
+    elif job_type == "realtime":
+        logging.info("- PASS, realtime job \"%s\" successfully created. Server will apply the configuration changes in real time, no server reboot needed" % job_id)
     while True:
         if args["x"]:
-            response = requests.get('https://%s/redfish/v1/Managers/iDRAC.Embedded.1/Jobs/%s' % (idrac_ip, job_id), verify=verify_cert, headers={'X-Auth-Token': args["x"]})
+            response = requests.get('https://%s/redfish/v1/Managers/iDRAC.Embedded.1/Oem/Dell/Jobs/%s' % (idrac_ip, job_id), verify=verify_cert, headers={'X-Auth-Token': args["x"]})
         else:
-            response = requests.get('https://%s/redfish/v1/Managers/iDRAC.Embedded.1/Jobs/%s' % (idrac_ip, job_id), verify=verify_cert,auth=(idrac_username, idrac_password))
+            response = requests.get('https://%s/redfish/v1/Managers/iDRAC.Embedded.1/Oem/Dell/Jobs/%s' % (idrac_ip, job_id), verify=verify_cert,auth=(idrac_username, idrac_password))
         current_time = (datetime.now()-start_time)
         if response.status_code != 200:
             logging.error("\n- FAIL, GET command failed to check job status, return code is %s" % statusCode)
             logging.error("Extended Info Message: {0}".format(req.json()))
-            sys.exit(1)
+            sys.exit(0)
         data = response.json()
         if str(current_time)[0:7] >= "2:00:00":
             logging.error("\n- FAIL: Timeout of 2 hours has been hit, script stopped\n")
-            sys.exit(1)
+            sys.exit(0)
         elif "Fail" in data['Message'] or "fail" in data['Message'] or data['JobState'] == "Failed":
             logging.error("- FAIL: job ID %s failed, failed message is: %s" % (job_id, data['Message']))
-            sys.exit(1)
+            sys.exit(0)
         elif data['JobState'] == "Completed":
             logging.info("\n--- PASS, Final Detailed Job Status Results ---\n")
             for i in data.items():
@@ -312,7 +314,7 @@ def reboot_server():
         else:
             logging.error("\n- FAIL, Command failed to gracefully power OFF server, status code is: %s\n" % response.status_code)
             logging.error("Extended Info Message: {0}".format(response.json()))
-            sys.exit(1)
+            sys.exit(0)
         while True:
             if args["x"]:
                 response = requests.get('https://%s/redfish/v1/Systems/System.Embedded.1' % idrac_ip, verify=verify_cert, headers={'X-Auth-Token': args["x"]})   
@@ -345,7 +347,7 @@ def reboot_server():
                         break
                     else:
                         logging.error("- FAIL, server not in OFF state, current power status is %s" % data['PowerState'])
-                        sys.exit(1)    
+                        sys.exit(0)    
             else:
                 continue 
         payload = {'ResetType': 'On'}
@@ -360,7 +362,7 @@ def reboot_server():
         else:
             logging.error("\n- FAIL, Command failed to power ON server, status code is: %s\n" % response.status_code)
             logging.error("Extended Info Message: {0}".format(response.json()))
-            sys.exit(1)
+            sys.exit(0)
     elif data['PowerState'] == "Off":
         url = 'https://%s/redfish/v1/Systems/System.Embedded.1/Actions/ComputerSystem.Reset' % idrac_ip
         payload = {'ResetType': 'On'}
@@ -375,10 +377,10 @@ def reboot_server():
         else:
             logging.error("\n- FAIL, Command failed to power ON server, status code is: %s\n" % response.status_code)
             logging.error("Extended Info Message: {0}".format(response.json()))
-            sys.exit(1)
+            sys.exit(0)
     else:
         logging.error("- FAIL, unable to get current server power state to perform either reboot or power on")
-        sys.exit(1)
+        sys.exit(0)
     
 if __name__ == "__main__":
     if args["script_examples"]:
@@ -402,13 +404,13 @@ if __name__ == "__main__":
         check_supported_idrac_version()
     else:
         logging.error("\n- FAIL, invalid argument values or not all required parameters passed in. See help text or argument --script-examples for more details.")
-        sys.exit(1)
+        sys.exit(0)
     if args["get_controllers"]:
         get_storage_controllers()
     elif args["check_disk"]:
         if server_model_number < 14:
             logging.error("\n- FAIL, --check-disk flag is only supported on iDRAC 9 (server model >= 14), current server model is %d" % server_model)
-            sys.exit(1)
+            sys.exit(0)
         check_secure_erase_device_iDRAC9(args["check_disk"])
     elif args["get_disks"]:
         if server_model_number >= 14:
