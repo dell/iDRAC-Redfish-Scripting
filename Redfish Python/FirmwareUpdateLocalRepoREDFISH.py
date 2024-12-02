@@ -1,7 +1,7 @@
 #!/usr/bin/python3
 #
 # _author_ = Texas Roemer <administrator@Dell.com>
-# _version_ = 8.0
+# _version_ = 9.0
 #
 # Copyright (c) 2023, Dell, Inc.
 #
@@ -501,7 +501,7 @@ def chassis_update(firmware_image_device, dup_name):
         elif "fail" in data['Message'].lower() or "fail" in data['JobState'].lower():
             logging.error("- FAIL: job ID %s failed, error results: \n%s" % (update_job_id, data['Message']))
             return
-        elif "completed successfully" in data['Message']:
+        elif "completed successfully" in data['Message'].lower() or "successfully completed" in data['Message'].lower():
             try:
                 logging.info("- PASS, %s job %s successfully marked completed" % (data["Oem"]["Dell"]["Name"].replace(":",""), update_job_id))
             except:
@@ -548,7 +548,7 @@ def loop_check_final_job_status(reboot_update_job_id):
         elif "fail" in data['Message'].lower() or "fail" in data['JobState'].lower():
             logging.error("- FAIL: job ID %s failed, error results: \n%s" % (reboot_update_job_id, data['Message']))
             sys.exit(0)
-        elif "completed successfully" in data['Message']:
+        elif "completed successfully" in data['Message'].lower() or "successfully completed" in data['Message'].lower():
             try:
                 logging.info("- PASS, %s job %s successfully marked completed" % (data["Oem"]["Dell"]["Name"].replace(":",""), reboot_update_job_id))
             except:
@@ -698,7 +698,7 @@ def check_idrac_connection():
             while True:
                 if run_network_connection_function == "fail":
                     break
-                execute_command=subprocess.call(ping_command, stdout=subprocess.PIPE, shell=True)
+                execute_command=subprocess.call(ping_command, stdout=subprocess.PIPE)
                 if execute_command != 0:
                     ping_status = "lost"
                 else:
