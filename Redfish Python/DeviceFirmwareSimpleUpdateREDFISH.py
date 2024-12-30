@@ -257,12 +257,6 @@ def check_job_status():
                     sys.exit(0)
                 else:
                     break
-        elif "success" in data['Oem']['Dell']['Message'].lower():
-            logging.info("\n- PASS, job ID %s successfully marked completed, detailed final job status results\n")
-            for i in data['Oem']['Dell'].items():
-                pprint(i)
-            logging.info("\n- %s completed in: %s" % (job_id, str(current_time)[0:7]))
-            break
         else:
             logging.info("- INFO: %s, execution time: %s" % (message_string[0]["Message"].rstrip("."), current_time))
             time.sleep(1)
