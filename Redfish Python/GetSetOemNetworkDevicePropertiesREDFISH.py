@@ -3,7 +3,7 @@
 # GetSetOemNetworkPropertiesREDFISH. Python script using Redfish API DMTF to either get or set OEM network device properties. 
 #
 # _author_ = Texas Roemer <Texas_Roemer@Dell.com>
-# _version_ = 4.0
+# _version_ = 5.0
 #
 # Copyright (c) 2021, Dell, Inc.
 #
@@ -116,9 +116,9 @@ def get_idrac_time():
 def get_network_device_fqdds():
     global port_list
     if args["x"]:
-        response = requests.get('https://%s/redfish/v1/Systems/System.Embedded.1/NetworkAdapters' % idrac_ip, verify=verify_cert, headers={'X-Auth-Token': args["x"]})   
+        response = requests.get('https://%s/redfish/v1/Chassis/System.Embedded.1/NetworkAdapters' % idrac_ip, verify=verify_cert, headers={'X-Auth-Token': args["x"]})   
     else:
-        response = requests.get('https://%s/redfish/v1/Systems/System.Embedded.1/NetworkAdapters' % idrac_ip, verify=verify_cert,auth=(idrac_username, idrac_password))
+        response = requests.get('https://%s/redfish/v1/Chassis/System.Embedded.1/NetworkAdapters' % idrac_ip, verify=verify_cert,auth=(idrac_username, idrac_password))
     data = response.json()
     network_device_list = []
     for i in data['Members']:
@@ -128,9 +128,9 @@ def get_network_device_fqdds():
     port_list = []
     for i in network_device_list:
         if args["x"]:
-            response = requests.get('https://%s/redfish/v1/Systems/System.Embedded.1/NetworkAdapters/%s/NetworkDeviceFunctions' % (idrac_ip, i), verify=verify_cert, headers={'X-Auth-Token': args["x"]})   
+            response = requests.get('https://%s/redfish/v1/Chassis/System.Embedded.1/NetworkAdapters/%s/NetworkDeviceFunctions' % (idrac_ip, i), verify=verify_cert, headers={'X-Auth-Token': args["x"]})   
         else:
-            response = requests.get('https://%s/redfish/v1/Systems/System.Embedded.1/NetworkAdapters/%s/NetworkDeviceFunctions' % (idrac_ip, i), verify=verify_cert,auth=(idrac_username, idrac_password))
+            response = requests.get('https://%s/redfish/v1/Chassis/System.Embedded.1/NetworkAdapters/%s/NetworkDeviceFunctions' % (idrac_ip, i), verify=verify_cert,auth=(idrac_username, idrac_password))
         data = response.json()
         if args["get_ids"]:
             logging.info("\n- Network device ID(s) detected for %s -\n" % i)
@@ -141,7 +141,10 @@ def get_network_device_fqdds():
                 port_list.append(ii[1].split("/")[-1])
 
 def get_network_device_attributes():
-    network_id = args["get_all_attributes"].split("-")[0]
+    if "embedded" in args["get_all_attributes"].lower():
+        network_id = "NIC.Embedded.1"
+    else:
+        network_id = args["get_all_attributes"].split("-")[0]
     print("\n")
     if args["x"]:
         response = requests.get('https://%s/redfish/v1/Chassis/System.Embedded.1/NetworkAdapters/%s/NetworkDeviceFunctions/%s/Oem/Dell/DellNetworkAttributes/%s?$select=Attributes' % (idrac_ip, network_id, args["get_all_attributes"], args["get_all_attributes"]), verify=verify_cert,headers={'X-Auth-Token': args["x"]})
@@ -154,7 +157,10 @@ def get_network_device_attributes():
         logging.error("- WARNING, unable to get attributes for port %s. Either FQDD not supported, typo or case incorrect" % (args["get_all_attributes"]))
 
 def get_network_device_specific_attribute():
-    network_id = args["get_all_attributes"].split("-")[0]
+    if "embedded" in args["get_all_attributes"].lower():
+        network_id = "NIC.Embedded.1"
+    else:
+        network_id = args["get_all_attributes"].split("-")[0]
     print("\n")
     if args["x"]:
         response = requests.get('https://%s/redfish/v1/Chassis/System.Embedded.1/NetworkAdapters/%s/NetworkDeviceFunctions/%s/Oem/Dell/DellNetworkAttributes/%s?$select=Attributes/%s' % (idrac_ip, network_id, args["get_all_attributes"], args["get_all_attributes"], args["get_attribute"]), verify=verify_cert,headers={'X-Auth-Token': args["x"]})
@@ -170,7 +176,10 @@ def get_network_device_specific_attribute_all_FQDDs():
     get_network_device_fqdds()
     print("\n")
     for i in port_list:
-        network_id = i.split("-")[0]
+        if "embedded" in i.lower():
+            network_id = "NIC.Embedded.1"
+        else:
+            network_id = i.split("-")[0]
         if args["x"]:
             response = requests.get('https://%s/redfish/v1/Chassis/System.Embedded.1/NetworkAdapters/%s/NetworkDeviceFunctions/%s/Oem/Dell/DellNetworkAttributes/%s?$select=Attributes/%s' % (idrac_ip, network_id, i, i, args["get_attribute_all_ports"]), verify=verify_cert, headers={'X-Auth-Token': args["x"]})
         else:
@@ -271,7 +280,10 @@ def create_network_attribute_dict():
 def create_next_boot_config_job():
     global job_id
     global payload_patch
-    network_id = args["set"].split("-")[0]
+    if "embedded" in args["set"].lower():
+        network_id = "NIC.Embedded.1"
+    else:
+        network_id = args["set"].split("-")[0]
     url = "https://%s/redfish/v1/Chassis/System.Embedded.1/NetworkAdapters/%s/NetworkDeviceFunctions/%s/Oem/Dell/DellNetworkAttributes/%s/Settings" % (idrac_ip, network_id, args["set"], args["set"])
     payload_patch = {"@Redfish.SettingsApplyTime":{"ApplyTime":"OnReset"}}
     payload_patch.update(network_attribute_payload)
@@ -297,7 +309,10 @@ def create_next_boot_config_job():
 
 def create_schedule_config_job():
     global job_id
-    network_id = args["set"].split("-")[0]
+    if "embedded" in args["set"].lower():
+        network_id = "NIC.Embedded.1"
+    else:
+        network_id = args["set"].split("-")[0]
     url = "https://%s/redfish/v1/Chassis/System.Embedded.1/NetworkAdapters/%s/NetworkDeviceFunctions/%s/Oem/Dell/DellNetworkAttributes/%s/Settings" % (idrac_ip, network_id, args["set"], args["set"])
     if args["maintenance_reboot"] == "noreboot":
         payload_patch = {"@Redfish.SettingsApplyTime":{"ApplyTime": "InMaintenanceWindowOnReset","MaintenanceWindowStartTime":str(args["start_time"]),"MaintenanceWindowDurationInSeconds": int(args["duration_time"])}}
@@ -378,10 +393,6 @@ def loop_job_status_final():
     else:
         response = requests.get('https://%s/redfish/v1/Managers/iDRAC.Embedded.1/Oem/Dell/Jobs/%s' % (idrac_ip, job_id), verify=verify_cert,auth=(idrac_username, idrac_password))
     data = response.json()
-    if data['JobType'] == "RAIDConfiguration":
-        logging.info("- PASS, staged jid \"%s\" successfully created. Server will now reboot to apply the configuration changes" % job_id)
-    elif data['JobType'] == "RealTimeNoRebootConfiguration":
-        logging.info("- PASS, realtime jid \"%s\" successfully created. Server will apply the configuration changes in real time, no server reboot needed" % job_id)
     while True:
         if retry_count == 20:
             logging.warning("- WARNING, GET command retry count of 20 has been reached, script will exit")
