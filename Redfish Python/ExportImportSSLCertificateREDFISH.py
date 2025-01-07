@@ -3,7 +3,7 @@
 # ExportImportSSLCertificateREDFISH.py   Python script using Redfish API with OEM extension to either export or import SSL certificate.
 #
 # _author_ = Texas Roemer <Texas_Roemer@Dell.com>
-# _version_ = 14.0
+# _version_ = 15.0
 #
 # Copyright (c) 2019, Dell, Inc.
 #
@@ -45,7 +45,7 @@ parser.add_argument('--get-cert-types', help='Get current cert type values suppo
 parser.add_argument('--cert-type', help='Pass in SSL cert type value for export or import (note: this value is case sensitive). If needed, use argument --get-cert-types to get supported values.', dest="cert_type", required=False)
 parser.add_argument('--filename', help='Pass in the file name which contains the certificate to import. Cert file should be a base64 encoded string of the XML Certificate file. For importing CSC certificate, convert PKCS file to base64 format. The CTC file content has to be in PEM format (base64 encoded).', required=False)
 parser.add_argument('--passphrase', help='Pass in passphrase string if the cert you are importing is passpharse protected.', required=False)
-parser.add_argument('--reboot-idrac', help='Pass in this argument to reboot the iDRAC now to apply the new cert imported. Note: Starting in iDRAC9 6.00.02 version, iDRAC reboot is no longer required after the new cert is imported. Note if using iDRAC10 reboot is not required', dest="reboot_idrac", action="store_true", required=False)
+parser.add_argument('--reboot-idrac', help='Pass in this argument to reboot the iDRAC now to apply the new cert imported. Note: Starting in iDRAC9 6.00.02 version and iDRAC10, iDRAC reboot is no longer required after the new cert is imported. Note if using iDRAC10 reboot is not required', dest="reboot_idrac", action="store_true", required=False)
 parser.add_argument('--csv-file', help='Pass in name of CSV file to configure multiple iDRACs instead of using argument -ip for one iDRAC. For the CSV file creation column A header will be "iDRAC IP" and column B header will be "Cert Name" for the cert you want to import for that iDRAC. If only exporting you only need to fill in column A for iDRAC IPs. Note: arguments -u and -p are still required for iDRAC username and password which this user must be the same on all iDRACs.', required=False)
 parser.add_argument('--upload', help='Upload SSL key, --filename is also required to pass in the key file name', action="store_true", required=False)
 parser.add_argument('--delete', help='Delete SSL cert pass in value CustomCertificate, CSC or ClientTrustCertificate. iDRAC does not support delete server or CA certs', required=False)
@@ -110,24 +110,6 @@ def get_server_generation():
         idrac_server_generation = 9
     else:
         idrac_server_generation = 10
-
-def get_iDRAC_version():
-    global iDRAC_version
-    if args["x"]:
-        response = requests.get('https://%s/redfish/v1/Managers/iDRAC.Embedded.1?$select=FirmwareVersion' % idrac_ip, verify=verify_cert, headers={'X-Auth-Token': args["x"]})
-    else:
-        response = requests.get('https://%s/redfish/v1/Managers/iDRAC.Embedded.1?$select=FirmwareVersion' % idrac_ip, verify=False,auth=(idrac_username,idrac_password))
-    data = response.json()
-    if response.status_code == 401:
-        logging.error("- ERROR, status code 401 detected, check to make sure your iDRAC script session has correct username/password credentials or if using X-auth token, confirm the session is still active.")
-        return
-    elif response.status_code != 200:
-        logging.warning("\n- WARNING, unable to get current iDRAC version installed")
-        sys.exit(0)
-    if int(data["FirmwareVersion"].replace(".","")) >= 6000000:
-        iDRAC_version = "new"
-    else:
-        iDRAC_version = "old"
 
 def get_cert_types():
     if args["x"]:
@@ -296,11 +278,7 @@ def import_SSL_cert():
             time.sleep(15)
             logging.info("- INFO, iDRAC will now reboot and be back online within a few minutes.")
         else:
-            get_iDRAC_version()
-            if iDRAC_version == "old" and idrac_server_generation == 8 or idrac_server_generation == 9:
-                logging.info("- INFO, argument --reboot-idrac not detected and iDRAC9 version older than 6.00.02 detected, iDRAC reboot is required to apply the new cert after import.")
-            else:
-                logging.info("- INFO, iDRAC will report newly imported cert within 15-30 seconds, if using browser to access the iDRAC refresh the session")
+            logging.info("- INFO, argument --reboot-idrac not detected, if iDRAC9 version older than 6.00.02, iDRAC reboot is required to apply the new cert after import.")
     else:
         logging.error("\n- FAIL, POST command failed for %s method, status code %s returned" % (method, response.status_code))
         data = response.json()
