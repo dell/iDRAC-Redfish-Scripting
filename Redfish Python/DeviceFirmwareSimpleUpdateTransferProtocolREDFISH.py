@@ -140,7 +140,7 @@ def install_image_payload():
     except:
         logging.error("- FAIL, unable to locate job ID in header")
         sys.exit(0)
-    logging.info("\n- PASS, update job ID %s successfully created, script will now loop polling the job status\n" % job_id)
+    logging.info("\n- PASS, update job %s successfully created, script will now loop polling the job status\n" % job_id)
     start_time = datetime.now()
     time.sleep(1)
 
@@ -278,7 +278,7 @@ def check_job_status():
         if str(current_time)[0:7] >= "0:30:00":
             logging.error("\n- FAIL: Timeout of 30 minutes has been hit, update job should of already been marked completed. Check the iDRAC job queue and LC logs to debug the issue\n")
             sys.exit(0)
-        elif "failed" in data['Oem']['Dell']['Message'] or "completed with errors" in data['Oem']['Dell']['Message'] or "Failed" in data['Oem']['Dell']['Message']:
+        elif "failed" in data['Oem']['Dell']['Message'].lower() or "error" in data['Oem']['Dell']['Message'].lower() or "unable" in data['Oem']['Dell']['Message'].lower():
             logging.error("- FAIL: Job failed, current message: %s" % data["Messages"])
             sys.exit(0)
         elif "scheduled" in data['Oem']['Dell']['Message']:
