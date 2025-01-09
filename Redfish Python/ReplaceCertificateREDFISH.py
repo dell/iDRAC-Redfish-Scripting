@@ -1,7 +1,7 @@
 #!/usr/bin/python3
 #
 # _author_ = Texas Roemer <Texas_Roemer@Dell.com>
-# _version_ = 5.0
+# _version_ = 6.0
 #
 # Copyright (c) 2021, Dell, Inc.
 #
@@ -35,7 +35,7 @@ parser.add_argument('-p', help='iDRAC password. If you do not pass in argument -
 parser.add_argument('-x', help='Pass in X-Auth session token for executing Redfish calls. All Redfish calls will use X-Auth token instead of username/password', required=False)
 parser.add_argument('--ssl', help='SSL cert verification for all Redfish calls, pass in value \"true\" or \"false\". By default, this argument is not required and script ignores validating SSL cert for all Redfish calls.', required=False)
 parser.add_argument('--script-examples', action="store_true", help='Prints script examples')
-parser.add_argument('--certid', help='Replace iDRAC CSR, pass in the cert ID of the cert you want to replace. If needed, execute --get argument to get the cert ID. Example: SecurityCertificate.1', required=False)
+parser.add_argument('--certid', help='Replace iDRAC CSR, pass in the complete URI cert ID location you want to replace. If needed, execute --get argument to get this information. Example value: /redfish/v1/Managers/iDRAC.Embedded.1/NetworkProtocol/HTTPS/Certificates/SecurityCertificate.1', required=False)
 parser.add_argument('--filename', help='Replace iDRAC CSR, pass in the filename of the signed CSR.', required=False)
 parser.add_argument('--get', help='Get current iDRAC certs', action="store_true", required=False)
 parser.add_argument('--reset', help='Reset iDRAC to apply the new uploaded CSR. Note: Starting in iDRAC9 5.10.10, iDRAC reset is no longer required after uploading new CSR. New CSR will be applied immediately.', action="store_true", required=False)
@@ -44,7 +44,7 @@ logging.basicConfig(format='%(message)s', stream=sys.stdout, level=logging.INFO)
 
 def script_examples():
     print("""\n- ReplaceCertificateREDFISH.py -ip 192.168.0.120 -u root -p calvin --get, this example will get current iDRAC cert(s).
-    \n- ReplaceCertificateREDFISH.py -ip 192.168.0.120 -u root -p calvin --certid SecurityCertificate.1 --filename signed_CSR_cert.cer, this example will replace current CSR with new signed CSR.
+    \n- ReplaceCertificateREDFISH.py -ip 192.168.0.120 -u root -p calvin --certid /redfish/v1/Managers/iDRAC.Embedded.1/NetworkProtocol/HTTPS/Certificates/SecurityCertificate.1 --filename signed_CSR_cert.cer, this example will replace current CSR with new signed CSR.
     \n- ReplaceCertificateREDFISH.py -ip 192.168.0.120 -u root -p calvin --reset, this example will reset the iDRAC to apply the new CSR cert that was just uploaded. iDRAC version installed was 5.00.00.""")
     sys.exit(0)
 
@@ -113,9 +113,9 @@ def replace_CSR():
     read_file = open_filename.read()
     open_filename.close()
     if int(data["FirmwareVersion"].replace(".","")) <= 5000000 and idrac_version == 9 or idrac_version == 8:
-        payload = {"CertificateType": "PEM","CertificateUri":"/redfish/v1/Managers/iDRAC.Embedded.1/NetworkProtocol/HTTPS/Certificates/%s" % args["certid"],"CertificateString":read_file}
+        payload = {"CertificateType": "PEM","CertificateUri":"%s" % args["certid"],"CertificateString":read_file}
     else:
-        payload = {"CertificateType": "PEM","CertificateUri":{"@odata.id":"/redfish/v1/Managers/iDRAC.Embedded.1/NetworkProtocol/HTTPS/Certificates/%s" % args["certid"]},"CertificateString":read_file} 
+        payload = {"CertificateType": "PEM","CertificateUri":{"@odata.id":"%s" % args["certid"]},"CertificateString":read_file}  
     if args["x"]:
         headers = {'content-type': 'application/json', 'X-Auth-Token': args["x"]}
         response = requests.post(url, data=json.dumps(payload), headers=headers, verify=verify_cert)
@@ -124,9 +124,9 @@ def replace_CSR():
         response = requests.post(url, data=json.dumps(payload), headers=headers, verify=verify_cert,auth=(idrac_username,idrac_password))
     data = response.json()
     if response.status_code == 200 or response.status_code == 202:
-        logging.info("\n- PASS, replace certificate passed, reboot iDRAC needed if version older than iDRAC9 5.10.")
+        logging.info("\n- PASS, replace certificate passed, wait 10-20 seconds for iDRAC to activate the new cert. Note: reboot iDRAC is required if iDRAC9 version <= 5.10.")
     else:
-        logging.error("- FAIL, replace certificate failed, status code %s returned, detailed error results: \n%s" % (response.status_code, data))
+        logging.error("\n- FAIL, replace certificate failed, status code %s returned, detailed error results: \n%s" % (response.status_code, data))
         sys.exit(0)
 
 def reset_idrac():
