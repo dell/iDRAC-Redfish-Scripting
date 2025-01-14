@@ -508,7 +508,7 @@ def get_backplane_information():
         open_file.writelines(message)
         open_file.writelines("\n")
         print(message)
-        sys.exit()
+        sys.exit(0)
     for i in backplane_URI_list:
         response = requests.get('https://%s%s' % (idrac_ip, i),verify=False,auth=(idrac_username, idrac_password))
         data = response.json()
@@ -518,11 +518,14 @@ def get_backplane_information():
         print(message)
         for iii in data.items():
             if iii[0] == "Oem":
-                for iiii in iii[1]['Dell']['DellEnclosure'].items():
-                    message = "%s: %s" % (iiii[0],iiii[1])
-                    open_file.writelines(message)
-                    open_file.writelines("\n")
-                    print(message)       
+                try:
+                    for iiii in iii[1]['Dell']['DellEnclosure'].items():
+                        message = "%s: %s" % (iiii[0],iiii[1])
+                        open_file.writelines(message)
+                        open_file.writelines("\n")
+                        print(message)
+                except:
+                    pass
             else:
                 message = "%s: %s" % (iii[0], iii[1])
                 open_file.writelines(message)
@@ -531,9 +534,9 @@ def get_backplane_information():
 
 def get_network_information():
     if args["x"]:
-        response = requests.get('https://%s/redfish/v1/Systems/System.Embedded.1/NetworkAdapters' % idrac_ip, verify=verify_cert, headers={'X-Auth-Token': args["x"]})   
+        response = requests.get('https://%s/redfish/v1/Chassis/System.Embedded.1/NetworkAdapters' % idrac_ip, verify=verify_cert, headers={'X-Auth-Token': args["x"]})   
     else:
-        response = requests.get('https://%s/redfish/v1/Systems/System.Embedded.1/NetworkAdapters' % idrac_ip, verify=verify_cert,auth=(idrac_username, idrac_password))
+        response = requests.get('https://%s/redfish/v1/Chassis/System.Embedded.1/NetworkAdapters' % idrac_ip, verify=verify_cert,auth=(idrac_username, idrac_password))
     data = response.json()
     network_device_list = []
     for i in data['Members']:
@@ -543,15 +546,15 @@ def get_network_information():
     for i in network_device_list:
         port_list = []
         if args["x"]:
-            response = requests.get('https://%s/redfish/v1/Systems/System.Embedded.1/NetworkAdapters/%s/NetworkDeviceFunctions' % (idrac_ip, i), verify=verify_cert, headers={'X-Auth-Token': args["x"]})   
+            response = requests.get('https://%s/redfish/v1/Chassis/System.Embedded.1/NetworkAdapters/%s/NetworkDeviceFunctions' % (idrac_ip, i), verify=verify_cert, headers={'X-Auth-Token': args["x"]})   
         else:
-            response = requests.get('https://%s/redfish/v1/Systems/System.Embedded.1/NetworkAdapters/%s/NetworkDeviceFunctions' % (idrac_ip, i), verify=verify_cert,auth=(idrac_username, idrac_password))
+            response = requests.get('https://%s/redfish/v1/Chassis/System.Embedded.1/NetworkAdapters/%s/NetworkDeviceFunctions' % (idrac_ip, i), verify=verify_cert,auth=(idrac_username, idrac_password))
         data = response.json()
         for i in data['Members']:
             for ii in i.items():
                 port_list.append(ii[1].split("/")[-1])
     for i in network_device_list:
-        device_id = re.search("\w+.\w+.\w", i).group()
+        device_id = i.split("-")[0]
         if args["x"]:
             response = requests.get('https://%s/redfish/v1/Chassis/System.Embedded.1/NetworkAdapters/%s' % (idrac_ip, i), verify=verify_cert, headers={'X-Auth-Token': args["x"]})
         else:
@@ -577,8 +580,9 @@ def get_network_information():
                 open_file.writelines("\n")
                 print(message)
     for i in port_list:
-        device_id = re.search("\w+.\w+.\w", i).group()
-        # redfish/v1/Chassis/System.Embedded.1/NetworkAdapters/NIC.Embedded.1/NetworkDeviceFunctions/NIC.Embedded.1-1-1
+        device_id = i.split("-")[0]
+        if device_id == "NIC.Embedded.2" or device_id == "NIC.Embedded.3" or device_id == "NIC.Embedded.4":
+            device_id = "NIC.Embedded.1"
         if args["x"]:
             response = requests.get('https://%s/redfish/v1/Chassis/System.Embedded.1/NetworkAdapters/%s/NetworkDeviceFunctions/%s' % (idrac_ip, device_id, i), verify=verify_cert, headers={'X-Auth-Token': args["x"]})
         else:
