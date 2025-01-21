@@ -134,11 +134,14 @@ def get_network_device_fqdds():
         data = response.json()
         if args["get_ids"]:
             logging.info("\n- Network device ID(s) detected for %s -\n" % i)
-        for i in data['Members']:
-            for ii in i.items():
-                if args["get_ids"]:
-                    print(ii[1].split("/")[-1])
-                port_list.append(ii[1].split("/")[-1])
+        if "Members" in data.keys():
+            for i in data['Members']:
+                for ii in i.items():
+                    if args["get_ids"]:
+                        print(ii[1].split("/")[-1])
+                    port_list.append(ii[1].split("/")[-1])
+        else:
+            logging.info("- INFO, no network device ids detected for this device")
 
 def get_network_device_attributes():
     if "embedded" in args["get_all_attributes"].lower():
