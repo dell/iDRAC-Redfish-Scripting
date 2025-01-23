@@ -153,17 +153,14 @@ def loop_job_status():
         if str(current_time)[0:7] >= "0:05:00":
             logging.error("\n- FAIL: Timeout of 5 minutes has been hit, script stopped\n")
             sys.exit(0)
-        elif "fail" in data['Message'].lower() or "unable" in data['Message'].lower() or data['JobState'] == "Failed":
-            logging.error("- FAIL: job ID %s failed, failed message is: %s" % (job_id, data['Message']))
-            sys.exit(0)
         elif data['JobState'] == "Completed":
-            if data['Message'] == "LCL Export was successful":
-                logging.info("\n--- PASS, Final Detailed Job Status Results ---\n")
-            else:
-                logging.error("\n--- FAIL, Final Detailed Job Status Results ---\n")
+            logging.info("\n--- Job completed, final detailed job results ---\n")
             for i in data.items():
                 pprint(i)
             break
+        elif "fail" in data['Message'].lower() or "unable" in data['Message'].lower() or data['JobState'] == "Failed":
+            logging.error("- FAIL: job ID %s failed, failure message: %s" % (job_id, data['Message']))
+            sys.exit(0)
         else:
             logging.info("- INFO, job state not marked completed, current job status is running, polling again")
             time.sleep(2)
