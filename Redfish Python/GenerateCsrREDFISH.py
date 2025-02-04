@@ -1,7 +1,7 @@
 #!/usr/bin/python3
 #
 # _author_ = Texas Roemer <Texas_Roemer@Dell.com>
-# _version_ = 6.0
+# _version_ = 7.0
 #
 # Copyright (c) 2021, Dell, Inc.
 #
@@ -45,6 +45,7 @@ parser.add_argument('--email', help='Generate iDRAC CSR, pass in email string va
 parser.add_argument('--org', help='Generate iDRAC CSR, pass in organization string value', required=False)
 parser.add_argument('--orgunit', help='Generate iDRAC CSR, pass in organization unit string value', required=False)
 parser.add_argument('--sub-alt-name', help='Generate iDRAC CSR, pass in subject alternative name string value. Note: If passing in multiple values for subject alt name use a comma separator.', dest="sub_alt_name", required=False)
+parser.add_argument('--export', help='Save the new generated CSR to any location, pass in complete directory path and unique CSR filename.', required=False)
 
 args=vars(parser.parse_args())
 logging.basicConfig(format='%(message)s', stream=sys.stdout, level=logging.INFO)
@@ -52,7 +53,8 @@ logging.basicConfig(format='%(message)s', stream=sys.stdout, level=logging.INFO)
 def script_examples():
     print("""\n- GenerateCsrREDFISH.py -ip 192.168.0.120 -u root -p calvin --get, this example will get current iDRAC cert(s).
     \n- GenerateCsrREDFISH.py -ip 192.168.0.120 -u root -p calvin --generate --city Austin --commonname idrac_tester --country US --email tester@dell.com --org test --orgunit "test group" --state Texas, this example shows generating CSR.
-    \n- GenerateCsrREDFISH.py -ip 192.168.0.120 -u root -p calvin --generate --city 'Palm Springs' --state 'California' --country US --common 'Dell Inc' --org 'product test' --orgunit test --sub-alt-name 'altnametest.example.com,altname2test.good.com' --email 'tester@dell.com', this example shows generating CSR with multiple subject alt names.""")
+    \n- GenerateCsrREDFISH.py -ip 192.168.0.120 -u root -p calvin --generate --city Austin --commonname idrac_tester --country US --email tester@dell.com --org test --orgunit "test group" --state Texas --export C:\\Users\\Administrator\\Downloads\\R650_iDRAC.csr, this example shows generating CSR and exporting the CSR to a file in a specific directory.
+    \n- GenerateCsrREDFISH.py -ip 192.168.0.120 -u root -p calvin --generate --city 'Round Rock' --state 'Texas' --country US --common 'Dell Inc' --org 'product test' --orgunit test --sub-alt-name 'altnametest.example.com,altname2test.good.com' --email 'tester@dell.com', this example shows generating CSR with multiple subject alt names.""")
     sys.exit(0)
 
 def check_supported_idrac_version():
@@ -136,25 +138,31 @@ def generate_CSR():
         sys.exit(0)
     logging.info("\n- INFO, CSR generated for iDRAC %s\n" % idrac_ip)
     logging.info(data_post["CSRString"])
-    if args["x"]:
-        response = requests.get('https://%s/redfish/v1/Chassis/System.Embedded.1' % idrac_ip, verify=verify_cert, headers={'X-Auth-Token': args["x"]})
+    if args["export"]:
+        filename = args["export"]
+        with open(filename, "w") as open_file:
+            open_file.writelines(data_post["CSRString"])
+        logging.info("\n- INFO, Generated CSR also copied to file \"%s\"" % filename)
     else:
-        response = requests.get('https://%s/redfish/v1/Chassis/System.Embedded.1' % idrac_ip, verify=verify_cert, auth=(idrac_username, idrac_password))
-    data_get = response.json()
-    if response.status_code == 200:
-        model_name = data_get["Model"].replace(" ","")
-        service_tag = data_get["SKU"]
-        filename = model_name + "_" + service_tag + ".csr"
-    else:
-        logging.info("-INFO, unable to get model and service tag information, using iDRAC IP for filename")
-        filename = "%s.csr" % idrac_ip
-    try:
-        os.remove(filename)
-    except:
-        logging.info("- INFO, unable to locate file %s to delete, skipping" % filename)
-    with open(filename, "w") as open_file:
-        open_file.writelines(data_post["CSRString"])
-    logging.info("\n- INFO, Generated CSR also copied to file \"%s\"" % filename)
+        if args["x"]:
+            response = requests.get('https://%s/redfish/v1/Chassis/System.Embedded.1' % idrac_ip, verify=verify_cert, headers={'X-Auth-Token': args["x"]})
+        else:
+            response = requests.get('https://%s/redfish/v1/Chassis/System.Embedded.1' % idrac_ip, verify=verify_cert, auth=(idrac_username, idrac_password))
+        data_get = response.json()
+        if response.status_code == 200:
+            model_name = data_get["Model"].replace(" ","")
+            service_tag = data_get["SKU"]
+            filename = model_name + "_" + service_tag + ".csr"
+        else:
+            logging.info("-INFO, unable to get model and service tag information, using iDRAC IP for filename")
+            filename = "%s.csr" % idrac_ip
+        try:
+            os.remove(filename)
+        except:
+            logging.info("- INFO, unable to locate file %s to delete, skipping" % filename)
+        with open(filename, "w") as open_file:
+            open_file.writelines(data_post["CSRString"])
+        logging.info("\n- INFO, Generated CSR also copied to file \"%s\"" % filename)
     
 if __name__ == "__main__":
     if args["script_examples"]:
