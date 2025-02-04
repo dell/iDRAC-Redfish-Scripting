@@ -90,7 +90,7 @@ def scp_import_local():
     
     # Make sure to modify this payload dictionary first before you execute the script. Payload listed below is an example of showing the correct format.
     
-    payload = {"ShareParameters":{"Target":"ALL"},"ImportBuffer":"<SystemConfiguration><Component FQDD=\"iDRAC.Embedded.1\"><Attribute Name=\"Users.3#IpmiLanPrivilege\">Administrator</Attribute><Attribute Name=\"Users.3#SolEnable\">Enabled</Attribute><Attribute Name=\"IPMILan.1#Enable\">Enabled</Attribute></Component></SystemConfiguration>"}
+    payload = {"ShareParameters":{"Target":["ALL"]},"ImportBuffer":"<SystemConfiguration><Component FQDD=\"iDRAC.Embedded.1\"><Attribute Name=\"Users.3#IpmiLanPrivilege\">Administrator</Attribute><Attribute Name=\"Users.3#SolEnable\">Enabled</Attribute><Attribute Name=\"IPMILan.1#Enable\">Enabled</Attribute></Component></SystemConfiguration>"}
 
     #
     
