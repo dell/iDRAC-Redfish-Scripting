@@ -96,7 +96,7 @@ def import_preview_local():
     xml_string=re.sub("   ","",modify_xml)
     file_open.close()
     #
-    payload = {"ImportBuffer":"","ShareParameters":{"Target":"ALL"}}
+    payload = {"ImportBuffer":"","ShareParameters":{"Target":["ALL"]}}
     payload["ImportBuffer"] = xml_string
     if args["x"]:
         headers = {'content-type': 'application/json', 'X-Auth-Token': args["x"]}
