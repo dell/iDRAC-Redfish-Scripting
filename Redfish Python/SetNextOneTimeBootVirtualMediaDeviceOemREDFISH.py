@@ -3,7 +3,7 @@
 # SetNextOneTimeBootVirtualMediaDeviceOemREDFISH. Python script using Redfish API with OEM extension to set next onetime boot device to either virtual optical or virtual floppy.
 #
 # _author_ = Texas Roemer <Texas_Roemer@Dell.com>
-# _version_ = 3.0
+# _version_ = 4.0
 #
 # Copyright (c) 2019, Dell, Inc.
 #
@@ -88,10 +88,10 @@ def set_next_onetime_boot_device_virtual_media():
     else:    
         url = 'https://%s/redfish/v1/Managers/iDRAC.Embedded.1/Actions/Oem/EID_674_Manager.ImportSystemConfiguration' % idrac_ip
     if args["device"] == "1":
-        payload = {"ShareParameters":{"Target":"ALL"},"ImportBuffer":"<SystemConfiguration><Component FQDD=\"iDRAC.Embedded.1\"><Attribute Name=\"ServerBoot.1#BootOnce\">Enabled</Attribute><Attribute Name=\"ServerBoot.1#FirstBootDevice\">VCD-DVD</Attribute></Component></SystemConfiguration>"}
+        payload = {"ShareParameters":{"Target":["ALL"]},"ImportBuffer":"<SystemConfiguration><Component FQDD=\"iDRAC.Embedded.1\"><Attribute Name=\"ServerBoot.1#BootOnce\">Enabled</Attribute><Attribute Name=\"ServerBoot.1#FirstBootDevice\">VCD-DVD</Attribute></Component></SystemConfiguration>"}
         logging.info("\n- INFO, setting next onetime boot device to Virtual CD")
     elif args["device"] == "2":
-        payload = {"ShareParameters":{"Target":"ALL"},"ImportBuffer":"<SystemConfiguration><Component FQDD=\"iDRAC.Embedded.1\"><Attribute Name=\"ServerBoot.1#BootOnce\">Enabled</Attribute><Attribute Name=\"ServerBoot.1#FirstBootDevice\">vFDD</Attribute></Component></SystemConfiguration>"}
+        payload = {"ShareParameters":{"Target":["ALL"]},"ImportBuffer":"<SystemConfiguration><Component FQDD=\"iDRAC.Embedded.1\"><Attribute Name=\"ServerBoot.1#BootOnce\">Enabled</Attribute><Attribute Name=\"ServerBoot.1#FirstBootDevice\">vFDD</Attribute></Component></SystemConfiguration>"}
         logging.info("\n- INFO, setting next onetime boot device to Virtual Floppy")
     else:
         logging.error("\n- FAIL, invalid value passed in for argument --device")
@@ -103,12 +103,13 @@ def set_next_onetime_boot_device_virtual_media():
         headers = {'content-type': 'application/json'}
         response = requests.post(url, data=json.dumps(payload), headers=headers, verify=verify_cert,auth=(idrac_username,idrac_password))
     try:
-        task_uri = response.__dict__["headers"]["Location"]
+        job_id = response.headers['Location'].split("/")[-1]
     except:
-        logging.error("\n- FAIL: status code %s returned" % response.status_code)
+        logging.error("\n- FAIL: status code %s returned to get job ID from headers" % response.status_code)
         logging.error("- Detailed error information: %s" % response.__dict__)
         sys.exit(0)
     start_time = datetime.now()
+    task_uri = "/redfish/v1/TaskService/Tasks/" + job_id
     while True:
         if args["x"]:
             response = requests.get('https://%s%s' % (idrac_ip, task_uri), verify=verify_cert, headers={'X-Auth-Token': args["x"]})   
