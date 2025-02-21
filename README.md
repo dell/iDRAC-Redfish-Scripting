@@ -53,7 +53,6 @@ For complete information concerning iDRAC with Lifecycle Controller, see the doc
 
 See iDRAC whitepapers below for more information about overview of Redfish support, detailed workflow examples or commonly asked questions:
 
-- [Implementation of the DMTF Redfish API on Dell PowerEdge Servers](http://en.community.dell.com/techcenter/extras/m/white_papers/20442330)
 - [iDRAC Server Configuration Profile Reference Guide](https://infohub.delltechnologies.com/en-us/t/server-configuration-profiles-reference-guide/)
 - [iDRAC RACADM to Redfish Mapping](https://dl.dell.com/content/manual9969682-idrac9-racadm-to-redfish-mapping.pdf?language=en-us)
 - [iDRAC User Interface to Redfish Mapping](https://dl.dell.com/content/manual25212104-idrac9-user-interface-to-redfish-mapping.pdf?language=en-us)
