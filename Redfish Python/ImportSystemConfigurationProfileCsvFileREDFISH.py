@@ -80,12 +80,13 @@ def script_examples():
     \n- ImportSystemConfigurationProfileCsvFileREDFISH.py --import --target ALL --scp-filename 2024-1-3_144317_export.xml --csv-filename iDRAC_details.csv, this example will first read the CSV file to get root password and network settings changes, modify the SCP file and then apply the configuration changes.""")
     sys.exit(0)
 
-def get_server_generation():
+def get_server_generation(ip, user, pwd):
     global idrac_version
-    if args["x"]:
-        response = requests.get('https://%s/redfish/v1/Managers/iDRAC.Embedded.1?$select=Model' % idrac_ip, verify=verify_cert, headers={'X-Auth-Token': args["x"]})
-    else:
-        response = requests.get('https://%s/redfish/v1/Managers/iDRAC.Embedded.1?$select=Model' % idrac_ip, verify=False,auth=(idrac_username,idrac_password))
+    #print(ip)
+    #print(user)
+    #print(pwd)
+    #sys.exit()
+    response = requests.get('https://%s/redfish/v1/Managers/iDRAC.Embedded.1?$select=Model' % ip, verify=False,auth=(user ,pwd))
     data = response.json()
     if response.status_code == 401:
         logging.error("\n- ERROR, status code 401 detected, check to make sure your iDRAC script session has correct username/password credentials or if using X-auth token, confirm the session is still active.")
@@ -327,13 +328,13 @@ def loop_job_id(job_id, idrac_ip, idrac_password):
                 continue
             
 if __name__ == "__main__":
-    get_server_generation()
     if args["script_examples"]:
         script_examples()
     if args["target"] and args["export"]:
         idrac_ip = args["ip"]
         idrac_username = args["u"]
         idrac_password = args["p"]
+        get_server_generation(idrac_ip, idrac_username, idrac_password)
         export_scp_file_locally()
     elif args["target"] and args["import"]:
         idrac_username = "root"
@@ -344,7 +345,7 @@ if __name__ == "__main__":
         with open(file_path, 'r', newline='') as csv_file:
             csv_reader = csv.reader(csv_file)
             for row in csv_reader:
-                if row[0] == "Current iDRAC IP" or row[0] == "":
+                if "current" in row[0].lower() or row[0] == "":
                     continue
                 else:
                     current_idrac_ip = row[0]
@@ -355,6 +356,7 @@ if __name__ == "__main__":
                     new_idrac_static_gateway = row[5]
                     idrac_dict_name = "idrac%s" % count
                     count += 1
+                get_server_generation(current_idrac_ip, "root", current_idrac_password)
                 import_SCP_local_filename(idrac_dict_name, current_idrac_ip, current_idrac_password, new_idrac_password, new_idrac_static_ip, new_idrac_static_subnet, new_idrac_static_gateway)
         if new_idrac_password == "" and new_idrac_static_ip == "":
             logging.info("\n- INFO, script will now loop checking job status for each SCP import job ID created\n")
