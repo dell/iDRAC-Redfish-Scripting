@@ -13,7 +13,7 @@
 # http://www.gnu.org/licenses/old-licenses/gpl-2.0.txt.
 #
 #
-# Edited CSV file examples leveraging 'iDRAC_details_SCP_import_example.csv' file from GitHub:
+# Edited CSV file examples:
 #
 # Current iDRAC IP	Current iDRAC Root Password	New iDRAC Root Password	  New iDRAC Static IP	 New iDRAC Static Subnet  New iDRAC Static Gateway
 # 192.168.0.120	        calvin				
