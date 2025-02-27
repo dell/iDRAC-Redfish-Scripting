@@ -110,8 +110,8 @@ Storage operations
 * Assign / Unassign DHS / GHS 
 
 Prerequisites
-*	PowerEdge 12G/13G/14G/15G servers
-*	Minimum iDRAC 7/8 FW 2.40.40.40, iDRAC9 FW 3.00.00.00
+*	PowerEdge 12G/13G/14G/15G/16G/17G servers
+*	Minimum iDRAC 7/8 FW 2.40.40.40, iDRAC9 FW 3.00.00.00, iDRAC10 FW 1.10.17.00
 *	Python 3.x
 *	PowerShell 5.0 or later
 
