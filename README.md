@@ -1,8 +1,8 @@
 # iDRAC-Redfish-Scripting
 
-Python and PowerShell scripting for  Dell EMC PowerEdge iDRAC REST API with DMTF Redfish.
+Python and PowerShell scripting for Dell PowerEdge iDRAC REST API with DMTF Redfish.
 
-Sample scripts written in Python and PowerShell that illustrate using the integrated Dell Remote Access Controller (iDRAC) REST API with Redfish to manage Dell EMC PowerEdge servers. 
+Sample scripts written in Python and PowerShell that illustrate using the integrated Dell Remote Access Controller (iDRAC) REST API with Redfish to manage Dell PowerEdge servers. 
 
 Powershell cmdlets can also be installed from Powershell gallery using Install-Module. Recommended to install IdracRedfishSupport module which will import all iDRAC cmdlets. 
 
@@ -114,10 +114,6 @@ Prerequisites
 *	Minimum iDRAC 7/8 FW 2.40.40.40, iDRAC9 FW 3.00.00.00, iDRAC10 FW 1.10.17.00
 *	Python 3.x
 *	PowerShell 5.0 or later
-
-## Support
-
-Please note this code is provided as-is and currently not supported by Dell.
 
 ## Report problems or provide feedback
 
