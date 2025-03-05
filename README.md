@@ -74,7 +74,7 @@ Redfish mockup server is an effective method to simulate Redfish iDRAC environme
 
 See whitepaper below for more details about how to use this simulation:
 
-- [Simulate an iDRAC Redfish Environment Using Redfish Mockup Server](https://dl.dell.com/content/manual7490099-simulate-an-idrac-redfish-environment-using-redfish-mockup-server.pdf?language=en-us)
+- [Simulate an iDRAC Redfish Environment Using Redfish Mockup Server]([https://dl.dell.com/content/manual7490099-simulate-an-idrac-redfish-environment-using-redfish-mockup-server.pdf?language=en-us](https://dl.dell.com/content/manual25104995-simulate-idrac-redfish-environment-using-a-redfish-mockup-server.pdf?language=en-us)
 
 
 ## iDRAC REST API with Redfish Scripting Library
