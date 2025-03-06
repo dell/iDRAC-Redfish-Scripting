@@ -153,8 +153,8 @@ def download_image_create_update_job():
         data = response.json()
         logging.error("\n- ERROR, GET request failed to get job ID details, status code %s returned, error: \n%s" % (response.status_code, data))
         sys.exit(0)
-    if "cpld" in data["Name"].lower():
-        logging.info("- INFO, CPLD update detected, once the update is complete virtual a/c cycle will be performed. GET request to poll the job status will start failing which is expected")
+    if "cpld" in data["Name"].lower() or "fpga" in data["Name"].lower():
+        logging.info("- INFO, CPLD/FPGA update detected, once the update is complete virtual a/c cycle will be performed. GET request to poll the job status will start failing which is expected")
 
 def check_job_status():
     retry_count = 1
