@@ -118,11 +118,9 @@ def import_SCP_local_filename():
         sys.exit(0)    
     if idrac_version >= 10:
         url = 'https://%s/redfish/v1/Managers/iDRAC.Embedded.1/Actions/Oem/OemManager.ImportSystemConfiguration' % idrac_ip
-        #task_uri = "redfish/v1/TaskService/TaskMonitors/"
-        task_uri = "redfish/v1/TaskService/Tasks/"
     else:    
         url = 'https://%s/redfish/v1/Managers/iDRAC.Embedded.1/Actions/Oem/EID_674_Manager.ImportSystemConfiguration' % idrac_ip
-        task_uri = "redfish/v1/TaskService/Tasks/"
+    task_uri = "redfish/v1/TaskService/Tasks/"
         
     # Code needed to modify the SCP file to one string to pass in for POST command
     modify_file = open_file.read()
