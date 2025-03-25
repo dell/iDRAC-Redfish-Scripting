@@ -102,7 +102,7 @@ def replace_CSR():
         response = requests.get('https://%s/redfish/v1/Managers/iDRAC.Embedded.1?$select=FirmwareVersion' % idrac_ip, verify=verify_cert, auth=(idrac_username, idrac_password))
     data = response.json()
     if response.status_code != 200:
-        logigng.error("\n- ERROR, unable to get iDRAC firmware version, status code %s detected, detailed error results: \n%s" % (response.status_code, data))
+        logging.error("\n- ERROR, unable to get iDRAC firmware version, status code %s detected, detailed error results: \n%s" % (response.status_code, data))
         sys.exit(0)
     url = 'https://%s/redfish/v1/CertificateService/Actions/CertificateService.ReplaceCertificate' % (idrac_ip)
     try:
