@@ -3,7 +3,7 @@
 # DeviceFirmwareMultipartUploadREDFISH.py. Python script using Redfish API to update a device firmware with DMTF MultipartUpload. Supported file image types are Windows DUPs, d7/d9 image or pm files.
 #
 # _author_ = Texas Roemer <Texas_Roemer@Dell.com>
-# _version_ = 9.0
+# _version_ = 10.0
 #
 # Copyright (c) 2020, Dell, Inc.
 #
@@ -149,6 +149,9 @@ def download_image_create_update_job():
     if response.status_code == 200 or response.status_code == 202:
         data = response.json()
         time.sleep(1)
+    elif response.status_code == 401:
+        logging.warning("\n- WARNING, status code 401 detected for authentication credential failure, if iDRAC or CPLD/FPGA update is being performed and using X-auth token, the X-auth token session is deleted due to iDRAC reboot, please manually check the job queue to confirm final job status.")
+        sys.exit(0)
     else:
         data = response.json()
         logging.error("\n- ERROR, GET request failed to get job ID details, status code %s returned, error: \n%s" % (response.status_code, data))
@@ -211,8 +214,11 @@ def check_job_status():
                     response = requests.get('https://%s/redfish/v1/JobService/Jobs/%s' % (idrac_ip, job_id), verify=verify_cert, auth=(idrac_username, idrac_password))
                 if response.status_code == 200 or response.status_code == 202:
                     time.sleep(1)
+                elif response.status_code == 401:
+                    logging.warning("\n- WARNING, status code 401 detected for authentication credential failure, if iDRAC or CPLD/FPGA update is being performed and using X-auth token, the X-auth token session is deleted due to iDRAC reboot, please manually check the job queue to confirm final job status.")
+                    sys.exit(0)
                 else:
-                    logging.error("\n- ERROR, GET request failed to get job ID details, status code %s returned, error: \n%s" % (response.status_code, data))
+                    logging.error("\n- ERROR, GET request failed to get job ID details, status code%s returned, error: \n%s" % (response.status_code, data))
                 data = response.json()
                 if "success" in data["Messages"][0]["Message"].lower() and data["JobState"] == "Completed":
                     logging.info("\n- PASS, job completed, detailed final job status results\n")
@@ -238,6 +244,9 @@ def check_job_status():
             time.sleep(60)
             retry_count +=1 
             continue
+        elif response.status_code == 401:
+            logging.warning("\n- WARNING, status code 401 detected for authentication credential failure, if iDRAC or CPLD/FPGA update is being performed and using X-auth token, the X-auth token session is deleted due to iDRAC reboot, please manually check the job queue to confirm final job status.")
+            sys.exit(0)
         else:
             logging.error("\n- ERROR, GET request failed to get job ID details, status code %s returned, error: \n%s" % (response.status_code, data))
             sys.exit(0)
@@ -254,6 +263,9 @@ def check_job_status():
                     response = requests.get('https://%s/redfish/v1/JobService/Jobs/%s' % (idrac_ip, job_id), verify=verify_cert, auth=(idrac_username, idrac_password))
                 if response.status_code == 200 or response.status_code == 202:
                     time.sleep(1)
+                elif response.status_code == 401:
+                    logging.warning("\n- WARNING, status code 401 detected for authentication credential failure, if iDRAC or CPLD/FPGA update is being performed and using X-auth token, the X-auth token session is deleted due to iDRAC reboot, please manually check the job queue to confirm final job status.")
+                    sys.exit(0)
                 else:
                     logging.error("\n- ERROR, GET request failed to get job ID details, status code %s returned, error: \n%s" % (response.status_code, data))
                 data = response.json()
@@ -536,7 +548,7 @@ def check_idrac_connection():
             while True:
                 if run_network_connection_function == "fail":
                     break
-                execute_command=subprocess.call(ping_command, stdout=subprocess.PIPE)
+                execute_command=subprocess.call(ping_command, stdout=subprocess.PIPE, shell=True)
                 if execute_command != 0:
                     ping_status = "lost"
                 else:
