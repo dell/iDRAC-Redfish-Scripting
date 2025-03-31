@@ -3,7 +3,7 @@
 # SetNextOneTimeBootDeviceREDFISH. Python script using Redfish API to set next reboot one time boot device.
 #
 # _author_ = Texas Roemer <Texas_Roemer@Dell.com>
-# _version_ = 6.0
+# _version_ = 7.0
 #
 # Copyright (c) 2017, Dell, Inc.
 #
@@ -65,6 +65,26 @@ def check_supported_idrac_version():
         logging.warning("\n- WARNING, iDRAC version installed does not support this feature using Redfish API")
         sys.exit(0)
 
+def get_server_generation():
+    global idrac_version
+    if args["x"]:
+        response = requests.get('https://%s/redfish/v1/Managers/iDRAC.Embedded.1?$select=Model' % idrac_ip, verify=verify_cert, headers={'X-Auth-Token': args["x"]})
+    else:
+        response = requests.get('https://%s/redfish/v1/Managers/iDRAC.Embedded.1?$select=Model' % idrac_ip, verify=False,auth=(idrac_username,idrac_password))
+    data = response.json()
+    if response.status_code == 401:
+        logging.error("\n- ERROR, status code 401 detected, check to make sure your iDRAC script session has correct username/password credentials or if using X-auth token, confirm the session is still active.")
+        sys.exit(0)
+    elif response.status_code != 200:
+        logging.warning("\n- WARNING, unable to get current iDRAC version installed")
+        sys.exit(0)
+    if "12" in data["Model"] or "13" in data["Model"]:
+        idrac_version = 8
+    elif "14" in data["Model"] or "15" in data["Model"] or "16" in data["Model"]:
+        idrac_version = 9
+    else:
+        idrac_version = 10
+
 def get_uefi_target_path_values():
     if args["x"]:
         response = requests.get('https://%s/redfish/v1/Systems/System.Embedded.1/BootOptions?$expand=*($levels=1)' % idrac_ip, verify=verify_cert, headers={'X-Auth-Token': args["x"]})   
@@ -94,7 +114,10 @@ def get_current_setting_next_boot_supported_values():
     logging.info("\n- Current next reboot, one time boot setting is: %s" % data['Boot']['BootSourceOverrideTarget'])
 
 def set_next_boot_onetime_boot_device():
-    url = 'https://%s/redfish/v1/Systems/System.Embedded.1' % idrac_ip
+    if idrac_version >= 10:
+        url = 'https://%s/redfish/v1/Systems/System.Embedded.1/Settings' % idrac_ip
+    else:    
+        url = 'https://%s/redfish/v1/Systems/System.Embedded.1' % idrac_ip
     if args["device"] == "UefiTarget" and args["set_uefi_target"]:
       payload = {"Boot":{"BootSourceOverrideTarget":args["device"],"UefiTargetBootSourceOverride":args["set_uefi_target"]}}
     else:
@@ -230,6 +253,7 @@ if __name__ == "__main__":
         else:
             verify_cert = False
         check_supported_idrac_version()
+        get_server_generation()
     else:
         logging.error("\n- FAIL, invalid argument values or not all required parameters passed in. See help text or argument --script-examples for more details.")
         sys.exit(0)
