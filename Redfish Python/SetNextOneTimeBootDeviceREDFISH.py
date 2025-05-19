@@ -3,7 +3,7 @@
 # SetNextOneTimeBootDeviceREDFISH. Python script using Redfish API to set next reboot one time boot device.
 #
 # _author_ = Texas Roemer <Texas_Roemer@Dell.com>
-# _version_ = 7.0
+# _version_ = 8.0
 #
 # Copyright (c) 2017, Dell, Inc.
 #
@@ -103,10 +103,14 @@ def get_uefi_target_path_values():
         print("\n")
 
 def get_current_setting_next_boot_supported_values():
+    if idrac_version >= 10:
+        url = 'redfish/v1/Systems/System.Embedded.1/Settings'
+    else:    
+        url = 'redfish/v1/Systems/System.Embedded.1'
     if args["x"]:
-        response = requests.get('https://%s/redfish/v1/Systems/System.Embedded.1' % idrac_ip, verify=verify_cert, headers={'X-Auth-Token': args["x"]})   
+        response = requests.get('https://%s/%s' % (idrac_ip, url), verify=verify_cert, headers={'X-Auth-Token': args["x"]})   
     else:
-        response = requests.get('https://%s/redfish/v1/Systems/System.Embedded.1' % idrac_ip, verify=verify_cert,auth=(idrac_username, idrac_password))
+        response = requests.get('https://%s/%s' % (idrac_ip, url), verify=verify_cert,auth=(idrac_username, idrac_password))
     data = response.json()
     logging.info("\n- Supported values for next server reboot, one time boot:\n")
     for i in data['Boot']['BootSourceOverrideTarget@Redfish.AllowableValues']:
