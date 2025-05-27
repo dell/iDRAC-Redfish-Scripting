@@ -44,9 +44,9 @@ parser.add_argument('--get-controllers', help='Get server storage controller FQD
 parser.add_argument('--get-recurring-jobs', help='Get current recurring job(s)', action="store_true", dest="get_recurring_jobs", required=False)
 parser.add_argument('--delete-recurring-job', help='Delete recurring job, pass in recurring auto job ID URI. If needed, use argument --get-recurring-jobs to get this URI information', dest="delete_recurring_job", required=False)
 parser.add_argument('--get-virtualdisks', help='Get current server storage controller virtual disks, pass in storage controller FQDD, Example "RAID.Integrated.1-1"', dest="get_virtualdisks", required=False)
-parser.add_argument('--create', help='Create recurring job, pass in action type. Pass in 1 for "ComputerSystem.Reset", 2 for "Manager.Reset", 3 for "Volume.CheckConsistency", 4 for "LogService.ClearLog". Note: Only other required argument needed to create recurring job is argument -s', required=False)
+parser.add_argument('--create', help='Create recurring job, pass in action type. Pass in 1 for "ComputerSystem.Reset", 2 for "Manager.Reset", 3 for "Volume.CheckConsistency", 4 for "LogService.ClearLog". Note: Only other required argument needed to create recurring job is argument --starttime', required=False)
 parser.add_argument('--vd-fqdd', help='Pass in the virtual disk FQDD if you are creating a recurring job for storage check consistency', dest="vd_fqdd", required=False)
-parser.add_argument('--starttime', help='Pass in the initial start time/date for the recurring job to execute. Format is in UTC time. Example: 2020-02-05T04:51:28-06:00.Note: If needed, use argument -t to get current iDRAC date/time which returns the value in UTC format.', required=False)
+parser.add_argument('--starttime', help='Pass in the initial start time/date for the recurring job to execute. Format is in UTC time. Example: 2020-02-05T04:51:28-06:00.Note: If needed, use argument --get-idrac-time to get current iDRAC date/time which returns the value in UTC format.', required=False)
 parser.add_argument('--max', help='Max occurrences, pass in an integer value, how many times you want this recurring job to be executed. Note: This argument is optional for create recurring job', required=False)
 parser.add_argument('--enable-days-week', help='Enable days of the week you want the recurring job to execute. Supported values are: Monday, Tuesday, Wednesday, Thursday, Friday, Saturday, Sunday or Every. Every value means it will enable all days of the week. If you pass in multiple string values, make sure to use comma separator. Note: This argument is optional for recurring job', dest="enable_days_week", required=False)
 parser.add_argument('--enable-days-month', help='Enable days of the month you want the recurring job to execute, pass in integer value 1 to 31. If you pass in multiple integer values, make sure to use comma separator. If you pass in a value of 0, this will enable all days of the month. Note: This argument is optional for recurring job', dest="enable_days_month", required=False)
@@ -148,7 +148,7 @@ def get_recurring_jobs():
             if "Auto" in ii[1]:
                 recurring_jobs_list.append(ii[1])
     if recurring_jobs_list == []:
-        logging.warning("\n- WARNING, no recurring jobs detected")
+        logging.warning("\n- INFO, no recurring jobs detected")
     else:
         count = 0
         for i in recurring_jobs_list:
