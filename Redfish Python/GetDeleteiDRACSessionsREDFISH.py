@@ -84,7 +84,7 @@ def delete_session():
     else:
         headers = {'content-type': 'application/json'}
         response = requests.delete(url, headers=headers, verify=verify_cert,auth=(idrac_username,idrac_password))
-    if response.status_code == 202 or response.status_code == 200:
+    if response.status_code == 202 or response.status_code == 200 or response.status_code == 204:
         logging.info("\n- PASS: DELETE command passed to delete session id \"%s\", status code %s returned" % (args["delete"], response.status_code))
         if args["x"]:
             response = requests.get('https://%s/redfish/v1/SessionService/Sessions/%s' % (idrac_ip, args["delete"]), verify=verify_cert, headers={'X-Auth-Token': args["x"]})
