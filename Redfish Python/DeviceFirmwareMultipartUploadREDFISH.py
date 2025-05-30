@@ -530,25 +530,25 @@ def reboot_server():
 def check_idrac_connection():
     run_network_connection_function = ""
     if platform.system().lower() == "windows":
-        ping_command = "ping -n 3 %s" % idrac_ip
+        ping_arg = "-n"
     elif platform.system().lower() == "linux":
-        ping_command = "ping -c 3 %s" % idrac_ip
+        ping_arg = "-c"
     else:
         logging.error("- FAIL, unable to determine OS type, check iDRAC connection function will not execute")
         run_network_connection_function = "fail"
-    execute_command = subprocess.call(ping_command, stdout=subprocess.PIPE, shell=True)
+    execute_command = subprocess.call(['ping', '%s' % ping_arg, '3', '%s' % idrac_ip], stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
     if execute_command != 0:
         ping_status = "lost"
     else:
         ping_status = "good"
-        pass
+        logging.debug("- PASS, ping response successful")
     if ping_status == "lost":
-            logging.info("- INFO, iDRAC network connection lost due to slow ping network response, waiting 30 seconds to access iDRAC again")
+            logging.info("- INFO, iDRAC network connection lost due to slow network response, waiting 30 seconds to access iDRAC again")
             time.sleep(30)
             while True:
                 if run_network_connection_function == "fail":
                     break
-                execute_command=subprocess.call(ping_command, stdout=subprocess.PIPE, shell=True)
+                execute_command = subprocess.call(['ping', '%s' % ping_arg, '3', '%s' % idrac_ip], stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
                 if execute_command != 0:
                     ping_status = "lost"
                 else:
