@@ -88,7 +88,7 @@ def set_next_onetime_boot_device_virtual_media():
     else:    
         url = 'https://%s/redfish/v1/Managers/iDRAC.Embedded.1/Actions/Oem/EID_674_Manager.ImportSystemConfiguration' % idrac_ip
     if args["device"] == "1":
-        payload = {"ShareParameters":{"Target":["ALL"]},"ImportBuffer":"<SystemConfiguration><Component FQDD=\"iDRAC.Embedded.1\"><Attribute Name=\"ServerBoot.1#BootOnce\">Enabled</Attribute><Attribute Name=\"ServerBoot.1#FirstBootDevice\">VCD-DVD</Attribute></Component></SystemConfiguration>"}
+        payload = {"ShareParameters":{"Target":["ALL"]},"ImportBuffer":"<SystemConfiguration><Component FQDD=\"iDRAC.Embedded.1\"><Attribute Name=\"ServerBoot.1#BootOnce\">Enabled</Attribute><Attribute Name=\"ServerBoot.1#FirstBootDevice\">vCD-DVD</Attribute></Component></SystemConfiguration>"}
         logging.info("\n- INFO, setting next onetime boot device to Virtual CD")
     elif args["device"] == "2":
         payload = {"ShareParameters":{"Target":["ALL"]},"ImportBuffer":"<SystemConfiguration><Component FQDD=\"iDRAC.Embedded.1\"><Attribute Name=\"ServerBoot.1#BootOnce\">Enabled</Attribute><Attribute Name=\"ServerBoot.1#FirstBootDevice\">vFDD</Attribute></Component></SystemConfiguration>"}
