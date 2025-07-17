@@ -1,7 +1,7 @@
 #!/usr/bin/python3
 #
 # _author_ = Texas Roemer <Texas_Roemer@Dell.com>
-# _version_ = 4.0
+# _version_ = 5.0
 #
 # Copyright (c) 2021, Dell, Inc.
 #
@@ -51,8 +51,28 @@ def check_supported_idrac_version(x,xx,xxx):
     else:
         logging.info("- PASS, GET request passed to check %s \"%s\" user credentials" % (xx,xxx))
 
+def get_server_generation(x):
+    global idrac_version
+    response = requests.get('https://%s/redfish/v1/Managers/iDRAC.Embedded.1?$select=Model' % idrac_ip, verify=False,auth=(idrac_username, x))
+    data = response.json()
+    if response.status_code == 401:
+        logging.error("\n- ERROR, status code 401 detected, check to make sure your iDRAC script session has correct username/password credentials or if using X-auth token, confirm the session is still active.")
+        sys.exit(0)
+    elif response.status_code != 200:
+        logging.warning("\n- WARNING, unable to get current iDRAC version installed")
+        sys.exit(0)
+    if "12" in data["Model"] or "13" in data["Model"]:
+        idrac_version = 8
+    elif "14" in data["Model"] or "15" in data["Model"] or "16" in data["Model"]:
+        idrac_version = 9
+    else:
+        idrac_version = 10
+
 def set_user_id_2_new_password(x,xx):
-    url = 'https://%s/redfish/v1/Managers/iDRAC.Embedded.1/Accounts/2' % (idrac_ip)
+    if idrac_version >= 10:
+        url = "https://%s/redfish/v1/AccountService/Accounts/2" % idrac_ip
+    else:
+        url = "https://%s/redfish/v1/Managers/iDRAC.Embedded.1/Accounts/2" % idrac_ip
     payload = {'Password': x}
     headers = {'content-type': 'application/json'}
     response = requests.patch(url, data=json.dumps(payload), headers=headers,verify=False, auth=(idrac_username, xx))
@@ -65,7 +85,11 @@ def set_user_id_2_new_password(x,xx):
         sys.exit(0)
 
 def get_iDRAC_user_account_info(x):
-    response = requests.get('https://%s/redfish/v1/Managers/iDRAC.Embedded.1/Accounts' % (idrac_ip),verify=False,auth=(idrac_username, x))
+    #response = requests.get('https://%s/redfish/v1/Managers/iDRAC.Embedded.1/Accounts' % (idrac_ip),verify=False,auth=(idrac_username, x))
+    if idrac_version >= 10:
+        response = requests.get('https://%s/redfish/v1/AccountService/Accounts' % (idrac_ip),verify=False,auth=(idrac_username, x))
+    else:
+        response = requests.get('https://%s/redfish/v1/Managers/iDRAC.Embedded.1/Accounts' % (idrac_ip),verify=False,auth=(idrac_username, x))
     if response.status_code != 200:
         data = response.json()
         logging.error("\n- FAIL, status code %s returned for GET command. Detail error results: \n%s" % (response.status_code, data))
@@ -80,7 +104,11 @@ def get_iDRAC_user_account_info(x):
                 sys.exit(0)
             if data["Enabled"] == True and data["UserName"] != "" and data["Id"] != "1" and data["Id"] != "2":
                 idrac_new_password = getpass.getpass("- INFO, iDRAC username \"%s\" enabled, set new password: " % data["UserName"]) 
-                url = 'https://%s/redfish/v1/Managers/iDRAC.Embedded.1/Accounts/%s' % (idrac_ip, data["Id"])
+                #url = 'https://%s/redfish/v1/Managers/iDRAC.Embedded.1/Accounts/%s' % (idrac_ip, data["Id"])
+                if idrac_version >= 10:
+                    url = 'https://%s/redfish/v1/AccountService/Accounts/%s' % (idrac_ip, data["Id"])
+                else:
+                    url = 'https://%s/redfish/v1/Managers/iDRAC.Embedded.1/Accounts/%s' % (idrac_ip, data["Id"])
                 payload = {'Password': idrac_new_password}
                 headers = {'content-type': 'application/json'}
                 response = requests.patch(url, data=json.dumps(payload), headers=headers,verify=False, auth=(idrac_username, x))
@@ -461,7 +489,7 @@ def check_final_job_status(x):
     start_time = datetime.now()
     time.sleep(1)
     while True:
-        response = requests.get('https://%s/redfish/v1/Managers/iDRAC.Embedded.1/Jobs/%s' % (idrac_ip, job_id), auth=(idrac_username, x), verify=False)
+        response = requests.get('https://%s/redfish/v1/Managers/iDRAC.Embedded.1/Oem/Dell/Jobs/%s' % (idrac_ip, job_id), auth=(idrac_username, x), verify=False)
         current_time = str((datetime.now()-start_time))[0:7]
         if response.status_code != 200:
             logging.error("\n- FAIL, Command failed to check job status, return code is %s" % response.status_code)
@@ -521,6 +549,7 @@ if __name__ == "__main__":
     current_idrac_root_password = getpass.getpass("\n- INFO, enter current password for iDRAC user %s: " % idrac_username)
     check_supported_idrac_version(current_idrac_root_password, "CURRENT", idrac_username)
     new_idrac_root_password = getpass.getpass("- INFO, enter new password for iDRAC user %s: " % idrac_username)
+    get_server_generation(current_idrac_root_password)
     set_user_id_2_new_password(new_idrac_root_password, current_idrac_root_password)
     check_supported_idrac_version(new_idrac_root_password, "NEW", idrac_username)
     get_iDRAC_user_account_info(new_idrac_root_password)
