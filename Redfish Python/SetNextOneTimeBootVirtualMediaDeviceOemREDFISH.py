@@ -3,7 +3,7 @@
 # SetNextOneTimeBootVirtualMediaDeviceOemREDFISH. Python script using Redfish API with OEM extension to set next onetime boot device to either virtual optical or virtual floppy.
 #
 # _author_ = Texas Roemer <Texas_Roemer@Dell.com>
-# _version_ = 4.0
+# _version_ = 5.0
 #
 # Copyright (c) 2019, Dell, Inc.
 #
@@ -88,10 +88,10 @@ def set_next_onetime_boot_device_virtual_media():
     else:    
         url = 'https://%s/redfish/v1/Managers/iDRAC.Embedded.1/Actions/Oem/EID_674_Manager.ImportSystemConfiguration' % idrac_ip
     if args["device"] == "1":
-        payload = {"ShareParameters":{"Target":["ALL"]},"ImportBuffer":"<SystemConfiguration><Component FQDD=\"iDRAC.Embedded.1\"><Attribute Name=\"ServerBoot.1#BootOnce\">Enabled</Attribute><Attribute Name=\"ServerBoot.1#FirstBootDevice\">vCD-DVD</Attribute></Component></SystemConfiguration>"}
+        payload = {"ShareParameters":{"Target":["IDRAC"]},"ImportBuffer":"<SystemConfiguration><Component FQDD=\"iDRAC.Embedded.1\"><Attribute Name=\"ServerBoot.1#BootOnce\">Enabled</Attribute><Attribute Name=\"ServerBoot.1#FirstBootDevice\">vCD-DVD</Attribute></Component></SystemConfiguration>"}
         logging.info("\n- INFO, setting next onetime boot device to Virtual CD")
     elif args["device"] == "2":
-        payload = {"ShareParameters":{"Target":["ALL"]},"ImportBuffer":"<SystemConfiguration><Component FQDD=\"iDRAC.Embedded.1\"><Attribute Name=\"ServerBoot.1#BootOnce\">Enabled</Attribute><Attribute Name=\"ServerBoot.1#FirstBootDevice\">vFDD</Attribute></Component></SystemConfiguration>"}
+        payload = {"ShareParameters":{"Target":["IDRAC"]},"ImportBuffer":"<SystemConfiguration><Component FQDD=\"iDRAC.Embedded.1\"><Attribute Name=\"ServerBoot.1#BootOnce\">Enabled</Attribute><Attribute Name=\"ServerBoot.1#FirstBootDevice\">vFDD</Attribute></Component></SystemConfiguration>"}
         logging.info("\n- INFO, setting next onetime boot device to Virtual Floppy")
     else:
         logging.error("\n- FAIL, invalid value passed in for argument --device")
@@ -108,6 +108,7 @@ def set_next_onetime_boot_device_virtual_media():
         logging.error("\n- FAIL: status code %s returned to get job ID from headers" % response.status_code)
         logging.error("- Detailed error information: %s" % response.__dict__)
         sys.exit(0)
+    time.sleep(3)
     start_time = datetime.now()
     task_uri = "/redfish/v1/TaskService/Tasks/" + job_id
     while True:
@@ -122,38 +123,20 @@ def set_next_onetime_boot_device_virtual_media():
             sys.exit(0)
         elif response.status_code == 202 or response.status_code == 200:
             logging.debug("- PASS, GET command passed to get job status details")
-            time.sleep(3)
         else:
             logging.error("- FAIL, GET command failed to check job status, error code %s returned" % response.status_code)
             sys.exit(0)
-        if "fail" in data['Oem']['Dell']['Message'] or "error" in data['Oem']['Dell']['Message'] or "unable" in data['Oem']['Dell']['Message'] or "not" in data['Oem']['Dell']['Message']:
-            print("- FAIL, Job ID marked as %s but detected issue(s). See detailed job results below for more information on failure\n" % (data['Oem']['Dell']['JobState']))
-            print("- Detailed job results - %s\n")
-            for i in data['Oem']['Dell'].items():
-                pprint(i)
-            print("\n- Config results for job ID -\n")
-            try:
-                for i in data["Messages"]:
-                    pprint(i)
-            except:
-                logging.error("- FAIL, unable to get configuration results for job ID, returning only final job results\n")
-                for i in data['Oem']['Dell'].items():
-                    pprint(i)
+        if data["TaskState"] == "Exception":
+            print("- FAIL, issues with processing SCP import job ID, detailed results\n")
+            pprint(i)
             break
-        elif "No changes" in data['Oem']['Dell']['Message']:
-            if args["device"] == "1":
-                logging.info("- INFO, next onetime boot device already set to Virtual CD, no changes applied")
-            elif args["device"] == "2":
-                logging.info("- INFO, next onetime boot device already set to Virtual Floppy, no changes applied")
-            break
-        elif "Successfully imported" in data['Oem']['Dell']['Message']:
+        elif data["TaskState"] == "Completed":
             if args["device"] == "1":
                 logging.info("- PASS, successfully set next onetime boot device to Virtual CD")
             elif args["device"] == "2":
                 logging.info("- PASS, successfully set next onetime boot device to Virtual Floppy")
             break
         else:
-            time.sleep(1)
             continue
 
 def reboot_server():
