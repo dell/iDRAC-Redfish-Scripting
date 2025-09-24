@@ -462,7 +462,7 @@ def check_idrac_connection():
     else:
         logging.error("- FAIL, unable to determine OS type, check iDRAC connection function will not execute")
         run_network_connection_function = "fail"
-    execute_command = subprocess.call(['ping', '%s' % ping_arg, '3', '%s' % idrac_ip], stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+    execute_command = subprocess.call(['ping', '%s' % ping_arg, '3', '%s' % idrac_ip], stdout=subprocess.PIPE, stderr=subprocess.PIPE, universal_newlines=True)
     if execute_command != 0:
         ping_status = "lost"
     else:
@@ -474,7 +474,7 @@ def check_idrac_connection():
             while True:
                 if run_network_connection_function == "fail":
                     break
-                execute_command = subprocess.call(['ping', '%s' % ping_arg, '3', '%s' % idrac_ip], stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+                execute_command = subprocess.call(['ping', '%s' % ping_arg, '3', '%s' % idrac_ip], stdout=subprocess.PIPE, stderr=subprocess.PIPE, universal_newlines=True)
                 if execute_command != 0:
                     ping_status = "lost"
                 else:
@@ -536,3 +536,4 @@ if __name__ == "__main__":
             sys.exit(0)
     else:
         logging.error("\n- FAIL, invalid argument values or not all required parameters passed in. See help text or argument --script-examples for more details.")
+
