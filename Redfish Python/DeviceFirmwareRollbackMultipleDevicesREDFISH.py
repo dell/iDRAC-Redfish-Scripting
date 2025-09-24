@@ -460,7 +460,7 @@ def check_idrac_connection():
     else:
         logging.error("- FAIL, unable to determine OS type, check iDRAC connection function will not execute")
         run_network_connection_function = "fail"
-    execute_command = subprocess.call(['ping', '%s' % ping_arg, '3', '%s' % idrac_ip], stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+    execute_command = subprocess.call(['ping', '%s' % ping_arg, '3', '%s' % idrac_ip], stdout=subprocess.PIPE, stderr=subprocess.PIPE, universal_newlines=True)
     if execute_command != 0:
         ping_status = "lost"
     else:
@@ -472,7 +472,7 @@ def check_idrac_connection():
             while True:
                 if run_network_connection_function == "fail":
                     break
-                execute_command = subprocess.call(['ping', '%s' % ping_arg, '3', '%s' % idrac_ip], stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+                execute_command = subprocess.call(['ping', '%s' % ping_arg, '3', '%s' % idrac_ip], stdout=subprocess.PIPE, stderr=subprocess.PIPE, universal_newlines=True)
                 if execute_command != 0:
                     ping_status = "lost"
                 else:
@@ -551,3 +551,4 @@ if __name__ == "__main__":
             logging.info("- INFO, argument --reboot not detected. Update job is marked as scheduled and will be applied on next server reboot")
     else:
         logging.info("- INFO, iDRAC rollback detected, rollback will execute last after all other rollback jobs have completed due to iDRAC reboot after rollback completes")
+
