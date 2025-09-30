@@ -1,6 +1,6 @@
 #!/usr/bin/python3
 #
-# ExportServerScreenShotOemREDFISH. Python script using Redfish API with OEM extension to export current server screen shot
+# ExportServerScreenShotREDFISH. Python script using Redfish API with OEM extension to export current server screen shot
 #
 # _author_ = Texas Roemer <Texas_Roemer@Dell.com>
 # _version_ = 2.0
@@ -121,3 +121,4 @@ if __name__ == "__main__":
         export_server_screen_shot()
     else:
         logging.error("\n- FAIL, invalid argument values or not all required parameters passed in. See help text or argument --script-examples for more details.")
+
