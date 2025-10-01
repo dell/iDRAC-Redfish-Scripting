@@ -90,7 +90,7 @@ def export_diags():
     if args["sharename"]:
         payload["ShareName"] = args["sharename"]
     if args["username"]:
-        payload["Username"] = args["username"]
+        payload["UserName"] = args["username"]
     if args["password"]:
         payload["Password"] = args["password"]
     if args["filename"]:
@@ -267,3 +267,4 @@ if __name__ == "__main__":
         loop_job_status()
     else:
         logging.error("\n- FAIL, invalid argument values or not all required parameters passed in. See help text or argument --script-examples for more details.")
+
