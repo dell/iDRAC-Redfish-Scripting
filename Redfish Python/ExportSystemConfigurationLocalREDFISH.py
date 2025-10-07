@@ -148,6 +148,7 @@ def export_scp_file_locally():
         logging.error("- FAIL, unable to find job ID in headers POST response, headers output is:\n%s" % response.headers)
         sys.exit(0)
     logging.info("\n- Job ID \"%s\" successfully created for ExportSystemConfiguration method\n" % job_id)
+    time.sleep(5)
     start_time = datetime.now()
     while True:
         current_time = (datetime.now()-start_time)
@@ -300,3 +301,4 @@ if __name__ == "__main__":
         export_scp_file_locally()
     else:
         logging.error("\n- FAIL, invalid argument values or not all required parameters passed in. See help text or argument --script-examples for more details.")
+
