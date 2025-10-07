@@ -150,6 +150,7 @@ def import_SCP_local_filename():
         logging.error("- FAIL, unable to find job ID in headers POST response, headers output is:\n%s" % response.headers)
         sys.exit(0)
     logging.info("\n- PASS, %s successfully created for ImportSystemConfiguration method\n" % (job_id))
+    time.sleep(5)
     start_job_message = ""
     start_time = datetime.now()
     count = 1
@@ -291,3 +292,4 @@ if __name__ == "__main__":
         get_target_values()
     else:
         logging.error("\n- FAIL, invalid argument values or not all required parameters passed in. See help text or argument --script-examples for more details.")
+
