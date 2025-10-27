@@ -3,7 +3,7 @@
 # InstallFromRepositoryREDFISH. Python script using Redfish API with OEM extension to either get firmware version for all devices, get repository update list or install firmware from a repository on a network share.
 #
 # _author_ = Texas Roemer <Texas_Roemer@Dell.com>
-# _version_ = 18.0
+# _version_ = 19.0
 #
 # Copyright (c) 2019, Dell, Inc.
 #
@@ -55,7 +55,8 @@ parser.add_argument('--ignorecertwarning', help='Supported values are Off and On
 parser.add_argument('--applyupdate', help='Pass in True if you want to apply the updates. Pass in False will not apply updates but you can get the repo update list now. NOTE: This argument is optional. If you don\'t pass in the argument, default value is True.', required=False)
 parser.add_argument('--rebootneeded', help='Pass in True to reboot the server to apply updates which need a server reboot. False means the updates will get staged but not get applied until next manual server reboot. NOTE: This argument is optional. If you don\'t pass in this argument, default value is False', required=False)
 parser.add_argument('--catalogfile', help='Name of the catalog file on the repository. If the catalog file name is Catalog.xml on the network share, you don\'t need to pass in this argument', required=False)
-
+parser.add_argument('--apply-same-versions', help='This property indicates if same firmware version detected on the repository should be installed. Pass in a value of True indicates perform force re-installing of the same version. NOTE: This argument is optional.', dest="apply_same_versions", required=False)
+parser.add_argument('--apply-downgrade-versions', help='This property indicates if downgrading firmware version is allowed if an older version is detected on the repository for any device, pass in a value of True to downgrade. If only upgrades required pass in a value of False. NOTE: This argument is optional.', dest="apply_downgrade_versions", required=False)
 args=vars(parser.parse_args())
 logging.basicConfig(format='%(message)s', stream=sys.stdout, level=logging.INFO)
 
@@ -203,7 +204,17 @@ def install_from_repository():
         if args["rebootneeded"].lower() == "false":
             payload["RebootNeeded"] = False
     else:
-        args["rebootneeded"] = ""   
+        args["rebootneeded"] = ""
+    if args["apply_same_versions"]:
+        if args["apply_same_versions"].lower() == "true":
+            payload["ApplySameVersions"] = True
+        if args["apply_same_versions"].lower() == "false":
+            payload["ApplySameVersions"] = False
+    if args["apply_downgrade_versions"]:
+        if args["apply_downgrade_versions"].lower() == "true":
+            payload["ApplyDowngradeVersions"] = True
+        if args["apply_downgrade_versions"].lower() == "false":
+            payload["ApplyDowngradeVersions"] = False
     if args["catalogfile"]:
         payload["CatalogFile"] = args["catalogfile"]   
     if args["shareip"]:
@@ -219,7 +230,7 @@ def install_from_repository():
     if args["workgroup"]:
         payload["Workgroup"] = args["workgroup"]
     if args["ignorecertwarning"]:
-        payload["IgnoreCertWarning"] = args["ignorecertwarning"]    
+        payload["IgnoreCertWarning"] = args["ignorecertwarning"]
     if args["x"]:
         headers = {'content-type': 'application/json', 'X-Auth-Token': args["x"]}
         response = requests.post(url, data=json.dumps(payload), headers=headers, verify=verify_cert)
