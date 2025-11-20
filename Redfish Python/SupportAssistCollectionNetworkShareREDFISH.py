@@ -213,7 +213,6 @@ def export_support_assist_colection_network_share():
         payload["Password"] = args["password"]
     if args["shareport"]:
         payload["PortNumber"] = args["shareport"]
-    print(payload)
     if args["data"]:
         data_selector_values=[]
         if "," in args["data"]:
@@ -338,3 +337,4 @@ if __name__ == "__main__":
         support_assist_register()
     else:
         logging.error("\n- FAIL, invalid argument values or not all required parameters passed in. See help text or argument --script-examples for more details.")
+
