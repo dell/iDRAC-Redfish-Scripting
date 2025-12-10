@@ -3,7 +3,7 @@
 # GetSetBiosAttributesREDFISH. Python script using Redfish API DMTF to either get or set BIOS attributes using Redfish SettingApplyTime.
 #
 # _author_ = Texas Roemer <Texas_Roemer@Dell.com>
-# _version_ = 18.0
+# _version_ = 19.0
 #
 # Copyright (c) 2019, Dell, Inc.
 #
@@ -39,6 +39,7 @@ parser.add_argument('-x', help='Pass in X-Auth session token for executing Redfi
 parser.add_argument('--ssl', help='SSL cert verification for all Redfish calls, pass in value \"true\" or \"false\". By default, this argument is not required and script ignores validating SSL cert for all Redfish calls.', required=False)
 parser.add_argument('--script-examples', help='Get executing script examples', action="store_true", dest="script_examples", required=False)
 parser.add_argument('--config-ini-file-examples', help='Get config ini file examples', action="store_true", dest="config_ini_file_examples", required=False)
+parser.add_argument("--quiet", action="store_true", help="Pass in this argument to suppress info prints echoed to the screen")
 parser.add_argument('--get', help='Get all BIOS attributes', action="store_true", required=False)
 parser.add_argument('--get-attribute', help='If you want to get only a specific BIOS attribute, pass in the attribute name you want to get the current value, Note: make sure to type the attribute name exactly due to case sensitive. Example: MemTest will work but memtest will fail', dest="get_attribute", required=False)
 parser.add_argument('--get-attributes', help='Get multiple BIOS attribute values. Pass in attribute names separated by commas. Note: Type the attribute names exactly due to case sensitive.', dest='get_attributes', required=False)
@@ -54,7 +55,11 @@ parser.add_argument('--duration-time', help='Maintenance window duration time(am
 parser.add_argument('--config-file', help='Pass in the directory path and name of the config ini file. Execute --config-ini-file-examples argument to see ini file format examples.', dest="config_file", required=False)
 
 args = vars(parser.parse_args())
-logging.basicConfig(format='%(message)s', stream=sys.stdout, level=logging.INFO)
+
+if args["quiet"]:
+    logging.basicConfig(format='%(message)s', stream=sys.stdout, level=logging.WARNING)
+else:
+    logging.basicConfig(format='%(message)s', stream=sys.stdout, level=logging.INFO)
 
 def script_examples():
     print("""\n- GetSetBiosAttributesREDFISH.py -ip 192.168.0.120 -u root -p calvin --get, this example will get all BIOS attributes.
@@ -144,7 +149,7 @@ def get_specific_bios_attribute():
         sys.exit(0)
     for i in data['Attributes'].items():
         if i[0] == args["get_attribute"]:
-            logging.info("\n- Current value for attribute \"%s\": \"%s\"\n" % (args["get_attribute"], i[1]))
+            print("\n"),print(i)
             return
     logging.error("\n- ERROR, unable to get attribute current value. Either attribute doesn't exist for this BIOS version, typo in attribute name or case incorrect")
     sys.exit(0)
@@ -417,6 +422,7 @@ def loop_job_status_final(idrac_ip=""):
             logging.info("\n--- PASS, Final Detailed Job Status Results ---\n")
             for i in data.items():
                 pprint(i)
+            logging.info("\n- INFO, job completed in %s" % str(current_time)[0:7])
             break
         else:
             logging.info("- INFO, job status not completed, current status: \"%s\"" % data['Message'])
