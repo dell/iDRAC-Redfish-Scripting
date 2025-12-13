@@ -3,7 +3,7 @@
 # ChangeIdracUserPasswordREDFISH. Python script using Redfish API with OEM extension to change iDRAC username password. Once the password is changed, the script will also execute a GET command to verify the password change was successful.
 #
 # _author_ = Texas Roemer <Texas_Roemer@Dell.com>
-# _version_ = 11.0
+# _version_ = 12.0
 #
 # Copyright (c) 2017, Dell, Inc.
 #
@@ -40,16 +40,34 @@ parser.add_argument('--script-examples', help='Get executing script examples', a
 parser.add_argument('--get', help='Get iDRAC user account information. This will return detailed information for each iDRAC user account.', action="store_true", required=False)
 parser.add_argument('--user-id', help='Pass in iDRAC user account ID you want to change the password for. Note this argument is only supported for iDRAC9 or older versions.', dest="user_id", required=False)
 parser.add_argument('--new-pwd', help='Pass in the new password you want to set for the iDRAC user ID. If you do not pass in this argument, script will prompt to enter new password and will not be echoed to the screen.', dest="new_pwd", required=False)
+parser.add_argument('--force-change-enabled', help='Pass in this argument if force password change setting is enabled for iDRAC when setting iDRAC new user password.', action="store_true", dest="force_change_enabled", required=False)
 
-args=vars(parser.parse_args())
+args = vars(parser.parse_args())
 logging.basicConfig(format='%(message)s', stream=sys.stdout, level=logging.INFO)
 
 def script_examples():
     print("""\n- ChangeIdracUserPasswordREDFISH.py -ip 192.168.0.120 -u root -p calvin --get, this example will get user account information for all iDRAC users.
     \n- ChangeIdracUserPasswordREDFISH.py -ip 192.168.0.120 -u user -p calvin --user-id 3 --new-pwd pAssw0rd, this example shows changing password for iDRAC user account ID 3.
+    \n- ChangeIdracUserPasswordREDFISH.py -ip 192.168.0.120 -u user -p calvin --user-id 2 --new-pwd Test1234# --force-change-enabled, this example shows changing root default password from the factory with force change password enabled.
     \n- ChangeIdracUserPasswordREDFISH.py -ip 192.168.0.120 -x 983d154b4a125c7ae3838b8e32256b78 --user-id 8, this example using iDRAC X-auth token session will first prompt to enter new password, then change the password for user ID 8.""")
     sys.exit(0)
 
+def force_change_enabled():
+    url = 'https://%s/redfish/v1/Managers/iDRAC.Embedded.1/Oem/Dell/DellAttributes/iDRAC.Embedded.1' % idrac_ip
+    payload = {"Attributes":{"Users.2.Password":args["new_pwd"]}}
+    if args["x"]:
+        headers = {'content-type': 'application/json', 'X-Auth-Token': args["x"]}
+        response = requests.patch(url, data=json.dumps(payload), headers=headers, verify=verify_cert)
+    else:
+        headers = {'content-type': 'application/json'}
+        response = requests.patch(url, data=json.dumps(payload), headers=headers, verify=verify_cert,auth=(idrac_username,idrac_password))
+    if response.status_code == 200:
+        logging.info("\n- PASS, status code %s returned for PATCH command to change iDRAC user password" % response.status_code)
+    else:
+        data = response.json()
+        logging.error("\n- FAIL, status code %s returned, password was not changed. Detailed error results: \n%s" % (response.status_code, data))
+        sys.exit(0)
+    
 def check_supported_idrac_version():
     if args["x"]:
         response = requests.get('https://%s/redfish/v1/Managers/iDRAC.Embedded.1' % idrac_ip, verify=verify_cert, headers={'X-Auth-Token': args["x"]})   
@@ -84,14 +102,10 @@ def get_server_generation():
         idrac_version = 10
 
 def get_iDRAC_user_account_info():
-    if idrac_version >= 10:
-        uri = "redfish/v1/AccountService/Accounts?$expand=*($levels=1)"
-    else:
-        uri = "redfish/v1/Managers/iDRAC.Embedded.1/Accounts?$expand=*($levels=1)"
     if args["x"]:
-        response = requests.get('https://%s/%s' % (idrac_ip, uri), verify=verify_cert, headers={'X-Auth-Token': args["x"]})   
+        response = requests.get('https://%s/redfish/v1/Managers/iDRAC.Embedded.1/Accounts?$expand=*($levels=1)' % idrac_ip, verify=verify_cert, headers={'X-Auth-Token': args["x"]})   
     else:
-        response = requests.get('https://%s/%s' % (idrac_ip, uri), verify=verify_cert,auth=(idrac_username, idrac_password))
+        response = requests.get('https://%s/redfish/v1/Managers/iDRAC.Embedded.1/Accounts?$expand=*($levels=1)' % idrac_ip, verify=verify_cert,auth=(idrac_username, idrac_password))
     data = response.json()
     if response.status_code != 200:
         logging.error("\n- FAIL, status code %s returned for GET command. Detail error results: \n%s" % (statusCode, data))
@@ -143,8 +157,12 @@ if __name__ == "__main__":
                 verify_cert = False
         else:
             verify_cert = False
-        check_supported_idrac_version()
-        get_server_generation()
+        if args["force_change_enabled"]:
+            force_change_enabled()
+            sys.exit(0)
+        else:
+            check_supported_idrac_version()
+            get_server_generation()
     else:
         logging.error("\n- FAIL, invalid argument values or not all required parameters passed in. See help text or argument --script-examples for more details.")
         sys.exit(0)
