@@ -29,16 +29,16 @@ http://www.gnu.org/licenses/old-licenses/gpl-2.0.txt
    - get_message_id: Get only entries for a specific message ID. To get the correct message ID string format to pass in use argument -get_all to return complete LC logs. Examples of correct message string ID value to pass in: IDRAC.2.9.PDR1001, IDRAC.2.9.LC011. Note: You can also pass in an abbreviated message ID value, example: IDRAC.2.9.LC which will return any message ID that starts with LC.
    - get_category: Get LC log entries from only a specific category. Supported values: audit, configuration, updates, systemhealth or storage. NOTE: This argument is only supported on iDRAC9 or newer.
 .EXAMPLE
-   Get-IdracLifecycleLogsREDFISH -idrac_ip 192.168.0.120 -username root -password calvin -get-all
+   Get-IdracLifecycleLogsREDFISH -idrac_ip 192.168.0.120 -username root -password calvin -get_all
    This example will get complete iDRAC Lifecycle Logs, echo output to the screen.
 .EXAMPLE
-   Get-IdracLifecycleLogsREDFISH -idrac_ip 192.168.0.120  
+   Get-IdracLifecycleLogsREDFISH -idrac_ip 192.168.0.120 -get_all
    This example will first prompt to enter username, password using Get-Credential, then execute getting LC logs. 
 .EXAMPLE
-   Get-IdracLifecycleLogsREDFISH -idrac_ip 192.168.0.120 -x_auth_token 163490d51b708f8dc24ca853ef2fc6e7 -get-all
+   Get-IdracLifecycleLogsREDFISH -idrac_ip 192.168.0.120 -x_auth_token 163490d51b708f8dc24ca853ef2fc6e7 -get_all
    This example will get complete iDRAC Lifecycle Logs using X-auth token session.
 .EXAMPLE
-   Get-IdracLifecycleLogsREDFISH -idrac_ip 192.168.0.120 -username root -password calvin -get-all >  R640_iDRAC_LC_logs.txt
+   Get-IdracLifecycleLogsREDFISH -idrac_ip 192.168.0.120 -username root -password calvin -get_all >  R640_iDRAC_LC_logs.txt
    This example will get complete iDRAC Lifecycle Logs and redirect output to a file.
 .EXAMPLE
     Get-IdracLifecycleLogsREDFISH -idrac_ip 192.168.0.120 -idrac_username root -idrac_password calvin -get_category updates
@@ -1025,6 +1025,7 @@ Write-Host -ForegroundColor Red "- FAIL, either incorrect parameter(s) used or m
 
 
 }
+
 
 
 
