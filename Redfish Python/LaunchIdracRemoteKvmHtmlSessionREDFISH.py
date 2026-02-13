@@ -140,7 +140,7 @@ def delete_session():
         sys.exit(0)
     headers = {'content-type': 'application/json', 'X-Auth-Token': args["x"]}
     response = requests.delete(url, headers=headers, verify=verify_cert)
-    if response.status_code == 202 or response.status_code == 200:
+    if response.status_code == 202 or response.status_code == 200 or response.status_code == 204:
         logging.debug("\n- PASS: DELETE command passed to delete session, status code %s returned" % response.status_code)
     else:
         logging.error("\n- FAIL, DELETE command failed, status code returned %s returned" % response.status_code)
@@ -179,3 +179,4 @@ if __name__ == "__main__":
     launch_KVM_session()
     time.sleep(20)
     delete_session()
+
