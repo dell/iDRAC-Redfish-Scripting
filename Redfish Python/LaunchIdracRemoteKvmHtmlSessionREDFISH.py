@@ -1,7 +1,7 @@
 #!/usr/bin/python3
 #
 # _author_ = Texas Roemer <Texas_Roemer@Dell.com>
-# _version_ = 4.0
+# _version_ = 5.0
 #
 # Copyright (c) 2021, Dell, Inc.
 #
@@ -32,18 +32,20 @@ from pprint import pprint
 
 warnings.filterwarnings("ignore")
 
-parser = argparse.ArgumentParser(description="Python script using Redfish API with OEM extension to launch iDRAC HTML KVM session using your default browser.")
+parser = argparse.ArgumentParser(description="Python script using Redfish API with OEM extension to launch iDRAC virtual KVM session using a browser session.")
 parser.add_argument('-ip',help='iDRAC IP address', required=False)
 parser.add_argument('-u', help='iDRAC username', required=False)
 parser.add_argument('-p', help='iDRAC password. If you do not pass in argument -p, script will prompt to enter user password which will not be echoed to the screen.', required=False)
 parser.add_argument('-x', help='Pass in X-Auth session token for executing Redfish calls. All Redfish calls will use X-Auth token instead of username/password', required=False)
 parser.add_argument('--ssl', help='SSL cert verification for all Redfish calls, pass in value \"true\" or \"false\". By default, this argument is not required and script ignores validating SSL cert for all Redfish calls.', required=False)
 parser.add_argument('--script-examples', help='Get executing script examples', action="store_true", dest="script_examples", required=False)
+parser.add_argument('--browser', help='Pass in browser type to launch virtual KVM session, supported values are chrome, edge and firefox. Note if this argument is not passed in KVM session will launch using default browser configured.', required=False)
 args = vars(parser.parse_args())
 logging.basicConfig(format='%(message)s', stream=sys.stdout, level=logging.INFO)
 
 def script_examples():
-    print("""\n- LaunchIdracRemoteKvmHtmlSessionREDFISH.py -ip 192.168.0.120 -u root -p calvin, this example will launch iDRAC eHTML5 KVM session using your default browser.""")
+    print("""\n- LaunchIdracRemoteKvmHtmlSessionREDFISH.py -ip 192.168.0.120 -u root -p calvin, this example will launch iDRAC virtual KVM session using default browser.
+    \n- LaunchIdracRemoteKvmHtmlSessionREDFISH.py -ip 192.168.0.120 -u root -p calvin --browser chrome, this example will launch iDRAC virtual KVM session using Chrome browser.""")
     sys.exit(0)
 
 def check_supported_idrac_version():
@@ -122,15 +124,50 @@ def get_KVM_session_info():
     except:
         logging.error("- FAIL, unable to locate temp username or password in JSON output")
         sys.exit(0)
-    
+
+def get_browser_path(browser_name):
+    browser_name = browser_name.lower()
+    if sys.platform.startswith("win"):
+        paths = {
+            "chrome": r"C:\Program Files\Google\Chrome\Application\chrome.exe",
+            "edge": r"C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe",
+            "firefox": r"C:\Program Files\Mozilla Firefox\firefox.exe"
+        }
+    elif sys.platform.startswith("darwin"):
+        paths = {
+            "chrome": "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome",
+            "edge": "/Applications/Microsoft Edge.app/Contents/MacOS/Microsoft Edge",
+            "firefox": "/Applications/Firefox.app/Contents/MacOS/firefox"
+        }
+    else:
+        paths = {
+            "chrome": "/usr/bin/google-chrome",
+            "edge": "/usr/bin/microsoft-edge",
+            "firefox": "/usr/bin/firefox"
+        }
+    return paths.get(browser_name)
+
+def open_url(browser_name, url):
+    browser_path = get_browser_path(browser_name)
+    if not browser_path or not os.path.exists(browser_path):
+        logging.error("- ERROR: %s browser either not installed or is installed but not using the native installation path" % browser_name.title())
+        delete_session()
+        sys.exit(1)
+    webbrowser.register(browser_name,None,webbrowser.BackgroundBrowser(browser_path))
+    webbrowser.get(browser_name).open(url)
+
 def launch_KVM_session():
     logging.info("- INFO, launching iDRAC KVM session using your default browser")
     uri_string = "https://%s/console?username=%s&tempUsername=%s&tempPassword=%s" % (idrac_ip, idrac_username, temp_username, temp_password)
-    webbrowser.open(uri_string)
+    if args["browser"]:
+        open_url(args["browser"], uri_string)
+    else:
+        webbrowser.open(uri_string)    
     try:
         os.remove("ssl_cert.txt")
     except:
         logging.debug("- INFO, unable to locate ssl_cert.txt file, skipping step to delete file")
+    
 
 def delete_session():
     try:
@@ -177,6 +214,5 @@ if __name__ == "__main__":
     export_ssl_cert()
     get_KVM_session_info()
     launch_KVM_session()
-    time.sleep(20)
+    time.sleep(10)
     delete_session()
-
