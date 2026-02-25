@@ -1,7 +1,7 @@
 #!/usr/bin/python3
 #
 # _author_ = Texas Roemer <administrator@Dell.com>
-# _version_ = 9.0
+# _version_ = 10.0
 #
 # Copyright (c) 2023, Dell, Inc.
 #
@@ -22,10 +22,14 @@ import os
 import platform
 import re
 import requests
+import shutil
 import subprocess
 import sys
+import tempfile
 import time
 import warnings
+import xml.etree.ElementTree as ET
+import zipfile
 
 from datetime import datetime
 from pathlib import Path
@@ -42,7 +46,10 @@ parser.add_argument('--ssl', help='SSL cert verification for all Redfish calls, 
 parser.add_argument('--script-examples', action="store_true", help='Prints script examples')
 parser.add_argument('--get', help='Get current supported devices for firmware updates and their current firmware versions', action="store_true", required=False)
 parser.add_argument('--location', help='Pass in the full directory path location of the directory which contains all Dell update packages (DUP). Note: only Windows DUPs are supported by iDRAC interfaces to perform updates. Note: make sure only DUPs are in this directory and no other files, directories. Note: If planning to update iDRAC, make sure the DUP name package contains the word idrac (default DUP name does contain wording iDRAC, recommended not to change it)', required=False)
-parser.add_argument('--block-same-version', help='Pass in this argument to block same version update. If the update package matches version device firmwae version, update will not occur. Note: This argument is only supported for iDRAC9, iDRAC10 is not supported.', action="store_true", dest="block_same_version", required=False)
+parser.add_argument('--block-same-version', help='Pass in this argument to block same version update. If the update package matches version device firmwae version, update will not occur.', action="store_true", dest="block_same_version", required=False)
+parser.add_argument('--target', help='Pass in the absolute URI device path of target device to update. Note this argument is only required when updating a device which supports PLDM firmware update and you are using the image file, not the Windows DUP to perform the update. Note if passing in multiple URI targets use a comma separator. Argument example value: /redfish/v1/Chassis/System.Embedded.1/NetworkAdapters/NIC.Slot.1/Ports/NIC.Slot.1-1', required=False)
+parser.add_argument('--non-dup-file-name', help='Pass in non Windows DUP file name for the target device. Note you must also use --target argument to pass in the device URI which supports this non exe file. Note if passing in multiple non Windows DUP files use a comma separator but make sure this count aligns with --target count', dest="non_dup_file_name", required=False)
+
 args = vars(parser.parse_args())
 logging.basicConfig(format='%(message)s', stream=sys.stdout, level=logging.INFO)
 
@@ -95,6 +102,11 @@ def download_image_create_update_job(firmware_image_device):
     global cpld_dup_package
     global cpld_update_flag
     global job_id_created
+    check_valid_dup = firmware_image_device.split("\\")[-1]
+    if not check_valid_dup.lower().endswith("exe"):
+        logging.warning("- WARNING, invalid file detected '%s', update will not run" % check_valid_dup)
+        job_id_created = "no"
+        return
     if "idrac" in firmware_image_device.lower():
         logging.info("- INFO, iDRAC firmware package detected, this update will get applied at the end due to iDRAC reboot")
         idrac_update_flag = True
@@ -113,11 +125,6 @@ def download_image_create_update_job(firmware_image_device):
              'UpdateParameters': (None, json.dumps(payload), 'application/json'),
              'UpdateFile': (os.path.basename(firmware_image_device), open(firmware_image_device, 'rb'), 'application/octet-stream')
         }
-        check_valid_dup = firmware_image_device.split("\\")[-1]
-        if not check_valid_dup.lower().endswith("exe"):
-            logging.warning("- WARNING, invalid file detected '%s', update will not run" % check_valid_dup)
-            job_id_created = "no"
-            return
         if args["x"]:
             headers = {'X-Auth-Token': args["x"]}
             response = requests.post(url, files=files, headers=headers, verify=verify_cert)
@@ -140,152 +147,139 @@ def download_image_create_update_job(firmware_image_device):
         logging.info("- PASS, update job ID %s successfully created for firmware package \"%s\"" % (job_id, firmware_image_device.split("\\")[-1]))
         job_id_created = "yes"
 
+def download_image_create_update_job_no_DUP_image(firmware_image_device, target_uri):
+    global job_id
+    logging.info("\n- INFO, uploading update package \"%s\" to create update job, this may take a few minutes depending on firmware image size" % firmware_image_device.split("\\")[-1])                                                                                                                                                                           
+    url = "https://%s/redfish/v1/UpdateService/MultipartUpload" % idrac_ip
+    payload = {"Targets": [target_uri], "@Redfish.OperationApplyTime": "OnReset", "Oem": {}}
+    files = {
+         'UpdateParameters': (None, json.dumps(payload), 'application/json'),
+         'UpdateFile': (os.path.basename(firmware_image_device), open(firmware_image_device, 'rb'), 'application/octet-stream')
+    }
+    check_valid_dup = firmware_image_device.split("\\")[-1]
+    if args["x"]:
+        headers = {'X-Auth-Token': args["x"]}
+        response = requests.post(url, files=files, headers=headers, verify=verify_cert)
+    else:
+        response = requests.post(url, files=files, verify=verify_cert,auth=(idrac_username,idrac_password))
+    
+    if response.status_code != 202:
+        data = response.json()
+        logging.error("- FAIL, status code %s returned, detailed error: %s" % (response.status_code,data))
+        if response.status_code == 400:
+            job_id_created = "no"
+            return
+        else:    
+            sys.exit(0)
+    try:
+        job_id = response.headers['Location'].split("/")[-1]
+    except:
+        logging.error("- FAIL, unable to locate job ID in header")
+        sys.exit(0)
+    logging.info("- PASS, update job ID %s successfully created for firmware package \"%s\"" % (job_id, firmware_image_device.split("\\")[-1]))
+
 def check_same_version(dup_name):
     if not dup_name.lower().endswith("exe"):
         remove_dup_list.append(dup_name)
         return
-    logging.info("\n- INFO, checking update package \"%s\" image version against current device version installed" % dup_name)
-
-    if args["x"]:
-        response = requests.get('https://%s/redfish/v1/UpdateService/FirmwareInventory' % idrac_ip, verify=verify_cert, headers={'X-Auth-Token': args["x"]})   
-    else:
-        response = requests.get('https://%s/redfish/v1/UpdateService/FirmwareInventory' % idrac_ip, verify=verify_cert,auth=(idrac_username, idrac_password))
-    data = response.json()
-    if response.status_code != 200:
-        logging.warning("\n- WARNING, GET command failed to get firmware inventory details")
-        sys.exit(0)
-    available_entries = []
-    for i in data['Members']:
-        for ii in i.items():
-            if "/available" in ii[1].lower():
-                available_entries.append(ii[1])
-    if available_entries == []:
-        logging.debug("\n- WARNING, no AVAILABLE entries for deleting payload")
-    else:
-        for i in available_entries:
-            if args["x"]:
-                response = requests.get('https://%s%s' % (idrac_ip, i), verify=verify_cert, headers={'X-Auth-Token': args["x"]})   
-            else:
-                response = requests.get('https://%s%s' % (idrac_ip, i), verify=verify_cert,auth=(idrac_username, idrac_password))
-            data = response.json()
-            if response.status_code != 200:
-                logging.error("- FAIL, GET command failed, error is %s" % data)
-                sys.exit(0)
-            ETag = response.headers['ETag']
-            url = 'https://%s%s' % (idrac_ip, i)
-            if args["x"]:
-                headers = {'X-Auth-Token': args["x"], "if-match": ETag}
-                response = requests.delete(url, headers=headers, verify=verify_cert)
-            else:
-                headers = {"if-match": ETag}
-                response = requests.delete(url, headers=headers, verify=verify_cert,auth=(idrac_username,idrac_password))
-            data = response.json()
-            if response.status_code == 200:
-                logging.debug("\n- PASS, Successfully deleted payload for URI %s" % i)
-            else:
-                logging.error("\n- FAIL, command failed to delete AVAILABLE URI %s, error: \n%s" % (i, data))
-                sys.exit(0)
-            
-    if args["x"]:
-        response = requests.get('https://%s/redfish/v1/UpdateService' % idrac_ip, verify=verify_cert, headers={'X-Auth-Token': args["x"]})
-    else:
-        response = requests.get('https://%s/redfish/v1/UpdateService' % idrac_ip, verify=verify_cert, auth=(idrac_username, idrac_password))
-    data = response.json()
+    logging.info("- INFO, checking update package \"%s\" image version against current device version installed" % dup_name)
+    exe_file = args["location"] + "\\" + dup_name
+    if not os.path.exists(exe_file):
+        print(f"- FAIL, EXE file {exe_file} not found")
+        sys.exit(1) 
+    temp_dir = tempfile.mkdtemp(prefix="exe_extract_")
     try:
-        http_push_uri = data['HttpPushUri']
-    except:
-        logging.error("- FAIL, iDRAC version detected does not support the code to perform same validation check")
-        sys.exit(0)
-    if args["x"]:
-        response = requests.get('https://%s%s' % (idrac_ip, http_push_uri), verify=verify_cert, headers={'X-Auth-Token': args["x"]})
-    else:
-        response = requests.get('https://%s%s' % (idrac_ip, http_push_uri), verify=verify_cert, auth=(idrac_username, idrac_password))
-    data = response.json()
-    ImageLocation = args["location"]
-    filename = dup_name
-    ImagePath = os.path.join(ImageLocation, filename)
-    ETag = response.headers['ETag']
-    url = 'https://%s%s' % (idrac_ip, http_push_uri)
-    files = {'file': (filename, open(ImagePath, 'rb'), 'multipart/form-data')}
-    if args["x"]:
-        headers = {'X-Auth-Token': args["x"], "if-match": ETag}
-        response = requests.post(url, files=files, headers=headers, verify=verify_cert)
-    else:
-        headers = {"if-match": ETag}
-        response = requests.post(url, files=files, verify=verify_cert,auth=(idrac_username,idrac_password), headers=headers)
-    try:
-        post_command_response_output = response.json()
-    except:
-        logging.warning("- WARNING, unable to generate available entry for %s image to compare against installed version, script will skip this image and not install" % filename)
-        remove_dup_list.append(filename)
-        return
-    if response.status_code == 201:
-        logging.debug("\n- PASS: POST command passed successfully to download image")
-    elif response.status_code == 400 and "firmware update operation because the specified firmware image is for a component that is not in the target system inventory" in post_command_response_output["error"]["@Message.ExtendedInfo"][0]["Message"].lower():
-        logging.warning("- WARNING, specified firmware image is for a component that is not in the target system inventory")
-        remove_dup_list.append(filename)
-        time.sleep(10)
-        return
-    else:
-        logging.error("\n- FAIL: POST command failed to download image payload, status code %s returned" % response.status_code)
-        logging.error(post_command_response_output)
-        sys.exit(0)
-    available_entry = post_command_response_output['Id']
-    logging.debug("- INFO, AVAILABLE entry created for download image \"%s\" is \"%s\"" % (filename, available_entry))
-
-    if args["x"]:
-        response = requests.get('https://%s/redfish/v1/UpdateService/FirmwareInventory/%s' % (idrac_ip, available_entry), verify=verify_cert, headers={'X-Auth-Token': args["x"]})
-    else:
-        response = requests.get('https://%s/redfish/v1/UpdateService/FirmwareInventory/%s' % (idrac_ip, available_entry), verify=verify_cert, auth=(idrac_username, idrac_password))
-    data = response.json()
-    if response.status_code != 200:
-        logging.error("\n- ERROR, GET request failed to get AVAILABLE entry data, error: \n%s" % data)
-        sys.exit(0)
-    available_entry_details = {"Name": data["Name"], "Version": data["Version"], "etag": response.headers["ETag"]}
-    if args["x"]:
-        response = requests.get('https://%s/redfish/v1/UpdateService/FirmwareInventory' % idrac_ip, verify=verify_cert, headers={'X-Auth-Token': args["x"]})
-    else:
-        response = requests.get('https://%s/redfish/v1/UpdateService/FirmwareInventory' % idrac_ip, verify=verify_cert, auth=(idrac_username, idrac_password))
-    data = response.json()
-    if response.status_code != 200:
-        logging.error("\n- ERROR, GET request failed to get current firmware version details, error: \n%s" % data)
-        sys.exit(0)
-    for i in data["Members"]:
-        for ii in i.items():
-            if "installed" in ii[1].lower():
-                if args["x"]:
-                    response = requests.get('https://%s%s' % (idrac_ip, ii[1]), verify=verify_cert, headers={'X-Auth-Token': args["x"]})
+        #print(f"- INFO, extracting EXE contents to temporary directory: {temp_dir}")
+        try:
+            with zipfile.ZipFile(exe_file, 'r') as zip_ref:
+                zip_ref.extractall(temp_dir)
+            #print("- PASS, successfully extracted EXE file as ZIP archive")
+        except zipfile.BadZipFile:
+            print("- WARNING, EXE file is not a standard ZIP archive")
+            print("- INFO, attempting to extract as self-extracting archive...")
+            extract_cmd = [exe_file, "/e", temp_dir, "/y"]
+            try:
+                import subprocess
+                result = subprocess.run(extract_cmd, capture_output=True, text=True, timeout=30)
+                if result.returncode != 0:
+                    print(f"- FAIL, self-extractor failed with return code: {result.returncode}")
+                    print(f"- ERROR: {result.stderr}")
+                    sys.exit(1)
+            except subprocess.TimeoutExpired:
+                print("- FAIL, extraction timed out after 30 seconds")
+                sys.exit(1)
+            except FileNotFoundError:
+                print("- FAIL, subprocess module not available or command failed")
+                sys.exit(1)
+        #print("- INFO, searching for package.xml file...")
+        package_xml_path = None
+        for root, dirs, files in os.walk(temp_dir):
+            for file in files:
+                if file.lower() == 'package.xml':
+                    package_xml_path = os.path.join(root, file)
+                    #print(f"- INFO, found package.xml at: {package_xml_path}")
+                    break
+            if package_xml_path:
+                break
+        if not package_xml_path:
+            print("- FAIL, package.xml file not found in extracted contents")
+            print("- INFO, extracted files (first 20):")
+            extracted_files = []
+            for root, dirs, files in os.walk(temp_dir):
+                for file in files[:20]:
+                    rel_path = os.path.relpath(os.path.join(root, file), temp_dir)
+                    extracted_files.append(rel_path)
+                if len(extracted_files) >= 20:
+                    break  
+            for file in extracted_files:
+                print(f"  - {file}")
+            sys.exit(1)
+        #print("- INFO, reading and parsing package.xml")
+        try:
+            with open(package_xml_path, 'r', encoding='utf-8', errors='ignore') as f:
+                xml_content = f.read()
+            try:
+                root = ET.fromstring(xml_content)
+                vendor_version = None
+                if 'vendorVersion' in root.attrib:
+                    vendor_version = root.attrib['vendorVersion']
                 else:
-                    response = requests.get('https://%s%s' % (idrac_ip, ii[1]), verify=verify_cert, auth=(idrac_username, idrac_password))
-                    data = response.json()
-                    if response.status_code != 200:
-                        logging.error("\n- ERROR, GET request failed to get URI details for Name and Version, error: \n%s" % data)
-                        sys.exit(0)
-                    installed_entry_details = {"Name": data["Name"], "Version": data["Version"]}
-                    if available_entry_details["Name"] == installed_entry_details["Name"]:
-                        logging.info("\n- Device Name: %s" % installed_entry_details["Name"])
-                        logging.info("- Installed version detected: %s" % installed_entry_details["Version"])
-                        logging.info("- Available package version detected: %s" % available_entry_details["Version"])
-                        if installed_entry_details["Version"] != available_entry_details["Version"]:
-                            logging.info("\n- INFO, version difference detected, script will apply firmware version %s" % available_entry_details["Version"])
-                        elif installed_entry_details["Version"] == available_entry_details["Version"]:
-                            logging.info("\n- WARNING, same version detected, script will NOT apply update package version")
-                            remove_dup_list.append(filename)
-                        url = 'https://%s/redfish/v1/UpdateService/FirmwareInventory/%s' % (idrac_ip, available_entry)
-                        if args["x"]:
-                            headers = {'X-Auth-Token': args["x"], "if-match": "%s" % available_entry_details["etag"]}
-                            response = requests.delete(url, headers=headers, verify=verify_cert)
-                        else:
-                            headers = {"if-match": "%s" % available_entry_details["etag"]}
-                            response = requests.delete(url, headers=headers, verify=verify_cert,auth=(idrac_username,idrac_password))
-                        data = response.json()
-                        if response.status_code == 200:
-                            logging.debug("\n- PASS, successfully deleted available entry")
-                            time.sleep(30)
+                    for elem in root.iter():
+                        if elem.tag.lower() == 'vendorversion':
+                            vendor_version = elem.text
                             break
-                        else:
-                            logging.error("\n- FAIL, command failed to delete available entry, error: \n%s. Entry will auto delete after 30 minutes" % data)
+                        if 'vendorVersion' in elem.attrib:
+                            vendor_version = elem.attrib['vendorVersion']
                             break
+                
+                if vendor_version:
+                    return vendor_version.strip()
+                else:
+                    print("- FAIL, vendorVersion property not found in package.xml")
+                    print("- INFO, available elements and attributes:")
+                    for elem in root.iter():
+                        print(f"  Element: {elem.tag}")
+                        if elem.attrib:
+                            for attr, value in elem.attrib.items():
+                                print(f"    Attribute: {attr} = {value}")
+                        if elem.text and elem.text.strip():
+                            print(f"    Text: {elem.text.strip()}")
+                    sys.exit(1) 
+            except ET.ParseError as e:
+                print(f"- FAIL, XML parsing failed: {e}")
+                sys.exit(1)
+        except Exception as e:
+            print(f"- FAIL, error reading package.xml: {e}")
+            sys.exit(1)
+    except Exception as e:
+        print(f"- FAIL, error during extraction: {e}")
+        sys.exit(1)
+    finally:
+        try:
+            shutil.rmtree(temp_dir)
+            #print(f"- INFO, cleaned up temporary directory: {temp_dir}")
+        except Exception as e:
+            print(f"- WARNING, could not clean up temp directory: {e}")
     
             
 def idrac_cpld_update(firmware_image_device):
@@ -332,6 +326,10 @@ def idrac_cpld_update(firmware_image_device):
     job_id_created = "yes"
 
 def check_job_status(download_job_id):
+    global pldm_reboot_flag
+    global pldm_vac_flag
+    pldm_reboot_flag = "no"
+    pldm_vac_flag = "no"
     retry_count = 1
     start_time = datetime.now()
     schedule_job_status_count = 1
@@ -361,12 +359,12 @@ def check_job_status(download_job_id):
         if data["Oem"]["Dell"]["JobState"] == "UserIntervention" and data["Oem"]["Dell"]["PercentComplete"] == 100:
             logging.info("\n- JOB ID %s completed in %s but user intervention is needed, final job message: %s" % (download_job_id, current_time, message_string[0]["Message"].rstrip(".")))
             if "reboot" in data["Oem"]["Dell"]["Message"].lower():
-                logging.info("- INFO, rebooting server now for new firmware image installed to become effective")
-                reboot_server()
+                logging.info("- INFO, reboot server required for new firmware image installed to become effective")
+                pldm_reboot_flag = "yes"
                 break
             if "virtual" in data["Oem"]["Dell"]["Message"].lower():
-                logging.info("- INFO, performing virtual a/c cycle now for new firmware image installed to become effective")
-                oem_ac_power_cycle()
+                logging.info("- INFO, virtual a/c cycle required for new firmware image installed to become effective")
+                pldm_vac_flag = "yes"
                 break
         elif "fail" in data['Oem']['Dell']['Message'].lower() or "error" in data['Oem']['Dell']['Message'].lower() or "fail" in data['Oem']['Dell']['JobState'].lower():
             logging.error("- FAIL: Job ID %s failed, message: %s" % (download_job_id, data['Oem']['Dell']['Message']))
@@ -386,12 +384,12 @@ def check_job_status(download_job_id):
             return
         elif "schedule" in data['Oem']['Dell']['Message'].lower():
             if schedule_job_status_count == 1:
-                logging.info("- INFO, job status detected as scheduled, script will sleep 1 minute then check if job status has auto moved to running state")
-                time.sleep(60)
+                logging.info("- INFO, job status detected as scheduled, script will sleep 30 seconds then check if job status has auto moved to running state")
+                time.sleep(30)
                 schedule_job_status_count += 1
                 continue
             else:
-                logging.info("- PASS, %s still in scheduled state, server reboot needed to apply the update" % data["Id"])
+                logging.info("- INFO, %s still in scheduled state, server reboot needed to apply the update" % data["Id"])
                 update_jobs_need_server_reboot.append(download_job_id)
                 time.sleep(30)
                 break
@@ -451,6 +449,10 @@ def check_job_status_idrac(download_job_id):
 def chassis_update(firmware_image_device, dup_name):
     global update_job_id
     logging.info("- INFO, downloading update package \"%s\" to create update job, this may take a few minutes depending on firmware image size" % dup_name)                                                                                                                                                                        
+    check_valid_dup = firmware_image_device.split("\\")[-1]
+    if not check_valid_dup.lower().endswith("exe"):
+        logging.warning("- WARNING, invalid file detected '%s', update will not run" % check_valid_dup)
+        return
     url = "https://%s/redfish/v1/UpdateService/MultipartUpload" % idrac_ip
     payload = {"Targets": [], "@Redfish.OperationApplyTime": "OnReset", "Oem": {}}
     files = {
@@ -636,12 +638,31 @@ def reboot_server():
                         except:
                             logging.error("- FAIL, retry to get power state failed, script will exit")
                             sys.exit(0)
-                    if data['PowerState'] == "Off":
-                        logging.info("- PASS, GET command passed to verify forced shutdown was successful and server is in OFF state")
-                        break
-                    else:
-                        logging.error("- FAIL, server not in OFF state, current power status is %s" % data['PowerState'])
-                        sys.exit(0)    
+                    try:
+                        if data['PowerState'] == "Off":
+                            logging.info("- PASS, GET command passed to verify forced shutdown was successful and server is in OFF state")
+                            break
+                        else:
+                            logging.error("- FAIL, server not in OFF state, current power status %s" % data['PowerState'])
+                            sys.exit(0)
+                    except:
+                        time.sleep(30)
+                        if args["x"]:
+                            response = requests.get('https://%s/redfish/v1/Systems/System.Embedded.1' % idrac_ip, verify=verify_cert, headers={'X-Auth-Token': args["x"]})   
+                        else:
+                            response = requests.get('https://%s/redfish/v1/Systems/System.Embedded.1' % idrac_ip, verify=verify_cert,auth=(idrac_username, idrac_password))
+                        try:
+                            data = response.json()
+                        except:
+                            logging.error("- FAIL, retry to get power state failed, script will exit")
+                            sys.exit(0)
+                        if data['PowerState'] == "Off":
+                            logging.info("- PASS, GET command passed to verify forced shutdown was successful and server is in OFF state")
+                            break
+                        else:
+                            logging.error("- FAIL, server not in OFF state, current power status %s" % data['PowerState'])
+                            sys.exit(0)
+                        
             else:
                 continue 
         payload = {'ResetType': 'On'}
@@ -874,6 +895,27 @@ def oem_ac_power_cycle():
         logging.error("\n- FAIL, POST command failed, status code %s returned\n" % response.status_code)
         logging.error(response.json())
         sys.exit(1)
+
+def get_FW_inventory_same_version_check(current_version_detected, dup_name):
+    same_version_flag = "no"
+    if args["x"]:
+        response = requests.get('https://%s/redfish/v1/UpdateService/FirmwareInventory' % idrac_ip, verify=verify_cert, headers={'X-Auth-Token': args["x"]})
+    else:
+        response = requests.get('https://%s/redfish/v1/UpdateService/FirmwareInventory' % idrac_ip, verify=verify_cert, auth=(idrac_username, idrac_password))
+    data = response.json()
+    if response.status_code != 200:
+        logging.error("\n- ERROR, GET request failed to get firmware inventory, error: \n%s" % data)
+        sys.exit(0)
+    for i in data['Members']:
+        for ii in i.items():
+            if current_version_detected in ii[1] and "Installed" in ii[1]:
+                same_version_flag = "yes"
+                same_version_device = ii[1].split("_")[-1]
+    if same_version_flag == "yes":
+        logging.info("- WARNING, DUP firmware version %s already installed for device %s, device will not get updated" % (current_version_detected, same_version_device))
+        remove_dup_list.append(dup_name)
+    else:
+        logging.info("- INFO, DUP %s version not installed for any device, this version will be applied" % current_version_detected)
         
         
     
@@ -918,18 +960,41 @@ if __name__ == "__main__":
         from pathlib import Path
         directory_path = Path(args["location"]).resolve()
         directory_dups = os.listdir(args["location"])
-        for i in directory_dups:   
+        if args["target"] and args["non_dup_file_name"]:
+            logging.info("- INFO, user selected to perform non DUP updates, these update jobs will get applied first")
+            if "," in args["target"]:
+                target_uris = args["target"].split(",")
+            else:
+                target_uris = [args["target"]]
+            if "," in args["non_dup_file_name"]:
+                non_dup_files = args["non_dup_file_name"].split(",")
+            else:
+                non_dup_files = [args["non_dup_file_name"]]
+            for i, ii in zip(non_dup_files, target_uris):
+                if platform.system().lower() == "linux":
+                    i = str(directory_path) + "/" + i
+                if platform.system().lower() == "windows":
+                    i = str(directory_path) + "\\" + i
+                download_image_create_update_job_no_DUP_image(i, ii)
+                check_job_status(job_id)
+        for i in directory_dups:
             if not i.lower().endswith("exe"):
                 directory_dups.remove(i)
         if directory_dups == []:
-            logging.error("\n- WARNING, either directory path is empty or directory contains no valid Windows Dell Update Packages.")
-            sys.exit(0)
+            if pldm_reboot_flag == "yes":
+                reboot_server()
+            elif pldm_reboot_flag == "yes":
+                oem_ac_power_cycle()
+            else:
+                logging.error("\n- WARNING, either directory path empty, contains no valid update images or all detected updates are complete")
+                sys.exit(0)
         if args["block_same_version"]:
             logging.info("\n- INFO, argument --block-same-version detected to check update package version against installed version. This process may take a few minutes to complete depending on number of update packages\n")
             for ii in directory_dups:
-                check_same_version(ii)
+                DUP_version = check_same_version(ii)
+                get_FW_inventory_same_version_check(DUP_version, ii)
         if directory_dups == []:
-            logging.error("\n- WARNING, either directory path is empty, no valid Windows update packages detected or same update package versions")
+            logging.error("\n- WARNING, either directory path is empty, no valid update packages detected or all detected updates completed")
             sys.exit(0)
         if directory_dups == remove_dup_list:
             logging.info("\n- WARNING, same versions installed for all update packages detected, no updates will be performed")
