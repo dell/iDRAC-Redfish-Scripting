@@ -989,7 +989,7 @@ if __name__ == "__main__":
                 logging.error("\n- WARNING, either directory path empty, contains no valid update images or all detected updates are complete")
                 sys.exit(0)
         if args["block_same_version"]:
-            logging.info("\n- INFO, argument --block-same-version detected to check update package version against installed version. This process may take a few minutes to complete depending on number of update packages\n")
+            logging.info("\n- INFO, argument --block-same-version detected to check update package version against installed version. This process may take a few seconds to complete depending on number of update packages\n")
             for ii in directory_dups:
                 DUP_version = check_same_version(ii)
                 get_FW_inventory_same_version_check(DUP_version, ii)
@@ -1059,3 +1059,4 @@ if __name__ == "__main__":
         get_lc_log_entries(start_time, end_time)
     else:
         logging.error("\n- FAIL, invalid argument values or not all required parameters passed in. See help text or argument --script-examples for more details.")
+
