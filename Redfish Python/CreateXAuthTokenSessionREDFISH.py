@@ -128,7 +128,7 @@ def delete_x_auth_session():
     except requests.ConnectionError as error_message:
         logging.error("- FAIL, requests command failed to GET job status, detailed error information: \n%s" % error_message)
         sys.exit(0)
-    if response.status_code == 200:
+    if response.status_code == 200 or response.status_code == 204:
         logging.info("\n- PASS, successfully deleted iDRAC session ID %s" % args["delete"])
     else:
         data = response.json()
@@ -166,3 +166,4 @@ if __name__ == "__main__":
         delete_x_auth_session()
     else:
         logging.error("\n- FAIL, invalid argument values or not all required parameters passed in. See help text or argument --script-examples for more details.")
+
