@@ -16,7 +16,7 @@ http://www.gnu.org/licenses/old-licenses/gpl-2.0.txt
 .Synopsis
    iDRAC cmdlet using Redfish API with OEM extension to either get iDRAC, Lifecycle Controller(LC) or System attributes or set one or multiple iDRAC, LC or System attributes.
 .DESCRIPTION
-   iDRAC cmdlet using Redfish API with OEM extension to either get iDRAC, Lifecycle Controller(LC) or System attributes or set one or multiple iDRAC, LC or System attributes. 
+   iDRAC cmdlet using Redfish API with OEM extension to either get iDRAC, Lifecycle Controller(LC) or System attributes or set one or multiple iDRAC, LC or System attributes. Note this cmdlet is only supported on iDRAC version 9 or newer. If using an iDRAC version older than version 9 you must leverage Server Configuration Profile (SCP) feature to set these attributes.
    Parameters:
    - idrac_ip: Pass in iDRAC IP
    - idrac_username: Pass in idrac username
@@ -504,6 +504,7 @@ return
 
 
 }
+
 
 
 
