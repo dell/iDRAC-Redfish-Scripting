@@ -1,6 +1,6 @@
 ﻿<#
 _author_ = Texas Roemer <Texas_Roemer@Dell.com>
-_version_ = 11.0
+_version_ = 11.1
 
 Copyright (c) 2017, Dell, Inc.
 
@@ -16,7 +16,7 @@ http://www.gnu.org/licenses/old-licenses/gpl-2.0.txt
 .Synopsis
    iDRAC cmdlet using Redfish API with OEM extension to either get iDRAC, Lifecycle Controller(LC) or System attributes or set one or multiple iDRAC, LC or System attributes.
 .DESCRIPTION
-   iDRAC cmdlet using Redfish API with OEM extension to either get iDRAC, Lifecycle Controller(LC) or System attributes or set one or multiple iDRAC, LC or System attributes. Note this cmdlet is only supported on iDRAC version 9 or newer. If using an iDRAC version older than version 9 you must leverage Server Configuration Profile (SCP) feature to get/set these attributes.
+   iDRAC cmdlet using Redfish API with OEM extension to either get iDRAC, Lifecycle Controller(LC) or System attributes or set one or multiple iDRAC, LC or System attributes. 
    Parameters:
    - idrac_ip: Pass in iDRAC IP
    - idrac_username: Pass in idrac username
@@ -131,6 +131,73 @@ else
 {
 $get_creds = Get-Credential
 $global:credential = New-Object System.Management.Automation.PSCredential($get_creds.UserName, $get_creds.Password)
+}
+}
+
+function get_iDRAC_version
+{
+
+$uri = "https://$idrac_ip/redfish/v1/Managers/iDRAC.Embedded.1?`$select=Model"
+
+
+if ($x_auth_token)
+{
+ try
+    {
+    if ($global:get_powershell_version -gt 5)
+    {
+    $result = Invoke-WebRequest -SkipCertificateCheck -SkipHeaderValidation -Uri $uri -Method Get -UseBasicParsing -ErrorVariable RespErr -Headers @{"Accept" = "application/json"; "X-Auth-Token" = $x_auth_token}
+    }
+    else
+    {
+    Ignore-SSLCertificates
+    $result = Invoke-WebRequest -Uri $uri -Credential $credential -Method Get -UseBasicParsing -ErrorVariable RespErr -Headers @{"Accept"="application/json"; "X-Auth-Token" = $x_auth_token}
+    }
+    }
+    catch
+    {
+    $RespErr
+    return
+    }
+}
+
+else
+{
+    try
+    {
+    if ($global:get_powershell_version -gt 5)
+    {
+    $result = Invoke-WebRequest -SkipCertificateCheck -SkipHeaderValidation -Uri $uri -Credential $credential -Method Get -UseBasicParsing -ErrorVariable RespErr -Headers @{"Accept"="application/json"}
+    }
+    else
+    {
+    Ignore-SSLCertificates
+    $result = Invoke-WebRequest -Uri $uri -Credential $credential -Method Get -UseBasicParsing -ErrorVariable RespErr -Headers @{"Accept"="application/json"}
+    }
+    }
+    catch
+    {
+    $RespErr
+    return
+    }
+}
+
+if ($result.StatusCode -eq 200)
+{
+}
+else
+{
+    [String]::Format("- FAIL, statuscode {0} returned",$result.StatusCode)
+    return
+}
+$get_content = $result.Content | ConvertFrom-Json
+if ($get_content.Model.Contains("12G") -or $get_content.Model.Contains("13G"))
+{
+$global:iDRAC_version = "old"
+}
+else
+{
+$global:iDRAC_version = "new"
 }
 }
 
@@ -420,59 +487,13 @@ setup_idrac_creds
 
 # Code to check for supported iDRAC version installed
 
-$uri = "https://$idrac_ip/redfish/v1/Managers/iDRAC.Embedded.1/Oem/Dell/DellAttributes/iDRAC.Embedded.1"
-   if ($x_auth_token)
+get_iDRAC_version
+
+if ($global:iDRAC_version -eq "old")
 {
- try
-    {
-    if ($global:get_powershell_version -gt 5)
-    {
-    $result = Invoke-WebRequest -SkipCertificateCheck -SkipHeaderValidation -Uri $uri -Method Get -UseBasicParsing -ErrorVariable RespErr -Headers @{"Accept" = "application/json"; "X-Auth-Token" = $x_auth_token}
-    }
-    else
-    {
-    Ignore-SSLCertificates
-    $result = Invoke-WebRequest -Uri $uri -Method Get -UseBasicParsing -ErrorVariable RespErr -Headers @{"Accept"="application/json"; "X-Auth-Token" = $x_auth_token}
-    }
-    }
-    catch
-    {
-    $RespErr
-    return
-    }
+Write-Host "`n- WARNING, iDRAC version detected does not support this cmdlet to set individual iDRAC, System or LC attributes. To set individual attributes use Server Configuration Profile (SCP) feature (example: cmdlets Set-ExportServerConfigurationProfileLocalREDFISH and Set-ImportServerConfigurationProfileLocalFilenameREDFISH."
+exit
 }
-
-else
-{
-    try
-    {
-    if ($global:get_powershell_version -gt 5)
-    {
-    $result = Invoke-WebRequest -SkipCertificateCheck -SkipHeaderValidation -Uri $uri -Credential $credential -Method Get -UseBasicParsing -ErrorVariable RespErr -Headers @{"Accept"="application/json"}
-    }
-    else
-    {
-    Ignore-SSLCertificates
-    $result = Invoke-WebRequest -Uri $uri -Credential $credential -Method Get -UseBasicParsing -ErrorVariable RespErr -Headers @{"Accept"="application/json"}
-    }
-    }
-    catch
-    {
-    $RespErr
-    return
-    }
-}
-	    if ($result.StatusCode -eq 200 -or $result.StatusCode -eq 202)
-	    {
-	    }
-	    else
-	    {
-        Write-Host "`n- WARNING, iDRAC version detected does not support this feature using Redfish API"
-        $result
-	    return
-	    }
-
-
 
 if ($attribute_group.ToLower() -eq "idrac")
 {
@@ -502,10 +523,7 @@ Write-Host "- FAIL, either invalid parameter value passed in or missing required
 return
 }
 
-
 }
-
-
 
 
 
