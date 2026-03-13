@@ -491,7 +491,7 @@ get_iDRAC_version
 
 if ($global:iDRAC_version -eq "old")
 {
-Write-Host "`n- WARNING, iDRAC version detected does not support this cmdlet to set individual iDRAC, System or LC attributes. To set individual attributes use Server Configuration Profile (SCP) feature (example: cmdlets Set-ExportServerConfigurationProfileLocalREDFISH and Set-ImportServerConfigurationProfileLocalFilenameREDFISH."
+Write-Host "`n- WARNING, iDRAC version detected does not support this cmdlet to get/set individual iDRAC, System or LC attributes. To get/set individual attributes use Server Configuration Profile (SCP) feature (example: cmdlets Set-ExportServerConfigurationProfileLocalREDFISH and Set-ImportServerConfigurationProfileLocalFilenameREDFISH."
 exit
 }
 
@@ -524,6 +524,7 @@ return
 }
 
 }
+
 
 
 
