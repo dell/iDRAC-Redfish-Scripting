@@ -1,7 +1,7 @@
 #!/usr/bin/python3
 #
 # _author_ = Texas Roemer <Texas_Roemer@Dell.com>
-# _version_ = 5.0
+# _version_ = 6.0
 #
 # Copyright (c) 2019, Dell, Inc.
 #
@@ -152,7 +152,30 @@ def check_concrete_job_status():
         else:
             response = requests.get('https://%s%s' % (idrac_ip, concrete_job_uri), verify=verify_cert,auth=(idrac_username, idrac_password))
         current_time = str((datetime.now()-start_time))[0:7]
-        if response.status_code == 200 or response.status_code == 202:
+        if response.status_code == 204 or response.status_code == 404:
+            if args["x"]:
+                response = requests.get('https://%s/redfish/v1/JobService/Jobs/%s' % (idrac_ip, concrete_job_uri.split("/")[-1]), verify=verify_cert, headers={'X-Auth-Token': args["x"]})   
+            else:
+                response = requests.get('https://%s/redfish/v1/JobService/Jobs/%s' % (idrac_ip, concrete_job_uri.split("/")[-1]), verify=verify_cert,auth=(idrac_username, idrac_password))
+            if response.status_code == 200:
+                logging.debug("- PASS, GET command passed to get task details")
+            else:
+                logging.error("\n- FAIL, command failed to get final job status, return code %s" % response.status_code)
+                logging.error("Extended Info Message: {0}".format(response.json()))
+                sys.exit(0)
+            data = response.json()
+            if data["Oem"]["Dell"]["OemJobState"] == "Completed":
+                logging.info("\n- PASS, task successfully marked completed")
+                logging.info("\n- Final detailed task results -\n")
+                for i in data.items():
+                    pprint(i)
+                logging.info("\n- INFO, task completion time: %s" % (current_time))
+                break
+            else:
+                logging.info("- WARNING, final job status not marked completed, current job details:\n%s" % pprint(data))
+                sys.exit(0)
+                
+        elif response.status_code == 200 or response.status_code == 202:
             logging.debug("- PASS, GET command passed to get task details")
         else:
             logging.error("\n- FAIL, command failed to check job status, return code %s" % response.status_code)
@@ -183,7 +206,7 @@ def check_concrete_job_status():
             sys.exit(0)
         else:
             logging.info("- INFO, task not completed, current status: \"%s\", job execution time: \"%s\"" % (data['TaskState'], current_time))
-            time.sleep(10)    
+            time.sleep(5)    
     
 def check_attach_status(x):
     url = 'https://%s/redfish/v1/Systems/System.Embedded.1/Oem/Dell/DellOSDeploymentService/Actions/DellOSDeploymentService.GetAttachStatus' % (idrac_ip)
