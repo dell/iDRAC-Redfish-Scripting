@@ -1,7 +1,7 @@
 ﻿
 <#
 _author_ = Texas Roemer <Texas_Roemer@Dell.com>
-_version_ = 10.0
+_version_ = 11.0
 
 Copyright (c) 2018, Dell, Inc.
 
@@ -23,7 +23,7 @@ http://www.gnu.org/licenses/old-licenses/gpl-2.0.txt
    - idrac_password (iDRAC user name password)
    - x_auth_token: Pass in iDRAC X-Auth token session to execute cmdlet instead of username / password (recommended)
    - FileName (Pass in the filename of the SCP configuration file) REQUIRED
-   - Target (Supported values: ALL, RAID, BIOS, iDRAC, NIC, FC, LifecycleController, System, EventFilters. Pass in the related component name for the attributes you are trying to set. Or just pass in ALL to handle any type of attributes you are trying to configure) REQUIRED
+   - Target (Supported values: ALL, RAID, BIOS, iDRAC, NIC, FC, LifecycleController, System, EventFilters. Note if passing in multiple values use a comma separator and surround the complete value with double quotes REQUIRED
    - ShutdownType (Supported Values: Graceful, Forced, NoReboot. If this parameter is not passed in, default value is Graceful) OPTIONAL
    - HostPowerState (Supported Values: On, Off. If this parameter is not passed in, default value is On) OPTIONAL
    
@@ -69,11 +69,18 @@ $SCP_file = Get-Content $FileName
 }
 else
 {
-Write-Host "`n- WARNING, Filename $Filename does not exist"
+Write-Host "`n- WARNING, filename $Filename does not exist"
 return
 }
 
-$share_info = @{"ImportBuffer"=[string]$SCP_file;"ShareParameters"=@{"Target"=@($Target)}}
+if ($Target.Contains(","))
+    {
+    $share_info = @{"ImportBuffer"=[string]$SCP_file;"ShareParameters"=@{"Target"=$Target.Split(",")}}
+    }
+    else
+    {
+    $share_info = @{"ImportBuffer"=[string]$SCP_file;"ShareParameters"=@{"Target"=@($Target)}}
+    }
 
 if ($ShutdownType)
 {
