@@ -47,7 +47,7 @@ parser.add_argument('--username', help='Pass in the network share username if yo
 parser.add_argument('--password', help='Pass in the network share username password if your share is setup for auth', required=False)
 parser.add_argument('--workgroup', help='Pass in the workgroup of your CIFS network share. This argument is optional', required=False)
 parser.add_argument('--export-use', help='Pass in ExportUse value. Supported values are Default, Clone and Replace. If you don\'t use this parameter, default setting is Default or Normal export.', dest="export_use", required=False)
-parser.add_argument('--include', help='Pass in IncludeInExport value. Supported values are 0 for \"Default\", 1 for \"IncludeReadOnly\", 2 for \"IncludePasswordHashValues\" or 3 for \"IncludeReadOnly,IncludePasswordHashValues\". If you don\'t use this parameter, default setting is Default for IncludeInExport.', required=False)
+parser.add_argument('--include', help='Pass in IncludeInExport value. Supported values are 0 for \"Default\", 1 for \"IncludeReadOnly\", 2 for \"IncludePasswordHashValues\" or 3 for \"IncludeCustomTelemetry\". If you don\'t use this parameter, default setting is Default for IncludeInExport.', required=False)
 parser.add_argument('--filename', help='Pass in unique filename for the SCP file which will get created on the network share', required=False)
 parser.add_argument('--format-type', help='Pass in the format type for SCP file generated. Supported values are XML and JSON', dest="format_type", required=False)
 parser.add_argument('--ignorecertwarning', help='Supported values are Enabled and Disabled. This argument is only required if using HTTPS for share type', required=False)
@@ -130,7 +130,7 @@ def export_server_configuration_profile():
         if args["include"] == "2":
             payload["IncludeInExport"] = ["IncludePasswordHashValues"]
         if args["include"] == "3":
-            payload["IncludeInExport"] = ["IncludeReadOnly,IncludePasswordHashValues"]
+            payload["IncludeInExport"] = ["IncludeCustomTelemetry"]
     if args["shareip"]:
         payload["ShareParameters"]["IPAddress"] = args["shareip"]
     if args["sharetype"]:

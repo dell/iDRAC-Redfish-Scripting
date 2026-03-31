@@ -3,7 +3,7 @@
 # ExportServerConfigurationLocalREDFISH. Python script using Redfish API with OEM extension to export the system configuration locally. By default, POST command print all attributes to the screen. This script will also capture these attributes into a file.
 #
 # _author_ = Texas Roemer <Texas_Roemer@Dell.com>
-# _version_ = 12.0
+# _version_ = 13.0
 #
 # Copyright (c) 2017, Dell, Inc.
 #
@@ -43,7 +43,7 @@ parser.add_argument('--script-examples', action="store_true", help='Prints scrip
 parser.add_argument('--get-target-values', help='Get supported values for --target argument', action="store_true", dest="get_target_values", required=False)
 parser.add_argument('--target', help='Pass in Target value to get component attributes. You can pass in \"ALL" to get all component attributes or pass in specific component(s) to get only those attributes. If you pass in multiple values use a comma separator. To get all supported values, use argument --get-target-values', required=False)
 parser.add_argument('--export-use', help='Pass in ExportUse value. Supported values are Default, Clone and Replace. If you don\'t use this parameter, default setting is Default or Normal export.', dest="export_use", required=False)
-parser.add_argument('--include', help='Pass in IncludeInExport value. Supported values are 1 for \"Default\", 2 for \"IncludeReadOnly\", 3 for \"IncludePasswordHashValues\" 4 for \"IncludeReadOnly,IncludePasswordHashValues\" or 5 for \"IncludeCustomTelemetry\". If you don\'t use this parameter, default setting is Default for IncludeInExport.', required=False)
+parser.add_argument('--include', help='Pass in IncludeInExport value. Supported values are 1 for \"Default\", 2 for \"IncludeReadOnly\", 3 for \"IncludePasswordHashValues\" or 5 for \"IncludeCustomTelemetry\". If you don\'t use this parameter, default setting is Default for IncludeInExport.', required=False)
 parser.add_argument('--format-type', help='Pass in Export format type, either \"XML\" or \"JSON\". Note, If you don\'t pass in this argument, default setting is XML', dest="format_type", required=False)
 parser.add_argument('--directory-path', help='Pass in directory path where you want the SCP file saved to. If you don\'t pass in this argument, SCP file will be saved to the directory you are executing the script from.', dest="directory_path", required=False)
 
@@ -125,8 +125,6 @@ def export_scp_file_locally():
             payload["IncludeInExport"] = ["IncludeReadOnly"]
         if args["include"] == "3":
             payload["IncludeInExport"] = ["IncludePasswordHashValues"]
-        if args["include"] == "4":
-            payload["IncludeInExport"] = ["IncludeReadOnly,IncludePasswordHashValues"]
         if args["include"] == "5":
             payload["IncludeInExport"] = ["IncludeCustomTelemetry"]
     if args["x"]:
@@ -148,7 +146,6 @@ def export_scp_file_locally():
         logging.error("- FAIL, unable to find job ID in headers POST response, headers output is:\n%s" % response.headers)
         sys.exit(0)
     logging.info("\n- Job ID \"%s\" successfully created for ExportSystemConfiguration method\n" % job_id)
-    time.sleep(5)
     start_time = datetime.now()
     while True:
         current_time = (datetime.now()-start_time)
@@ -301,4 +298,3 @@ if __name__ == "__main__":
         export_scp_file_locally()
     else:
         logging.error("\n- FAIL, invalid argument values or not all required parameters passed in. See help text or argument --script-examples for more details.")
-
