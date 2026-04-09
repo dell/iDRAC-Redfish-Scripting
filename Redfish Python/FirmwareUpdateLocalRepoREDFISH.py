@@ -1,7 +1,7 @@
 #!/usr/bin/python3
 #
 # _author_ = Texas Roemer <administrator@Dell.com>
-# _version_ = 10.0
+# _version_ = 11.0
 #
 # Copyright (c) 2023, Dell, Inc.
 #
@@ -743,27 +743,12 @@ def check_idrac_connection():
                 break
 
 def get_idrac_time():
-    url = 'https://%s/redfish/v1/Managers/iDRAC.Embedded.1/Oem/Dell/DellTimeService/Actions/DellTimeService.ManageTime' % (idrac_ip)
-    payload = {"GetRequest":True}
     if args["x"]:
-        headers = {'content-type': 'application/json', 'X-Auth-Token': args["x"]}
-        response = requests.post(url, data=json.dumps(payload), headers=headers, verify=verify_cert)
+        response = requests.get('https://%s/redfish/v1/Managers/iDRAC.Embedded.1?$select=DateTime' % idrac_ip, verify=verify_cert, headers={'X-Auth-Token': args["x"]})   
     else:
-        headers = {'content-type': 'application/json'}
-        response = requests.post(url, data=json.dumps(payload), headers=headers, verify=verify_cert,auth=(idrac_username,idrac_password))
-    try:
-        data = response.json()
-    except:
-        logging.warning("- WARNING, unable to get current iDRAC time which is needed to get LC log update entries, script will now exit")
-        sys.exit(0)
-    if response.status_code == 200:
-        logging.debug("\n- PASS: POST command passed to get iDRAC time, status code 200 returned\n")
-    else:
-        logging.error("\n- FAIL, POST command failed for %s action, status code %s returned" % response.status_code)
-        logging.error("\n- POST command failure results:\n %s" % data)
-        sys.exit(0)
-    return data["TimeData"]
-
+        response = requests.get('https://%s/redfish/v1/Managers/iDRAC.Embedded.1?$select=DateTime' % idrac_ip, verify=verify_cert,auth=(idrac_username, idrac_password))
+    data = response.json()
+    return data["DateTime"]
 
 def get_lc_log_entries(start_date_timestamp, end_date_timestamp):
     update_entries = []
@@ -989,7 +974,7 @@ if __name__ == "__main__":
                 logging.error("\n- WARNING, either directory path empty, contains no valid update images or all detected updates are complete")
                 sys.exit(0)
         if args["block_same_version"]:
-            logging.info("\n- INFO, argument --block-same-version detected to check update package version against installed version. This process may take a few seconds to complete depending on number of update packages\n")
+            logging.info("\n- INFO, argument --block-same-version detected to check update package version against installed version. This process may take a few minutes to complete depending on number of update packages\n")
             for ii in directory_dups:
                 DUP_version = check_same_version(ii)
                 get_FW_inventory_same_version_check(DUP_version, ii)
@@ -1059,4 +1044,3 @@ if __name__ == "__main__":
         get_lc_log_entries(start_time, end_time)
     else:
         logging.error("\n- FAIL, invalid argument values or not all required parameters passed in. See help text or argument --script-examples for more details.")
-
