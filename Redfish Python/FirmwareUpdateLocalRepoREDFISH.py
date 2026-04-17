@@ -1,7 +1,7 @@
 #!/usr/bin/python3
 #
 # _author_ = Texas Roemer <administrator@Dell.com>
-# _version_ = 11.0
+# _version_ = 12.0
 #
 # Copyright (c) 2023, Dell, Inc.
 #
@@ -103,11 +103,13 @@ def download_image_create_update_job(firmware_image_device):
     global cpld_update_flag
     global job_id_created
     check_valid_dup = firmware_image_device.split("\\")[-1]
-    if not check_valid_dup.lower().endswith("exe"):
+    if check_valid_dup.lower().endswith("exe") or check_valid_dup.lower().endswith("d9") or check_valid_dup.lower().endswith("d10"):
+        logging.debug("- PASS, supported image file detected to update device")
+    else:
         logging.warning("- WARNING, invalid file detected '%s', update will not run" % check_valid_dup)
         job_id_created = "no"
         return
-    if "idrac" in firmware_image_device.lower():
+    if "idrac" in firmware_image_device.lower() or "d9" in firmware_image_device.lower() or "d10" in firmware_image_device.lower():
         logging.info("- INFO, iDRAC firmware package detected, this update will get applied at the end due to iDRAC reboot")
         idrac_update_flag = True
         idrac_dup_package = firmware_image_device
@@ -297,7 +299,9 @@ def idrac_cpld_update(firmware_image_device):
          'UpdateFile': (os.path.basename(firmware_image_device), open(firmware_image_device, 'rb'), 'application/octet-stream')
     }
     check_valid_dup = firmware_image_device.split("\\")[-1]
-    if not check_valid_dup.lower().endswith("exe"):
+    if check_valid_dup.lower().endswith("exe") or check_valid_dup.lower().endswith("d10") or check_valid_dup.lower().endswith("d9"):
+        logging.debug("- PASS, valid image detectec to update the device")
+    else:
         logging.warning("- WARNING, invalid file detected '%s', update will not run" % check_valid_dup)
         job_id_created = "no"
         return
@@ -326,10 +330,6 @@ def idrac_cpld_update(firmware_image_device):
     job_id_created = "yes"
 
 def check_job_status(download_job_id):
-    global pldm_reboot_flag
-    global pldm_vac_flag
-    pldm_reboot_flag = "no"
-    pldm_vac_flag = "no"
     retry_count = 1
     start_time = datetime.now()
     schedule_job_status_count = 1
@@ -934,6 +934,8 @@ if __name__ == "__main__":
         if not os.path.isdir(args["location"]):
             logging.error("\n- WARNING, value detected for argument --location is not a directory")
             sys.exit(0)
+        pldm_reboot_flag = "no"
+        pldm_vac_flag = "no"
         reboot_flag = False
         ac_flag = False
         idrac_update_flag = False
@@ -963,7 +965,9 @@ if __name__ == "__main__":
                 download_image_create_update_job_no_DUP_image(i, ii)
                 check_job_status(job_id)
         for i in directory_dups:
-            if not i.lower().endswith("exe"):
+            if i.lower().endswith("exe") or i.lower().endswith("d10") or i.lower().endswith("d9"):
+                logging.debug("- PASS, valid image detected in local directory")
+            else:
                 directory_dups.remove(i)
         if directory_dups == []:
             if pldm_reboot_flag == "yes":
