@@ -3,7 +3,7 @@
 # SupportAssistCollectionNetworkShareREDFISH. Python script using Redfish API with OEM extension to export Support Assist collection to a network share
 #
 # _author_ = Texas Roemer <Texas_Roemer@Dell.com>
-# _version_ = 12.0
+# _version_ = 13.0
 #
 # Copyright (c) 2020, Dell, Inc.
 #
@@ -62,7 +62,7 @@ parser.add_argument('--shareport', help='Pass in custom port configured for HTTP
 parser.add_argument('--sharename', help='Pass in the network share share name', required=False)
 parser.add_argument('--username', help='Pass in network share username if auth is configured (this is required for CIFS, optional for HTTP and HTTPS)', required=False)
 parser.add_argument('--password', help='Pass in network share username password if auth is configured (this is required for CIFS, optional for HTTP and HTTPS)', required=False)
-parser.add_argument('--data', help='Pass in a value for the type of data you want to collect. Supported values are: pass in 0 for \"DebugLogs\", pass in 1 for "HWData\", pass in 2 for \"OSAppData\", pass in 3 for \"TTYLogs\", pass in 4 for \"TelemetryReports\". Note: If you do not pass in this argument, default settings will collect HWData. Note: You can pass in one value or multiple values to collect. If you pass in multiple values, use comma separator for the values (Example: 0,3)', required=False)
+parser.add_argument('--data', help='Pass in a value for the type of data you want to collect. Supported values are: pass in 0 for \"DebugLogs\", pass in 1 for "HWData\", pass in 2 for \"OSAppData\", pass in 3 for \"TTYLogs\", pass in 4 for \"TelemetryReports\", pass in 5 for \"GPULogs\". Note: If you do not pass in this argument, default settings will collect HWData. Note: You can pass in one value or multiple values to collect. If you pass in multiple values, use comma separator for the values (Example: 0,3)', required=False)
 parser.add_argument('--filter', help='Filter personal identification information (PII) for Support Assist collection. Supported values are: 0 for \"No\" and 1 for \"Yes\". NOTE: If you don\'t pass in this argument, no filtering is performed for the collection.', required=False)
 args = vars(parser.parse_args())
 logging.basicConfig(format='%(message)s', stream=sys.stdout, level=logging.INFO)
@@ -227,6 +227,8 @@ def export_support_assist_colection_network_share():
                 data_selector_values.append("TTYLogs")
             if "4" in data_selector:
                 data_selector_values.append("TelemetryReports")
+            if "5" in data_selector:
+                data_selector_values.append("GPULogs")
             payload["DataSelectorArrayIn"] = data_selector_values
         else:
             if args["data"] == "0":
@@ -239,6 +241,8 @@ def export_support_assist_colection_network_share():
                 data_selector_values.append("TTYLogs")
             if args["data"] == "4":
                 data_selector_values.append("TelemetryReports")
+            if args["data"] == "5":
+                data_selector_values.append("GPULogs")
             payload["DataSelectorArrayIn"] = data_selector_values
     if args["x"]:
         headers = {'content-type': 'application/json', 'X-Auth-Token': args["x"]}
