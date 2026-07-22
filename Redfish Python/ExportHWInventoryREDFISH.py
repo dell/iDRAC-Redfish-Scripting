@@ -5,7 +5,7 @@
 #
 # _author_ = Texas Roemer <Texas_Roemer@Dell.com>
 # _author_ = Grant Curell <grant_curell@dell.com>
-# _version_ = 16.0
+# _version_ = 17.0
 #
 # Copyright (c) 2022, Dell, Inc.
 #
@@ -87,7 +87,6 @@ def export_hw_inventory():
     if args["sharetype"]:
         if args["sharetype"] == "local" or args["sharetype"] == "Local":
             payload["ShareType"] = args["sharetype"].title()
-            logging.info("\n- INFO, collecting data for exporting server hardware inventory, this may take 15-30 seconds to complete")
         else:
             payload["ShareType"] = args["sharetype"].upper()
     if args["sharename"]:
@@ -110,8 +109,8 @@ def export_hw_inventory():
     else:
         headers = {'content-type': 'application/json'}
         response = requests.post(url, data=json.dumps(payload), headers=headers, verify=verify_cert,auth=(idrac_username,idrac_password))
-    if response.status_code == 202:
-        logging.info("\n- PASS: POST command passed for %s method, status code 202 returned" % method)
+    if response.status_code == 201 or response.status_code == 202:
+        logging.info("\n- PASS: POST command passed for %s method, status code %s returned" % (method, response.status_code))
     else:
         logging.error("\n- FAIL, POST command failed for %s method, status code is %s" % (method, response.status_code))
         data = response.json()
@@ -119,22 +118,23 @@ def export_hw_inventory():
         logging.error(data)
         sys.exit(0)
     if args["sharetype"].lower() == "local":
-        if response.headers['Location'] == "/redfish/v1/Dell/hwinv.xml":
-            if args["x"]:
-                response = requests.get('https://%s%s' % (idrac_ip, response.headers['Location']), verify=verify_cert, headers={'X-Auth-Token': args["x"]})
-            else:
-                response = requests.get('https://%s%s' % (idrac_ip, response.headers['Location']), verify=verify_cert,auth=(idrac_username, idrac_password))
-            if args["filename"]:
-                export_filename = args["filename"]
-            else:
-                export_filename = "hwinv.xml"
-            with open(export_filename, "wb") as output:
-                output.write(response.content)
-            logging.info("\n- INFO, check your local directory for hardware inventory XML file \"%s\"" % export_filename)
+        try:
+            uri_download_hw_inventory = response.headers['Location']
+        except:
+            logging.error("- ERROR, unable to locate exported hardware inventory URI in headers location output, retry POST request")
             sys.exit(0)
+        if args["x"]:
+            response = requests.get('https://%s%s' % (idrac_ip, uri_download_hw_inventory), verify=verify_cert, headers={'X-Auth-Token': args["x"]})
         else:
-            logging.error("- ERROR, unable to locate exported hardware inventory URI in headers output. Manually run GET on URI %s to see if file can be exported." % response.headers['Location'])
-            sys.exit(0)
+            response = requests.get('https://%s%s' % (idrac_ip, uri_download_hw_inventory), verify=verify_cert,auth=(idrac_username, idrac_password))
+        if args["filename"]:
+            export_filename = args["filename"]
+        else:
+            export_filename = "hwinv.xml"
+        with open(export_filename, "wb") as output:
+            output.write(response.content)
+        logging.info("\n- INFO, check your local directory for hardware inventory XML file \"%s\"" % export_filename)
+        sys.exit(0)
     else:
         try:
             job_id = response.headers['Location'].split("/")[-1]
@@ -164,11 +164,11 @@ def loop_job_status():
         if str(current_time)[0:7] >= "0:05:00":
             logging.error("\n- FAIL: Timeout of 5 minutes has been hit, script stopped\n")
             sys.exit(0)
-        elif "fail" in data['Message'].lower() or "unable" in data['Message'].lower() or data['JobState'] == "Failed":
+        elif "fail" in data['Message'].lower() or "unable" in data['Message'].lower():
             logging.error("- FAIL: job ID %s failed, failed message: %s" % (job_id, data['Message']))
             sys.exit(0)
         elif data['JobState'] == "Completed":
-            if data['Message'] == "Hardware Inventory Export was successful":
+            if "success" in data['Message'].lower():
                 logging.info("\n--- PASS, Final Detailed Job Status Results ---\n")
             else:
                 logging.error("\n--- FAIL, Final Detailed Job Status Results ---\n")
