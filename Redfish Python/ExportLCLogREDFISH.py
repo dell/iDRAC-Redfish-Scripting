@@ -1,7 +1,7 @@
 #!/usr/bin/python3
 #
 # _author_ = Texas Roemer <Texas_Roemer@Dell.com>
-# _version_ = 10.0
+# _version_ = 11.0
 #
 # Copyright (c) 2019, Dell, Inc.
 #
@@ -102,7 +102,7 @@ def export_lc_logs():
     else:
         headers = {'content-type': 'application/json'}
         response = requests.post(url, data=json.dumps(payload), headers=headers, verify=verify_cert,auth=(idrac_username,idrac_password))
-    if response.status_code == 202:
+    if response.status_code == 201 or response.status_code == 202:
         logging.info("\n- PASS: POST command passed for %s method, status code 202 returned" % method)
     else:
         logging.error("\n- FAIL, POST command failed for %s method, status code is %s" % (method, response.status_code))
@@ -111,22 +111,23 @@ def export_lc_logs():
         logging.error(data)
         sys.exit(0)
     if args["sharetype"].lower() == "local":
-        if response.headers['Location'] == "/redfish/v1/Dell/lclog.xml":
-            if args["x"]:
-                response = requests.get('https://%s%s' % (idrac_ip, response.headers['Location']), verify=verify_cert, headers={'X-Auth-Token': args["x"]})
-            else:
-                response = requests.get('https://%s%s' % (idrac_ip, response.headers['Location']), verify=verify_cert,auth=(idrac_username, idrac_password))
-            if args["filename"]:
-                export_filename = args["filename"]
-            else:
-                export_filename = "lclog.xml"
-            with open(export_filename, "wb") as output:
-                output.write(response.content)
-            logging.info("\n- INFO, check your local directory for LC log XML file \"%s\"" % export_filename)
+        try:
+            uri_download_hw_inventory = response.headers['Location']
+        except:
+            logging.error("- ERROR, unable to locate exported LC log URI in headers location output, retry POST request")
             sys.exit(0)
+        if args["x"]:
+            response = requests.get('https://%s%s' % (idrac_ip, uri_download_hw_inventory), verify=verify_cert, headers={'X-Auth-Token': args["x"]})
         else:
-            logging.error("- ERROR, unable to locate LC log URI in headers output. Manually run GET on URI %s to see if file can be exported." % response.headers['Location'])
-            sys.exit(0)
+            response = requests.get('https://%s%s' % (idrac_ip, uri_download_hw_inventory), verify=verify_cert,auth=(idrac_username, idrac_password))
+        if args["filename"]:
+            export_filename = args["filename"]
+        else:
+            export_filename = "lclog.xml"
+        with open(export_filename, "wb") as output:
+            output.write(response.content)
+        logging.info("\n- INFO, check your local directory for LC log XML file \"%s\"" % export_filename)
+        sys.exit(0)
     else:
         try:
             job_id = response.headers['Location'].split("/")[-1]
@@ -154,7 +155,10 @@ def loop_job_status():
             logging.error("\n- FAIL: Timeout of 5 minutes has been hit, script stopped\n")
             sys.exit(0)
         elif data['JobState'] == "Completed":
-            logging.info("\n--- Job completed, final detailed job results ---\n")
+            if "success" in data['Message'].lower():
+                logging.info("\n--- PASS, Final Detailed Job Status Results ---\n")
+            else:
+                logging.error("\n--- FAIL, Final Detailed Job Status Results ---\n")
             for i in data.items():
                 pprint(i)
             break
