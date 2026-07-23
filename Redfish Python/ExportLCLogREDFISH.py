@@ -147,14 +147,18 @@ def loop_job_status():
         if response.status_code == 200 or response.status_code == 202:
             logging.debug("- PASS, GET request passed to check job status")
         else:
-            logging.error("\n- FAIL, GET command failed to check job status, return code %s" % response.status_code)
+            logging.error("\n- FAIL, Command failed to check job status, return code is %s" % response.status_code)
             logging.error("Extended Info Message: {0}".format(response.json()))
             sys.exit(0)
         data = response.json()
+        message = (data.get("Message") or "").lower()
         if str(current_time)[0:7] >= "0:05:00":
             logging.error("\n- FAIL: Timeout of 5 minutes has been hit, script stopped\n")
             sys.exit(0)
-        elif data['JobState'] == "Completed":
+        elif "fail" in message or "unable" in message or "cannot" in message or data["JobState"] == "Failed":
+            logging.error("- FAIL: job ID %s failed, failed message: %s" % (job_id, data['Message']))
+            sys.exit(0)
+        elif data["JobState"] == "Completed" and data["MessageId"] == "LC022":
             if "success" in data['Message'].lower():
                 logging.info("\n--- PASS, Final Detailed Job Status Results ---\n")
             else:
@@ -162,11 +166,8 @@ def loop_job_status():
             for i in data.items():
                 pprint(i)
             break
-        elif "fail" in data['Message'].lower() or "unable" in data['Message'].lower() or data['JobState'] == "Failed":
-            logging.error("- FAIL: job ID %s failed, failure message: %s" % (job_id, data['Message']))
-            sys.exit(0)
         else:
-            logging.info("- INFO, job state not marked completed, current job status is running, polling again")
+            logging.info("- INFO, job not marked completed, current status is running, polling again")
             time.sleep(2)
 
 
