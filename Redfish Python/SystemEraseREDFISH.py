@@ -3,7 +3,7 @@
 # SystemEraseREDFISH. Python script using Redfish API with OEM extension to perform iDRAC System Erase feature.
 #
 # _author_ = Texas Roemer <Texas_Roemer@Dell.com>
-# _version_ = 7.0
+# _version_ = 8.0
 #
 # Copyright (c) 2020, Dell, Inc.
 #
@@ -20,8 +20,10 @@ import getpass
 import json
 import logging
 import os
+import platform
 import re
 import requests
+import subprocess
 import sys
 import time
 import warnings
@@ -96,6 +98,10 @@ def get_components():
             print("vFlash: \"Erase iDRAC vFlash card\"")
         elif i == "AllApps":
             print("AllApps: \"Delete DIAG/Driver Pack firmware images and SupportAssist related non-volatile storage\"")
+        elif i == "DPU":
+            print("DPU: \"Erase DPU devices detected in the server\"")
+        elif i == "ReinstallFW":
+            print("ReinstallFW: \"Reinstall all device firmware images stored within iDRAC\"")
         else:
             print(i)
 
@@ -147,9 +153,9 @@ def loop_job_status():
     while True:
         try:
             if args["x"]:
-                response = requests.get('https://%s/redfish/v1/Managers/iDRAC.Embedded.1/Jobs/%s' % (idrac_ip, job_id), verify=verify_cert, headers={'X-Auth-Token': args["x"]})
+                response = requests.get('https://%s/redfish/v1/Managers/iDRAC.Embedded.1/Oem/Dell/Jobs/%s' % (idrac_ip, job_id), verify=verify_cert, headers={'X-Auth-Token': args["x"]})
             else:
-                response = requests.get('https://%s/redfish/v1/Managers/iDRAC.Embedded.1/Jobs/%s' % (idrac_ip, job_id), verify=verify_cert,auth=(idrac_username, idrac_password))
+                response = requests.get('https://%s/redfish/v1/Managers/iDRAC.Embedded.1/Oem/Dell/Jobs/%s' % (idrac_ip, job_id), verify=verify_cert,auth=(idrac_username, idrac_password))
         except:
             if retry_count == 10:
                 logging.info("- INFO, retry count of 10 has been reached to communicate with iDRAC, script will exit")
@@ -163,7 +169,7 @@ def loop_job_status():
         if response.status_code == 200:
             current_job_status = data['Message']
         else:
-            logging.error("\n- FAIL, Command failed to check job status, return code is %s" % response.status_code)
+            logging.error("\n- FAIL, GET command failed to check job status, return code %s" % response.status_code)
             sys.exit(0)
         data = response.json()
         new_job_status_message = data['Message']
@@ -184,6 +190,7 @@ def loop_job_status():
                     sys.exit(0)
                 logging.info("- INFO, user selected to automatically power ON the server once iDRAC reboot is complete. Script will wait 6 minutes for iDRAC to come back up and attempt to power ON the server")
                 time.sleep(360)
+                check_idrac_connection()
                 count = 0
                 while True:
                     url = 'https://%s/redfish/v1/Systems/System.Embedded.1/Actions/ComputerSystem.Reset' % idrac_ip
@@ -207,10 +214,14 @@ def loop_job_status():
                             if args["x"]:
                                 logging.warning("- WARNING, X-auth token session was deleted due to iDRAC reboot, unable to power on server.")
                                 sys.exit(0)
-                            logging.info("- INFO, BIOS component selected. Server will power off one more time and automatically power back onto complete the process.")
-                            count = 0
+                            logging.info("- INFO, BIOS component selected. Server will power off one more time and power back on to complete reset to default process.")
+                            check_in_POST_count = 0
+                            POST_get_API_count = 0
                             while True:
-                                url = 'https://%s/redfish/v1/Dell/Managers/iDRAC.Embedded.1/DellLCService/Actions/DellLCService.GetRemoteServicesAPIStatus' % idrac_ip
+                                if POST_get_API_count == 10:
+                                    logging.info("- INFO, POST action DellLCService.GetRemoteServicesAPIStatus failed to pass, check iDRAC Lifecycle logs and server to debug issue")
+                                    sys.exit(0)    
+                                url = 'https://%s/redfish/v1/Managers/iDRAC.Embedded.1/Oem/Dell/DellLCService/Actions/DellLCService.GetRemoteServicesAPIStatus' % idrac_ip
                                 payload = {}
                                 headers = {'content-type': 'application/json'}
                                 if "IDRAC" in args["erase"]:
@@ -222,9 +233,11 @@ def loop_job_status():
                                 if response.status_code == 204 or response.status_code == 202 or response.status_code == 200:
                                     logging.info("- PASS, POST command passed to get server status")
                                 else:
-                                    logging.error("- FAIL, unable to get current server status, status code %s returned." % response.status_code)
+                                    logging.error("- FAIL, unable to get current server status, status code %s returned, retry in 30 seconds" % response.status_code)
                                     logging.error("- Detailed error message: %s" % data)
-                                    sys.exit(0)
+                                    POST_get_API_count += 1
+                                    time.sleep(30)
+                                    continue
                                 if data['ServerStatus'] == "PoweredOff":
                                     logging.info("- PASS, verified server is in OFF state, executing power ON operation")
                                     url = 'https://%s/redfish/v1/Systems/System.Embedded.1/Actions/ComputerSystem.Reset' % idrac_ip
@@ -242,13 +255,13 @@ def loop_job_status():
                                         logging.error("- FAIL, unable to power ON server, status code return is %s" %response.status_code)
                                         logging.error("- Detailed error message: %s" % data)
                                         sys.exit(0)
-                                elif count == 10:
-                                    logging.info("- INFO, server still in POST/ON state after 10 attempts checking power state. Check the iDRAC Lifecycle logs, server to debug issue")
+                                elif check_in_POST_count == 10:
+                                    logging.info("- INFO, server still in POST/ON state after 10 attempts checking power state. Check iDRAC Lifecycle logs, server to debug issue")
                                     sys.exit(0)
                                 else:
                                     logging.info("- INFO, server still in POST/ON state, waiting for server to power down before executing power ON operation")
                                     time.sleep(60)
-                                    count += 1
+                                    check_in_POST_count += 1
                         else:
                             return
                     else:
@@ -269,6 +282,50 @@ def loop_job_status():
                 logging.info("- INFO, job status not completed, current status: \"%s\"" % (data['Message']))
                 start_job_status_message = new_job_status_message
             continue
+
+def check_idrac_connection():
+    run_network_connection_function = ""
+    if platform.system().lower() == "windows":
+        ping_arg = "-n"
+    elif platform.system().lower() == "linux":
+        ping_arg = "-c"
+    else:
+        logging.error("- FAIL, unable to determine OS type, check iDRAC connection function will not execute")
+        run_network_connection_function = "fail"
+    execute_command = subprocess.call(['ping', '%s' % ping_arg, '3', '%s' % idrac_ip], stdout=subprocess.PIPE, stderr=subprocess.PIPE, universal_newlines=True)
+    if execute_command != 0:
+        ping_status = "lost"
+    else:
+        ping_status = "good"
+        logging.debug("- PASS, ping response successful")
+    if ping_status == "lost":
+            logging.info("- INFO, iDRAC network connection lost due to slow network response, waiting 30 seconds to access iDRAC again")
+            time.sleep(30)
+            while True:
+                if run_network_connection_function == "fail":
+                    break
+                execute_command = subprocess.call(['ping', '%s' % ping_arg, '3', '%s' % idrac_ip], stdout=subprocess.PIPE, stderr=subprocess.PIPE, universal_newlines=True)
+                if execute_command != 0:
+                    ping_status = "lost"
+                else:
+                    ping_status = "good"
+                if ping_status == "lost":
+                    logging.info("- INFO, unable to ping iDRAC IP, script will wait 30 seconds and try again")
+                    time.sleep(30)
+                    continue
+                else:
+                    break
+            while True:
+                try:
+                    if args["x"]:
+                        response = requests.get('https://%s/redfish/v1/TaskService/Tasks/%s' % (idrac_ip, job_id), verify=verify_cert, headers={'X-Auth-Token': args["x"]})
+                    else:
+                        response = requests.get('https://%s/redfish/v1/TaskService/Tasks/%s' % (idrac_ip, job_id), verify=verify_cert, auth=(idrac_username, idrac_password))
+                except requests.ConnectionError as error_message:
+                    logging.info("- INFO, GET request failed due to connection error, retry")
+                    time.sleep(10)
+                    continue
+                break
             
 if __name__ == "__main__":
     if args["script_examples"]:
