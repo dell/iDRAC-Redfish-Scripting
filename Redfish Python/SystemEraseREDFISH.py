@@ -3,7 +3,7 @@
 # SystemEraseREDFISH. Python script using Redfish API with OEM extension to perform iDRAC System Erase feature.
 #
 # _author_ = Texas Roemer <Texas_Roemer@Dell.com>
-# _version_ = 8.0
+# _version_ = 9.0
 #
 # Copyright (c) 2020, Dell, Inc.
 #
@@ -141,38 +141,95 @@ def system_erase():
 
 def loop_job_status():
     start_time = datetime.now()
-    count_number = 0
     if args["x"]:
         response = requests.get('https://%s/redfish/v1/Managers/iDRAC.Embedded.1/Oem/Dell/Jobs/%s' % (idrac_ip, job_id), verify=verify_cert, headers={'X-Auth-Token': args["x"]})
     else:
         response = requests.get('https://%s/redfish/v1/Managers/iDRAC.Embedded.1/Oem/Dell/Jobs/%s' % (idrac_ip, job_id), verify=verify_cert,auth=(idrac_username, idrac_password))
     data = response.json()
-    logging.info("- INFO, JobStatus not completed, current status: \"%s\"" % (data['Message']))
-    start_job_status_message = data['Message']
-    retry_count = 1
+    logging.info("- INFO, job status not completed, current status: \"%s\"" % (data["Message"]))
+    start_job_status_message = data["Message"]
+    retry_count = 0
     while True:
+        if retry_count == 30:
+            logging.warning("- WARNING, GET command retry count of 30 has been reached, script will exit")
+            sys.exit(0)
+##        try:
+##            if args["x"]:
+##                response = requests.get('https://%s/redfish/v1/Managers/iDRAC.Embedded.1/Oem/Dell/Jobs/%s' % (idrac_ip, job_id), verify=verify_cert, headers={'X-Auth-Token': args["x"]})
+##            else:
+##                response = requests.get('https://%s/redfish/v1/Managers/iDRAC.Embedded.1/Oem/Dell/Jobs/%s' % (idrac_ip, job_id), verify=verify_cert,auth=(idrac_username, idrac_password))
+##        except:
+##            if retry_count == 10:
+##                logging.info("- INFO, retry count of 10 has been reached to communicate with iDRAC, script will exit")
+##                sys.exit(0)
+##            else:
+##                logging.info("- INFO, lost iDRAC network connection, retry GET request after 10 second sleep delay")
+##                retry_count += 1
+##                time.sleep(15)
+##                continue
+##        current_time = (datetime.now()-start_time)
+##        if response.status_code == 200:
+##            current_job_status = data['Message']
+##        else:
+##            logging.error("\n- FAIL, GET command failed to check job status, return code %s" % response.status_code)
+##            sys.exit(0)
+        current_time = (datetime.now()-start_time)
         try:
             if args["x"]:
                 response = requests.get('https://%s/redfish/v1/Managers/iDRAC.Embedded.1/Oem/Dell/Jobs/%s' % (idrac_ip, job_id), verify=verify_cert, headers={'X-Auth-Token': args["x"]})
             else:
-                response = requests.get('https://%s/redfish/v1/Managers/iDRAC.Embedded.1/Oem/Dell/Jobs/%s' % (idrac_ip, job_id), verify=verify_cert,auth=(idrac_username, idrac_password))
-        except:
-            if retry_count == 10:
-                logging.info("- INFO, retry count of 10 has been reached to communicate with iDRAC, script will exit")
-                sys.exit(0)
-            else:
-                logging.info("- INFO, lost iDRAC network connection, retry GET request after 10 second sleep delay")
-                retry_count += 1
-                time.sleep(15)
-                continue
-        current_time = (datetime.now()-start_time)
+                response = requests.get('https://%s/redfish/v1/Managers/iDRAC.Embedded.1/Oem/Dell/Jobs/%s' % (idrac_ip, job_id), verify=verify_cert, auth=(idrac_username, idrac_password))
+        except requests.exceptions.ConnectTimeout as json_error:
+            print("ConnectTimeout:", json_error)
+            time.sleep(180)
+            retry_count += 1
+            continue
+        except json.decoder.JSONDecodeError as json_error:
+            print("JSONDecodeError:", json_error)
+            time.sleep(180)
+            retry_count += 1
+            continue
+        except requests.exceptions.ConnectionError as error_message:
+            print("ConnectionError:", error_message)
+            time.sleep(30)
+            retry_count += 1
+            continue
+        except requests.exceptions.RequestException as req_error:
+            print("RequestException:", req_error)
+            time.sleep(180)
+            retry_count += 1
+            continue
         if response.status_code == 200:
-            current_job_status = data['Message']
-        else:
-            logging.error("\n- FAIL, GET command failed to check job status, return code %s" % response.status_code)
+            logging.debug("- PASS, GET command passedto check job status")            
+        elif response.status_code == 404:
+            logging.warning("- WARNING, status code 404 returned for resource not found, GET request will retry in 1 minute")
+            time.sleep(60)
+            retry_count +=1 
+            continue
+        elif response.status_code == 500:
+            logging.warning("- WARNING, status code 500 returned for internal server error, GET request will retry in 1 minute")
+            time.sleep(60)
+            retry_count +=1 
+            continue
+        elif response.status_code == 503:
+            logging.warning("- WARNING, status code 503 returned for service unavailable, GET request will retry in 1 minute")
+            time.sleep(60)
+            retry_count +=1 
+            continue
+        elif response.status_code == 401:
+            logging.warning("\n- WARNING, status code 401 detected for authentication credential failure. If iDRAC component erased, default password has now been set, script will exit")
             sys.exit(0)
-        data = response.json()
-        new_job_status_message = data['Message']
+        else:
+            logging.error("\n- ERROR, GET request failed to get job ID details, status code %s returned, error: \n%s" % (response.status_code, data))
+            sys.exit(0)
+        try:
+            data = response.json()
+        except:
+            logging.warning("- WARNING, unable to get JSON data from GET request, script will retry in 1 minute")
+            time.sleep(60)
+            retry_count +=1 
+            continue  
+        new_job_status_message = data["Message"]
         if str(current_time)[0:7] >= "2:00:00":
             logging.error("\n- FAIL: Timeout of 2 hours has been hit, script stopped\n")
             sys.exit(0)
@@ -188,8 +245,8 @@ def loop_job_status():
                 if args["x"]:
                     logging.warning("- WARNING, X-auth token session was deleted due to iDRAC reboot, unable to power on server.")
                     sys.exit(0)
-                logging.info("- INFO, user selected to automatically power ON the server once iDRAC reboot is complete. Script will wait 6 minutes for iDRAC to come back up and attempt to power ON the server")
-                time.sleep(360)
+                logging.info("- INFO, user selected to auto power on the server once iDRAC reboot is complete. Script will wait 5 minutes, then confirm iDRAC is back up and in ready state before invoking power on operation.")
+                time.sleep(300)
                 check_idrac_connection()
                 count = 0
                 while True:
@@ -279,7 +336,7 @@ def loop_job_status():
                     return
         else:
             if start_job_status_message != new_job_status_message:
-                logging.info("- INFO, job status not completed, current status: \"%s\"" % (data['Message']))
+                logging.info("- INFO, job not completed, current status: \"%s\"" % (data['Message']))
                 start_job_status_message = new_job_status_message
             continue
 
