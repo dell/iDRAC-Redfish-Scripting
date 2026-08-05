@@ -2,10 +2,6 @@
 #
 # SetIdracPasswordStrengthPolicyREDFISH. Python script using Redfish API with Dell OEM extension to get or set the iDRAC password strength policy minimum score.
 #
-# _author_ = Texas Roemer <Texas_Roemer@Dell.com>
-# _version_ = 1.0
-#
-# Copyright (c) 2017, Dell, Inc.
 #
 # This software is licensed to you under the GNU General Public License,
 # version 2 (GPLv2). There is NO WARRANTY for this software, express or
