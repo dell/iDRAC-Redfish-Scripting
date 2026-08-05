@@ -2,10 +2,6 @@
 #
 # ChangeIdracUserPasswordREDFISH. Python script using Redfish API with OEM extension to change iDRAC username password. Once the password is changed, the script will also execute a GET command to verify the password change was successful.
 #
-# _author_ = Texas Roemer <Texas_Roemer@Dell.com>
-# _version_ = 12.0
-#
-# Copyright (c) 2017, Dell, Inc.
 #
 # This software is licensed to you under the GNU General Public License,
 # version 2 (GPLv2). There is NO WARRANTY for this software, express or
