@@ -4,7 +4,7 @@
 #
 #
 # _author_ = Texas Roemer <Texas_Roemer@Dell.com>
-# _version_ = 3.0
+# _version_ = 4.0
 #
 # Copyright (c) 2022, Dell, Inc.
 #
@@ -34,8 +34,8 @@ parser.add_argument('-p', help='Pass in iDRAC password. If not passed in, script
 parser.add_argument('--ssl', help='Verify SSL certificate for all Redfish calls, pass in \"true\". This argument is optional, if you do not pass in this argument, all Redfish calls will ignore SSL cert checks.', required=False)
 parser.add_argument('-x', help='Pass in iDRAC X-auth token session ID to execute all Redfish calls instead of passing in username/password', required=False)
 parser.add_argument('--script-examples', help='Get executing script examples', action="store_true", dest="script_examples", required=False)
-parser.add_argument('--ac-cycle', help='Virtual a/c power cycle the server using DMTF method. Note: This method will not completely drain flea power', action="store_true", dest="ac_cycle", required=False)
-parser.add_argument('--oem-ac-cycle', help='Virtual a/c cycle the server using OEM method. Note: This method will completely drain flee power which is equivalent to the action of disconnecting power cables. Note: Server must be powered off first before running this OEM action.', action="store_true", dest="oem_ac_cycle", required=False)
+parser.add_argument('--ac-cycle', help='Virtual a/c power cycle the server using DMTF method.', action="store_true", dest="ac_cycle", required=False)
+parser.add_argument('--oem-ac-cycle', help='Virtual a/c cycle the server using OEM method. Note, server must be powered off first before running this OEM action. Note, this OEM action is only supported on iDRAC9. Note, if you have a recent version of iDRAC9 recommended to use DMTF method instead of OEM action.', action="store_true", dest="oem_ac_cycle", required=False)
 parser.add_argument('--final-power-state', help='Final server power state after performing virtual OEM AC cycle. Supported values: On and Off. Note this argument is not supported for DMTF method.', dest="final_power_state", required=False)
 parser.add_argument('--power-off', help='Power off server first before running virtual AC cycle. Server in OFF state first is required if running OEM virtual AC cycle.', action="store_true", dest="power_off", required=False)
 
@@ -94,7 +94,7 @@ def ac_power_cycle():
     if args["power_off"]:
         power_off_server()    
     url = 'https://%s/redfish/v1/Chassis/System.Embedded.1/Actions/Chassis.Reset' % idrac_ip
-    payload = {"ResetType": "PowerCycle"}
+    payload = {"ResetType": "FullPowerCycle"}
     if args["x"]:
         headers = {'content-type': 'application/json', 'X-Auth-Token': args["x"]}
         response = requests.post(url, data=json.dumps(payload), headers=headers, verify=verify_cert)
